@@ -10,7 +10,6 @@ import {
   formatUSDC,
   isConfigured,
   publicClient,
-  registryAbi,
   routerAbi,
   shortAddress,
   type ReceiptLog,
@@ -136,19 +135,6 @@ function App() {
     });
   }
 
-  async function registerConnectedSource() {
-    await writeTx("register source", (wallet, user) =>
-      wallet.writeContract({
-        account: user,
-        address: addresses.registry!,
-        abi: registryAbi,
-        functionName: "registerSource",
-        args: [user, "GuestAgent", "ipfs://shadow/guest-agent", 5_800, "0x8004A818BFB912233c491871b3d84c89A494BD9e", 99n],
-        chain: arcTestnet,
-      }),
-    );
-  }
-
   async function writeTx(label: string, fn: (wallet: ReturnType<typeof createWalletClient>, user: Address) => Promise<`0x${string}`>) {
     if (!isConfigured || !addresses.router || !window.ethereum) {
       setAction({ label, error: "Configure addresses and connect a wallet first." });
@@ -221,7 +207,6 @@ function App() {
           <button onClick={depositFiveUSDC}>approve and deposit 5 USDC</button>
           <button onClick={followCatArb}>follow CatArb</button>
           <button onClick={publishOneUSDCIntent}>publish 1 USDC intent</button>
-          <button onClick={registerConnectedSource}>register connected source</button>
         </div>
         <div className={action.error ? "status error" : "status"}>
           <strong>{action.label}</strong>
