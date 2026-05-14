@@ -1,0 +1,17 @@
+{
+  "name": "shadow",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "contracts:build": "forge build --root contracts",
+    "contracts:test": "forge test --root contracts",
+    "contracts:deploy:arc": "forge script contracts/script/DeployShadowArc.s.sol:DeployShadowArc --rpc-url $ARC_RPC_URL --broadcast",
+    "contracts:seed:arc": "forge script contracts/script/SeedShadowArc.s.sol:SeedShadowArc --rpc-url $ARC_RPC_URL --broadcast",
+    "app:dev": "pnpm --dir app dev",
+    "app:build": "pnpm --dir app build",
+    "app:typecheck": "pnpm --dir app typecheck",
+    "agent:intent": "pnpm --dir agent intent",
+    "agent:typecheck": "pnpm --dir agent exec tsc --noEmit",
+    "extract:addresses": "node scripts/extract-addresses.mjs"
+  }
+}

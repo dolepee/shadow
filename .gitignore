@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+out/
+cache/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+broadcast/
+lib/
+
+# Local-only demo and submission prep.
+docs/DEMO_SCRIPT.md
+DEMO_SCRIPT.md
+demo-script.*
+*-demo-script.*
+docs/*SUBMISSION*.md
+SUBMISSION_CHECKLIST.md
+submission-checklist.*
+judge-prep.*
