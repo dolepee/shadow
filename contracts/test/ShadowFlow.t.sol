@@ -181,4 +181,58 @@ contract ShadowFlowTest {
         require(arceth.balanceOf(address(followerA)) == 0, "expired intent should not copy");
         require(router.followerBalanceUSDC(address(followerA)) == 5 * USDC, "expired intent should not debit");
     }
+
+    function testAmountTooHighBlocksIntent() public {
+        followerA.follow(router, address(source), 1 * USDC, 5 * USDC, address(arceth), 3);
+
+        MirrorRouter.TradeIntent memory intent = MirrorRouter.TradeIntent({
+            asset: address(arceth),
+            amountUSDC: 3 * USDC,
+            minAmountOut: 1,
+            riskLevel: 2,
+            expiry: block.timestamp + 1 hours,
+            intentHash: keccak256("cat-arb-amount-too-high")
+        });
+
+        source.publish(router, intent);
+
+        require(arceth.balanceOf(address(followerA)) == 0, "oversized intent should not copy");
+        require(router.followerBalanceUSDC(address(followerA)) == 5 * USDC, "amount too high should not debit");
+    }
+
+    function testRiskTooHighBlocksIntent() public {
+        followerA.follow(router, address(source), 2 * USDC, 5 * USDC, address(arceth), 1);
+
+        MirrorRouter.TradeIntent memory intent = MirrorRouter.TradeIntent({
+            asset: address(arceth),
+            amountUSDC: 1 * USDC,
+            minAmountOut: 1,
+            riskLevel: 5,
+            expiry: block.timestamp + 1 hours,
+            intentHash: keccak256("cat-arb-risk-too-high")
+        });
+
+        source.publish(router, intent);
+
+        require(arceth.balanceOf(address(followerA)) == 0, "risky intent should not copy");
+        require(router.followerBalanceUSDC(address(followerA)) == 5 * USDC, "risk too high should not debit");
+    }
+
+    function testFollowerCapRevertsAtFiftyFirst() public {
+        for (uint256 i = 0; i < 50; i++) {
+            Actor a = new Actor();
+            a.follow(router, address(source), 1 * USDC, 5 * USDC, address(arceth), 3);
+        }
+        require(router.followerCount(address(source)) == 50, "expected 50 followers");
+
+        Actor extra = new Actor();
+        bool reverted = false;
+        try extra.follow(router, address(source), 1 * USDC, 5 * USDC, address(arceth), 3) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "51st follower should revert TooManyFollowers");
+        require(router.followerCount(address(source)) == 50, "follower count should cap at 50");
+    }
 }
