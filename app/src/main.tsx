@@ -62,9 +62,15 @@ function App() {
       setAction({ label: "wallet missing", error: "Install a browser wallet to write transactions." });
       return;
     }
-    const accounts = (await window.ethereum.request({ method: "eth_requestAccounts" })) as Address[];
-    setAccount(accounts[0]);
-    setAction({ label: "wallet connected" });
+    try {
+      setAction({ label: "connecting wallet" });
+      const accounts = (await window.ethereum.request({ method: "eth_requestAccounts" })) as Address[];
+      setAccount(accounts[0]);
+      await switchToArc();
+      setAction({ label: "wallet connected on Arc Testnet" });
+    } catch (error) {
+      setAction({ label: "wallet connect failed", error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   async function depositFiveUSDC() {
@@ -260,13 +266,29 @@ function App() {
 
 async function switchToArc() {
   if (!window.ethereum) return;
+  const arcTestnetParams = {
+    chainId: "0x4cef52",
+    chainName: "Arc Testnet",
+    nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+    rpcUrls: ["https://rpc.testnet.arc.network"],
+    blockExplorerUrls: ["https://testnet.arcscan.app"],
+  };
   try {
     await window.ethereum.request({
       method: "wallet_switchEthereumChain",
-      params: [{ chainId: "0x4cef52" }],
+      params: [{ chainId: arcTestnetParams.chainId }],
     });
-  } catch {
-    // Some wallets on fresh Arc testnet setups require manual network addition.
+  } catch (error: unknown) {
+    const code = (error as { code?: number })?.code;
+    const message = String((error as { message?: string })?.message || "").toLowerCase();
+    if (code === 4902 || message.includes("unrecognized") || message.includes("add the chain")) {
+      await window.ethereum.request({
+        method: "wallet_addEthereumChain",
+        params: [arcTestnetParams],
+      });
+      return;
+    }
+    throw error;
   }
 }
 
