@@ -2,6 +2,10 @@
 
 Chain: Arc Testnet, chain id `5042002`
 
+Live app: https://shadow-two-opal.vercel.app
+
+GitHub: https://github.com/dolepee/shadow
+
 ## Contracts
 
 - ARCETH mock asset: `0xD5690B00aDE1eF88f9906a535AB5cf2E6Bca371a`

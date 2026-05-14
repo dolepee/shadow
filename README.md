@@ -4,6 +4,10 @@ Shadow is the consumer surface for Arc trading agents.
 
 Users follow registered source agents, escrow USDC, and mirror standardized intents only when their policy allows. One source intent can produce two onchain outcomes: copied for one follower, blocked for another.
 
+Live app: https://shadow-two-opal.vercel.app
+
+GitHub: https://github.com/dolepee/shadow
+
 ## Locked MVP
 
 The first build uses a controlled Arc testnet AMM. It does not claim production market execution.
