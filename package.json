@@ -12,6 +12,7 @@
     "app:typecheck": "pnpm --dir app typecheck",
     "agent:intent": "pnpm --dir agent intent",
     "agent:typecheck": "pnpm --dir agent exec tsc --noEmit",
+    "verify:slippage": "pnpm --dir agent verify-slippage",
     "extract:addresses": "node scripts/extract-addresses.mjs"
   }
 }

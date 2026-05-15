@@ -63,7 +63,10 @@ npm run app:typecheck
 npm run app:build
 npm run agent:typecheck
 npm run agent:intent
+npm run verify:slippage
 ```
+
+`npm run verify:slippage` reads the live Arc testnet state, picks an `intent.minAmountOut` that lands strictly between the strict and lenient follower scaled minimums, publishes the intent from `CatArb`, and prints both `MirrorReceipt` events. Strict follower must end up `BLOCKED` with reason `slippage too tight` and the lenient follower must end up `COPIED`. Exits non-zero if the outcome drifts.
 
 ## Live Arc Deployment
 

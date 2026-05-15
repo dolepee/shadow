@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "intent": "tsx src/intent.ts"
+    "intent": "tsx src/intent.ts",
+    "verify-slippage": "tsx src/verify-slippage.ts"
   },
   "dependencies": {
     "viem": "^2.41.0"
