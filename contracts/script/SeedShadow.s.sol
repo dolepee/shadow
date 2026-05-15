@@ -24,8 +24,8 @@ contract SeedShadow is Script {
         address routerAddress = vm.envAddress("SHADOW_ROUTER");
 
         _registerAndFund(deployerKey, catKey, lobsterKey, followerAKey, followerBKey, usdc, registryAddress);
-        _setupFollower(followerAKey, catKey, usdc, arceth, routerAddress, 2 * USDC);
-        _setupFollower(followerBKey, catKey, usdc, arceth, routerAddress, 500_000);
+        _setupFollower(followerAKey, catKey, usdc, arceth, routerAddress, 2 * USDC, 9_500);
+        _setupFollower(followerBKey, catKey, usdc, arceth, routerAddress, 500_000, 9_500);
         _publishDemoIntent(catKey, arceth, routerAddress);
     }
 
@@ -58,13 +58,14 @@ contract SeedShadow is Script {
         address usdc,
         address arceth,
         address routerAddress,
-        uint256 maxAmountPerIntent
+        uint256 maxAmountPerIntent,
+        uint16 minBpsOut
     ) internal {
         MirrorRouter router = MirrorRouter(routerAddress);
         vm.startBroadcast(followerKey);
         IERC20(usdc).approve(routerAddress, type(uint256).max);
         router.depositUSDC(2 * USDC);
-        router.followSource(vm.addr(catKey), maxAmountPerIntent, 2 * USDC, arceth, 3);
+        router.followSource(vm.addr(catKey), maxAmountPerIntent, 2 * USDC, arceth, 3, minBpsOut);
         vm.stopBroadcast();
     }
 

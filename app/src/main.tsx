@@ -106,7 +106,7 @@ function App() {
         address: addresses.router!,
         abi: routerAbi,
         functionName: "followSource",
-        args: [catAgent.address, parseUnits("2", 6), parseUnits("5", 6), addresses.arceth!, 3],
+        args: [catAgent.address, parseUnits("2", 6), parseUnits("5", 6), addresses.arceth!, 3, 9_500],
         chain: arcTestnet,
       }),
     );

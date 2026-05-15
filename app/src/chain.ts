@@ -51,7 +51,7 @@ export const registryAbi = parseAbi([
 export const routerAbi = parseAbi([
   "function followerBalanceUSDC(address) view returns (uint256)",
   "function followerCount(address sourceAgent) view returns (uint256)",
-  "function followSource(address sourceAgent, uint256 maxAmountPerIntent, uint256 dailyCap, address allowedAsset, uint8 maxRiskLevel)",
+  "function followSource(address sourceAgent, uint256 maxAmountPerIntent, uint256 dailyCap, address allowedAsset, uint8 maxRiskLevel, uint16 minBpsOut)",
   "function depositUSDC(uint256 amountUSDC)",
   "function publishIntent((address asset, uint256 amountUSDC, uint256 minAmountOut, uint8 riskLevel, uint256 expiry, bytes32 intentHash) intent) returns (uint256)",
   "function nextIntentId() view returns (uint256)",
@@ -299,6 +299,7 @@ function blockReasonLabel(reason: number): string {
     "unsupported AMM asset",
     "risk too high",
     "intent expired",
+    "slippage too tight",
   ];
   return labels[reason] || `reason ${reason}`;
 }

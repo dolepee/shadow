@@ -24,7 +24,19 @@ contract Actor {
         address allowedAsset,
         uint8 maxRiskLevel
     ) external {
-        router.followSource(sourceAgent, maxAmountPerIntent, dailyCap, allowedAsset, maxRiskLevel);
+        router.followSource(sourceAgent, maxAmountPerIntent, dailyCap, allowedAsset, maxRiskLevel, 10_000);
+    }
+
+    function followWithSlippage(
+        MirrorRouter router,
+        address sourceAgent,
+        uint256 maxAmountPerIntent,
+        uint256 dailyCap,
+        address allowedAsset,
+        uint8 maxRiskLevel,
+        uint16 minBpsOut
+    ) external {
+        router.followSource(sourceAgent, maxAmountPerIntent, dailyCap, allowedAsset, maxRiskLevel, minBpsOut);
     }
 
     function publish(MirrorRouter router, MirrorRouter.TradeIntent calldata intent) external returns (uint256) {
@@ -234,5 +246,43 @@ contract ShadowFlowTest {
         }
         require(reverted, "51st follower should revert TooManyFollowers");
         require(router.followerCount(address(source)) == 50, "follower count should cap at 50");
+    }
+
+    function testFollowerSlippageBlocksStrictAllowsLenient() public {
+        // AMM: 10_000 USDC / 100 ARCETH, 30bps fee.
+        // Quote for 1 USDC ≈ 9.97e15 ARCETH (~0.00997).
+        // Source publishes intent.minAmountOut = 0.01e18 (tighter than current quote).
+        followerA.followWithSlippage(router, address(source), 2 * USDC, 5 * USDC, address(arceth), 3, 10_000);
+        followerB.followWithSlippage(router, address(source), 2 * USDC, 5 * USDC, address(arceth), 3, 9_000);
+
+        MirrorRouter.TradeIntent memory intent = MirrorRouter.TradeIntent({
+            asset: address(arceth),
+            amountUSDC: 1 * USDC,
+            minAmountOut: 0.01e18,
+            riskLevel: 2,
+            expiry: block.timestamp + 1 hours,
+            intentHash: keccak256("cat-arb-tight-source-bound")
+        });
+
+        source.publish(router, intent);
+
+        require(arceth.balanceOf(address(followerA)) == 0, "strict follower should block on slippage");
+        require(arceth.balanceOf(address(followerB)) > 0, "lenient follower should copy under slippage tolerance");
+        require(router.followerBalanceUSDC(address(followerA)) == 5 * USDC, "strict follower USDC should remain");
+        require(
+            router.followerBalanceUSDC(address(followerB)) == (4 * USDC) - MIRROR_FEE,
+            "lenient follower USDC not deducted"
+        );
+    }
+
+    function testMinBpsOutTooHighReverts() public {
+        Actor a = new Actor();
+        bool reverted = false;
+        try a.followWithSlippage(router, address(source), 1 * USDC, 5 * USDC, address(arceth), 3, 10_001) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "minBpsOut > BPS should revert");
     }
 }

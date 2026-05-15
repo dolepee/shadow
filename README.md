@@ -36,11 +36,11 @@ Shadow V1 does not build a production DEX, oracle system, full PnL engine, CCTP 
 
 V1 source registration is owner managed so the demo agent list stays curated. Each source is capped at 50 followers per intent to keep intent fanout bounded and reviewable.
 
-## Known V1 Limits
+## Known Limits
 
 Documented limits a reviewer should know before reading the contracts.
 
-- Follower slippage is inherited from the source intent. `MirrorRouter` forwards `intent.minAmountOut` directly to `ShadowAMM`. A careless source can publish `minAmountOut = 1` and the follower will still be debited at the resulting price. V2 will let followers set their own `minBpsOut` against the quoted price.
+- Follower slippage is independent of the source intent. Each follower stores their own `minBpsOut` (basis points scaling `intent.minAmountOut`) in `RiskPolicy.Policy`. Before swapping, `MirrorRouter` quotes the live AMM and emits `MirrorReceipt(BLOCKED, SLIPPAGE_TOO_TIGHT)` cleanly when the quote can't satisfy the scaled follower minimum. A source publishing `minAmountOut = 1` only debits followers whose own `minBpsOut` accepts that floor.
 - The router approves the AMM once per copied follower and resets the allowance after the swap. This is bounded by the 50 follower cap but is intentional belt and suspenders, not a gas optimum.
 - `RiskPolicy.BlockReason.NOT_FOLLOWING` is retained in the enum for readability. It is not reachable through `publishIntent` because the router only iterates registered followers. Direct unit tests on the library would surface it.
 - `ShadowAMM` is a single pool constant product pool with a 30 bps fee. It is intentionally small to keep the copied versus blocked outcome legible. It is not a production DEX.

@@ -47,7 +47,8 @@ contract MirrorRouter {
         uint256 maxAmountPerIntent,
         uint256 dailyCap,
         address indexed allowedAsset,
-        uint8 maxRiskLevel
+        uint8 maxRiskLevel,
+        uint16 minBpsOut
     );
     event IntentPublished(
         uint256 indexed intentId,
@@ -75,6 +76,7 @@ contract MirrorRouter {
     error TooManyFollowers();
     error NothingToClaim();
     error NotProtocolFeeRecipient();
+    error MinBpsOutTooHigh();
 
     constructor(address usdc_, address amm_, address registry_) {
         usdc = IERC20(usdc_);
@@ -95,9 +97,11 @@ contract MirrorRouter {
         uint256 maxAmountPerIntent,
         uint256 dailyCap,
         address allowedAsset,
-        uint8 maxRiskLevel
+        uint8 maxRiskLevel,
+        uint16 minBpsOut
     ) external {
         if (!registry.isRegistered(sourceAgent)) revert UnregisteredSource();
+        if (minBpsOut > BPS) revert MinBpsOutTooHigh();
 
         if (!isFollowing[msg.sender][sourceAgent]) {
             if (followersBySource[sourceAgent].length >= MAX_FOLLOWERS_PER_SOURCE) revert TooManyFollowers();
@@ -110,9 +114,10 @@ contract MirrorRouter {
         policy.dailyCap = dailyCap;
         policy.allowedAsset = allowedAsset;
         policy.maxRiskLevel = maxRiskLevel;
+        policy.minBpsOut = minBpsOut;
         policy.active = true;
 
-        emit Followed(msg.sender, sourceAgent, maxAmountPerIntent, dailyCap, allowedAsset, maxRiskLevel);
+        emit Followed(msg.sender, sourceAgent, maxAmountPerIntent, dailyCap, allowedAsset, maxRiskLevel, minBpsOut);
     }
 
     function getPolicy(address follower, address sourceAgent)
@@ -123,6 +128,7 @@ contract MirrorRouter {
             uint256 dailyCap,
             address allowedAsset,
             uint8 maxRiskLevel,
+            uint16 minBpsOut,
             uint256 spentToday,
             uint64 day,
             bool active
@@ -134,6 +140,7 @@ contract MirrorRouter {
             policy.dailyCap,
             policy.allowedAsset,
             policy.maxRiskLevel,
+            policy.minBpsOut,
             policy.spentToday,
             policy.day,
             policy.active
@@ -218,6 +225,22 @@ contract MirrorRouter {
             return;
         }
 
+        uint256 followerMinOut = (intent.minAmountOut * policy.minBpsOut) / BPS;
+        uint256 quotedAssetOut = amm.quoteUSDCForAsset(intent.amountUSDC);
+        if (quotedAssetOut < followerMinOut) {
+            emit MirrorReceipt(
+                intentId,
+                follower,
+                sourceAgent,
+                ReceiptStatus.BLOCKED,
+                RiskPolicy.BlockReason.SLIPPAGE_TOO_TIGHT,
+                intent.amountUSDC,
+                0,
+                quotedAssetOut
+            );
+            return;
+        }
+
         followerBalanceUSDC[follower] -= totalDebitUSDC;
         policy.recordSpend(intent.amountUSDC);
 
@@ -226,7 +249,7 @@ contract MirrorRouter {
         protocolFeesUSDC += mirrorFeeUSDC - sourceShareUSDC;
 
         require(usdc.approve(address(amm), intent.amountUSDC), "APPROVE_FAILED");
-        uint256 assetOut = amm.swapExactUSDCForAsset(follower, intent.amountUSDC, intent.minAmountOut);
+        uint256 assetOut = amm.swapExactUSDCForAsset(follower, intent.amountUSDC, followerMinOut);
         require(usdc.approve(address(amm), 0), "APPROVE_RESET_FAILED");
 
         emit MirrorReceipt(

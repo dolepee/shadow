@@ -11,7 +11,8 @@ library RiskPolicy {
         ASSET_NOT_ALLOWED,
         UNSUPPORTED_AMM_ASSET,
         RISK_TOO_HIGH,
-        INTENT_EXPIRED
+        INTENT_EXPIRED,
+        SLIPPAGE_TOO_TIGHT
     }
 
     struct Policy {
@@ -19,6 +20,7 @@ library RiskPolicy {
         uint256 dailyCap;
         address allowedAsset;
         uint8 maxRiskLevel;
+        uint16 minBpsOut;
         uint256 spentToday;
         uint64 day;
         bool active;
