@@ -34,6 +34,12 @@ export const addresses = {
 
 export const startBlock = BigInt(import.meta.env.VITE_SHADOW_START_BLOCK || 0);
 
+export const arcExplorerUrl = "https://testnet.arcscan.app";
+
+export function txUrl(hash: `0x${string}`): string {
+  return `${arcExplorerUrl}/tx/${hash}`;
+}
+
 export const isConfigured = Boolean(addresses.arceth && addresses.amm && addresses.registry && addresses.router);
 
 export const publicClient = createPublicClient({

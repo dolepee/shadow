@@ -12,9 +12,28 @@ import {
   publicClient,
   routerAbi,
   shortAddress,
+  txUrl,
   type ReceiptLog,
   type ShadowState,
 } from "./chain";
+
+const SPOTLIGHT = {
+  intentId: 3n,
+  amountUSDC: "0.5",
+  intentMinAmountOut: "0.05",
+  followerA: {
+    address: "0x495cb55E288E9105E3b3080F2A7323F870538695" as Address,
+    minBpsOut: 10000,
+    label: "strict",
+    scaledMin: "0.05",
+  },
+  followerB: {
+    address: "0x7A3FFC0294f21E040b2bEa3e5Aad33cA08B33AcD" as Address,
+    minBpsOut: 9000,
+    label: "lenient",
+    scaledMin: "0.045",
+  },
+};
 import "./styles.css";
 
 declare global {
@@ -55,6 +74,14 @@ function App() {
   const copiedReceipts = useMemo(() => state?.receipts.filter((receipt) => receipt.status === "copied") || [], [state]);
   const blockedReceipts = useMemo(() => state?.receipts.filter((receipt) => receipt.status === "blocked") || [], [state]);
   const catAgent = state?.sources[0];
+  const spotlight = useMemo(() => {
+    const matches = state?.receipts.filter((receipt) => receipt.intentId === SPOTLIGHT.intentId) || [];
+    return {
+      a: matches.find((r) => r.follower.toLowerCase() === SPOTLIGHT.followerA.address.toLowerCase()),
+      b: matches.find((r) => r.follower.toLowerCase() === SPOTLIGHT.followerB.address.toLowerCase()),
+    };
+  }, [state]);
+  const spotlightLiveQuote = spotlight.b ? formatAsset(spotlight.b.assetAmountOut) : "—";
 
   async function connectWallet() {
     if (!window.ethereum) {
@@ -184,6 +211,40 @@ function App() {
           </div>
         )}
       </section>
+
+      {spotlight.a && spotlight.b && (
+        <section className="spotlight">
+          <p className="eyebrow">v2 slippage demo · live on Arc testnet</p>
+          <h2>One source intent. Two follower outcomes.</h2>
+          <p className="spotlightSummary">
+            CatArb published intent #{SPOTLIGHT.intentId.toString()} for {SPOTLIGHT.amountUSDC} USDC at minimum {SPOTLIGHT.intentMinAmountOut} ARCETH. The live AMM quoted {spotlightLiveQuote} ARCETH. Each follower's own minBpsOut decides the outcome — the source intent no longer cascade-reverts.
+          </p>
+          <div className="spotlightGrid">
+            <SpotlightCard
+              verdict="BLOCKED"
+              kind="blocked"
+              label={`Follower A · ${SPOTLIGHT.followerA.label}`}
+              follower={SPOTLIGHT.followerA.address}
+              minBps={SPOTLIGHT.followerA.minBpsOut}
+              scaledMin={SPOTLIGHT.followerA.scaledMin}
+              liveQuote={spotlightLiveQuote}
+              receipt={spotlight.a}
+              detail="Scaled minimum exceeds the live AMM quote. No swap, no fee, no debit."
+            />
+            <SpotlightCard
+              verdict="COPIED"
+              kind="copied"
+              label={`Follower B · ${SPOTLIGHT.followerB.label}`}
+              follower={SPOTLIGHT.followerB.address}
+              minBps={SPOTLIGHT.followerB.minBpsOut}
+              scaledMin={SPOTLIGHT.followerB.scaledMin}
+              liveQuote={spotlightLiveQuote}
+              receipt={spotlight.b}
+              detail="Scaled minimum sits below the live quote. The swap clears, fee accrues, kickback routes to CatArb."
+            />
+          </div>
+        </section>
+      )}
 
       <section className="grid">
         <Stat label="registered agents" value={String(state?.sources.length || 0)} />
@@ -322,6 +383,72 @@ function ReceiptColumn({ title, receipts }: { title: string; receipts: ReceiptLo
 
 function Empty({ text }: { text: string }) {
   return <div className="empty">{text}</div>;
+}
+
+function SpotlightCard({
+  verdict,
+  kind,
+  label,
+  follower,
+  minBps,
+  scaledMin,
+  liveQuote,
+  receipt,
+  detail,
+}: {
+  verdict: "BLOCKED" | "COPIED";
+  kind: "blocked" | "copied";
+  label: string;
+  follower: Address;
+  minBps: number;
+  scaledMin: string;
+  liveQuote: string;
+  receipt: ReceiptLog;
+  detail: string;
+}) {
+  return (
+    <article className={`spotlightCard ${kind}`}>
+      <p className="eyebrow">{label}</p>
+      <h3>{verdict}</h3>
+      <span className="follower">{shortAddress(follower)}</span>
+      <dl className="spotlightStats">
+        <div>
+          <dt>minBpsOut</dt>
+          <dd>{minBps}</dd>
+        </div>
+        <div>
+          <dt>scaled minimum</dt>
+          <dd>{scaledMin} ARCETH</dd>
+        </div>
+        <div>
+          <dt>live quote</dt>
+          <dd>{liveQuote} ARCETH</dd>
+        </div>
+        {receipt.status === "copied" && (
+          <div>
+            <dt>received</dt>
+            <dd>{formatAsset(receipt.assetAmountOut)} ARCETH</dd>
+          </div>
+        )}
+        {receipt.status === "copied" && receipt.mirrorFeeUSDC > 0n && (
+          <div>
+            <dt>mirror fee</dt>
+            <dd>{formatUSDC(receipt.mirrorFeeUSDC)} USDC</dd>
+          </div>
+        )}
+        {receipt.status === "blocked" && (
+          <div>
+            <dt>reason</dt>
+            <dd>{receipt.reason}</dd>
+          </div>
+        )}
+      </dl>
+      <p className="spotlightDetail">{detail}</p>
+      <a className="spotlightLink" href={txUrl(receipt.transactionHash)} target="_blank" rel="noreferrer noopener">
+        receipt tx · {shortAddress(receipt.transactionHash)}
+      </a>
+    </article>
+  );
 }
 
 function totalMirrored(receipts: ReceiptLog[]): bigint {
