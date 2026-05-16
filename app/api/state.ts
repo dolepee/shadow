@@ -179,7 +179,7 @@ async function fetchSerializedState(): Promise<CachedState> {
     nativeCurrency: { decimals: 18, name: "USDC", symbol: "USDC" },
     rpcUrls: { default: { http: [rpcUrl] } },
   });
-  const client: PublicClient = createPublicClient({ chain: arcTestnet, transport: http(rpcUrl) }) as PublicClient;
+  const client = createPublicClient({ chain: arcTestnet, transport: http(rpcUrl) }) as unknown as PublicClient;
 
   const sourceCount = await client.readContract({
     address: registry,
