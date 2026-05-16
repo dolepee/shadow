@@ -28,7 +28,7 @@ jobs:
           version: 9
       - name: install agent deps
         working-directory: agent
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --no-frozen-lockfile --ignore-workspace
       - name: publish CatArb intent (split outcome)
         working-directory: agent
         env:
