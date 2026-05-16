@@ -52,6 +52,7 @@ const mirrorReceiptEvent = parseAbiItem(
 );
 
 type VerifyResult = {
+  published: true;
   ok: boolean;
   tx: `0x${string}`;
   blockNumber: string;
@@ -78,15 +79,29 @@ type VerifyResult = {
   };
 };
 
+type VerifyDiagnostic = {
+  published: false;
+  ok: false;
+  reason: string;
+  diagnostics: {
+    targetAmount: string;
+    followerA: { address: Address; balance: string; remainingDaily: string; active: boolean };
+    followerB: { address: Address; balance: string; remainingDaily: string; active: boolean };
+  };
+};
+
+type VerifyOutcome = VerifyResult | VerifyDiagnostic;
+
 let lastRun: { at: number; result: VerifyResult } | null = null;
-let inFlight: Promise<VerifyResult> | null = null;
+let inFlight: Promise<VerifyOutcome> | null = null;
 
 export default async function handler(req: { method?: string }, res: VercelLikeResponse) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json");
 
-  if (req.method && req.method !== "POST" && req.method !== "GET") {
-    res.status(405).json({ error: "method not allowed" });
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    res.status(405).json({ error: "method not allowed, use POST" });
     return;
   }
 
@@ -109,14 +124,18 @@ export default async function handler(req: { method?: string }, res: VercelLikeR
       });
     }
     const result = await inFlight;
-    lastRun = { at: Date.now(), result };
-    res.status(200).json({ cached: false, retryAfter: 0, ...result });
+    if (result.published) {
+      lastRun = { at: Date.now(), result };
+      res.status(200).json({ cached: false, retryAfter: 0, ...result });
+    } else {
+      res.status(409).json({ cached: false, retryAfter: 0, error: result.reason, ...result });
+    }
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 }
 
-async function runVerify(): Promise<VerifyResult> {
+async function runVerify(): Promise<VerifyOutcome> {
   const rpcUrl = requireEnv("ARC_RPC_URL");
   const router = requireEnv("SHADOW_ROUTER") as `0x${string}`;
   const arceth = requireEnv("SHADOW_ARCETH") as `0x${string}`;
@@ -141,10 +160,6 @@ async function runVerify(): Promise<VerifyResult> {
     publicClient.readContract({ address: router, abi: routerAbi, functionName: "getPolicy", args: [FOLLOWER_B, account.address] }),
   ]);
 
-  if (!policyA[7] || !policyB[7]) {
-    throw new Error(`Followers not seeded against ${account.address}.`);
-  }
-
   const maxPerIntentA = BigInt(policyA[0]);
   const maxPerIntentB = BigInt(policyB[0]);
   const dailyCapA = BigInt(policyA[1]);
@@ -155,16 +170,41 @@ async function runVerify(): Promise<VerifyResult> {
   const remainingB = dailyCapB > spentB ? dailyCapB - spentB : 0n;
   const affordableA = (BigInt(balanceA) * BPS) / (BPS + MIRROR_FEE_BPS);
   const affordableB = (BigInt(balanceB) * BPS) / (BPS + MIRROR_FEE_BPS);
+  const targetAmount = parseUnits("0.1", 6);
   const cap = bigMin([maxPerIntentA, maxPerIntentB, affordableA, affordableB, remainingA, remainingB]);
 
-  if (cap === 0n) {
-    throw new Error(
-      `Follower headroom exhausted. balanceA=${formatUSDC(BigInt(balanceA))} balanceB=${formatUSDC(BigInt(balanceB))} remainingA=${formatUSDC(remainingA)} remainingB=${formatUSDC(remainingB)}.`,
-    );
+  const diagnostic: VerifyDiagnostic = {
+    published: false,
+    ok: false,
+    reason: "",
+    diagnostics: {
+      targetAmount: formatUSDC(targetAmount),
+      followerA: {
+        address: FOLLOWER_A,
+        balance: formatUSDC(BigInt(balanceA)),
+        remainingDaily: formatUSDC(remainingA),
+        active: Boolean(policyA[7]),
+      },
+      followerB: {
+        address: FOLLOWER_B,
+        balance: formatUSDC(BigInt(balanceB)),
+        remainingDaily: formatUSDC(remainingB),
+        active: Boolean(policyB[7]),
+      },
+    },
+  };
+
+  if (!policyA[7] || !policyB[7]) {
+    return { ...diagnostic, reason: `followers not seeded against ${account.address}` };
+  }
+  if (cap < targetAmount) {
+    return {
+      ...diagnostic,
+      reason: `insufficient headroom for demo target ${formatUSDC(targetAmount)} USDC; cap=${formatUSDC(cap)}`,
+    };
   }
 
-  const targetAmount = parseUnits("0.1", 6);
-  const amountUSDC = cap > targetAmount ? targetAmount : cap;
+  const amountUSDC = targetAmount;
   const liveQuote = (await publicClient.readContract({
     address: amm,
     abi: ammAbi,
@@ -225,6 +265,7 @@ async function runVerify(): Promise<VerifyResult> {
   const ok = aStatus === 1 && aReason === 9 && bStatus === 0;
 
   return {
+    published: true,
     ok,
     tx,
     blockNumber: txReceipt.blockNumber.toString(),
