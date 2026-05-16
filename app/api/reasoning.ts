@@ -77,8 +77,8 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
 type KVConfig = { url: string; token: string };
 
 function kvConfigFromEnv(): KVConfig | null {
-  const url = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
+  const url = process.env.KV_REST_API_URL?.trim();
+  const token = process.env.KV_REST_API_TOKEN?.trim();
   if (!url || !token) return null;
   return { url: url.replace(/\/$/, ""), token };
 }

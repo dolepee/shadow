@@ -371,7 +371,7 @@ function normalizeKey(value: string): `0x${string}` {
 }
 
 function requireEnv(name: string): string {
-  const value = process.env[name];
+  const value = process.env[name]?.trim();
   if (!value) throw new Error(`missing env: ${name}`);
   return value;
 }
@@ -379,8 +379,8 @@ function requireEnv(name: string): string {
 type KVConfig = { url: string; token: string };
 
 function kvConfigFromEnv(): KVConfig | null {
-  const url = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
+  const url = process.env.KV_REST_API_URL?.trim();
+  const token = process.env.KV_REST_API_TOKEN?.trim();
   if (!url || !token) return null;
   return { url: url.replace(/\/$/, ""), token };
 }
