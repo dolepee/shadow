@@ -15,6 +15,7 @@ Chain: Arc Testnet (chain id `5042002`)
 3. Pick a source agent (CatArb, LobsterRisk, or MomentumOtter), pick a risk preset (Conservative, Balanced, or Aggressive), set a deposit, follow.
 4. Cron publishes new intents every 10 minutes. The live receipts feed updates without a page refresh.
 5. Hit `run verify now` on the spotlight section to publish a fresh demo intent and watch the strict and lenient outcomes prove themselves against the live AMM quote in one click.
+6. Close a copied position from the live feed, or run `npm run agent:close-position`, to show the asset round trip and realized PnL onchain.
 
 ## The novel primitive: slippage each follower owns
 
@@ -29,11 +30,15 @@ A source publishing a tight `minAmountOut` no longer cascade reverts. Each follo
 
 **Public follow flow.** Pick a source, pick a preset, deposit USDC. A single CTA wires up `approve`, `depositUSDC`, and `followSource` with the preset policy (max per intent, daily cap, max risk, `minBpsOut`).
 
-**Live receipts feed.** Auto polls every 15 seconds, animates new rows, shows the latest block, source name, follower address, USDC mirrored, and ARCETH received per receipt.
+**Live receipts feed.** Auto polls a cached state API, animates new rows, shows the latest block, source name, follower address, USDC mirrored, and ARCETH received per receipt.
 
 **Spotlight intent.** A hardcoded demo that ships strict and lenient outcomes for intent `#3` with a live `run verify now` button backed by a Vercel serverless function.
 
-**Scheduled activity.** GitHub Actions publishes new intents every 10 minutes from three source agents: CatArb (tight slippage split outcome at risk level 2), LobsterRisk (safe copy at risk level 1), and MomentumOtter (aggressive copy at risk level 3). The feed always has fresh data and three distinct personalities.
+**Reasoning artifacts.** Each cron intent stores a content-derived reasoning packet in Vercel KV and publishes the same `intentHash` onchain. The `run verify now` button writes the same artifact type before publishing so the reasoning panel does not go stale after a live click.
+
+**Realized close loop.** Copied positions can be closed through `closePosition(intentId)`. The router reverse-swaps ARCETH back into USDC, credits the follower's idle router balance, and emits `PositionClosed` with PnL in basis points.
+
+**Scheduled activity.** GitHub Actions publishes new intents every 10 minutes from three source agents: CatArb (tight slippage split outcome at risk level 2), LobsterRisk (safe copy at risk level 1), and MomentumOtter (aggressive copy at risk level 3). It then closes up to two copied positions so the dashboard continues to accumulate realized PnL events.
 
 ## Architecture
 
@@ -42,17 +47,17 @@ A source publishing a tight `minAmountOut` no longer cascade reverts. Each follo
 * `ShadowAMM`. Constant product AMM over a single USDC/ARCETH pool with a 30 bps fee. Intentionally small to keep outcomes legible.
 * `RiskPolicy`. Per follower struct with `maxAmountPerIntent`, `dailyCap`, `allowedAsset`, `maxRiskLevel`, `minBpsOut`, plus an active flag and daily spent counters.
 
-## Live Arc deployment (V3)
+## Live Arc deployment (V4)
 
 Contracts:
 
 * ARCETH: `0x9beB19B1F360F110f731A09BA3fccB0E0cAE2402`
-* ShadowAMM: `0xeDbDaC33160DE3e017dB988E02AD623344371633`
+* ShadowAMM (V4): `0x917700Df306bDd84418369e24E7dfe2E0fd8D697`
 * SourceRegistry: `0xEec07657c5628AeCe50f20AA12C15A2a4B1557e1`
-* MirrorRouter: `0x987d7886c9dA7Ffbb7CC66b7914518D8966975eb`
+* MirrorRouter (V4): `0xcB300Ac9f5944Fd06F39329cf5d871C9B92C6655`
 * Arc USDC: `0x3600000000000000000000000000000000000000`
 
-V3 adds follower-side custody escapes: `withdrawUSDC(amount)` returns idle balance to the wallet, and `unfollowSource(source)` flips a policy to inactive so the router skips that follower on subsequent intents. `isFollowing` is still set on the first follow and remains the historical signal; `policy.active` is the source of truth for current state.
+V4 turns every copied intent into a tracked position. The router holds the ARCETH it bought and records `Position{sourceAgent, assetAmount, usdcIn, closed}` per `(intentId, follower)`. Followers later call `closePosition(intentId)`, which reverse-swaps the asset on ShadowAMM v2 (`swapExactAssetForUSDC`), credits the realized USDC back to `followerBalanceUSDC`, and emits `PositionClosed(intentId, follower, sourceAgent, usdcIn, usdcOut, pnlBps)`. PnL in basis points is computed onchain so the UI never has to reconstruct it from logs. V3 (`0x987d7886c9dA7Ffbb7CC66b7914518D8966975eb`, follower withdraw + unfollow) and V2 (`0x4e194EFB8060C9e7919a06C7E0AE4cbf9e7D47fF`) remain readable as historical state.
 
 Source agents:
 
@@ -78,6 +83,7 @@ npm run app:typecheck      # Vite app typecheck
 npm run app:build          # Vite production build
 npm run agent:typecheck    # tsx agent scripts typecheck
 npm run agent:intent       # Publish a manual intent
+npm run agent:close-position # Close copied seeded follower positions
 npm run verify:slippage    # Reproducible split outcome run
 ```
 
@@ -85,7 +91,7 @@ npm run verify:slippage    # Reproducible split outcome run
 
 ## Scope guard
 
-Shadow V1 does not build a production DEX, oracle system, full PnL engine, CCTP routing, App Kit Swap integration, or a risk policy DSL. Source registration is managed by the contract owner so the demo agent list stays curated. Each source is capped at 50 followers per intent.
+Shadow V4 does not build a production DEX, oracle system, CCTP routing, App Kit Swap integration, or a risk policy DSL. Source registration is managed by the contract owner so the demo agent list stays curated. Each source is capped at 50 follower records per intent.
 
 ## Known limits
 
@@ -101,4 +107,5 @@ Shadow V1 does not build a production DEX, oracle system, full PnL engine, CCTP 
 * Arc USDC as both gas token and settlement asset.
 * ERC-8004 source agent identity and reputation references.
 * Onchain receipts for both copied and blocked outcomes.
+* Onchain positions and `PositionClosed` receipts for realized PnL.
 * USDC fee accounting for source kickbacks.

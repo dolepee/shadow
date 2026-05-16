@@ -5,16 +5,21 @@ import { fileURLToPath } from "node:url";
 import {
   createPublicClient,
   createWalletClient,
-  encodePacked,
   formatUnits,
   http,
-  keccak256,
   parseAbi,
   parseAbiItem,
   parseUnits,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { defineChain } from "viem";
+
+import {
+  bindIntentHashToTx,
+  buildPacket,
+  kvConfigFromEnv,
+  putReasoning,
+} from "./reasoning.js";
 
 loadEnvFile();
 
@@ -56,6 +61,8 @@ const routerAbi = parseAbi([
 
 const ammAbi = parseAbi([
   "function quoteUSDCForAsset(uint256 usdcAmountIn) view returns (uint256)",
+  "function reserveUSDC() view returns (uint256)",
+  "function reserveAsset() view returns (uint256)",
 ]);
 
 const mirrorReceiptEvent = parseAbiItem(
@@ -109,12 +116,16 @@ async function main() {
 
   const targetAmount = parseUnits("0.1", 6);
   const amountUSDC = cap > targetAmount ? targetAmount : cap;
-  const liveQuote = (await publicClient.readContract({
-    address: amm,
-    abi: ammAbi,
-    functionName: "quoteUSDCForAsset",
-    args: [amountUSDC],
-  })) as bigint;
+  const [liveQuote, reserveUSDC, reserveAsset] = (await Promise.all([
+    publicClient.readContract({
+      address: amm,
+      abi: ammAbi,
+      functionName: "quoteUSDCForAsset",
+      args: [amountUSDC],
+    }),
+    publicClient.readContract({ address: amm, abi: ammAbi, functionName: "reserveUSDC" }),
+    publicClient.readContract({ address: amm, abi: ammAbi, functionName: "reserveAsset" }),
+  ])) as [bigint, bigint, bigint];
   const minAmountOut = (liveQuote * 105n) / 100n;
   const scaledMinA = (minAmountOut * FOLLOWER_A_MIN_BPS) / BPS;
   const scaledMinB = (minAmountOut * FOLLOWER_B_MIN_BPS) / BPS;
@@ -132,9 +143,30 @@ async function main() {
   console.log(`Follower B  9000 bps:  scaled min ${formatAsset(scaledMinB)} ARCETH  (below quote, expect COPIED)`);
   console.log("============================================================");
 
-  const intentHash = keccak256(
-    encodePacked(["string", "uint256"], ["shadow-verify-slippage", BigInt(Date.now())]),
-  );
+  const rationale = `CatArb verify script picked ${formatUSDC(amountUSDC)} USDC with a 5.00% strict split: Follower A blocks on ${formatAsset(scaledMinA)} ARCETH while Follower B can copy at ${formatAsset(scaledMinB)} ARCETH against a live ${formatAsset(liveQuote)} ARCETH quote.`;
+  const packet = buildPacket({
+    sourceAgent: account.address,
+    sourceName: "CatArb",
+    amountUSDC,
+    minAmountOut,
+    liveQuote,
+    reserveUSDC,
+    reserveAsset,
+    riskLevel: 2,
+    decision: "publish",
+    rationale,
+  });
+  const intentHash = packet.intentHash;
+
+  const kv = kvConfigFromEnv();
+  if (kv) {
+    try {
+      await putReasoning(kv, packet);
+      console.log(`reasoning stored: reasoning:${intentHash}`);
+    } catch (err) {
+      console.warn(`reasoning kv warn: ${(err as Error).message}`);
+    }
+  }
 
   console.log("\npublishing intent...");
   const tx = await walletClient.writeContract({
@@ -156,6 +188,13 @@ async function main() {
 
   const txReceipt = await publicClient.waitForTransactionReceipt({ hash: tx });
   console.log(`confirmed in block ${txReceipt.blockNumber.toString()}`);
+  if (kv) {
+    try {
+      await bindIntentHashToTx(kv, tx, intentHash);
+    } catch (err) {
+      console.warn(`reasoning tx bind warn: ${(err as Error).message}`);
+    }
+  }
 
   const receipts = await publicClient.getLogs({
     address: router,

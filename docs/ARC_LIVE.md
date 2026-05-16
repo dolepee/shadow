@@ -6,17 +6,17 @@ Live app: https://shadow-two-opal.vercel.app
 
 GitHub: https://github.com/dolepee/shadow
 
-## Contracts (V3)
+## Contracts (V4)
 
 - ARCETH mock asset: `0x9beB19B1F360F110f731A09BA3fccB0E0cAE2402`
-- ShadowAMM: `0xeDbDaC33160DE3e017dB988E02AD623344371633`
+- ShadowAMM (V4): `0x917700Df306bDd84418369e24E7dfe2E0fd8D697`
 - SourceRegistry: `0xEec07657c5628AeCe50f20AA12C15A2a4B1557e1`
-- MirrorRouter (V3): `0x987d7886c9dA7Ffbb7CC66b7914518D8966975eb`
+- MirrorRouter (V4): `0xcB300Ac9f5944Fd06F39329cf5d871C9B92C6655`
 - Arc USDC: `0x3600000000000000000000000000000000000000`
 
-V3 deploy block: `42508627`
+V4 deploy block: `42556765`
 
-V3 adds two follower-side custody primitives on the router: `withdrawUSDC(amount)` pulls idle balance back to the wallet, and `unfollowSource(source)` deactivates the policy so the router skips that follower on later intents. V2 MirrorRouter (`0x4e194EFB8060C9e7919a06C7E0AE4cbf9e7D47fF`, deploy block `42361208`) remains readable as historical state.
+V4 turns each copied intent into a tracked position: the router keeps the ARCETH it bought, records `Position{sourceAgent, assetAmount, usdcIn, closed}` per `(intentId, follower)`, and emits `PositionOpened`. Followers call `closePosition(intentId)` to reverse-swap the asset back to USDC; the router credits the follower's idle USDC balance and emits `PositionClosed(intentId, follower, sourceAgent, usdcIn, usdcOut, pnlBps)` so the UI can show realized PnL. ShadowAMM v2 ships `swapExactAssetForUSDC` to close the loop. Prior generations remain readable as historical state: V3 router `0x987d7886c9dA7Ffbb7CC66b7914518D8966975eb` (deploy block `42508627`), V2 router `0x4e194EFB8060C9e7919a06C7E0AE4cbf9e7D47fF` (deploy block `42361208`).
 
 ## Seeded Agents
 
@@ -24,7 +24,7 @@ V3 adds two follower-side custody primitives on the router: `withdrawUSDC(amount
 - LobsterRisk: `0xFF3BDb60E16538333C9A290BB80bE52b3b82D2f3`
 - MomentumOtter: `0xe2f079d0aBe68a9CA0A9875e254fD976EaC0696B`
 
-Both agents store ERC-8004 style identity references to the Arc testnet identity registry:
+Seeded source agents store ERC-8004 style identity references to the Arc testnet identity registry:
 
 ```text
 0x8004A818BFB912233c491871b3d84c89A494BD9e

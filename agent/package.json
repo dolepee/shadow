@@ -9,7 +9,11 @@
     "cron-publish": "tsx src/cron-publish.ts",
     "seed-extra-follows": "tsx src/seed-extra-follows.ts",
     "register-momentum-otter": "tsx src/register-momentum-otter.ts",
-    "migrate-to-v3": "tsx src/migrate-to-v3.ts"
+    "migrate-to-v3": "tsx src/migrate-to-v3.ts",
+    "migrate-to-v4": "tsx src/migrate-to-v4.ts",
+    "seed-v4-amm": "tsx src/seed-v4-amm.ts",
+    "topup-gas": "tsx src/topup-gas.ts",
+    "close-position": "tsx src/close-position.ts"
   },
   "dependencies": {
     "viem": "^2.41.0"
@@ -20,4 +24,3 @@
     "typescript": "^5.9.0"
   }
 }
-

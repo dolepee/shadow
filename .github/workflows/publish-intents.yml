@@ -15,9 +15,12 @@ jobs:
     timeout-minutes: 5
     env:
       ARC_RPC_URL: ${{ secrets.ARC_RPC_URL }}
+      ARC_USDC: ${{ secrets.ARC_USDC }}
       SHADOW_ROUTER: ${{ secrets.SHADOW_ROUTER }}
       SHADOW_ARCETH: ${{ secrets.SHADOW_ARCETH }}
       SHADOW_AMM: ${{ secrets.SHADOW_AMM }}
+      KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+      KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,11 +32,22 @@ jobs:
       - name: install agent deps
         working-directory: agent
         run: pnpm install --no-frozen-lockfile --ignore-workspace
+      - name: top up publisher gas
+        working-directory: agent
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          CAT_AGENT_PRIVATE_KEY: ${{ secrets.CAT_AGENT_PRIVATE_KEY }}
+          LOBSTER_AGENT_PRIVATE_KEY: ${{ secrets.LOBSTER_AGENT_PRIVATE_KEY }}
+          OTTER_AGENT_PRIVATE_KEY: ${{ secrets.OTTER_AGENT_PRIVATE_KEY }}
+          FOLLOWER_A_PRIVATE_KEY: ${{ secrets.FOLLOWER_A_PRIVATE_KEY }}
+          FOLLOWER_B_PRIVATE_KEY: ${{ secrets.FOLLOWER_B_PRIVATE_KEY }}
+        run: pnpm --ignore-workspace exec tsx src/topup-gas.ts
       - name: publish CatArb intent (split outcome)
         working-directory: agent
         env:
           PUBLISHER_KEY: ${{ secrets.CAT_AGENT_PRIVATE_KEY }}
           SOURCE_LABEL: CatArb
+          SOURCE_NAME: CatArb
           INTENT_AMOUNT_USDC: "0.02"
           INTENT_MIN_BPS: "10500"
           INTENT_RISK_LEVEL: "2"
@@ -43,6 +57,7 @@ jobs:
         env:
           PUBLISHER_KEY: ${{ secrets.LOBSTER_AGENT_PRIVATE_KEY }}
           SOURCE_LABEL: LobsterRisk
+          SOURCE_NAME: LobsterRisk
           INTENT_AMOUNT_USDC: "0.01"
           INTENT_MIN_BPS: "9800"
           INTENT_RISK_LEVEL: "1"
@@ -52,7 +67,16 @@ jobs:
         env:
           PUBLISHER_KEY: ${{ secrets.OTTER_AGENT_PRIVATE_KEY }}
           SOURCE_LABEL: MomentumOtter
+          SOURCE_NAME: MomentumOtter
           INTENT_AMOUNT_USDC: "0.015"
           INTENT_MIN_BPS: "9700"
           INTENT_RISK_LEVEL: "3"
         run: pnpm --ignore-workspace exec tsx src/cron-publish.ts
+      - name: close copied positions
+        working-directory: agent
+        env:
+          FOLLOWER_A_PRIVATE_KEY: ${{ secrets.FOLLOWER_A_PRIVATE_KEY }}
+          FOLLOWER_B_PRIVATE_KEY: ${{ secrets.FOLLOWER_B_PRIVATE_KEY }}
+          CLOSE_LIMIT: "2"
+          CLOSE_SCAN_LIMIT: "30"
+        run: pnpm --ignore-workspace exec tsx src/close-position.ts

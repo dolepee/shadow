@@ -45,6 +45,8 @@ const routerAbi = parseAbi([
 
 const ammAbi = parseAbi([
   "function quoteUSDCForAsset(uint256 usdcAmountIn) view returns (uint256)",
+  "function reserveUSDC() view returns (uint256)",
+  "function reserveAsset() view returns (uint256)",
 ]);
 
 const mirrorReceiptEvent = parseAbiItem(
@@ -55,6 +57,8 @@ type VerifyResult = {
   published: true;
   ok: boolean;
   tx: `0x${string}`;
+  intentHash: `0x${string}`;
+  reasoning: ReasoningPacket;
   blockNumber: string;
   amountUSDC: string;
   liveQuote: string;
@@ -77,6 +81,22 @@ type VerifyResult = {
     mirrorFee: string;
     assetOut: string;
   };
+};
+
+type ReasoningPacket = {
+  sourceAgent: `0x${string}`;
+  sourceName: string;
+  intentHash: `0x${string}`;
+  createdAt: number;
+  amountUSDC: string;
+  minAmountOut: string;
+  liveQuote: string;
+  reserveUSDC: string;
+  reserveAsset: string;
+  riskLevel: number;
+  confidenceBps: number;
+  decision: "publish" | "skip";
+  rationale: string;
 };
 
 type VerifyDiagnostic = {
@@ -205,12 +225,16 @@ async function runVerify(): Promise<VerifyOutcome> {
   }
 
   const amountUSDC = targetAmount;
-  const liveQuote = (await publicClient.readContract({
-    address: amm,
-    abi: ammAbi,
-    functionName: "quoteUSDCForAsset",
-    args: [amountUSDC],
-  })) as bigint;
+  const [liveQuote, reserveUSDC, reserveAsset] = (await Promise.all([
+    publicClient.readContract({
+      address: amm,
+      abi: ammAbi,
+      functionName: "quoteUSDCForAsset",
+      args: [amountUSDC],
+    }),
+    publicClient.readContract({ address: amm, abi: ammAbi, functionName: "reserveUSDC" }),
+    publicClient.readContract({ address: amm, abi: ammAbi, functionName: "reserveAsset" }),
+  ])) as [bigint, bigint, bigint];
   const minAmountOut = (liveQuote * 105n) / 100n;
   const scaledMinA = (minAmountOut * FOLLOWER_A_MIN_BPS) / BPS;
   const scaledMinB = (minAmountOut * FOLLOWER_B_MIN_BPS) / BPS;
@@ -222,9 +246,37 @@ async function runVerify(): Promise<VerifyOutcome> {
     throw new Error("math drift: follower B scaled min above live quote");
   }
 
+  const rationale = `CatArb verify button picked ${formatUSDC(amountUSDC)} USDC with a 5.00% strict split: Follower A blocks on ${formatAsset(scaledMinA)} ARCETH while Follower B can copy at ${formatAsset(scaledMinB)} ARCETH against a live ${formatAsset(liveQuote)} ARCETH quote.`;
   const intentHash = keccak256(
-    encodePacked(["string", "uint256"], ["shadow-verify-button", BigInt(Date.now())]),
+    encodePacked(
+      ["address", "uint256", "uint256", "uint256", "uint8", "string", "string"],
+      [account.address, amountUSDC, minAmountOut, liveQuote, 2, "CatArb", rationale],
+    ),
   );
+  const reasoning: ReasoningPacket = {
+    sourceAgent: account.address,
+    sourceName: "CatArb",
+    intentHash,
+    createdAt: Math.floor(Date.now() / 1000),
+    amountUSDC: formatUSDC(amountUSDC),
+    minAmountOut: formatAsset(minAmountOut),
+    liveQuote: formatAsset(liveQuote),
+    reserveUSDC: formatUSDC(reserveUSDC),
+    reserveAsset: formatAsset(reserveAsset),
+    riskLevel: 2,
+    confidenceBps: Math.min(10_000, Number((minAmountOut * BPS) / liveQuote)),
+    decision: "publish",
+    rationale,
+  };
+
+  const kv = kvConfigFromEnv();
+  if (kv) {
+    try {
+      await putReasoning(kv, reasoning);
+    } catch (error) {
+      console.warn(`reasoning kv write failed: ${(error as Error).message}`);
+    }
+  }
 
   const tx = await walletClient.writeContract({
     address: router,
@@ -243,6 +295,13 @@ async function runVerify(): Promise<VerifyOutcome> {
   });
 
   const txReceipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+  if (kv) {
+    try {
+      await bindIntentHashToTx(kv, tx, intentHash);
+    } catch (error) {
+      console.warn(`reasoning tx bind failed: ${(error as Error).message}`);
+    }
+  }
 
   const receipts = await publicClient.getLogs({
     address: router,
@@ -268,6 +327,8 @@ async function runVerify(): Promise<VerifyOutcome> {
     published: true,
     ok,
     tx,
+    intentHash,
+    reasoning,
     blockNumber: txReceipt.blockNumber.toString(),
     amountUSDC: formatUSDC(amountUSDC),
     liveQuote: formatAsset(liveQuote),
@@ -313,6 +374,57 @@ function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`missing env: ${name}`);
   return value;
+}
+
+type KVConfig = { url: string; token: string };
+
+function kvConfigFromEnv(): KVConfig | null {
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
+  if (!url || !token) return null;
+  return { url: url.replace(/\/$/, ""), token };
+}
+
+async function putReasoning(kv: KVConfig, packet: ReasoningPacket): Promise<void> {
+  const key = `reasoning:${packet.intentHash}`;
+  const setRes = await fetch(`${kv.url}/set/${encodeURIComponent(key)}?EX=2592000`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${kv.token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(packet),
+  });
+  if (!setRes.ok) {
+    throw new Error(`kv set failed status=${setRes.status} body=${await setRes.text()}`);
+  }
+
+  const latestRes = await fetch(`${kv.url}/set/latestReasoningIntentHash`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${kv.token}`,
+      "content-type": "application/json",
+    },
+    body: packet.intentHash,
+  });
+  if (!latestRes.ok) {
+    throw new Error(`kv latest set failed status=${latestRes.status} body=${await latestRes.text()}`);
+  }
+}
+
+async function bindIntentHashToTx(kv: KVConfig, txHash: `0x${string}`, intentHash: `0x${string}`): Promise<void> {
+  const key = `tx:${txHash.toLowerCase()}:reasoning`;
+  const res = await fetch(`${kv.url}/set/${encodeURIComponent(key)}?EX=2592000`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${kv.token}`,
+      "content-type": "application/json",
+    },
+    body: intentHash,
+  });
+  if (!res.ok) {
+    throw new Error(`kv tx bind failed status=${res.status} body=${await res.text()}`);
+  }
 }
 
 type VercelLikeResponse = {

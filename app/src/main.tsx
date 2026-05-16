@@ -4,6 +4,7 @@ import { createWalletClient, custom, parseUnits, type Address } from "viem";
 import {
   addresses,
   arcTestnet,
+  computeEarnedReputation,
   erc20Abi,
   fetchShadowState,
   formatAsset,
@@ -13,6 +14,8 @@ import {
   routerAbi,
   shortAddress,
   txUrl,
+  type EarnedReputation,
+  type PositionCloseLog,
   type ReceiptLog,
   type ShadowState,
   type SourceAgent,
@@ -111,6 +114,31 @@ type VerifyResponse = {
   scaledMinB: string;
   followerA: VerifyOutcome;
   followerB: VerifyOutcome;
+  intentHash?: string;
+  reasoning?: ReasoningPacket;
+};
+
+type ReasoningPacket = {
+  sourceAgent: string;
+  sourceName: string;
+  intentHash: string;
+  createdAt: number;
+  amountUSDC: string;
+  minAmountOut: string;
+  liveQuote: string;
+  reserveUSDC: string;
+  reserveAsset: string;
+  riskLevel: number;
+  confidenceBps: number;
+  decision: "publish" | "skip";
+  rationale: string;
+};
+
+type ReasoningResponse = {
+  configured: boolean;
+  packet: ReasoningPacket | null;
+  latestIntentHash: string | null;
+  error?: string;
 };
 
 function App() {
@@ -129,6 +157,28 @@ function App() {
   const [following, setFollowing] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [managing, setManaging] = useState(false);
+  const [reasoning, setReasoning] = useState<ReasoningResponse | null>(null);
+  const [closingIntentId, setClosingIntentId] = useState<bigint | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const response = await fetch("/api/reasoning");
+        const data = (await response.json()) as ReasoningResponse;
+        if (cancelled) return;
+        setReasoning(data);
+      } catch {
+        // best-effort; transient errors are ignored
+      }
+    }
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   async function refresh() {
     setLoading(true);
@@ -230,6 +280,9 @@ function App() {
         throw new Error(data.error || `request failed with ${response.status}`);
       }
       setVerifyResult(data);
+      if (data.reasoning) {
+        setReasoning({ configured: true, packet: data.reasoning, latestIntentHash: data.reasoning.intentHash });
+      }
       refresh();
     } catch (error) {
       setVerifyError(error instanceof Error ? error.message : String(error));
@@ -432,6 +485,40 @@ function App() {
     }
   }
 
+  async function closePosition(intentId: bigint) {
+    if (!isConfigured || !addresses.router) {
+      setAction({ label: "close blocked", error: "Configure addresses first." });
+      return;
+    }
+    if (!window.ethereum) {
+      setAction({ label: "close blocked", error: "Install a browser wallet." });
+      return;
+    }
+    setClosingIntentId(intentId);
+    setAction({ label: `closing intent ${intentId.toString()}` });
+    try {
+      const [user] = (await window.ethereum.request({ method: "eth_requestAccounts" })) as Address[];
+      await switchToArc();
+      setAccount(user);
+      const wallet = createWalletClient({ account: user, chain: arcTestnet, transport: custom(window.ethereum) });
+      const tx = await wallet.writeContract({
+        account: user,
+        address: addresses.router,
+        abi: routerAbi,
+        functionName: "closePosition",
+        args: [intentId],
+        chain: arcTestnet,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      setAction({ label: "position closed", tx });
+      await refresh();
+    } catch (error) {
+      setAction({ label: "close failed", error: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setClosingIntentId(null);
+    }
+  }
+
   return (
     <main className="shell">
       <nav className="nav">
@@ -460,7 +547,7 @@ function App() {
 
       {spotlight.a && spotlight.b && (
         <section className="spotlight">
-          <p className="eyebrow">v3 slippage demo · live on Arc testnet</p>
+          <p className="eyebrow">v4 policy split · live on Arc testnet</p>
           <h2>One source intent. Two follower outcomes.</h2>
           <p className="spotlightSummary">
             CatArb published intent #{SPOTLIGHT.intentId.toString()} for {SPOTLIGHT.amountUSDC} USDC at minimum {SPOTLIGHT.intentMinAmountOut} ARCETH. The live AMM quoted {spotlightLiveQuote} ARCETH. Each follower's own minBpsOut decides the outcome — the source intent no longer cascade-reverts.
@@ -536,14 +623,20 @@ function App() {
         />
       )}
 
+      <LatestReasoningPanel data={reasoning} />
+
       {state && (
         <LiveFeed
           receipts={feedReceipts}
+          closes={state.positionCloses}
           sourceNameByAddress={sourceNameByAddress}
           latestBlock={state.latestBlock}
           fetchedAt={state.fetchedAt}
           loading={loading}
           totalReceipts={state.receipts.length}
+          account={account}
+          closingIntentId={closingIntentId}
+          onClosePosition={closePosition}
         />
       )}
 
@@ -556,22 +649,8 @@ function App() {
         <Stat label="1 USDC quote" value={`${formatAsset(state?.quoteForOneUSDC || 0n)} ARCETH`} />
       </section>
 
-      <section className="agents">
-        <Header eyebrow="source agents" title="ERC-8004 referenced agent profiles" />
-        <div className="agentGrid">
-          {state?.sources.map((source) => (
-            <article className="card" key={source.address}>
-              <p>{source.name}</p>
-              <strong>{score(source.reputationScore)}</strong>
-              <span>{shortAddress(source.address)}</span>
-              <span>{source.followerCount.toString()} followers</span>
-              <span>{formatUSDC(source.kickbackUSDC)} USDC kickback accrued</span>
-              <span>ERC-8004 {shortAddress(source.erc8004Registry)}</span>
-            </article>
-          ))}
-          {state?.sources.length === 0 && <Empty text="No source agents registered yet." />}
-        </div>
-      </section>
+      <EarnedReputationPanel rows={state ? computeEarnedReputation(state) : []} />
+
 
       <section className="panel">
         <Header eyebrow="controlled AMM" title="Real onchain exchange path, intentionally small" />
@@ -742,7 +821,7 @@ function FollowFlow({
                   </div>
                   <span className="sourceChoiceAddr">{shortAddress(source.address)}</span>
                   <span className="sourceChoiceMeta">
-                    {source.followerCount.toString()} followers · {(source.reputationScore / 100).toFixed(0)}% rep
+                    {source.followerCount.toString()} follow records · {(source.reputationScore / 100).toFixed(0)}% rep
                   </span>
                 </button>
               );
@@ -949,20 +1028,107 @@ function ManagePanel({
   );
 }
 
+function LatestReasoningPanel({ data }: { data: ReasoningResponse | null }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, []);
+
+  if (!data || !data.configured) {
+    return null;
+  }
+
+  if (!data.packet) {
+    return (
+      <section className="reasoningPanel empty">
+        <div className="reasoningHeader">
+          <p className="eyebrow">latest agent reasoning</p>
+          <h2>Waiting for the next cron tick.</h2>
+        </div>
+        <p className="reasoningEmpty">No reasoning packets stored yet. The next published intent will appear here with its full rationale and a content-derived intentHash you can verify on chain.</p>
+      </section>
+    );
+  }
+
+  const packet = data.packet;
+  const secondsSince = Math.max(0, Math.floor(now / 1000 - packet.createdAt));
+  const confidencePct = (packet.confidenceBps / 100).toFixed(2);
+  const shortHash = `${packet.intentHash.slice(0, 10)}…${packet.intentHash.slice(-6)}`;
+  return (
+    <section className="reasoningPanel">
+      <div className="reasoningHeader">
+        <div>
+          <p className="eyebrow">latest agent reasoning</p>
+          <h2>{packet.sourceName} just published an intent.</h2>
+        </div>
+        <span className={`reasoningBadge ${packet.decision}`}>{packet.decision.toUpperCase()}</span>
+      </div>
+      <p className="reasoningRationale">{packet.rationale}</p>
+      <dl className="reasoningGrid">
+        <div>
+          <dt>source agent</dt>
+          <dd>{shortAddress(packet.sourceAgent as `0x${string}`)}</dd>
+        </div>
+        <div>
+          <dt>intent hash</dt>
+          <dd className="mono">{shortHash}</dd>
+        </div>
+        <div>
+          <dt>amount</dt>
+          <dd>{packet.amountUSDC} USDC</dd>
+        </div>
+        <div>
+          <dt>min out</dt>
+          <dd>{packet.minAmountOut} ARCETH</dd>
+        </div>
+        <div>
+          <dt>live quote</dt>
+          <dd>{packet.liveQuote} ARCETH</dd>
+        </div>
+        <div>
+          <dt>confidence</dt>
+          <dd>{confidencePct}%</dd>
+        </div>
+        <div>
+          <dt>risk level</dt>
+          <dd>L{packet.riskLevel}</dd>
+        </div>
+        <div>
+          <dt>pool depth</dt>
+          <dd>{packet.reserveUSDC} USDC</dd>
+        </div>
+      </dl>
+      <p className="reasoningFooter">
+        <span>created {secondsSince}s ago</span>
+        <span className="mono">intentHash = keccak256(source, amount, minOut, liveQuote, risk, name, rationale)</span>
+      </p>
+    </section>
+  );
+}
+
 function LiveFeed({
   receipts,
+  closes,
   sourceNameByAddress,
   latestBlock,
   fetchedAt,
   loading,
   totalReceipts,
+  account,
+  closingIntentId,
+  onClosePosition,
 }: {
   receipts: ReceiptLog[];
+  closes: PositionCloseLog[];
   sourceNameByAddress: Map<string, string>;
   latestBlock: bigint;
   fetchedAt: number;
   loading: boolean;
   totalReceipts: number;
+  account?: Address;
+  closingIntentId: bigint | null;
+  onClosePosition: (intentId: bigint) => Promise<void>;
 }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -970,6 +1136,12 @@ function LiveFeed({
     return () => clearInterval(tick);
   }, []);
   const secondsSince = Math.max(0, Math.floor((now - fetchedAt) / 1000));
+  const accountKey = account?.toLowerCase();
+  const closedByFollowerIntent = new Set(closes.map((close) => `${close.follower.toLowerCase()}:${close.intentId.toString()}`));
+  const latestCloses = closes
+    .slice()
+    .sort((a, b) => Number(b.blockNumber - a.blockNumber))
+    .slice(0, 4);
   return (
     <section className="liveFeed">
       <div className="liveFeedHeader">
@@ -1000,6 +1172,12 @@ function LiveFeed({
         {receipts.map((receipt) => {
           const sourceName = sourceNameByAddress.get(receipt.sourceAgent.toLowerCase()) || shortAddress(receipt.sourceAgent);
           const blocksAgo = latestBlock && receipt.blockNumber ? Number(latestBlock - receipt.blockNumber) : 0;
+          const receiptKey = `${receipt.follower.toLowerCase()}:${receipt.intentId.toString()}`;
+          const canClose =
+            receipt.status === "copied" &&
+            Boolean(accountKey) &&
+            receipt.follower.toLowerCase() === accountKey &&
+            !closedByFollowerIntent.has(receiptKey);
           return (
             <article className={`liveFeedRow ${receipt.status}`} key={`${receipt.transactionHash}-${receipt.follower}`}>
               <span className={`liveBadge ${receipt.status}`}>{receipt.status === "copied" ? "COPIED" : "BLOCKED"}</span>
@@ -1028,9 +1206,50 @@ function LiveFeed({
                 block {receipt.blockNumber.toString()}
                 <span>{blocksAgo > 0 ? `${blocksAgo} blocks ago` : "just now"}</span>
               </a>
+              {canClose && (
+                <button
+                  className="closePositionButton"
+                  type="button"
+                  onClick={() => onClosePosition(receipt.intentId)}
+                  disabled={closingIntentId === receipt.intentId}
+                >
+                  {closingIntentId === receipt.intentId ? "closing..." : "close position"}
+                </button>
+              )}
             </article>
           );
         })}
+      </div>
+      <div className="closeFeed">
+        <div className="closeFeedHeader">
+          <p className="eyebrow">realized close loop</p>
+          <h3>Copied positions can round trip back into router USDC.</h3>
+        </div>
+        {latestCloses.length === 0 ? (
+          <div className="empty">No PositionClosed events yet. Close one copied receipt to complete the realized PnL loop.</div>
+        ) : (
+          <div className="closeFeedList">
+            {latestCloses.map((close) => {
+              const sourceName = sourceNameByAddress.get(close.sourceAgent.toLowerCase()) || shortAddress(close.sourceAgent);
+              const pnl = Number(close.pnlBps) / 100;
+              return (
+                <article className="closeFeedRow" key={`${close.transactionHash}-${close.follower}-${close.intentId.toString()}`}>
+                  <div>
+                    <strong>{sourceName}</strong>
+                    <span>intent {close.intentId.toString()} closed by {shortAddress(close.follower)}</span>
+                  </div>
+                  <div>
+                    <strong>{formatUSDC(close.usdcIn)} → {formatUSDC(close.usdcOut)} USDC</strong>
+                    <span className={pnl >= 0 ? "pnlPositive" : "pnlNegative"}>{pnl.toFixed(2)}% realized PnL</span>
+                  </div>
+                  <a href={txUrl(close.transactionHash)} target="_blank" rel="noreferrer noopener">
+                    {shortAddress(close.transactionHash)}
+                  </a>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -1053,6 +1272,12 @@ function VerifyResultPanel({ result }: { result: VerifyResponse }) {
             </a>
           </dd>
         </div>
+        {result.intentHash && (
+          <div>
+            <dt>reasoning hash</dt>
+            <dd>{shortAddress(result.intentHash)}</dd>
+          </div>
+        )}
         <div>
           <dt>block</dt>
           <dd>{result.blockNumber}</dd>
@@ -1166,6 +1391,114 @@ function totalKickbacks(state: ShadowState | null): bigint {
 
 function score(value: number): string {
   return `${(value / 100).toFixed(0)}%`;
+}
+
+function EarnedReputationPanel({ rows }: { rows: EarnedReputation[] }) {
+  if (rows.length === 0) {
+    return (
+      <section className="reputationPanel">
+        <Header eyebrow="earned reputation" title="What source agents have actually done onchain" />
+        <p className="reputationEmpty">No source agents registered yet.</p>
+      </section>
+    );
+  }
+  const totalIntents = rows.reduce((sum, r) => sum + r.intentsPublished, 0);
+  const totalCopies = rows.reduce((sum, r) => sum + r.copyCount, 0);
+  const totalRouted = rows.reduce((sum, r) => sum + r.routedUSDC, 0n);
+  return (
+    <section className="reputationPanel">
+      <Header eyebrow="earned reputation" title="What source agents have actually done onchain" />
+      <p className="reputationCaption">
+        Ranked by mirror fees actually earned. Every number here is derived from{" "}
+        <code>IntentPublished</code>, <code>MirrorReceipt</code>, and{" "}
+        <code>PositionClosed</code> events; nothing is self-reported.
+      </p>
+      <div className="reputationTotals">
+        <span>{totalIntents} intents published</span>
+        <span>{totalCopies} copies executed</span>
+        <span>{formatUSDC(totalRouted)} USDC routed through followers</span>
+      </div>
+      <div className="reputationGrid">
+        {rows.map((row, index) => (
+          <article className="reputationCard" key={row.source.address}>
+            <header className="reputationCardHeader">
+              <span className="reputationRank">#{index + 1}</span>
+              <div className="reputationName">
+                <strong>{row.source.name}</strong>
+                <span className="reputationAddr">{shortAddress(row.source.address)}</span>
+              </div>
+              <span className="reputationRegistry">
+                ERC-8004 score {score(row.source.reputationScore)}
+              </span>
+            </header>
+            <div className="reputationStats">
+              <ReputationStat label="intents" value={String(row.intentsPublished)} />
+              <ReputationStat
+                label="copy rate"
+                value={
+                  row.copyCount + row.blockCount === 0
+                    ? "—"
+                    : `${(row.copyRateBps / 100).toFixed(1)}%`
+                }
+                subtext={`${row.copyCount} copied / ${row.blockCount} blocked`}
+              />
+              <ReputationStat
+                label="USDC routed"
+                value={formatUSDC(row.routedUSDC)}
+              />
+              <ReputationStat
+                label="mirror fees earned"
+                value={formatUSDC(row.mirrorFeesUSDC)}
+                subtext={`70% to source = ${formatUSDC(row.source.kickbackUSDC)} accrued`}
+              />
+              <ReputationStat
+                label="follow records"
+                value={row.source.followerCount.toString()}
+              />
+              <ReputationStat
+                label="realized PnL"
+                value={
+                  row.realizedPnlAvgBps === null
+                    ? "no closes"
+                    : `${(row.realizedPnlAvgBps / 100).toFixed(2)}%`
+                }
+                subtext={
+                  row.closedCount === 0 ? "—" : `avg over ${row.closedCount} closed positions`
+                }
+                tone={
+                  row.realizedPnlAvgBps === null
+                    ? undefined
+                    : row.realizedPnlAvgBps >= 0
+                      ? "positive"
+                      : "negative"
+                }
+              />
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ReputationStat({
+  label,
+  value,
+  subtext,
+  tone,
+}: {
+  label: string;
+  value: string;
+  subtext?: string;
+  tone?: "positive" | "negative";
+}) {
+  return (
+    <div className={`reputationStat${tone ? ` tone-${tone}` : ""}`}>
+      <p>{label}</p>
+      <strong>{value}</strong>
+      {subtext && <span>{subtext}</span>}
+    </div>
+  );
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
