@@ -86,6 +86,20 @@ const mirrorReceiptEvent = parseAbiItem(
   "event MirrorReceipt(uint256 indexed intentId, address indexed follower, address indexed sourceAgent, uint8 status, uint8 reason, uint256 usdcAmount, uint256 mirrorFeeUSDC, uint256 assetAmountOut)",
 );
 
+const LOG_CHUNK_SIZE = 90_000n;
+
+function logRanges(fromBlock: bigint, toBlock: bigint): { fromBlock: bigint; toBlock: bigint }[] {
+  const ranges: { fromBlock: bigint; toBlock: bigint }[] = [];
+  let cursor = fromBlock;
+  while (cursor <= toBlock) {
+    const chunkEnd = cursor + LOG_CHUNK_SIZE - 1n;
+    const end = chunkEnd < toBlock ? chunkEnd : toBlock;
+    ranges.push({ fromBlock: cursor, toBlock: end });
+    cursor = end + 1n;
+  }
+  return ranges;
+}
+
 export type SourceAgent = {
   address: Address;
   name: string;
@@ -234,20 +248,31 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
     client.getBlockNumber(),
   ]);
 
-  const [intentLogs, receiptLogs] = await Promise.all([
-    client.getLogs({
-      address: addresses.router!,
-      event: intentPublishedEvent,
-      fromBlock: startBlock,
-      toBlock: "latest",
-    }),
-    client.getLogs({
-      address: addresses.router!,
-      event: mirrorReceiptEvent,
-      fromBlock: startBlock,
-      toBlock: "latest",
-    }),
+  const ranges = logRanges(startBlock, latestBlock);
+  const [intentChunks, receiptChunks] = await Promise.all([
+    Promise.all(
+      ranges.map((range) =>
+        client.getLogs({
+          address: addresses.router!,
+          event: intentPublishedEvent,
+          fromBlock: range.fromBlock,
+          toBlock: range.toBlock,
+        }),
+      ),
+    ),
+    Promise.all(
+      ranges.map((range) =>
+        client.getLogs({
+          address: addresses.router!,
+          event: mirrorReceiptEvent,
+          fromBlock: range.fromBlock,
+          toBlock: range.toBlock,
+        }),
+      ),
+    ),
   ]);
+  const intentLogs = intentChunks.flat();
+  const receiptLogs = receiptChunks.flat();
 
   return {
     sources,
