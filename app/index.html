@@ -3,11 +3,80 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Shadow</title>
+    <meta name="theme-color" content="#0b0f1a" />
+    <title>Shadow: onchain copy trading with verifiable receipts</title>
+    <meta
+      name="description"
+      content="Shadow is an onchain copy-trading agora on Arc. Source agents publish trade intents; followers mirror them through a single router that emits per-follower copied or blocked receipts. Every fill, slippage block, and PnL is verifiable onchain."
+    />
+    <link rel="canonical" href="https://shadow-two-opal.vercel.app/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Shadow" />
+    <meta property="og:title" content="Shadow: onchain copy trading with verifiable receipts" />
+    <meta
+      property="og:description"
+      content="Source agents publish trade intents on Arc. A single router fans them out to followers and emits a copied or blocked receipt per follower with the exact block reason. Open the live receipts feed."
+    />
+    <meta property="og:url" content="https://shadow-two-opal.vercel.app/" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Shadow: onchain copy trading with verifiable receipts" />
+    <meta
+      name="twitter:description"
+      content="Source agents publish trade intents on Arc. Followers mirror through a router that emits per-follower copied or blocked receipts onchain."
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Shadow",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "description": "Onchain copy-trading agora on Arc testnet. Source agents publish trade intents; a router mirrors them to followers and emits a copied or blocked receipt per follower with the exact block reason. Real LLM reasoning on MomentumOtter intents.",
+        "url": "https://shadow-two-opal.vercel.app/",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <noscript>
+        <p>
+          Shadow needs JavaScript for the live receipts feed. The contracts and event log
+          are still browsable onchain on Arc testnet (chain id 5042002) regardless.
+        </p>
+      </noscript>
+      <main data-prerender="shell" style="font-family:system-ui,sans-serif;max-width:780px;margin:48px auto;padding:0 20px;color:#dde3ef;background:#0b0f1a">
+        <header>
+          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#7c8a9e;margin:0 0 8px">Shadow · onchain copy trading</p>
+          <h1 style="font-size:32px;margin:0 0 12px;line-height:1.15">Source agents publish trade intents. A router mirrors them. Receipts settle onchain.</h1>
+          <p style="font-size:17px;line-height:1.55;color:#b6c2d3;margin:0 0 18px">
+            Three source agents publish intents on Arc testnet every 10 minutes. The Shadow router fans each intent out to its followers and emits a <strong>copied</strong> or <strong>blocked</strong> receipt per follower with the exact reason. MomentumOtter intents are reasoned by a real LLM via Bankr; the rationale is hashed into the intent itself.
+          </p>
+        </header>
+        <section>
+          <h2 style="font-size:18px;margin:24px 0 8px">Source agents</h2>
+          <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#cfd7e4">
+            <li><strong>CatArb</strong> · spot arbitrage on the USDC / ARCETH pool</li>
+            <li><strong>LobsterRisk</strong> · risk-managed copy with tighter slippage</li>
+            <li><strong>MomentumOtter</strong> · LLM-reasoned momentum with a regime read on every intent</li>
+          </ul>
+        </section>
+        <section>
+          <h2 style="font-size:18px;margin:24px 0 8px">What the router emits</h2>
+          <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#cfd7e4">
+            <li>· copied receipt with mirrored amount, fee, and asset out</li>
+            <li>· blocked receipt with the block reason: amount_too_high, risk_too_high, slippage_too_tight, daily_cap_exceeded, ...</li>
+            <li>· PositionClosed receipt with realized PnL in bps when followers close</li>
+          </ul>
+        </section>
+        <footer style="margin-top:32px;border-top:1px solid #1a2233;padding-top:16px;font-size:13px;color:#7c8a9e">
+          Live deployment on Arc testnet · chain id 5042002 · loading the interactive surface...
+        </footer>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
