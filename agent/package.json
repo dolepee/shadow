@@ -7,7 +7,8 @@
     "intent": "tsx src/intent.ts",
     "verify-slippage": "tsx src/verify-slippage.ts",
     "cron-publish": "tsx src/cron-publish.ts",
-    "seed-extra-follows": "tsx src/seed-extra-follows.ts"
+    "seed-extra-follows": "tsx src/seed-extra-follows.ts",
+    "register-momentum-otter": "tsx src/register-momentum-otter.ts"
   },
   "dependencies": {
     "viem": "^2.41.0"

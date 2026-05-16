@@ -47,3 +47,12 @@ jobs:
           INTENT_MIN_BPS: "9800"
           INTENT_RISK_LEVEL: "1"
         run: pnpm --ignore-workspace exec tsx src/cron-publish.ts
+      - name: publish MomentumOtter intent (aggressive copy)
+        working-directory: agent
+        env:
+          PUBLISHER_KEY: ${{ secrets.OTTER_AGENT_PRIVATE_KEY }}
+          SOURCE_LABEL: MomentumOtter
+          INTENT_AMOUNT_USDC: "0.015"
+          INTENT_MIN_BPS: "9700"
+          INTENT_RISK_LEVEL: "3"
+        run: pnpm --ignore-workspace exec tsx src/cron-publish.ts

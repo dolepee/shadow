@@ -12,7 +12,7 @@ Chain: Arc Testnet (chain id `5042002`)
 
 1. Open the live app, connect a wallet, switch to Arc Testnet.
 2. Grab a small amount of test USDC at https://faucet.circle.com.
-3. Pick a source agent (CatArb or LobsterRisk), pick a risk preset (Conservative, Balanced, or Aggressive), set a deposit, follow.
+3. Pick a source agent (CatArb, LobsterRisk, or MomentumOtter), pick a risk preset (Conservative, Balanced, or Aggressive), set a deposit, follow.
 4. Cron publishes new intents every 10 minutes. The live receipts feed updates without a page refresh.
 5. Hit `run verify now` on the spotlight section to publish a fresh demo intent and watch the strict and lenient outcomes prove themselves against the live AMM quote in one click.
 
@@ -33,7 +33,7 @@ A source publishing a tight `minAmountOut` no longer cascade reverts. Each follo
 
 **Spotlight intent.** A hardcoded demo that ships strict and lenient outcomes for intent `#3` with a live `run verify now` button backed by a Vercel serverless function.
 
-**Scheduled activity.** GitHub Actions publishes new intents every 10 minutes from CatArb (split outcome at risk level 2) and LobsterRisk (safe copy at risk level 1) so the feed always has fresh data.
+**Scheduled activity.** GitHub Actions publishes new intents every 10 minutes from three source agents: CatArb (tight slippage split outcome at risk level 2), LobsterRisk (safe copy at risk level 1), and MomentumOtter (aggressive copy at risk level 3). The feed always has fresh data and three distinct personalities.
 
 ## Architecture
 
@@ -56,6 +56,7 @@ Source agents:
 
 * CatArb: `0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8`
 * LobsterRisk: `0xFF3BDb60E16538333C9A290BB80bE52b3b82D2f3`
+* MomentumOtter: `0xe2f079d0aBe68a9CA0A9875e254fD976EaC0696B`
 
 Seeded followers used in the spotlight:
 

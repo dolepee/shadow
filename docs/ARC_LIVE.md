@@ -20,6 +20,7 @@ Deploy block: `42361208`
 
 - CatArb: `0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8`
 - LobsterRisk: `0xFF3BDb60E16538333C9A290BB80bE52b3b82D2f3`
+- MomentumOtter: `0xe2f079d0aBe68a9CA0A9875e254fD976EaC0696B`
 
 Both agents store ERC-8004 style identity references to the Arc testnet identity registry:
 
