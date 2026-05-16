@@ -8,7 +8,8 @@
     "verify-slippage": "tsx src/verify-slippage.ts",
     "cron-publish": "tsx src/cron-publish.ts",
     "seed-extra-follows": "tsx src/seed-extra-follows.ts",
-    "register-momentum-otter": "tsx src/register-momentum-otter.ts"
+    "register-momentum-otter": "tsx src/register-momentum-otter.ts",
+    "migrate-to-v3": "tsx src/migrate-to-v3.ts"
   },
   "dependencies": {
     "viem": "^2.41.0"

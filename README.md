@@ -42,15 +42,17 @@ A source publishing a tight `minAmountOut` no longer cascade reverts. Each follo
 * `ShadowAMM`. Constant product AMM over a single USDC/ARCETH pool with a 30 bps fee. Intentionally small to keep outcomes legible.
 * `RiskPolicy`. Per follower struct with `maxAmountPerIntent`, `dailyCap`, `allowedAsset`, `maxRiskLevel`, `minBpsOut`, plus an active flag and daily spent counters.
 
-## Live Arc deployment (V2)
+## Live Arc deployment (V3)
 
 Contracts:
 
 * ARCETH: `0x9beB19B1F360F110f731A09BA3fccB0E0cAE2402`
 * ShadowAMM: `0xeDbDaC33160DE3e017dB988E02AD623344371633`
 * SourceRegistry: `0xEec07657c5628AeCe50f20AA12C15A2a4B1557e1`
-* MirrorRouter: `0x4e194EFB8060C9e7919a06C7E0AE4cbf9e7D47fF`
+* MirrorRouter: `0x987d7886c9dA7Ffbb7CC66b7914518D8966975eb`
 * Arc USDC: `0x3600000000000000000000000000000000000000`
+
+V3 adds follower-side custody escapes: `withdrawUSDC(amount)` returns idle balance to the wallet, and `unfollowSource(source)` flips a policy to inactive so the router skips that follower on subsequent intents. `isFollowing` is still set on the first follow and remains the historical signal; `policy.active` is the source of truth for current state.
 
 Source agents:
 

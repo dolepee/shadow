@@ -70,6 +70,8 @@ contract MirrorRouter {
     );
     event SourceKickbackClaimed(address indexed sourceAgent, address indexed recipient, uint256 amountUSDC);
     event ProtocolFeesClaimed(address indexed recipient, uint256 amountUSDC);
+    event Withdrawn(address indexed follower, uint256 amountUSDC);
+    event Unfollowed(address indexed follower, address indexed sourceAgent);
 
     error ZeroAmount();
     error UnregisteredSource();
@@ -77,6 +79,8 @@ contract MirrorRouter {
     error NothingToClaim();
     error NotProtocolFeeRecipient();
     error MinBpsOutTooHigh();
+    error InsufficientBalance();
+    error NotFollowing();
 
     constructor(address usdc_, address amm_, address registry_) {
         usdc = IERC20(usdc_);
@@ -90,6 +94,22 @@ contract MirrorRouter {
         require(usdc.transferFrom(msg.sender, address(this), amountUSDC), "USDC_TRANSFER_FAILED");
         followerBalanceUSDC[msg.sender] += amountUSDC;
         emit Deposited(msg.sender, amountUSDC);
+    }
+
+    function withdrawUSDC(uint256 amountUSDC) external {
+        if (amountUSDC == 0) revert ZeroAmount();
+        uint256 balance = followerBalanceUSDC[msg.sender];
+        if (amountUSDC > balance) revert InsufficientBalance();
+        followerBalanceUSDC[msg.sender] = balance - amountUSDC;
+        require(usdc.transfer(msg.sender, amountUSDC), "USDC_TRANSFER_FAILED");
+        emit Withdrawn(msg.sender, amountUSDC);
+    }
+
+    function unfollowSource(address sourceAgent) external {
+        RiskPolicy.Policy storage policy = policies[msg.sender][sourceAgent];
+        if (!policy.active) revert NotFollowing();
+        policy.active = false;
+        emit Unfollowed(msg.sender, sourceAgent);
     }
 
     function followSource(
@@ -172,6 +192,8 @@ contract MirrorRouter {
         address follower,
         TradeIntent calldata intent
     ) internal {
+        if (!policies[follower][sourceAgent].active) return;
+
         if (intent.asset != address(amm.asset())) {
             emit MirrorReceipt(
                 intentId,

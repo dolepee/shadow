@@ -21,18 +21,18 @@ import {
 const SPOTLIGHT = {
   intentId: 3n,
   amountUSDC: "0.5",
-  intentMinAmountOut: "0.05",
+  intentMinAmountOut: "0.034",
   followerA: {
     address: "0x495cb55E288E9105E3b3080F2A7323F870538695" as Address,
     minBpsOut: 10000,
     label: "strict",
-    scaledMin: "0.05",
+    scaledMin: "0.034",
   },
   followerB: {
     address: "0x7A3FFC0294f21E040b2bEa3e5Aad33cA08B33AcD" as Address,
     minBpsOut: 9000,
     label: "lenient",
-    scaledMin: "0.045",
+    scaledMin: "0.0306",
   },
 };
 
@@ -127,6 +127,8 @@ function App() {
   const [userBalance, setUserBalance] = useState<bigint>(0n);
   const [userFollows, setUserFollows] = useState<Set<string>>(new Set());
   const [following, setFollowing] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [managing, setManaging] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -346,6 +348,90 @@ function App() {
     }
   }
 
+  async function withdraw() {
+    if (!isConfigured || !addresses.router) {
+      setAction({ label: "withdraw blocked", error: "Configure addresses first." });
+      return;
+    }
+    if (!window.ethereum) {
+      setAction({ label: "withdraw blocked", error: "Install a browser wallet." });
+      return;
+    }
+    let parsed: bigint;
+    try {
+      parsed = parseUnits(withdrawAmount || "0", 6);
+    } catch {
+      setAction({ label: "withdraw blocked", error: "Enter a valid USDC amount." });
+      return;
+    }
+    if (parsed <= 0n) {
+      setAction({ label: "withdraw blocked", error: "Amount must be positive." });
+      return;
+    }
+    if (parsed > userBalance) {
+      setAction({ label: "withdraw blocked", error: "Amount exceeds router balance." });
+      return;
+    }
+    setManaging(true);
+    setAction({ label: `withdraw ${withdrawAmount} USDC` });
+    try {
+      const [user] = (await window.ethereum.request({ method: "eth_requestAccounts" })) as Address[];
+      await switchToArc();
+      setAccount(user);
+      const wallet = createWalletClient({ account: user, chain: arcTestnet, transport: custom(window.ethereum) });
+      const tx = await wallet.writeContract({
+        account: user,
+        address: addresses.router,
+        abi: routerAbi,
+        functionName: "withdrawUSDC",
+        args: [parsed],
+        chain: arcTestnet,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      setAction({ label: "withdraw confirmed", tx });
+      setWithdrawAmount("");
+      await refresh();
+    } catch (error) {
+      setAction({ label: "withdraw failed", error: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setManaging(false);
+    }
+  }
+
+  async function unfollow(source: Address) {
+    if (!isConfigured || !addresses.router) {
+      setAction({ label: "unfollow blocked", error: "Configure addresses first." });
+      return;
+    }
+    if (!window.ethereum) {
+      setAction({ label: "unfollow blocked", error: "Install a browser wallet." });
+      return;
+    }
+    setManaging(true);
+    setAction({ label: `unfollow ${shortAddress(source)}` });
+    try {
+      const [user] = (await window.ethereum.request({ method: "eth_requestAccounts" })) as Address[];
+      await switchToArc();
+      setAccount(user);
+      const wallet = createWalletClient({ account: user, chain: arcTestnet, transport: custom(window.ethereum) });
+      const tx = await wallet.writeContract({
+        account: user,
+        address: addresses.router,
+        abi: routerAbi,
+        functionName: "unfollowSource",
+        args: [source],
+        chain: arcTestnet,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      setAction({ label: "unfollow confirmed", tx });
+      await refresh();
+    } catch (error) {
+      setAction({ label: "unfollow failed", error: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setManaging(false);
+    }
+  }
+
   return (
     <main className="shell">
       <nav className="nav">
@@ -374,7 +460,7 @@ function App() {
 
       {spotlight.a && spotlight.b && (
         <section className="spotlight">
-          <p className="eyebrow">v2 slippage demo · live on Arc testnet</p>
+          <p className="eyebrow">v3 slippage demo · live on Arc testnet</p>
           <h2>One source intent. Two follower outcomes.</h2>
           <p className="spotlightSummary">
             CatArb published intent #{SPOTLIGHT.intentId.toString()} for {SPOTLIGHT.amountUSDC} USDC at minimum {SPOTLIGHT.intentMinAmountOut} ARCETH. The live AMM quoted {spotlightLiveQuote} ARCETH. Each follower's own minBpsOut decides the outcome — the source intent no longer cascade-reverts.
@@ -436,6 +522,19 @@ function App() {
         userFollows={userFollows}
         connectWallet={connectWallet}
       />
+
+      {account && (userBalance > 0n || userFollows.size > 0) && (
+        <ManagePanel
+          sources={state?.sources || []}
+          userBalance={userBalance}
+          userFollows={userFollows}
+          withdrawAmount={withdrawAmount}
+          onWithdrawChange={setWithdrawAmount}
+          onWithdraw={withdraw}
+          onUnfollow={unfollow}
+          managing={managing}
+        />
+      )}
 
       {state && (
         <LiveFeed
@@ -752,6 +851,99 @@ function FollowFlow({
             </span>
           </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+function ManagePanel({
+  sources,
+  userBalance,
+  userFollows,
+  withdrawAmount,
+  onWithdrawChange,
+  onWithdraw,
+  onUnfollow,
+  managing,
+}: {
+  sources: SourceAgent[];
+  userBalance: bigint;
+  userFollows: Set<string>;
+  withdrawAmount: string;
+  onWithdrawChange: (value: string) => void;
+  onWithdraw: () => Promise<void>;
+  onUnfollow: (source: Address) => Promise<void>;
+  managing: boolean;
+}) {
+  const followedSources = sources.filter((source) => userFollows.has(source.address.toLowerCase()));
+  return (
+    <section className="managePanel">
+      <header className="sectionHeader">
+        <p className="eyebrow">manage your follows</p>
+        <h2>Withdraw idle balance or stop mirroring a source.</h2>
+      </header>
+
+      <div className="manageGrid">
+        <div className="manageCard">
+          <p className="eyebrow">router balance</p>
+          <strong className="manageBalance">{formatUSDC(userBalance)} USDC</strong>
+          <p className="manageHint">Pull idle USDC back to your wallet at any time. Mirroring stops only when the source publishes more intents than your balance covers.</p>
+          <div className="depositRow">
+            <input
+              className="depositInput"
+              type="text"
+              inputMode="decimal"
+              value={withdrawAmount}
+              onChange={(event) => onWithdrawChange(event.target.value)}
+              placeholder={formatUSDC(userBalance)}
+              disabled={managing || userBalance === 0n}
+            />
+            <span className="depositUnit">USDC</span>
+          </div>
+          <div className="manageActions">
+            <button
+              className="manageButton"
+              type="button"
+              onClick={() => onWithdrawChange(formatUSDC(userBalance))}
+              disabled={managing || userBalance === 0n}
+            >
+              max
+            </button>
+            <button
+              className="manageButton primary"
+              type="button"
+              onClick={onWithdraw}
+              disabled={managing || userBalance === 0n}
+            >
+              {managing ? "submitting…" : "withdraw"}
+            </button>
+          </div>
+        </div>
+
+        <div className="manageCard">
+          <p className="eyebrow">followed sources</p>
+          <strong className="manageBalance">{followedSources.length} active</strong>
+          <p className="manageHint">Unfollow flips the policy to inactive. The router skips that source for any later intent until you follow again.</p>
+          <div className="unfollowList">
+            {followedSources.length === 0 && <span className="empty">No active policies on this wallet.</span>}
+            {followedSources.map((source) => (
+              <div className="unfollowRow" key={source.address}>
+                <div className="unfollowMeta">
+                  <strong>{source.name}</strong>
+                  <span>{shortAddress(source.address)}</span>
+                </div>
+                <button
+                  className="manageButton"
+                  type="button"
+                  onClick={() => onUnfollow(source.address)}
+                  disabled={managing}
+                >
+                  unfollow
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );

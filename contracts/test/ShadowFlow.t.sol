@@ -42,6 +42,14 @@ contract Actor {
     function publish(MirrorRouter router, MirrorRouter.TradeIntent calldata intent) external returns (uint256) {
         return router.publishIntent(intent);
     }
+
+    function withdraw(MirrorRouter router, uint256 amount) external {
+        router.withdrawUSDC(amount);
+    }
+
+    function unfollow(MirrorRouter router, address sourceAgent) external {
+        router.unfollowSource(sourceAgent);
+    }
 }
 
 contract ShadowFlowTest {
@@ -284,5 +292,102 @@ contract ShadowFlowTest {
             reverted = true;
         }
         require(reverted, "minBpsOut > BPS should revert");
+    }
+
+    function testWithdrawReducesBalanceAndRefundsUSDC() public {
+        require(router.followerBalanceUSDC(address(followerA)) == 5 * USDC, "setup balance");
+        require(usdc.balanceOf(address(followerA)) == 0, "setup wallet drained");
+
+        followerA.withdraw(router, 3 * USDC);
+
+        require(router.followerBalanceUSDC(address(followerA)) == 2 * USDC, "router balance not debited");
+        require(usdc.balanceOf(address(followerA)) == 3 * USDC, "USDC not refunded to wallet");
+    }
+
+    function testWithdrawRevertsOverBalance() public {
+        bool reverted = false;
+        try followerA.withdraw(router, 10 * USDC) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "over-balance withdraw should revert");
+        require(router.followerBalanceUSDC(address(followerA)) == 5 * USDC, "balance unchanged on revert");
+    }
+
+    function testWithdrawZeroReverts() public {
+        bool reverted = false;
+        try followerA.withdraw(router, 0) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "zero withdraw should revert");
+    }
+
+    function testUnfollowDeactivatesPolicy() public {
+        followerA.follow(router, address(source), 2 * USDC, 5 * USDC, address(arceth), 3);
+        (, , , , , , , bool activeBefore) = router.getPolicy(address(followerA), address(source));
+        require(activeBefore, "should be active after follow");
+
+        followerA.unfollow(router, address(source));
+
+        (, , , , , , , bool activeAfter) = router.getPolicy(address(followerA), address(source));
+        require(!activeAfter, "should be inactive after unfollow");
+    }
+
+    function testUnfollowedFollowerSkippedOnPublishNoReceipt() public {
+        followerA.follow(router, address(source), 2 * USDC, 5 * USDC, address(arceth), 3);
+        followerB.follow(router, address(source), 2 * USDC, 5 * USDC, address(arceth), 3);
+        followerA.unfollow(router, address(source));
+
+        MirrorRouter.TradeIntent memory intent = MirrorRouter.TradeIntent({
+            asset: address(arceth),
+            amountUSDC: 1 * USDC,
+            minAmountOut: 1,
+            riskLevel: 2,
+            expiry: block.timestamp + 1 hours,
+            intentHash: keccak256("post-unfollow-intent")
+        });
+
+        source.publish(router, intent);
+
+        require(router.followerBalanceUSDC(address(followerA)) == 5 * USDC, "unfollowed wallet must not be debited");
+        require(arceth.balanceOf(address(followerA)) == 0, "unfollowed wallet must not receive asset");
+        require(arceth.balanceOf(address(followerB)) > 0, "still-following wallet should copy");
+    }
+
+    function testUnfollowWhenNotFollowingReverts() public {
+        bool reverted = false;
+        try followerA.unfollow(router, address(source)) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "unfollow without prior follow should revert");
+    }
+
+    function testRefollowReactivatesWithoutDuplicateSlot() public {
+        followerA.follow(router, address(source), 2 * USDC, 5 * USDC, address(arceth), 3);
+        followerA.unfollow(router, address(source));
+        require(router.followerCount(address(source)) == 1, "follower count after unfollow");
+
+        followerA.follow(router, address(source), 2 * USDC, 5 * USDC, address(arceth), 3);
+        require(router.followerCount(address(source)) == 1, "refollow must not duplicate slot");
+
+        (, , , , , , , bool active) = router.getPolicy(address(followerA), address(source));
+        require(active, "refollow should reactivate policy");
+
+        MirrorRouter.TradeIntent memory intent = MirrorRouter.TradeIntent({
+            asset: address(arceth),
+            amountUSDC: 1 * USDC,
+            minAmountOut: 1,
+            riskLevel: 2,
+            expiry: block.timestamp + 1 hours,
+            intentHash: keccak256("refollow-intent")
+        });
+
+        source.publish(router, intent);
+        require(arceth.balanceOf(address(followerA)) > 0, "refollowed follower should copy");
     }
 }

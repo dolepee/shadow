@@ -6,15 +6,17 @@ Live app: https://shadow-two-opal.vercel.app
 
 GitHub: https://github.com/dolepee/shadow
 
-## Contracts (V2)
+## Contracts (V3)
 
 - ARCETH mock asset: `0x9beB19B1F360F110f731A09BA3fccB0E0cAE2402`
 - ShadowAMM: `0xeDbDaC33160DE3e017dB988E02AD623344371633`
 - SourceRegistry: `0xEec07657c5628AeCe50f20AA12C15A2a4B1557e1`
-- MirrorRouter: `0x4e194EFB8060C9e7919a06C7E0AE4cbf9e7D47fF`
+- MirrorRouter (V3): `0x987d7886c9dA7Ffbb7CC66b7914518D8966975eb`
 - Arc USDC: `0x3600000000000000000000000000000000000000`
 
-Deploy block: `42361208`
+V3 deploy block: `42508627`
+
+V3 adds two follower-side custody primitives on the router: `withdrawUSDC(amount)` pulls idle balance back to the wallet, and `unfollowSource(source)` deactivates the policy so the router skips that follower on later intents. V2 MirrorRouter (`0x4e194EFB8060C9e7919a06C7E0AE4cbf9e7D47fF`, deploy block `42361208`) remains readable as historical state.
 
 ## Seeded Agents
 
@@ -35,19 +37,20 @@ Both agents store ERC-8004 style identity references to the Arc testnet identity
 
 Both follow CatArb with `maxAmountPerIntent = 2 USDC`, `dailyCap = 10 USDC`, `allowedAsset = ARCETH`, `maxRiskLevel = 3`.
 
-## V2 Slippage Demo
+## V3 Slippage Demo
 
-Live demo intent at `intent.minAmountOut = 0.05 ARCETH`, `intent.amountUSDC = 0.5 USDC` against a live quote of `0.04753 ARCETH`:
+Live demo intent at `intent.minAmountOut = 0.034 ARCETH`, `intent.amountUSDC = 0.5 USDC` against a live quote of `0.031702 ARCETH`:
 
 - Intent id: `3`
-- Publish tx: `0xf8f4cf5fccb3c46999b74dd5facc935490d5581864b65cb9daa63846351b141e`
+- Publish tx: `0x21de4f1a8adeb2e18dd922768e0ccaca39fa4079b0592b16ea3a8472ed9de239`
+- Block: `42511253`
 
 Receipts on intent 3:
 
-- Follower A (strict, 10000 bps): `BLOCKED, SLIPPAGE_TOO_TIGHT`. Scaled minimum `0.05 ARCETH` exceeds the live quote `0.04753 ARCETH`. No swap, no fee, no debit.
-- Follower B (lenient, 9000 bps): `COPIED, NONE`. Scaled minimum `0.045 ARCETH` is below the live quote, so the swap executes and returns `0.04753 ARCETH`.
+- Follower A (strict, 10000 bps): `BLOCKED, SLIPPAGE_TOO_TIGHT`. Scaled minimum `0.034 ARCETH` exceeds the live quote `0.031702 ARCETH`. No swap, no fee, no debit.
+- Follower B (lenient, 9000 bps): `COPIED, NONE`. Scaled minimum `0.0306 ARCETH` is below the live quote, so the swap executes and returns `0.031702 ARCETH`.
 
-Interpretation: a single source intent now produces two outcomes that depend only on each follower's published slippage tolerance. A source that publishes a tight `minAmountOut` no longer cascade-reverts the whole `publishIntent` batch.
+Interpretation: a single source intent produces two outcomes that depend only on each follower's published slippage tolerance. A source that publishes a tight `minAmountOut` no longer cascade-reverts the whole `publishIntent` batch.
 
 ## Earlier Receipts (V1)
 
