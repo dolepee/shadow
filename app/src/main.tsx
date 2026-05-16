@@ -50,11 +50,38 @@ type ActionState = {
   error?: string;
 };
 
+type VerifyOutcome = {
+  address: Address;
+  status: "COPIED" | "BLOCKED";
+  reason: string;
+  usdcAmount: string;
+  mirrorFee: string;
+  assetOut: string;
+};
+
+type VerifyResponse = {
+  ok: boolean;
+  cached: boolean;
+  retryAfter: number;
+  tx: `0x${string}`;
+  blockNumber: string;
+  amountUSDC: string;
+  liveQuote: string;
+  minAmountOut: string;
+  scaledMinA: string;
+  scaledMinB: string;
+  followerA: VerifyOutcome;
+  followerB: VerifyOutcome;
+};
+
 function App() {
   const [state, setState] = useState<ShadowState | null>(null);
   const [loading, setLoading] = useState(false);
   const [account, setAccount] = useState<Address>();
   const [action, setAction] = useState<ActionState>({ label: "ready" });
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<VerifyResponse | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -82,6 +109,24 @@ function App() {
     };
   }, [state]);
   const spotlightLiveQuote = spotlight.b ? formatAsset(spotlight.b.assetAmountOut) : "—";
+
+  async function runVerify() {
+    setVerifying(true);
+    setVerifyError(null);
+    try {
+      const response = await fetch("/api/verify-slippage", { method: "POST" });
+      const data = (await response.json()) as VerifyResponse & { error?: string };
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `request failed with ${response.status}`);
+      }
+      setVerifyResult(data);
+      refresh();
+    } catch (error) {
+      setVerifyError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setVerifying(false);
+    }
+  }
 
   async function connectWallet() {
     if (!window.ethereum) {
@@ -243,6 +288,20 @@ function App() {
               detail="Scaled minimum sits below the live quote. The swap clears, fee accrues, kickback routes to CatArb."
             />
           </div>
+
+          <div className="liveVerify">
+            <div className="liveVerifyHeader">
+              <p className="eyebrow">don't trust the screenshot</p>
+              <p className="liveVerifyLede">
+                Publish a fresh demo intent right now. The button calls a Vercel function that signs as CatArb, picks an intent.minAmountOut to land between the two scaled minimums, waits for the MirrorReceipts, and prints them below. One run per minute.
+              </p>
+            </div>
+            <button className="liveVerifyButton" onClick={runVerify} disabled={verifying}>
+              {verifying ? "publishing intent…" : "run verify now"}
+            </button>
+            {verifyError && <div className="liveVerifyError">error: {verifyError}</div>}
+            {verifyResult && <VerifyResultPanel result={verifyResult} />}
+          </div>
         </section>
       )}
 
@@ -383,6 +442,60 @@ function ReceiptColumn({ title, receipts }: { title: string; receipts: ReceiptLo
 
 function Empty({ text }: { text: string }) {
   return <div className="empty">{text}</div>;
+}
+
+function VerifyResultPanel({ result }: { result: VerifyResponse }) {
+  const verdictClass = result.ok ? "pass" : "fail";
+  return (
+    <article className={`liveVerifyResult ${verdictClass}`}>
+      <header className="liveVerifyVerdict">
+        <strong>{result.ok ? "PASS" : "FAIL"}</strong>
+        {result.cached && <span className="cached">cached · next run in {result.retryAfter}s</span>}
+      </header>
+      <dl className="liveVerifyMeta">
+        <div>
+          <dt>tx</dt>
+          <dd>
+            <a href={txUrl(result.tx)} target="_blank" rel="noreferrer noopener">
+              {shortAddress(result.tx)}
+            </a>
+          </dd>
+        </div>
+        <div>
+          <dt>block</dt>
+          <dd>{result.blockNumber}</dd>
+        </div>
+        <div>
+          <dt>amountUSDC</dt>
+          <dd>{result.amountUSDC}</dd>
+        </div>
+        <div>
+          <dt>live quote</dt>
+          <dd>{result.liveQuote} ARCETH</dd>
+        </div>
+        <div>
+          <dt>minAmountOut</dt>
+          <dd>{result.minAmountOut} ARCETH</dd>
+        </div>
+      </dl>
+      <div className="liveVerifyOutcomes">
+        <div className={`liveOutcome ${result.followerA.status === "BLOCKED" ? "blocked" : "copied"}`}>
+          <strong>Follower A · {result.followerA.status}</strong>
+          <span>reason: {result.followerA.reason}</span>
+          <span>scaled min {result.scaledMinA} ARCETH</span>
+        </div>
+        <div className={`liveOutcome ${result.followerB.status === "COPIED" ? "copied" : "blocked"}`}>
+          <strong>Follower B · {result.followerB.status}</strong>
+          <span>
+            {result.followerB.status === "COPIED"
+              ? `received ${result.followerB.assetOut} ARCETH`
+              : `reason: ${result.followerB.reason}`}
+          </span>
+          <span>scaled min {result.scaledMinB} ARCETH</span>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 function SpotlightCard({

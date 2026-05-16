@@ -107,7 +107,8 @@ async function main() {
     );
   }
 
-  const amountUSDC = cap > parseUnits("1", 6) ? parseUnits("1", 6) : cap;
+  const targetAmount = parseUnits("0.1", 6);
+  const amountUSDC = cap > targetAmount ? targetAmount : cap;
   const liveQuote = (await publicClient.readContract({
     address: amm,
     abi: ammAbi,
