@@ -1,0 +1,49 @@
+name: publish-intents
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: publish-intents
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ARC_RPC_URL: ${{ secrets.ARC_RPC_URL }}
+      SHADOW_ROUTER: ${{ secrets.SHADOW_ROUTER }}
+      SHADOW_ARCETH: ${{ secrets.SHADOW_ARCETH }}
+      SHADOW_AMM: ${{ secrets.SHADOW_AMM }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: install agent deps
+        working-directory: agent
+        run: pnpm install --no-frozen-lockfile
+      - name: publish CatArb intent (split outcome)
+        working-directory: agent
+        env:
+          PUBLISHER_KEY: ${{ secrets.CAT_AGENT_PRIVATE_KEY }}
+          SOURCE_LABEL: CatArb
+          INTENT_AMOUNT_USDC: "0.05"
+          INTENT_MIN_BPS: "10500"
+          INTENT_RISK_LEVEL: "2"
+        run: pnpm cron-publish
+      - name: publish LobsterRisk intent (safe copy)
+        working-directory: agent
+        env:
+          PUBLISHER_KEY: ${{ secrets.LOBSTER_AGENT_PRIVATE_KEY }}
+          SOURCE_LABEL: LobsterRisk
+          INTENT_AMOUNT_USDC: "0.03"
+          INTENT_MIN_BPS: "9800"
+          INTENT_RISK_LEVEL: "1"
+        run: pnpm cron-publish
