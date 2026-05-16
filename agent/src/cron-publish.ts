@@ -19,6 +19,7 @@ import {
   kvConfigFromEnv,
   putReasoning,
 } from "./reasoning.js";
+import { decideWithLLM, type LLMDecision } from "./llm-reasoning.js";
 
 loadEnvFile();
 
@@ -48,24 +49,69 @@ async function main() {
   const amm = requiredEnv("SHADOW_AMM") as `0x${string}`;
   const publisherKey = normalizeKey(requiredEnv("PUBLISHER_KEY"));
   const label = process.env.SOURCE_LABEL || "publisher";
-  const amountStr = process.env.INTENT_AMOUNT_USDC || "0.05";
-  const minBps = BigInt(process.env.INTENT_MIN_BPS || "10000");
-  const riskLevel = Number(process.env.INTENT_RISK_LEVEL || "2");
+  const defaultAmountStr = process.env.INTENT_AMOUNT_USDC || "0.05";
+  const defaultMinBps = Number(process.env.INTENT_MIN_BPS || "10000");
+  const defaultRiskLevel = Number(process.env.INTENT_RISK_LEVEL || "2");
   const sourceName = process.env.SOURCE_NAME || label;
+  const llmEnabled = (process.env.LLM_REASONING_ENABLED || "").trim() === "1";
+  const mandate = process.env.SOURCE_MANDATE || defaultMandateFor(sourceName);
 
   const account = privateKeyToAccount(publisherKey);
   const transport = http(rpcUrl);
   const publicClient = createPublicClient({ chain: arcTestnet, transport });
   const walletClient = createWalletClient({ account, chain: arcTestnet, transport });
 
-  const amountUSDC = parseUnits(amountStr, 6);
-  const [liveQuote, reserveU, reserveA] = await Promise.all([
-    publicClient.readContract({ address: amm, abi: ammAbi, functionName: "quoteUSDCForAsset", args: [amountUSDC] }) as Promise<bigint>,
+  const probeAmountUSDC = parseUnits(defaultAmountStr, 6);
+  const [probeQuote, reserveU, reserveA] = await Promise.all([
+    publicClient.readContract({ address: amm, abi: ammAbi, functionName: "quoteUSDCForAsset", args: [probeAmountUSDC] }) as Promise<bigint>,
     publicClient.readContract({ address: amm, abi: ammAbi, functionName: "reserveUSDC" }) as Promise<bigint>,
     publicClient.readContract({ address: amm, abi: ammAbi, functionName: "reserveAsset" }) as Promise<bigint>,
   ]);
+
+  const decision = llmEnabled
+    ? await decideWithLLM({
+        sourceName,
+        mandate,
+        reserveUSDC: reserveU,
+        reserveAsset: reserveA,
+        liveQuote: probeQuote,
+        defaultAmountUSDC: defaultAmountStr,
+        defaultMinBps,
+        defaultRiskLevel,
+        amountFloor: process.env.INTENT_AMOUNT_FLOOR_USDC || "0.005",
+        amountCeiling: process.env.INTENT_AMOUNT_CEILING_USDC || "0.04",
+        minBpsFloor: Number(process.env.INTENT_MIN_BPS_FLOOR || "9500"),
+        minBpsCeiling: Number(process.env.INTENT_MIN_BPS_CEILING || "10500"),
+      })
+    : ({
+        amountUSDC: defaultAmountStr,
+        minBps: defaultMinBps,
+        riskLevel: defaultRiskLevel,
+        regime: "policy",
+        rationale: "",
+        model: "policy",
+        fellBack: true,
+      } satisfies LLMDecision);
+
+  console.log(`[${label}] llm: model=${decision.model} regime=${decision.regime} fellBack=${decision.fellBack}`);
+
+  const amountStr = decision.amountUSDC;
+  const minBps = BigInt(decision.minBps);
+  const riskLevel = decision.riskLevel;
+  const amountUSDC = parseUnits(amountStr, 6);
+  const liveQuote =
+    amountStr === defaultAmountStr
+      ? probeQuote
+      : ((await publicClient.readContract({
+          address: amm,
+          abi: ammAbi,
+          functionName: "quoteUSDCForAsset",
+          args: [amountUSDC],
+        })) as bigint);
   const minAmountOut = (liveQuote * minBps) / 10000n;
-  const rationale = buildRationale({ sourceName, amountStr, minBps, liveQuote, minAmountOut, reserveU });
+  const rationale = decision.fellBack
+    ? buildRationale({ sourceName, amountStr, minBps, liveQuote, minAmountOut, reserveU })
+    : `${decision.rationale} [model=${decision.model} regime=${decision.regime}]`;
 
   const packet = buildPacket({
     sourceAgent: account.address,
@@ -131,6 +177,20 @@ async function main() {
       console.warn(`[${label}] kv warn (tx bind): ${(err as Error).message}`);
     }
   }
+}
+
+function defaultMandateFor(sourceName: string): string {
+  const lower = sourceName.toLowerCase();
+  if (lower.includes("cat") || lower.includes("arb")) {
+    return "Spot arbitrage on the USDC/ARCETH pool. Trade harder when depth is thick and quote drifts from the spot ratio; cool off when reserves thin. Bias toward riskLevel 2.";
+  }
+  if (lower.includes("lobster") || lower.includes("risk") || lower.includes("safe")) {
+    return "Risk-managed copy trading. Smaller size, tighter slippage bound, conservative risk level. Skip aggressive sizing when reserves look thin. Bias toward riskLevel 1.";
+  }
+  if (lower.includes("otter") || lower.includes("momentum") || lower.includes("aggr")) {
+    return "Momentum follower. Push size up when quote agrees with spot and pool depth is healthy; widen slippage to chase. Bias toward riskLevel 3.";
+  }
+  return "Balanced copy trader. Modest size, modest slippage, riskLevel 2.";
 }
 
 function buildRationale(args: {

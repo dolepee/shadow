@@ -62,7 +62,7 @@ jobs:
           INTENT_MIN_BPS: "9800"
           INTENT_RISK_LEVEL: "1"
         run: pnpm --ignore-workspace exec tsx src/cron-publish.ts
-      - name: publish MomentumOtter intent (aggressive copy)
+      - name: publish MomentumOtter intent (LLM-reasoned)
         working-directory: agent
         env:
           PUBLISHER_KEY: ${{ secrets.OTTER_AGENT_PRIVATE_KEY }}
@@ -71,6 +71,9 @@ jobs:
           INTENT_AMOUNT_USDC: "0.015"
           INTENT_MIN_BPS: "9700"
           INTENT_RISK_LEVEL: "3"
+          LLM_REASONING_ENABLED: "1"
+          BANKR_LLM_KEY: ${{ secrets.BANKR_LLM_KEY }}
+          BANKR_LLM_MODEL: deepseek-v3.2
         run: pnpm --ignore-workspace exec tsx src/cron-publish.ts
       - name: close copied positions
         working-directory: agent
