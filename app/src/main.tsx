@@ -96,11 +96,27 @@ function App() {
 
   useEffect(() => {
     refresh();
+    const interval = setInterval(refresh, 15_000);
+    return () => clearInterval(interval);
   }, []);
 
   const copiedReceipts = useMemo(() => state?.receipts.filter((receipt) => receipt.status === "copied") || [], [state]);
   const blockedReceipts = useMemo(() => state?.receipts.filter((receipt) => receipt.status === "blocked") || [], [state]);
   const catAgent = state?.sources[0];
+  const sourceNameByAddress = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const source of state?.sources || []) {
+      map.set(source.address.toLowerCase(), source.name);
+    }
+    return map;
+  }, [state]);
+  const feedReceipts = useMemo(() => {
+    const all = state?.receipts || [];
+    return all
+      .slice()
+      .sort((a, b) => Number(b.blockNumber - a.blockNumber))
+      .slice(0, 12);
+  }, [state]);
   const spotlight = useMemo(() => {
     const matches = state?.receipts.filter((receipt) => receipt.intentId === SPOTLIGHT.intentId) || [];
     return {
@@ -305,6 +321,17 @@ function App() {
         </section>
       )}
 
+      {state && (
+        <LiveFeed
+          receipts={feedReceipts}
+          sourceNameByAddress={sourceNameByAddress}
+          latestBlock={state.latestBlock}
+          fetchedAt={state.fetchedAt}
+          loading={loading}
+          totalReceipts={state.receipts.length}
+        />
+      )}
+
       <section className="grid">
         <Stat label="registered agents" value={String(state?.sources.length || 0)} />
         <Stat label="intent receipts" value={String(state?.receipts.length || 0)} />
@@ -442,6 +469,93 @@ function ReceiptColumn({ title, receipts }: { title: string; receipts: ReceiptLo
 
 function Empty({ text }: { text: string }) {
   return <div className="empty">{text}</div>;
+}
+
+function LiveFeed({
+  receipts,
+  sourceNameByAddress,
+  latestBlock,
+  fetchedAt,
+  loading,
+  totalReceipts,
+}: {
+  receipts: ReceiptLog[];
+  sourceNameByAddress: Map<string, string>;
+  latestBlock: bigint;
+  fetchedAt: number;
+  loading: boolean;
+  totalReceipts: number;
+}) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, []);
+  const secondsSince = Math.max(0, Math.floor((now - fetchedAt) / 1000));
+  return (
+    <section className="liveFeed">
+      <div className="liveFeedHeader">
+        <div>
+          <p className="eyebrow">
+            <span className={`livePulse ${loading ? "loading" : ""}`} />
+            live activity · auto refresh
+          </p>
+          <h2>Every onchain receipt across every source agent.</h2>
+        </div>
+        <div className="liveFeedMeta">
+          <div>
+            <dt>latest block</dt>
+            <dd>{latestBlock ? latestBlock.toString() : "—"}</dd>
+          </div>
+          <div>
+            <dt>last fetch</dt>
+            <dd>{secondsSince}s ago</dd>
+          </div>
+          <div>
+            <dt>total receipts</dt>
+            <dd>{totalReceipts}</dd>
+          </div>
+        </div>
+      </div>
+      <div className="liveFeedList">
+        {receipts.length === 0 && <div className="empty">No receipts yet. Cron fires every 10 minutes.</div>}
+        {receipts.map((receipt) => {
+          const sourceName = sourceNameByAddress.get(receipt.sourceAgent.toLowerCase()) || shortAddress(receipt.sourceAgent);
+          const blocksAgo = latestBlock && receipt.blockNumber ? Number(latestBlock - receipt.blockNumber) : 0;
+          return (
+            <article className={`liveFeedRow ${receipt.status}`} key={`${receipt.transactionHash}-${receipt.follower}`}>
+              <span className={`liveBadge ${receipt.status}`}>{receipt.status === "copied" ? "COPIED" : "BLOCKED"}</span>
+              <div className="liveFeedSource">
+                <strong>{sourceName}</strong>
+                <span>intent {receipt.intentId.toString()}</span>
+              </div>
+              <div className="liveFeedFollower">
+                <span>follower</span>
+                <strong>{shortAddress(receipt.follower)}</strong>
+              </div>
+              <div className="liveFeedAmount">
+                {receipt.status === "copied" ? (
+                  <>
+                    <strong>{formatUSDC(receipt.usdcAmount)} USDC</strong>
+                    <span>for {formatAsset(receipt.assetAmountOut)} ARCETH</span>
+                  </>
+                ) : (
+                  <>
+                    <strong>{receipt.reason}</strong>
+                    <span>{formatUSDC(receipt.usdcAmount)} USDC requested</span>
+                  </>
+                )}
+              </div>
+              <a className="liveFeedAge" href={txUrl(receipt.transactionHash)} target="_blank" rel="noreferrer noopener">
+                block {receipt.blockNumber.toString()}
+                <span>{blocksAgo > 0 ? `${blocksAgo} blocks ago` : "just now"}</span>
+              </a>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 function VerifyResultPanel({ result }: { result: VerifyResponse }) {

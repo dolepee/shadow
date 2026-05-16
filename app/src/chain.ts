@@ -131,6 +131,8 @@ export type ShadowState = {
   quoteForOneUSDC: bigint;
   nextIntentId: bigint;
   protocolFeesUSDC: bigint;
+  latestBlock: bigint;
+  fetchedAt: number;
 };
 
 export async function fetchShadowState(client: PublicClient = publicClient): Promise<ShadowState> {
@@ -143,6 +145,8 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
       quoteForOneUSDC: 0n,
       nextIntentId: 1n,
       protocolFeesUSDC: 0n,
+      latestBlock: 0n,
+      fetchedAt: Date.now(),
     };
   }
 
@@ -199,7 +203,7 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
     }),
   );
 
-  const [reserveUSDC, reserveAsset, quoteForOneUSDC, nextIntentId, protocolFeesUSDC] = await Promise.all([
+  const [reserveUSDC, reserveAsset, quoteForOneUSDC, nextIntentId, protocolFeesUSDC, latestBlock] = await Promise.all([
     client.readContract({
       address: addresses.amm!,
       abi: ammAbi,
@@ -226,6 +230,7 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
       abi: routerAbi,
       functionName: "protocolFeesUSDC",
     }),
+    client.getBlockNumber(),
   ]);
 
   const [intentLogs, receiptLogs] = await Promise.all([
@@ -274,6 +279,8 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
     quoteForOneUSDC,
     nextIntentId,
     protocolFeesUSDC,
+    latestBlock,
+    fetchedAt: Date.now(),
   };
 }
 
