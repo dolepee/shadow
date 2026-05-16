@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { createWalletClient, custom, encodePacked, keccak256, parseUnits, type Address } from "viem";
+import { createWalletClient, custom, parseUnits, type Address } from "viem";
 import {
   addresses,
   arcTestnet,
@@ -15,6 +15,7 @@ import {
   txUrl,
   type ReceiptLog,
   type ShadowState,
+  type SourceAgent,
 } from "./chain";
 
 const SPOTLIGHT = {
@@ -32,6 +33,44 @@ const SPOTLIGHT = {
     minBpsOut: 9000,
     label: "lenient",
     scaledMin: "0.045",
+  },
+};
+
+type PresetKey = "conservative" | "balanced" | "aggressive";
+
+type Preset = {
+  label: string;
+  tagline: string;
+  maxAmountPerIntent: string;
+  dailyCap: string;
+  maxRiskLevel: number;
+  minBpsOut: number;
+};
+
+const PRESETS: Record<PresetKey, Preset> = {
+  conservative: {
+    label: "Conservative",
+    tagline: "Strict slippage, low risk only, tight cap.",
+    maxAmountPerIntent: "0.2",
+    dailyCap: "1",
+    maxRiskLevel: 1,
+    minBpsOut: 10000,
+  },
+  balanced: {
+    label: "Balanced",
+    tagline: "Moderate slippage, mid risk, daily room to run.",
+    maxAmountPerIntent: "0.5",
+    dailyCap: "3",
+    maxRiskLevel: 2,
+    minBpsOut: 9500,
+  },
+  aggressive: {
+    label: "Aggressive",
+    tagline: "Loose slippage, take any risk, larger size.",
+    maxAmountPerIntent: "1",
+    dailyCap: "5",
+    maxRiskLevel: 3,
+    minBpsOut: 9000,
   },
 };
 import "./styles.css";
@@ -82,6 +121,12 @@ function App() {
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerifyResponse | null>(null);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [selectedSource, setSelectedSource] = useState<Address | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<PresetKey>("balanced");
+  const [depositAmount, setDepositAmount] = useState("0.5");
+  const [userBalance, setUserBalance] = useState<bigint>(0n);
+  const [userFollows, setUserFollows] = useState<Set<string>>(new Set());
+  const [following, setFollowing] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -100,9 +145,56 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (state?.sources?.length && !selectedSource) {
+      setSelectedSource(state.sources[0].address);
+    }
+  }, [state, selectedSource]);
+
+  useEffect(() => {
+    if (!account || !isConfigured || !state?.sources?.length) {
+      setUserBalance(0n);
+      setUserFollows(new Set());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [balance, ...follows] = await Promise.all([
+          publicClient.readContract({
+            address: addresses.router!,
+            abi: routerAbi,
+            functionName: "followerBalanceUSDC",
+            args: [account],
+          }),
+          ...state.sources.map((source) =>
+            publicClient.readContract({
+              address: addresses.router!,
+              abi: routerAbi,
+              functionName: "getPolicy",
+              args: [account, source.address],
+            }),
+          ),
+        ]);
+        if (cancelled) return;
+        setUserBalance(balance as bigint);
+        const followedSet = new Set<string>();
+        state.sources.forEach((source, index) => {
+          const policy = follows[index] as readonly [bigint, bigint, Address, number, number, bigint, bigint, boolean];
+          if (policy[7]) followedSet.add(source.address.toLowerCase());
+        });
+        setUserFollows(followedSet);
+      } catch {
+        // best-effort read; ignore transient RPC errors
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [account, state]);
+
   const copiedReceipts = useMemo(() => state?.receipts.filter((receipt) => receipt.status === "copied") || [], [state]);
   const blockedReceipts = useMemo(() => state?.receipts.filter((receipt) => receipt.status === "blocked") || [], [state]);
-  const catAgent = state?.sources[0];
   const sourceNameByAddress = useMemo(() => {
     const map = new Map<string, string>();
     for (const source of state?.sources || []) {
@@ -160,92 +252,97 @@ function App() {
     }
   }
 
-  async function depositFiveUSDC() {
-    await writeTx("deposit 5 USDC", async (wallet, user) => {
-      const amount = parseUnits("5", 6);
-      const approveTx = await wallet.writeContract({
-        account: user,
-        address: addresses.usdc!,
-        abi: erc20Abi,
-        functionName: "approve",
-        args: [addresses.router!, amount],
-        chain: arcTestnet,
-      });
-      await publicClient.waitForTransactionReceipt({ hash: approveTx });
-      return wallet.writeContract({
-        account: user,
-        address: addresses.router!,
-        abi: routerAbi,
-        functionName: "depositUSDC",
-        args: [amount],
-        chain: arcTestnet,
-      });
-    });
-  }
-
-  async function followCatArb() {
-    if (!catAgent) {
-      setAction({ label: "no source agent", error: "Seed CatArb before following." });
+  async function followWithPreset() {
+    if (!isConfigured || !addresses.router || !addresses.usdc || !addresses.arceth) {
+      setAction({ label: "follow blocked", error: "Configure addresses first." });
       return;
     }
-    await writeTx("follow CatArb", (wallet, user) =>
-      wallet.writeContract({
+    if (!window.ethereum) {
+      setAction({ label: "follow blocked", error: "Install a browser wallet to follow." });
+      return;
+    }
+    if (!selectedSource) {
+      setAction({ label: "follow blocked", error: "Pick a source agent." });
+      return;
+    }
+    let parsedDeposit: bigint;
+    try {
+      parsedDeposit = parseUnits(depositAmount || "0", 6);
+    } catch {
+      setAction({ label: "follow blocked", error: "Enter a valid USDC amount." });
+      return;
+    }
+    if (parsedDeposit < 0n) {
+      setAction({ label: "follow blocked", error: "Deposit must be non-negative." });
+      return;
+    }
+    const preset = PRESETS[selectedPreset];
+    const maxAmount = parseUnits(preset.maxAmountPerIntent, 6);
+    const dailyCap = parseUnits(preset.dailyCap, 6);
+
+    setFollowing(true);
+    setAction({ label: "follow flow starting" });
+    try {
+      const [user] = (await window.ethereum.request({ method: "eth_requestAccounts" })) as Address[];
+      await switchToArc();
+      setAccount(user);
+      const wallet = createWalletClient({
         account: user,
-        address: addresses.router!,
+        chain: arcTestnet,
+        transport: custom(window.ethereum),
+      });
+
+      if (parsedDeposit > 0n) {
+        setAction({ label: `approve ${depositAmount} USDC` });
+        const approveTx = await wallet.writeContract({
+          account: user,
+          address: addresses.usdc,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [addresses.router, parsedDeposit],
+          chain: arcTestnet,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: approveTx });
+
+        setAction({ label: `deposit ${depositAmount} USDC`, tx: approveTx });
+        const depositTx = await wallet.writeContract({
+          account: user,
+          address: addresses.router,
+          abi: routerAbi,
+          functionName: "depositUSDC",
+          args: [parsedDeposit],
+          chain: arcTestnet,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: depositTx });
+        setAction({ label: "deposit confirmed", tx: depositTx });
+      }
+
+      setAction({ label: `follow ${preset.label.toLowerCase()}` });
+      const followTx = await wallet.writeContract({
+        account: user,
+        address: addresses.router,
         abi: routerAbi,
         functionName: "followSource",
-        args: [catAgent.address, parseUnits("2", 6), parseUnits("5", 6), addresses.arceth!, 3, 9_500],
-        chain: arcTestnet,
-      }),
-    );
-  }
-
-  async function publishOneUSDCIntent() {
-    await writeTx("publish intent", (wallet, user) => {
-      const intentHash = keccak256(encodePacked(["string", "address", "uint256"], ["cat-arb-ui-intent", user, BigInt(Date.now())]));
-      return wallet.writeContract({
-        account: user,
-        address: addresses.router!,
-        abi: routerAbi,
-        functionName: "publishIntent",
         args: [
-          {
-            asset: addresses.arceth!,
-            amountUSDC: parseUnits("1", 6),
-            minAmountOut: 1n,
-            riskLevel: 2,
-            expiry: BigInt(Math.floor(Date.now() / 1000) + 3600),
-            intentHash,
-          },
+          selectedSource,
+          maxAmount,
+          dailyCap,
+          addresses.arceth,
+          preset.maxRiskLevel,
+          preset.minBpsOut,
         ],
         chain: arcTestnet,
       });
-    });
-  }
-
-  async function writeTx(label: string, fn: (wallet: ReturnType<typeof createWalletClient>, user: Address) => Promise<`0x${string}`>) {
-    if (!isConfigured || !addresses.router || !window.ethereum) {
-      setAction({ label, error: "Configure addresses and connect a wallet first." });
-      return;
-    }
-    const [user] = (await window.ethereum.request({ method: "eth_requestAccounts" })) as Address[];
-    await switchToArc();
-    setAccount(user);
-    const wallet = createWalletClient({
-      account: user,
-      chain: arcTestnet,
-      transport: custom(window.ethereum),
-    });
-
-    try {
-      setAction({ label: `${label} pending` });
-      const tx = await fn(wallet, user);
-      setAction({ label: `${label} sent`, tx });
-      await publicClient.waitForTransactionReceipt({ hash: tx });
-      setAction({ label: `${label} confirmed`, tx });
+      await publicClient.waitForTransactionReceipt({ hash: followTx });
+      setAction({ label: "follow confirmed", tx: followTx });
       await refresh();
     } catch (error) {
-      setAction({ label: `${label} failed`, error: error instanceof Error ? error.message : String(error) });
+      setAction({
+        label: "follow failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setFollowing(false);
     }
   }
 
@@ -321,6 +418,23 @@ function App() {
         </section>
       )}
 
+      <FollowFlow
+        sources={state?.sources || []}
+        selectedSource={selectedSource}
+        onSelectSource={setSelectedSource}
+        selectedPreset={selectedPreset}
+        onSelectPreset={setSelectedPreset}
+        depositAmount={depositAmount}
+        onDepositChange={setDepositAmount}
+        onFollow={followWithPreset}
+        following={following}
+        action={action}
+        account={account}
+        userBalance={userBalance}
+        userFollows={userFollows}
+        connectWallet={connectWallet}
+      />
+
       {state && (
         <LiveFeed
           receipts={feedReceipts}
@@ -341,27 +455,6 @@ function App() {
         <Stat label="1 USDC quote" value={`${formatAsset(state?.quoteForOneUSDC || 0n)} ARCETH`} />
       </section>
 
-      <section className="panel">
-        <div>
-          <p className="eyebrow">demo control panel</p>
-          <h2>Write the core flow from the browser.</h2>
-          <p>
-            Use the seed script for the full two follower split. These buttons are the browser path for wallet based writes.
-          </p>
-        </div>
-        <div className="buttonGrid">
-          <button onClick={refresh}>{loading ? "refreshing" : "refresh state"}</button>
-          <button onClick={depositFiveUSDC}>approve and deposit 5 USDC</button>
-          <button onClick={followCatArb}>follow CatArb</button>
-          <button onClick={publishOneUSDCIntent}>publish 1 USDC intent</button>
-        </div>
-        <div className={action.error ? "status error" : "status"}>
-          <strong>{action.label}</strong>
-          {action.tx && <span>{shortAddress(action.tx)}</span>}
-          {action.error && <span>{action.error}</span>}
-        </div>
-      </section>
-
       <section className="agents">
         <Header eyebrow="source agents" title="ERC-8004 referenced agent profiles" />
         <div className="agentGrid">
@@ -377,11 +470,6 @@ function App() {
           ))}
           {state?.sources.length === 0 && <Empty text="No source agents registered yet." />}
         </div>
-      </section>
-
-      <section className="split">
-        <ReceiptColumn title="copied receipts" receipts={copiedReceipts} />
-        <ReceiptColumn title="blocked receipts" receipts={blockedReceipts} />
       </section>
 
       <section className="panel">
@@ -442,33 +530,185 @@ function Header({ eyebrow, title }: { eyebrow: string; title: string }) {
   );
 }
 
-function ReceiptColumn({ title, receipts }: { title: string; receipts: ReceiptLog[] }) {
-  return (
-    <article className={title.includes("copied") ? "receipt copied" : "receipt blocked"}>
-      <p>{title}</p>
-      {receipts.length === 0 && <span>No receipts yet.</span>}
-      <div className="receiptList">
-        {receipts
-          .slice()
-          .reverse()
-          .slice(0, 6)
-          .map((receipt) => (
-            <div className="receiptRow" key={`${receipt.transactionHash}-${receipt.follower}`}>
-              <h3>intent {receipt.intentId.toString()}</h3>
-              <span>{shortAddress(receipt.follower)}</span>
-              <span>{receipt.status === "copied" ? `${formatUSDC(receipt.usdcAmount)} USDC copied` : receipt.reason}</span>
-              {receipt.mirrorFeeUSDC > 0n && <span>{formatUSDC(receipt.mirrorFeeUSDC)} USDC mirror fee</span>}
-              {receipt.assetAmountOut > 0n && <span>{formatAsset(receipt.assetAmountOut)} ARCETH out</span>}
-              <span>{shortAddress(receipt.transactionHash)}</span>
-            </div>
-          ))}
-      </div>
-    </article>
-  );
-}
-
 function Empty({ text }: { text: string }) {
   return <div className="empty">{text}</div>;
+}
+
+function FollowFlow({
+  sources,
+  selectedSource,
+  onSelectSource,
+  selectedPreset,
+  onSelectPreset,
+  depositAmount,
+  onDepositChange,
+  onFollow,
+  following,
+  action,
+  account,
+  userBalance,
+  userFollows,
+  connectWallet,
+}: {
+  sources: SourceAgent[];
+  selectedSource: Address | null;
+  onSelectSource: (address: Address) => void;
+  selectedPreset: PresetKey;
+  onSelectPreset: (key: PresetKey) => void;
+  depositAmount: string;
+  onDepositChange: (value: string) => void;
+  onFollow: () => Promise<void>;
+  following: boolean;
+  action: ActionState;
+  account?: Address;
+  userBalance: bigint;
+  userFollows: Set<string>;
+  connectWallet: () => Promise<void>;
+}) {
+  const selectedName =
+    sources.find((s) => s.address.toLowerCase() === selectedSource?.toLowerCase())?.name || "a source";
+  const preset = PRESETS[selectedPreset];
+  return (
+    <section className="followFlow">
+      <header className="followHeader">
+        <p className="eyebrow">become a follower</p>
+        <h2>Pick a source, pick a risk profile, follow in one flow.</h2>
+        <p className="lede">
+          Connect your wallet, deposit Arc USDC, and your wallet will mirror every intent the source agent publishes,
+          gated by the policy you choose. Each policy can be raised or lowered at any time.
+        </p>
+      </header>
+
+      <div className="followStep">
+        <span className="stepNum">1</span>
+        <div className="stepBody">
+          <h3>Pick a source agent</h3>
+          <div className="sourceChoices">
+            {sources.length === 0 && <Empty text="No source agents registered yet." />}
+            {sources.map((source) => {
+              const isSelected = selectedSource?.toLowerCase() === source.address.toLowerCase();
+              const isFollowed = userFollows.has(source.address.toLowerCase());
+              return (
+                <button
+                  key={source.address}
+                  className={`sourceChoice ${isSelected ? "selected" : ""}`}
+                  onClick={() => onSelectSource(source.address)}
+                  type="button"
+                >
+                  <div className="sourceChoiceTop">
+                    <strong>{source.name}</strong>
+                    {isFollowed && <span className="sourceTag">following</span>}
+                  </div>
+                  <span className="sourceChoiceAddr">{shortAddress(source.address)}</span>
+                  <span className="sourceChoiceMeta">
+                    {source.followerCount.toString()} followers · {(source.reputationScore / 100).toFixed(0)}% rep
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="followStep">
+        <span className="stepNum">2</span>
+        <div className="stepBody">
+          <h3>Pick a risk profile</h3>
+          <div className="presetChoices">
+            {(Object.keys(PRESETS) as PresetKey[]).map((key) => {
+              const p = PRESETS[key];
+              const isSelected = selectedPreset === key;
+              return (
+                <button
+                  key={key}
+                  className={`presetChoice ${isSelected ? "selected" : ""}`}
+                  onClick={() => onSelectPreset(key)}
+                  type="button"
+                >
+                  <strong>{p.label}</strong>
+                  <span className="presetTagline">{p.tagline}</span>
+                  <dl className="presetStats">
+                    <div>
+                      <dt>max/intent</dt>
+                      <dd>{p.maxAmountPerIntent} USDC</dd>
+                    </div>
+                    <div>
+                      <dt>daily cap</dt>
+                      <dd>{p.dailyCap} USDC</dd>
+                    </div>
+                    <div>
+                      <dt>min slippage</dt>
+                      <dd>{p.minBpsOut} bps</dd>
+                    </div>
+                    <div>
+                      <dt>max risk</dt>
+                      <dd>L{p.maxRiskLevel}</dd>
+                    </div>
+                  </dl>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="followStep">
+        <span className="stepNum">3</span>
+        <div className="stepBody">
+          <h3>Choose deposit</h3>
+          <p className="stepHint">
+            USDC moves into the router escrow. Mirror fees come out of this balance. You can deposit zero if you have
+            already funded.
+          </p>
+          <div className="depositRow">
+            <input
+              className="depositInput"
+              type="text"
+              inputMode="decimal"
+              value={depositAmount}
+              onChange={(event) => onDepositChange(event.target.value)}
+              placeholder="0.5"
+            />
+            <span className="depositUnit">USDC</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="followAction">
+        {!account ? (
+          <button className="followCta" onClick={connectWallet} type="button">
+            connect wallet to continue
+          </button>
+        ) : (
+          <button className="followCta" onClick={onFollow} disabled={following} type="button">
+            {following ? "submitting…" : `follow ${selectedName} with ${preset.label.toLowerCase()} policy`}
+          </button>
+        )}
+        <div className={action.error ? "followStatus error" : "followStatus"}>
+          <strong>{action.label}</strong>
+          {action.tx && (
+            <a href={txUrl(action.tx)} target="_blank" rel="noreferrer noopener">
+              {shortAddress(action.tx)}
+            </a>
+          )}
+          {action.error && <span>{action.error}</span>}
+        </div>
+        {account && (
+          <div className="followWallet">
+            <span>
+              wallet <strong>{shortAddress(account)}</strong>
+            </span>
+            <span>
+              router balance <strong>{formatUSDC(userBalance)} USDC</strong>
+            </span>
+            <span>
+              following <strong>{userFollows.size}</strong> of {sources.length}
+            </span>
+          </div>
+        )}
+      </div>
+    </section>
+  );
 }
 
 function LiveFeed({

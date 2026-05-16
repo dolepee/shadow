@@ -63,6 +63,7 @@ export const routerAbi = parseAbi([
   "function nextIntentId() view returns (uint256)",
   "function protocolFeesUSDC() view returns (uint256)",
   "function sourceKickbackUSDC(address) view returns (uint256)",
+  "function getPolicy(address follower, address sourceAgent) view returns (uint256 maxAmountPerIntent, uint256 dailyCap, address allowedAsset, uint8 maxRiskLevel, uint16 minBpsOut, uint256 spentToday, uint64 day, bool active)",
 ]);
 
 export const ammAbi = parseAbi([

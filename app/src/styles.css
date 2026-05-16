@@ -538,6 +538,319 @@ h3 {
   }
 }
 
+.followFlow {
+  background: linear-gradient(135deg, rgba(8, 14, 8, 0.92), rgba(20, 14, 28, 0.78));
+  border: 1px solid rgba(216, 255, 121, 0.22);
+  border-radius: 32px;
+  box-shadow: 0 36px 90px rgba(0, 0, 0, 0.32);
+  margin: 48px 0 32px;
+  padding: 36px;
+}
+
+.followHeader {
+  margin-bottom: 24px;
+}
+
+.followHeader h2 {
+  margin: 6px 0 14px;
+}
+
+.followHeader .lede {
+  font-size: 18px;
+  margin: 0;
+}
+
+.followStep {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.stepNum {
+  align-items: center;
+  background: rgba(216, 255, 121, 0.15);
+  border: 1px solid rgba(216, 255, 121, 0.4);
+  border-radius: 18px;
+  color: #d8ff79;
+  display: flex;
+  font-size: 22px;
+  font-weight: 900;
+  height: 56px;
+  justify-content: center;
+  width: 56px;
+}
+
+.stepBody {
+  min-width: 0;
+}
+
+.stepBody h3 {
+  font-size: 20px;
+  margin: 12px 0 14px;
+}
+
+.stepHint {
+  color: rgba(246, 240, 220, 0.6);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
+.sourceChoices,
+.presetChoices {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.sourceChoice,
+.presetChoice {
+  background: rgba(7, 9, 6, 0.55);
+  border: 1px solid rgba(246, 240, 220, 0.12);
+  border-radius: 18px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  font-weight: 500;
+  gap: 8px;
+  padding: 16px;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+}
+
+.sourceChoice:hover,
+.presetChoice:hover {
+  background: rgba(7, 9, 6, 0.7);
+  border-color: rgba(216, 255, 121, 0.45);
+  filter: none;
+  transform: translateY(-2px);
+}
+
+.sourceChoice.selected,
+.presetChoice.selected {
+  background: rgba(216, 255, 121, 0.08);
+  border-color: rgba(216, 255, 121, 0.8);
+  box-shadow: 0 0 0 1px rgba(216, 255, 121, 0.6) inset;
+}
+
+.sourceChoiceTop {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.sourceChoiceTop strong {
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.sourceTag {
+  background: rgba(182, 255, 112, 0.2);
+  border-radius: 999px;
+  color: #c8ff89;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  padding: 3px 8px;
+  text-transform: uppercase;
+}
+
+.sourceChoiceAddr {
+  color: rgba(246, 240, 220, 0.55);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.sourceChoiceMeta {
+  color: rgba(246, 240, 220, 0.6);
+  font-size: 13px;
+}
+
+.presetChoice strong {
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.presetTagline {
+  color: rgba(246, 240, 220, 0.65);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.presetStats {
+  display: grid;
+  gap: 6px 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 6px 0 0;
+}
+
+.presetStats div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.presetStats dt {
+  color: rgba(246, 240, 220, 0.45);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.presetStats dd {
+  color: #f6f0dc;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.depositRow {
+  align-items: center;
+  background: rgba(7, 9, 6, 0.55);
+  border: 1px solid rgba(246, 240, 220, 0.14);
+  border-radius: 18px;
+  display: flex;
+  gap: 10px;
+  max-width: 320px;
+  padding: 14px 18px;
+}
+
+.depositInput {
+  background: transparent;
+  border: 0;
+  color: #f6f0dc;
+  flex: 1;
+  font: inherit;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  min-width: 0;
+  outline: none;
+}
+
+.depositInput::placeholder {
+  color: rgba(246, 240, 220, 0.35);
+}
+
+.depositUnit {
+  color: rgba(246, 240, 220, 0.5);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.followAction {
+  border-top: 1px solid rgba(246, 240, 220, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+  padding-top: 24px;
+}
+
+.followCta {
+  background: #d8ff79;
+  border: 0;
+  border-radius: 999px;
+  color: #111608;
+  cursor: pointer;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  padding: 16px 24px;
+  width: fit-content;
+}
+
+.followCta[disabled] {
+  cursor: progress;
+  filter: brightness(0.75);
+}
+
+.followStatus {
+  background: rgba(7, 9, 6, 0.55);
+  border: 1px solid rgba(246, 240, 220, 0.1);
+  border-radius: 14px;
+  color: rgba(246, 240, 220, 0.78);
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  gap: 4px;
+  padding: 12px 14px;
+}
+
+.followStatus strong {
+  color: #d8ff79;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+}
+
+.followStatus a {
+  color: #b6ff70;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.followStatus a:hover {
+  text-decoration: underline;
+}
+
+.followStatus.error {
+  border-color: rgba(255, 93, 93, 0.45);
+}
+
+.followStatus.error strong {
+  color: #ff8a93;
+}
+
+.followStatus.error span {
+  color: #ffb3bc;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.followWallet {
+  color: rgba(246, 240, 220, 0.62);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 16px;
+}
+
+.followWallet strong {
+  color: #f6f0dc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .followFlow {
+    padding: 24px;
+  }
+
+  .followStep {
+    grid-template-columns: 1fr;
+  }
+
+  .stepNum {
+    font-size: 18px;
+    height: 44px;
+    width: 44px;
+  }
+
+  .sourceChoices,
+  .presetChoices {
+    grid-template-columns: 1fr;
+  }
+}
+
 .liveFeed {
   margin-top: 48px;
   background: linear-gradient(135deg, rgba(8, 14, 8, 0.92), rgba(12, 24, 18, 0.78));
