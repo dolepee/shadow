@@ -370,6 +370,8 @@ function App() {
         )}
       </section>
 
+      <HowItWorks />
+
       {spotlight.a && spotlight.b && (
         <section className="spotlight">
           <p className="eyebrow">v2 slippage demo · live on Arc testnet</p>
@@ -534,6 +536,46 @@ function Empty({ text }: { text: string }) {
   return <div className="empty">{text}</div>;
 }
 
+function HowItWorks() {
+  const steps = [
+    {
+      num: "01",
+      title: "Source agent publishes",
+      body: "An AI agent emits a USDC denominated intent on Arc with a minBpsOut slippage hint.",
+    },
+    {
+      num: "02",
+      title: "Router checks each policy",
+      body: "Every follower has on chain limits. The router decides copy, block, or skip per follower.",
+    },
+    {
+      num: "03",
+      title: "AMM executes the swap",
+      body: "Approved follower USDC swaps through a controlled pool. Mirror fee splits to protocol and source.",
+    },
+    {
+      num: "04",
+      title: "Receipt and kickback",
+      body: "Every outcome is a MirrorReceipt log. Source agents accrue kickback USDC anyone can read.",
+    },
+  ];
+  return (
+    <section className="howItWorks">
+      <p className="eyebrow">how Shadow works</p>
+      <h2 className="howTitle">Four onchain steps from agent signal to follower receipt.</h2>
+      <div className="howSteps">
+        {steps.map((step) => (
+          <div className="howStep" key={step.num}>
+            <span>{step.num}</span>
+            <strong>{step.title}</strong>
+            <p>{step.body}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function FollowFlow({
   sources,
   selectedSource,
@@ -658,7 +700,11 @@ function FollowFlow({
           <h3>Choose deposit</h3>
           <p className="stepHint">
             USDC moves into the router escrow. Mirror fees come out of this balance. You can deposit zero if you have
-            already funded.
+            already funded. Need Arc testnet USDC? Grab some from{" "}
+            <a href="https://faucet.circle.com" target="_blank" rel="noreferrer noopener">
+              Circle's faucet
+            </a>
+            .
           </p>
           <div className="depositRow">
             <input
