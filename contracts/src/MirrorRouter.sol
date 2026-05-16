@@ -23,7 +23,15 @@ contract MirrorRouter {
         bytes32 intentHash;
     }
 
+    struct Position {
+        uint256 usdcIn;
+        uint256 assetAmount;
+        address sourceAgent;
+        bool closed;
+    }
+
     IERC20 public immutable usdc;
+    IERC20 public immutable assetToken;
     ShadowAMM public immutable amm;
     SourceRegistry public immutable registry;
     address public immutable protocolFeeRecipient;
@@ -39,6 +47,7 @@ contract MirrorRouter {
     mapping(address => address[]) public followersBySource;
     mapping(address => mapping(address => RiskPolicy.Policy)) private policies;
     mapping(address => mapping(address => bool)) public isFollowing;
+    mapping(uint256 => mapping(address => Position)) public positions;
 
     event Deposited(address indexed follower, uint256 amountUSDC);
     event Followed(
@@ -72,6 +81,21 @@ contract MirrorRouter {
     event ProtocolFeesClaimed(address indexed recipient, uint256 amountUSDC);
     event Withdrawn(address indexed follower, uint256 amountUSDC);
     event Unfollowed(address indexed follower, address indexed sourceAgent);
+    event PositionOpened(
+        uint256 indexed intentId,
+        address indexed follower,
+        address indexed sourceAgent,
+        uint256 usdcIn,
+        uint256 assetAmount
+    );
+    event PositionClosed(
+        uint256 indexed intentId,
+        address indexed follower,
+        address indexed sourceAgent,
+        uint256 usdcIn,
+        uint256 usdcOut,
+        int256 pnlBps
+    );
 
     error ZeroAmount();
     error UnregisteredSource();
@@ -81,12 +105,14 @@ contract MirrorRouter {
     error MinBpsOutTooHigh();
     error InsufficientBalance();
     error NotFollowing();
+    error PositionNotOpen();
 
     constructor(address usdc_, address amm_, address registry_) {
         usdc = IERC20(usdc_);
         amm = ShadowAMM(amm_);
         registry = SourceRegistry(registry_);
         protocolFeeRecipient = msg.sender;
+        assetToken = IERC20(address(ShadowAMM(amm_).asset()));
     }
 
     function depositUSDC(uint256 amountUSDC) external {
@@ -271,8 +297,15 @@ contract MirrorRouter {
         protocolFeesUSDC += mirrorFeeUSDC - sourceShareUSDC;
 
         require(usdc.approve(address(amm), intent.amountUSDC), "APPROVE_FAILED");
-        uint256 assetOut = amm.swapExactUSDCForAsset(follower, intent.amountUSDC, followerMinOut);
+        uint256 assetOut = amm.swapExactUSDCForAsset(address(this), intent.amountUSDC, followerMinOut);
         require(usdc.approve(address(amm), 0), "APPROVE_RESET_FAILED");
+
+        positions[intentId][follower] = Position({
+            usdcIn: intent.amountUSDC,
+            assetAmount: assetOut,
+            sourceAgent: sourceAgent,
+            closed: false
+        });
 
         emit MirrorReceipt(
             intentId,
@@ -284,6 +317,26 @@ contract MirrorRouter {
             mirrorFeeUSDC,
             assetOut
         );
+        emit PositionOpened(intentId, follower, sourceAgent, intent.amountUSDC, assetOut);
+    }
+
+    function closePosition(uint256 intentId) external returns (uint256 usdcOut, int256 pnlBps) {
+        Position storage pos = positions[intentId][msg.sender];
+        if (pos.assetAmount == 0 || pos.closed) revert PositionNotOpen();
+
+        pos.closed = true;
+        uint256 assetAmount = pos.assetAmount;
+        uint256 usdcIn = pos.usdcIn;
+        address sourceAgent = pos.sourceAgent;
+
+        require(assetToken.approve(address(amm), assetAmount), "ASSET_APPROVE_FAILED");
+        usdcOut = amm.swapExactAssetForUSDC(address(this), assetAmount, 0);
+        require(assetToken.approve(address(amm), 0), "ASSET_APPROVE_RESET_FAILED");
+
+        followerBalanceUSDC[msg.sender] += usdcOut;
+
+        pnlBps = int256((usdcOut * BPS) / usdcIn) - int256(BPS);
+        emit PositionClosed(intentId, msg.sender, sourceAgent, usdcIn, usdcOut, pnlBps);
     }
 
     function followerCount(address sourceAgent) external view returns (uint256) {

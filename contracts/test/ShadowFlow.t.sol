@@ -50,6 +50,10 @@ contract Actor {
     function unfollow(MirrorRouter router, address sourceAgent) external {
         router.unfollowSource(sourceAgent);
     }
+
+    function closePosition(MirrorRouter router, uint256 intentId) external {
+        router.closePosition(intentId);
+    }
 }
 
 contract ShadowFlowTest {
@@ -119,8 +123,10 @@ contract ShadowFlowTest {
 
         source.publish(router, intent);
 
-        require(arceth.balanceOf(address(followerA)) > 0, "follower A did not receive ARCETH");
-        require(arceth.balanceOf(address(followerB)) == 0, "follower B should be blocked");
+        (, uint256 aAmount,,) = router.positions(1, address(followerA));
+        (, uint256 bAmount,,) = router.positions(1, address(followerB));
+        require(aAmount > 0, "follower A did not open a position");
+        require(bAmount == 0, "follower B should be blocked");
         require(router.followerBalanceUSDC(address(followerA)) == (4 * USDC) - MIRROR_FEE, "follower A USDC not deducted");
         require(router.followerBalanceUSDC(address(followerB)) == 5 * USDC, "follower B USDC should remain");
         require(router.sourceKickbackUSDC(address(source)) == 700, "source kickback not accrued");
@@ -158,11 +164,12 @@ contract ShadowFlowTest {
         });
 
         source.publish(router, intent);
-        uint256 firstAssetBalance = arceth.balanceOf(address(followerA));
+        (, uint256 firstAssetAmount,,) = router.positions(1, address(followerA));
         source.publish(router, intent);
+        (, uint256 secondAssetAmount,,) = router.positions(2, address(followerA));
 
-        require(firstAssetBalance > 0, "first intent should copy");
-        require(arceth.balanceOf(address(followerA)) == firstAssetBalance, "second intent should be blocked");
+        require(firstAssetAmount > 0, "first intent should copy");
+        require(secondAssetAmount == 0, "second intent should be blocked");
         require(router.followerBalanceUSDC(address(followerA)) == (4 * USDC) - MIRROR_FEE, "only first intent should deduct");
     }
 
@@ -274,8 +281,10 @@ contract ShadowFlowTest {
 
         source.publish(router, intent);
 
-        require(arceth.balanceOf(address(followerA)) == 0, "strict follower should block on slippage");
-        require(arceth.balanceOf(address(followerB)) > 0, "lenient follower should copy under slippage tolerance");
+        (, uint256 aAmount,,) = router.positions(1, address(followerA));
+        (, uint256 bAmount,,) = router.positions(1, address(followerB));
+        require(aAmount == 0, "strict follower should block on slippage");
+        require(bAmount > 0, "lenient follower should copy under slippage tolerance");
         require(router.followerBalanceUSDC(address(followerA)) == 5 * USDC, "strict follower USDC should remain");
         require(
             router.followerBalanceUSDC(address(followerB)) == (4 * USDC) - MIRROR_FEE,
@@ -352,9 +361,11 @@ contract ShadowFlowTest {
 
         source.publish(router, intent);
 
+        (, uint256 aAmount,,) = router.positions(1, address(followerA));
+        (, uint256 bAmount,,) = router.positions(1, address(followerB));
         require(router.followerBalanceUSDC(address(followerA)) == 5 * USDC, "unfollowed wallet must not be debited");
-        require(arceth.balanceOf(address(followerA)) == 0, "unfollowed wallet must not receive asset");
-        require(arceth.balanceOf(address(followerB)) > 0, "still-following wallet should copy");
+        require(aAmount == 0, "unfollowed wallet must not open position");
+        require(bAmount > 0, "still-following wallet should copy");
     }
 
     function testUnfollowWhenNotFollowingReverts() public {
@@ -388,6 +399,70 @@ contract ShadowFlowTest {
         });
 
         source.publish(router, intent);
-        require(arceth.balanceOf(address(followerA)) > 0, "refollowed follower should copy");
+        (, uint256 aAmount,,) = router.positions(1, address(followerA));
+        require(aAmount > 0, "refollowed follower should copy");
+    }
+
+    function testClosePositionRealizesUSDCAndPnL() public {
+        followerA.follow(router, address(source), 2 * USDC, 5 * USDC, address(arceth), 3);
+
+        MirrorRouter.TradeIntent memory intent = MirrorRouter.TradeIntent({
+            asset: address(arceth),
+            amountUSDC: 1 * USDC,
+            minAmountOut: 1,
+            riskLevel: 2,
+            expiry: block.timestamp + 1 hours,
+            intentHash: keccak256("cat-arb-close-test")
+        });
+
+        source.publish(router, intent);
+        (uint256 usdcIn, uint256 assetAmount, , bool closedBefore) = router.positions(1, address(followerA));
+        require(usdcIn == 1 * USDC, "position usdcIn recorded");
+        require(assetAmount > 0, "position asset recorded");
+        require(!closedBefore, "position should be open");
+
+        uint256 balanceBefore = router.followerBalanceUSDC(address(followerA));
+        followerA.closePosition(router, 1);
+
+        (, , , bool closedAfter) = router.positions(1, address(followerA));
+        require(closedAfter, "position should be marked closed");
+        uint256 balanceAfter = router.followerBalanceUSDC(address(followerA));
+        require(balanceAfter > balanceBefore, "close should credit USDC to follower router balance");
+        // Round-trip through 30bps fee both ways means net usdcOut < usdcIn — PnL bps should be negative.
+        require(balanceAfter - balanceBefore < usdcIn, "round-trip should net less than usdcIn");
+    }
+
+    function testCloseAlreadyClosedReverts() public {
+        followerA.follow(router, address(source), 2 * USDC, 5 * USDC, address(arceth), 3);
+
+        MirrorRouter.TradeIntent memory intent = MirrorRouter.TradeIntent({
+            asset: address(arceth),
+            amountUSDC: 1 * USDC,
+            minAmountOut: 1,
+            riskLevel: 2,
+            expiry: block.timestamp + 1 hours,
+            intentHash: keccak256("cat-arb-double-close")
+        });
+
+        source.publish(router, intent);
+        followerA.closePosition(router, 1);
+
+        bool reverted = false;
+        try followerA.closePosition(router, 1) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "second close should revert PositionNotOpen");
+    }
+
+    function testCloseNonExistentReverts() public {
+        bool reverted = false;
+        try followerA.closePosition(router, 99) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "closing non-existent position should revert");
     }
 }

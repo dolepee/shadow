@@ -22,6 +22,14 @@ contract ShadowAMM {
         uint256 reserveUSDCAfter,
         uint256 reserveAssetAfter
     );
+    event ReverseSwapExecuted(
+        address indexed caller,
+        address indexed recipient,
+        uint256 assetIn,
+        uint256 usdcOut,
+        uint256 reserveUSDCAfter,
+        uint256 reserveAssetAfter
+    );
 
     error NotOwner();
     error ZeroAmount();
@@ -74,6 +82,35 @@ contract ShadowAMM {
         require(asset.transfer(recipient, assetOut), "ASSET_TRANSFER_FAILED");
 
         emit SwapExecuted(msg.sender, recipient, usdcAmountIn, assetOut, reserveUSDC, reserveAsset);
+    }
+
+    function quoteAssetForUSDC(uint256 assetAmountIn) public view returns (uint256 usdcOut) {
+        if (assetAmountIn == 0) return 0;
+        if (reserveUSDC == 0 || reserveAsset == 0) return 0;
+
+        uint256 amountInWithFee = assetAmountIn * (BPS - FEE_BPS);
+        return (reserveUSDC * amountInWithFee) / ((reserveAsset * BPS) + amountInWithFee);
+    }
+
+    function swapExactAssetForUSDC(address recipient, uint256 assetAmountIn, uint256 minUSDCOut)
+        external
+        returns (uint256 usdcOut)
+    {
+        if (assetAmountIn == 0) revert ZeroAmount();
+        if (reserveUSDC == 0 || reserveAsset == 0) revert InsufficientLiquidity();
+
+        usdcOut = quoteAssetForUSDC(assetAmountIn);
+        if (usdcOut < minUSDCOut) revert InsufficientOutput();
+        if (usdcOut >= reserveUSDC) revert InsufficientLiquidity();
+
+        require(asset.transferFrom(msg.sender, address(this), assetAmountIn), "ASSET_TRANSFER_FAILED");
+
+        reserveAsset += assetAmountIn;
+        reserveUSDC -= usdcOut;
+
+        require(usdc.transfer(recipient, usdcOut), "USDC_TRANSFER_FAILED");
+
+        emit ReverseSwapExecuted(msg.sender, recipient, assetAmountIn, usdcOut, reserveUSDC, reserveAsset);
     }
 }
 
