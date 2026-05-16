@@ -30,3 +30,4 @@ judge-prep.*
 .mcp.json
 opencode.json
 app/.gitignore
+.vercel

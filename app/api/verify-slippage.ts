@@ -145,15 +145,21 @@ async function runVerify(): Promise<VerifyResult> {
     throw new Error(`Followers not seeded against ${account.address}.`);
   }
 
-  const remainingA = policyA[1] > policyA[5] ? policyA[1] - policyA[5] : 0n;
-  const remainingB = policyB[1] > policyB[5] ? policyB[1] - policyB[5] : 0n;
-  const affordableA = (balanceA * BPS) / (BPS + MIRROR_FEE_BPS);
-  const affordableB = (balanceB * BPS) / (BPS + MIRROR_FEE_BPS);
-  const cap = bigMin([policyA[0], policyB[0], affordableA, affordableB, remainingA, remainingB]);
+  const maxPerIntentA = BigInt(policyA[0]);
+  const maxPerIntentB = BigInt(policyB[0]);
+  const dailyCapA = BigInt(policyA[1]);
+  const spentA = BigInt(policyA[5]);
+  const dailyCapB = BigInt(policyB[1]);
+  const spentB = BigInt(policyB[5]);
+  const remainingA = dailyCapA > spentA ? dailyCapA - spentA : 0n;
+  const remainingB = dailyCapB > spentB ? dailyCapB - spentB : 0n;
+  const affordableA = (BigInt(balanceA) * BPS) / (BPS + MIRROR_FEE_BPS);
+  const affordableB = (BigInt(balanceB) * BPS) / (BPS + MIRROR_FEE_BPS);
+  const cap = bigMin([maxPerIntentA, maxPerIntentB, affordableA, affordableB, remainingA, remainingB]);
 
   if (cap === 0n) {
     throw new Error(
-      `Follower headroom exhausted. balanceA=${formatUSDC(balanceA)} balanceB=${formatUSDC(balanceB)} remainingA=${formatUSDC(remainingA)} remainingB=${formatUSDC(remainingB)}.`,
+      `Follower headroom exhausted. balanceA=${formatUSDC(BigInt(balanceA))} balanceB=${formatUSDC(BigInt(balanceB))} remainingA=${formatUSDC(remainingA)} remainingB=${formatUSDC(remainingB)}.`,
     );
   }
 
