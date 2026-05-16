@@ -1,73 +1,101 @@
 # Shadow
 
-Shadow is the consumer surface for Arc trading agents.
-
-Users follow registered source agents, escrow USDC, and mirror standardized intents only when their policy allows. One source intent can produce two onchain outcomes: copied for one follower, blocked for another.
+Shadow lets anyone follow AI trading agents on Arc with USDC mirroring under a policy each follower writes for themselves. Because the policy includes slippage that each follower owns, one source intent can produce two outcomes: copied for one wallet, blocked for another, both onchain.
 
 Live app: https://shadow-two-opal.vercel.app
 
 GitHub: https://github.com/dolepee/shadow
 
-## Locked MVP
+Chain: Arc Testnet (chain id `5042002`)
 
-The first build uses a controlled Arc testnet AMM. It does not claim production market execution.
+## Try it in 60 seconds
 
-- Source agents publish intents.
-- Followers set USDC limits and allowed assets.
-- `MirrorRouter` evaluates every follower policy.
-- Allowed followers execute a real swap through `ShadowAMM`.
-- Blocked followers receive an onchain receipt with the reason.
-- Copied intents accrue a 10 bps mirror fee. The source agent receives 70% of that fee as USDC kickback.
+1. Open the live app, connect a wallet, switch to Arc Testnet.
+2. Grab a small amount of test USDC at https://faucet.circle.com.
+3. Pick a source agent (CatArb or LobsterRisk), pick a risk preset (Conservative, Balanced, or Aggressive), set a deposit, follow.
+4. Cron publishes new intents every 10 minutes. The live receipts feed updates without a page refresh.
+5. Hit `run verify now` on the spotlight section to publish a fresh demo intent and watch the strict and lenient outcomes prove themselves against the live AMM quote in one click.
 
-## Core Flow
+## The novel primitive: slippage each follower owns
 
-1. Register `CatArb` and `LobsterRisk`.
-2. Seed a USDC and ARCETH pool in `ShadowAMM`.
-3. Follower A follows `CatArb` with a permissive policy.
-4. Follower B follows `CatArb` with a stricter policy.
-5. `CatArb` publishes one executable intent for ARCETH.
-6. Follower A copies and swaps USDC into ARCETH.
-7. Follower B is blocked by policy.
-8. The dashboard shows both receipts with transaction links.
+Source agents publish intents with a `minAmountOut` hint. Each follower stores their own `minBpsOut` on chain. Before swapping, `MirrorRouter` quotes the AMM and:
 
-## Scope Guard
+1. emits `MirrorReceipt(BLOCKED, SLIPPAGE_TOO_TIGHT)` for any follower whose scaled minimum exceeds the live quote, with no fee, no debit;
+2. executes the swap for every other follower without reverting the batch.
 
-Shadow V1 does not build a production DEX, oracle system, full PnL engine, CCTP routing, App Kit Swap integration, or a full risk policy DSL. Those are outside the two-week MVP.
+A source publishing a tight `minAmountOut` no longer cascade reverts. Each follower keeps independent control of how much price impact they tolerate.
 
-V1 source registration is owner managed so the demo agent list stays curated. Each source is capped at 50 followers per intent to keep intent fanout bounded and reviewable.
+## The product surface
 
-## Known Limits
+**Public follow flow.** Pick a source, pick a preset, deposit USDC. A single CTA wires up `approve`, `depositUSDC`, and `followSource` with the preset policy (max per intent, daily cap, max risk, `minBpsOut`).
 
-Documented limits a reviewer should know before reading the contracts.
+**Live receipts feed.** Auto polls every 15 seconds, animates new rows, shows the latest block, source name, follower address, USDC mirrored, and ARCETH received per receipt.
 
-- Follower slippage is independent of the source intent. Each follower stores their own `minBpsOut` (basis points scaling `intent.minAmountOut`) in `RiskPolicy.Policy`. Before swapping, `MirrorRouter` quotes the live AMM and emits `MirrorReceipt(BLOCKED, SLIPPAGE_TOO_TIGHT)` cleanly when the quote can't satisfy the scaled follower minimum. A source publishing `minAmountOut = 1` only debits followers whose own `minBpsOut` accepts that floor.
-- The router approves the AMM once per copied follower and resets the allowance after the swap. This is bounded by the 50 follower cap but is intentional belt and suspenders, not a gas optimum.
-- `RiskPolicy.BlockReason.NOT_FOLLOWING` is retained in the enum for readability. It is not reachable through `publishIntent` because the router only iterates registered followers. Direct unit tests on the library would surface it.
-- `ShadowAMM` is a single pool constant product pool with a 30 bps fee. It is intentionally small to keep the copied versus blocked outcome legible. It is not a production DEX.
+**Spotlight intent.** A hardcoded demo that ships strict and lenient outcomes for intent `#3` with a live `run verify now` button backed by a Vercel serverless function.
 
-## Arc Alignment
+**Scheduled activity.** GitHub Actions publishes new intents every 10 minutes from CatArb (split outcome at risk level 2) and LobsterRisk (safe copy at risk level 1) so the feed always has fresh data.
 
-- Arc testnet deployment.
-- Official Arc testnet USDC as gas and settlement asset.
-- ERC-8004 style source-agent identity and reputation references.
-- Onchain receipts for copied and blocked intents.
-- USDC fee accounting for source-agent kickbacks.
-- Optional x402 private preview endpoint after the core path is stable.
+## Architecture
+
+* `SourceRegistry`. Curated source agent list with ERC-8004 identity references.
+* `MirrorRouter`. Accepts source intents, evaluates each follower policy, debits USDC, executes the AMM swap, emits onchain receipts, and accrues source kickback USDC.
+* `ShadowAMM`. Constant product AMM over a single USDC/ARCETH pool with a 30 bps fee. Intentionally small to keep outcomes legible.
+* `RiskPolicy`. Per follower struct with `maxAmountPerIntent`, `dailyCap`, `allowedAsset`, `maxRiskLevel`, `minBpsOut`, plus an active flag and daily spent counters.
+
+## Live Arc deployment (V2)
+
+Contracts:
+
+* ARCETH: `0x9beB19B1F360F110f731A09BA3fccB0E0cAE2402`
+* ShadowAMM: `0xeDbDaC33160DE3e017dB988E02AD623344371633`
+* SourceRegistry: `0xEec07657c5628AeCe50f20AA12C15A2a4B1557e1`
+* MirrorRouter: `0x4e194EFB8060C9e7919a06C7E0AE4cbf9e7D47fF`
+* Arc USDC: `0x3600000000000000000000000000000000000000`
+
+Source agents:
+
+* CatArb: `0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8`
+* LobsterRisk: `0xFF3BDb60E16538333C9A290BB80bE52b3b82D2f3`
+
+Seeded followers used in the spotlight:
+
+* Follower A (strict, `minBpsOut = 10000`): `0x495cb55E288E9105E3b3080F2A7323F870538695`
+* Follower B (lenient, `minBpsOut = 9000`): `0x7A3FFC0294f21E040b2bEa3e5Aad33cA08B33AcD`
+
+Both follow CatArb with `maxAmountPerIntent = 2 USDC`, `dailyCap = 10 USDC`, `allowedAsset = ARCETH`, `maxRiskLevel = 3`.
+
+Full deployment doc: `docs/ARC_LIVE.md`.
 
 ## Commands
 
 ```bash
-npm run contracts:test
-npm run contracts:build
-npm run app:typecheck
-npm run app:build
-npm run agent:typecheck
-npm run agent:intent
-npm run verify:slippage
+npm run contracts:test     # Forge unit tests
+npm run contracts:build    # Compile contracts
+npm run app:typecheck      # Vite app typecheck
+npm run app:build          # Vite production build
+npm run agent:typecheck    # tsx agent scripts typecheck
+npm run agent:intent       # Publish a manual intent
+npm run verify:slippage    # Reproducible split outcome run
 ```
 
-`npm run verify:slippage` reads the live Arc testnet state, picks an `intent.minAmountOut` that lands strictly between the strict and lenient follower scaled minimums, publishes the intent from `CatArb`, and prints both `MirrorReceipt` events. Strict follower must end up `BLOCKED` with reason `slippage too tight` and the lenient follower must end up `COPIED`. Exits non-zero if the outcome drifts.
+`npm run verify:slippage` reads live state, picks an `intent.minAmountOut` strictly between the strict and lenient follower scaled minimums, publishes from CatArb, and prints both `MirrorReceipt` events. The strict follower must end up `BLOCKED, SLIPPAGE_TOO_TIGHT`. The lenient follower must end up `COPIED`. Exits with a nonzero code if the outcomes drift.
 
-## Live Arc Deployment
+## Scope guard
 
-Live Arc testnet addresses and the first copied plus blocked receipt are documented in `docs/ARC_LIVE.md`.
+Shadow V1 does not build a production DEX, oracle system, full PnL engine, CCTP routing, App Kit Swap integration, or a risk policy DSL. Source registration is managed by the contract owner so the demo agent list stays curated. Each source is capped at 50 followers per intent.
+
+## Known limits
+
+`MirrorRouter` approves the AMM once per copied follower and resets the allowance after the swap. Intentional belt and suspenders within the 50 follower cap.
+
+`RiskPolicy.BlockReason.NOT_FOLLOWING` is retained in the enum for readability. It is unreachable through `publishIntent` since the router only iterates registered followers.
+
+`ShadowAMM` is a single pool constant product AMM with a 30 bps fee. It is not a production DEX.
+
+## Arc alignment
+
+* Arc Testnet deployment.
+* Arc USDC as both gas token and settlement asset.
+* ERC-8004 source agent identity and reputation references.
+* Onchain receipts for both copied and blocked outcomes.
+* USDC fee accounting for source kickbacks.
