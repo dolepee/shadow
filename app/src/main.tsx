@@ -2351,7 +2351,7 @@ function AppKitTipButton({
       });
       const adapter = await createViemAdapterFromProvider({ provider });
       setStatus({ kind: "sending", stage: "submitting USDC transfer" });
-      const kit = new AppKit({ kitKey } as any);
+      const kit = new AppKit();
       const step = await kit.send({
         from: { adapter, chain: "Arc_Testnet" as any },
         to: sourceAddress,
@@ -2460,12 +2460,13 @@ function CircleStackPanel() {
       setStatus({ kind: "running", stage: "preparing Circle adapter" });
       const adapter = await createViemAdapterFromProvider({ provider });
       setStatus({ kind: "running", stage: `routing ${tokenIn} → ${tokenOut} via Circle stablecoin service` });
-      const kit = new AppKit({ kitKey } as any);
+      const kit = new AppKit();
       const result = await kit.swap({
         from: { adapter, chain: "Arc_Testnet" as any },
         tokenIn: tokenIn as any,
         tokenOut: tokenOut as any,
         amountIn: amount,
+        config: { kitKey } as any,
       });
       setStatus({
         kind: "success",
