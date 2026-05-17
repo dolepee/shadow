@@ -234,6 +234,95 @@ h3 {
   color: #ff6f7d;
 }
 
+.builderFees {
+  align-items: center;
+  background:
+    radial-gradient(circle at 8% 50%, rgba(165, 255, 96, 0.22), transparent 18rem),
+    rgba(10, 14, 10, 0.7);
+  border: 1px solid rgba(165, 255, 96, 0.28);
+  border-radius: 22px;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 24px 0 8px;
+  padding: 24px 28px;
+}
+
+.builderFeesMain {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.builderFeesMain h2 {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+
+.builderFeesAmount {
+  color: rgba(200, 255, 160, 0.98);
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.builderFeesUnit {
+  color: rgba(200, 255, 160, 0.7);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.builderFeesCaption {
+  color: rgba(246, 240, 220, 0.66);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 4px 0 0;
+  max-width: 640px;
+}
+
+.builderFeesCaption code {
+  color: rgba(200, 255, 160, 0.85);
+}
+
+.builderFeesTop {
+  background: rgba(7, 9, 8, 0.55);
+  border: 1px solid rgba(165, 255, 96, 0.18);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+  padding: 14px 18px;
+}
+
+.builderFeesTop p {
+  color: rgba(246, 240, 220, 0.45);
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.builderFeesTop strong {
+  color: rgba(246, 240, 220, 0.96);
+  font-size: 16px;
+}
+
+.builderFeesTop span {
+  color: rgba(200, 255, 160, 0.85);
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .builderFees {
+    grid-template-columns: 1fr;
+  }
+}
+
 .spotlight {
   background:
     radial-gradient(circle at 12% 0%, rgba(165, 255, 96, 0.18), transparent 22rem),

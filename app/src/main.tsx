@@ -33,24 +33,6 @@ import {
   type SourceAgent,
 } from "./chain";
 
-const SPOTLIGHT = {
-  intentId: 3n,
-  amountUSDC: "0.5",
-  intentMinAmountOut: "0.034",
-  followerA: {
-    address: "0x495cb55E288E9105E3b3080F2A7323F870538695" as Address,
-    minBpsOut: 10000,
-    label: "strict",
-    scaledMin: "0.034",
-  },
-  followerB: {
-    address: "0x7A3FFC0294f21E040b2bEa3e5Aad33cA08B33AcD" as Address,
-    minBpsOut: 9000,
-    label: "lenient",
-    scaledMin: "0.0306",
-  },
-};
-
 type PresetKey = "conservative" | "balanced" | "aggressive";
 
 type Preset = {
@@ -274,13 +256,16 @@ function App() {
       .slice(0, 12);
   }, [state]);
   const spotlight = useMemo(() => {
-    const matches = state?.receipts.filter((receipt) => receipt.intentId === SPOTLIGHT.intentId) || [];
-    return {
-      a: matches.find((r) => r.follower.toLowerCase() === SPOTLIGHT.followerA.address.toLowerCase()),
-      b: matches.find((r) => r.follower.toLowerCase() === SPOTLIGHT.followerB.address.toLowerCase()),
-    };
+    if (!state) return null;
+    const intents = [...state.intents].sort((a, b) => Number(b.blockNumber - a.blockNumber));
+    for (const intent of intents) {
+      const matches = state.receipts.filter((r) => r.intentId === intent.intentId);
+      const copied = matches.find((r) => r.status === "copied");
+      const blocked = matches.find((r) => r.status === "blocked");
+      if (copied && blocked) return { intent, copied, blocked };
+    }
+    return null;
   }, [state]);
-  const spotlightLiveQuote = spotlight.b ? formatAsset(spotlight.b.assetAmountOut) : "—";
 
   async function runVerify() {
     setVerifying(true);
@@ -546,7 +531,8 @@ function App() {
         <h1>Follow AI trading agents with policy controlled USDC mirroring.</h1>
         <p className="lede">
           A source agent publishes an intent. Shadow checks each follower policy. One follower can copy through a controlled
-          Arc testnet AMM while another is blocked with an onchain receipt.
+          Arc testnet AMM while another is blocked with an onchain receipt. Source agents earn a 70% builder fee on every
+          mirrored swap.
         </p>
         {!isConfigured && (
           <div className="warning">
@@ -555,37 +541,36 @@ function App() {
         )}
       </section>
 
+      <BuilderFeesBanner state={state} />
+
       <HowItWorks />
 
-      {spotlight.a && spotlight.b && (
+      {spotlight && (
         <section className="spotlight">
-          <p className="eyebrow">v4 policy split · live on Arc testnet</p>
+          <p className="eyebrow">policy split · live on Arc testnet</p>
           <h2>One source intent. Two follower outcomes.</h2>
           <p className="spotlightSummary">
-            CatArb published intent #{SPOTLIGHT.intentId.toString()} for {SPOTLIGHT.amountUSDC} USDC at minimum {SPOTLIGHT.intentMinAmountOut} ARCETH. The live AMM quoted {spotlightLiveQuote} ARCETH. Each follower's own minBpsOut decides the outcome — the source intent no longer cascade-reverts.
+            {sourceNameByAddress.get(spotlight.intent.sourceAgent.toLowerCase()) || shortAddress(spotlight.intent.sourceAgent)}{" "}
+            published intent #{spotlight.intent.intentId.toString()} for {formatUSDC(spotlight.intent.amountUSDC)} USDC.
+            The router fanned it out: one follower&apos;s policy let the swap through, another&apos;s blocked it. Both outcomes
+            settled in a single tx without cascade reverts.
           </p>
           <div className="spotlightGrid">
             <SpotlightCard
               verdict="BLOCKED"
               kind="blocked"
-              label={`Follower A · ${SPOTLIGHT.followerA.label}`}
-              follower={SPOTLIGHT.followerA.address}
-              minBps={SPOTLIGHT.followerA.minBpsOut}
-              scaledMin={SPOTLIGHT.followerA.scaledMin}
-              liveQuote={spotlightLiveQuote}
-              receipt={spotlight.a}
-              detail="Scaled minimum exceeds the live AMM quote. No swap, no fee, no debit."
+              label="Follower · policy blocked"
+              follower={spotlight.blocked.follower}
+              receipt={spotlight.blocked}
+              detail={`Router emitted blocked receipt with reason "${spotlight.blocked.reason}". No swap, no fee, no debit.`}
             />
             <SpotlightCard
               verdict="COPIED"
               kind="copied"
-              label={`Follower B · ${SPOTLIGHT.followerB.label}`}
-              follower={SPOTLIGHT.followerB.address}
-              minBps={SPOTLIGHT.followerB.minBpsOut}
-              scaledMin={SPOTLIGHT.followerB.scaledMin}
-              liveQuote={spotlightLiveQuote}
-              receipt={spotlight.b}
-              detail="Scaled minimum sits below the live quote. The swap clears, fee accrues, kickback routes to CatArb."
+              label="Follower · policy allowed"
+              follower={spotlight.copied.follower}
+              receipt={spotlight.copied}
+              detail="Swap cleared through the controlled AMM. Mirror fee accrued and source builder fee routed."
             />
           </div>
 
@@ -657,7 +642,7 @@ function App() {
         <Stat label="intent receipts" value={String(state?.receipts.length || 0)} />
         <Stat label="USDC mirrored" value={formatUSDC(totalMirrored(copiedReceipts))} />
         <Stat label="blocked copies" value={String(blockedReceipts.length)} />
-        <Stat label="source kickbacks" value={formatUSDC(totalKickbacks(state))} />
+        <Stat label="builder fees paid" value={formatUSDC(totalKickbacks(state))} />
         <Stat label="1 USDC quote" value={`${formatAsset(state?.quoteForOneUSDC || 0n)} ARCETH`} />
       </section>
 
@@ -746,8 +731,8 @@ function HowItWorks() {
     },
     {
       num: "04",
-      title: "Receipt and kickback",
-      body: "Every outcome is a MirrorReceipt log. Source agents accrue kickback USDC anyone can read.",
+      title: "Receipt and builder fee",
+      body: "Every outcome is a MirrorReceipt log. 70% of the mirror fee accrues to the source as a builder fee, anyone can read it onchain.",
     },
   ];
   return (
@@ -1333,9 +1318,6 @@ function SpotlightCard({
   kind,
   label,
   follower,
-  minBps,
-  scaledMin,
-  liveQuote,
   receipt,
   detail,
 }: {
@@ -1343,9 +1325,6 @@ function SpotlightCard({
   kind: "blocked" | "copied";
   label: string;
   follower: Address;
-  minBps: number;
-  scaledMin: string;
-  liveQuote: string;
   receipt: ReceiptLog;
   detail: string;
 }) {
@@ -1356,20 +1335,12 @@ function SpotlightCard({
       <span className="follower">{shortAddress(follower)}</span>
       <dl className="spotlightStats">
         <div>
-          <dt>minBpsOut</dt>
-          <dd>{minBps}</dd>
-        </div>
-        <div>
-          <dt>scaled minimum</dt>
-          <dd>{scaledMin} ARCETH</dd>
-        </div>
-        <div>
-          <dt>live quote</dt>
-          <dd>{liveQuote} ARCETH</dd>
+          <dt>USDC routed</dt>
+          <dd>{formatUSDC(receipt.usdcAmount)}</dd>
         </div>
         {receipt.status === "copied" && (
           <div>
-            <dt>received</dt>
+            <dt>asset out</dt>
             <dd>{formatAsset(receipt.assetAmountOut)} ARCETH</dd>
           </div>
         )}
@@ -1381,7 +1352,7 @@ function SpotlightCard({
         )}
         {receipt.status === "blocked" && (
           <div>
-            <dt>reason</dt>
+            <dt>block reason</dt>
             <dd>{receipt.reason}</dd>
           </div>
         )}
@@ -1400,6 +1371,39 @@ function totalMirrored(receipts: ReceiptLog[]): bigint {
 
 function totalKickbacks(state: ShadowState | null): bigint {
   return state?.sources.reduce((total, source) => total + source.kickbackUSDC, 0n) || 0n;
+}
+
+function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
+  const totalFees = totalKickbacks(state);
+  const sourceCount = state?.sources.length || 0;
+  const topSource = useMemo(() => {
+    if (!state) return null;
+    return [...state.sources].sort((a, b) =>
+      a.kickbackUSDC === b.kickbackUSDC ? 0 : a.kickbackUSDC < b.kickbackUSDC ? 1 : -1,
+    )[0];
+  }, [state]);
+  return (
+    <section className="builderFees">
+      <div className="builderFeesMain">
+        <p className="eyebrow">builder fees · 70% of every mirror fee</p>
+        <h2>
+          <span className="builderFeesAmount">{formatUSDC(totalFees)}</span>
+          <span className="builderFeesUnit">USDC</span>
+        </h2>
+        <p className="builderFeesCaption">
+          accrued to source agents from {sourceCount === 1 ? "one source" : `${sourceCount} sources`}, all settled by{" "}
+          <code>ShadowRouter.fanOut</code> at the receipt event. No off-chain accounting.
+        </p>
+      </div>
+      {topSource && totalFees > 0n && (
+        <div className="builderFeesTop">
+          <p>top earner</p>
+          <strong>{topSource.name}</strong>
+          <span>{formatUSDC(topSource.kickbackUSDC)} USDC</span>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function score(value: number): string {
@@ -1462,7 +1466,7 @@ function EarnedReputationPanel({ rows }: { rows: EarnedReputation[] }) {
               <ReputationStat
                 label="mirror fees earned"
                 value={formatUSDC(row.mirrorFeesUSDC)}
-                subtext={`70% to source = ${formatUSDC(row.source.kickbackUSDC)} accrued`}
+                subtext={`70% builder fee · ${formatUSDC(row.source.kickbackUSDC)} USDC accrued`}
               />
               <ReputationStat
                 label="follow records"
