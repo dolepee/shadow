@@ -14,7 +14,7 @@ Chain: Arc Testnet (chain id `5042002`)
 2. Grab a small amount of test USDC at https://faucet.circle.com.
 3. Pick a source agent (CatArb, LobsterRisk, or MomentumOtter), pick a risk preset (Conservative, Balanced, or Aggressive), set a deposit, follow.
 4. Cron publishes new intents every 10 minutes. The live receipts feed updates without a page refresh.
-5. Hit `run verify now` on the spotlight section to publish a fresh demo intent and watch the strict and lenient outcomes prove themselves against the live AMM quote in one click.
+5. Hit `run verify now` on the spotlight section to publish a fresh CatArb intent and watch the strict and lenient outcomes prove themselves against the live AMM quote. Every click writes a new tx onchain.
 6. Close a copied position from the live feed, or run `npm run agent:close-position`, to show the asset round trip and realized PnL onchain.
 
 ## The novel primitive: slippage each follower owns
@@ -36,7 +36,7 @@ A source publishing a tight `minAmountOut` no longer cascade reverts. Each follo
 
 **Live receipts feed.** Auto polls a cached state API, animates new rows, shows the latest block, source name, follower address, USDC mirrored, and ARCETH received per receipt.
 
-**Spotlight intent.** A hardcoded demo that ships strict and lenient outcomes for intent `#3` with a live `run verify now` button backed by a Vercel serverless function.
+**Spotlight intent.** The dashboard picks the latest intent that produced both a `COPIED` and a `BLOCKED` receipt and renders the two outcomes side by side. A `run verify now` button publishes a fresh CatArb intent every click through a Vercel serverless function so the split outcome is reproducible on demand against the live AMM quote.
 
 **Reasoning artifacts.** Each cron intent stores a content-derived reasoning packet in Vercel KV and publishes the same `intentHash` onchain. The `run verify now` button writes the same artifact type before publishing so the reasoning panel does not go stale after a live click.
 

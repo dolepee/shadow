@@ -768,7 +768,7 @@ function App() {
             <div className="liveVerifyHeader">
               <p className="eyebrow">don't trust the screenshot</p>
               <p className="liveVerifyLede">
-                Publish a fresh demo intent right now. The button calls a Vercel function that signs as CatArb, picks an intent.minAmountOut to land between the two scaled minimums, waits for the MirrorReceipts, and prints them below. One run per minute.
+                Publish a fresh intent right now. The button calls a Vercel function that signs as CatArb, picks an intent.minAmountOut to land between the two scaled minimums, waits for the MirrorReceipts, and prints them below. New onchain tx every click.
               </p>
             </div>
             <button className="liveVerifyButton" onClick={runVerify} disabled={verifying}>

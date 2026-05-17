@@ -21,7 +21,7 @@ const FOLLOWER_A_MIN_BPS = 10000n;
 const FOLLOWER_B_MIN_BPS = 9000n;
 const BPS = 10000n;
 const MIRROR_FEE_BPS = 10n;
-const COOLDOWN_MS = 60_000;
+const COOLDOWN_MS = 10_000;
 
 const STATUS_LABEL = ["COPIED", "BLOCKED"];
 const REASON_LABEL = [
