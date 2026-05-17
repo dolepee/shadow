@@ -1171,6 +1171,176 @@ h3 {
   }
 }
 
+.pilotMonitor {
+  background: rgba(8, 10, 14, 0.78);
+  border: 1px solid rgba(180, 210, 255, 0.18);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 32px 0 24px;
+  padding: 28px 30px;
+}
+
+.pilotMonitorHeader {
+  align-items: start;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.pilotMonitorHeader h2 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin: 4px 0 0;
+}
+
+.pilotMonitorLede {
+  color: rgba(246, 240, 220, 0.65);
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 6px 0 0;
+  max-width: 640px;
+}
+
+.pilotMonitorRerun {
+  background: rgba(180, 210, 255, 0.95);
+  border: 0;
+  border-radius: 12px;
+  color: #0a0e10;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 11px 18px;
+  transition: opacity 0.2s ease;
+}
+
+.pilotMonitorRerun:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.pilotMonitorGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.pilotMonitorCard {
+  background: rgba(6, 8, 12, 0.55);
+  border: 1px solid rgba(246, 240, 220, 0.1);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.pilotMonitorCard--watch {
+  border-color: rgba(255, 196, 99, 0.4);
+}
+
+.pilotMonitorCard--stop {
+  border-color: rgba(255, 110, 110, 0.5);
+}
+
+.pilotMonitorCard header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.pilotMonitorCard header strong {
+  color: rgba(246, 240, 220, 0.95);
+  font-size: 14.5px;
+}
+
+.pilotMonitorBadge {
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  padding: 3px 9px;
+  text-transform: uppercase;
+}
+
+.pilotMonitorBadge--healthy {
+  background: rgba(165, 255, 96, 0.15);
+  color: rgba(165, 255, 96, 0.95);
+}
+
+.pilotMonitorBadge--watch {
+  background: rgba(255, 196, 99, 0.16);
+  color: rgba(255, 210, 130, 0.95);
+}
+
+.pilotMonitorBadge--stop {
+  background: rgba(255, 110, 110, 0.16);
+  color: rgba(255, 160, 160, 0.95);
+}
+
+.pilotMonitorCard dl {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+
+.pilotMonitorCard dt {
+  color: rgba(246, 240, 220, 0.4);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.pilotMonitorCard dd {
+  color: rgba(246, 240, 220, 0.92);
+  font-size: 13.5px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.pilotMonitorMuted {
+  color: rgba(246, 240, 220, 0.4);
+  font-weight: 400;
+  margin-left: 2px;
+}
+
+.pilotMonitorSignals {
+  color: rgba(246, 240, 220, 0.7);
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.pilotMonitorFooter {
+  border-top: 1px dashed rgba(246, 240, 220, 0.1);
+  color: rgba(246, 240, 220, 0.5);
+  font-size: 11.5px;
+  padding-top: 12px;
+}
+
+.pilotMonitorFooter code {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  color: rgba(180, 210, 255, 0.95);
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+@media (max-width: 720px) {
+  .pilotMonitorHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .pilotMonitorCard dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .followFlow {
   background: linear-gradient(135deg, rgba(8, 14, 8, 0.92), rgba(20, 14, 28, 0.78));
   border: 1px solid rgba(216, 255, 121, 0.22);

@@ -28,6 +28,10 @@ A source publishing a tight `minAmountOut` no longer cascade reverts. Each follo
 
 ## The product surface
 
+**AI Pilot (RFB 06 aligned).** A follower states deposit size and risk profile. The Pilot reads every source agent's onchain reputation (intents published, copy rate, mirror fees, realized PnL), calls the Bankr LLM gateway to allocate the deposit across 1 to 3 sources with weights and presets, and writes watch signals that name what would invalidate the plan. A single execute button anchors the SHA 256 decision hash onchain through `PilotAttestor.attest`, then approves the total, deposits, and fires `followSource` for every slice. Deterministic heuristic fallback if the LLM is unreachable.
+
+**Live AI monitor.** Once you have follows, the monitor reads the last receipts and closes touching your wallet, scores each source as healthy, watch, or stop, and offers a one click re evaluation that bakes fresh state back into a new pilot plan. The plan that was anchored on chain stays the audit anchor.
+
 **Public follow flow.** Pick a source, pick a preset, deposit USDC. A single CTA wires up `approve`, `depositUSDC`, and `followSource` with the preset policy (max per intent, daily cap, max risk, `minBpsOut`).
 
 **Live receipts feed.** Auto polls a cached state API, animates new rows, shows the latest block, source name, follower address, USDC mirrored, and ARCETH received per receipt.
@@ -55,6 +59,7 @@ Contracts:
 * ShadowAMM (V4): `0x917700Df306bDd84418369e24E7dfe2E0fd8D697`
 * SourceRegistry: `0xEec07657c5628AeCe50f20AA12C15A2a4B1557e1`
 * MirrorRouter (V4): `0xcB300Ac9f5944Fd06F39329cf5d871C9B92C6655`
+* PilotAttestor: `0xc65d60d1b281d7711d3b808cec833a450e0c1840`
 * Arc USDC: `0x3600000000000000000000000000000000000000`
 
 V4 turns every copied intent into a tracked position. The router holds the ARCETH it bought and records `Position{sourceAgent, assetAmount, usdcIn, closed}` per `(intentId, follower)`. Followers later call `closePosition(intentId)`, which reverse-swaps the asset on ShadowAMM v2 (`swapExactAssetForUSDC`), credits the realized USDC back to `followerBalanceUSDC`, and emits `PositionClosed(intentId, follower, sourceAgent, usdcIn, usdcOut, pnlBps)`. PnL in basis points is computed onchain so the UI never has to reconstruct it from logs. V3 (`0x987d7886c9dA7Ffbb7CC66b7914518D8966975eb`, follower withdraw + unfollow) and V2 (`0x4e194EFB8060C9e7919a06C7E0AE4cbf9e7D47fF`) remain readable as historical state.

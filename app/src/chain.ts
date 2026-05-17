@@ -30,6 +30,7 @@ export const addresses = {
   amm: readAddress("VITE_SHADOW_AMM"),
   registry: readAddress("VITE_SHADOW_REGISTRY"),
   router: readAddress("VITE_SHADOW_ROUTER"),
+  pilotAttestor: readAddress("VITE_SHADOW_PILOT_ATTESTOR"),
 };
 
 export const startBlock = BigInt(import.meta.env.VITE_SHADOW_START_BLOCK || 0);
@@ -79,6 +80,12 @@ export const erc20Abi = parseAbi([
   "function approve(address spender, uint256 amount) returns (bool)",
   "function balanceOf(address account) view returns (uint256)",
   "function decimals() view returns (uint8)",
+]);
+
+export const pilotAttestorAbi = parseAbi([
+  "function attest(bytes32 decisionHash, uint256 totalUSDC, uint8 sliceCount, uint16 confidenceBps, bytes32 modelHash)",
+  "function attestationCount() view returns (uint256)",
+  "function attestationsByFollower(address) view returns (uint256)",
 ]);
 
 const intentPublishedEvent = parseAbiItem(

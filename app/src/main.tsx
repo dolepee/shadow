@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { createWalletClient, custom, parseUnits, type Address } from "viem";
+import { createWalletClient, custom, keccak256, parseUnits, stringToBytes, type Address, type Hash, type Hex } from "viem";
 import { AppKit } from "@circle-fin/app-kit";
 import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import {
@@ -22,6 +22,7 @@ import {
   formatAsset,
   formatUSDC,
   isConfigured,
+  pilotAttestorAbi,
   publicClient,
   routerAbi,
   shortAddress,
@@ -505,6 +506,28 @@ function App() {
         (sum, slice) => sum + parseUnits(slice.amountUSDC || "0", 6),
         0n,
       );
+
+      if (addresses.pilotAttestor) {
+        setAction({ label: "anchor decision onchain" });
+        const decisionHashBytes32 = normalizeBytes32(pilotPlan.decisionHash);
+        const modelHash = keccak256(stringToBytes(pilotPlan.model));
+        const attestTx = await wallet.writeContract({
+          account: user,
+          address: addresses.pilotAttestor,
+          abi: pilotAttestorAbi,
+          functionName: "attest",
+          args: [
+            decisionHashBytes32,
+            totalDeposit,
+            pilotPlan.allocation.length,
+            pilotPlan.confidenceBps,
+            modelHash,
+          ],
+          chain: arcTestnet,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: attestTx });
+        setAction({ label: "decision anchored", tx: attestTx });
+      }
       if (totalDeposit > 0n) {
         setAction({ label: `approve ${formatUSDC(totalDeposit)} USDC` });
         const approveTx = await wallet.writeContract({
@@ -786,6 +809,17 @@ function App() {
         connectWallet={connectWallet}
       />
 
+      {account && userFollows.size > 0 && state && (
+        <PilotMonitor
+          state={state}
+          account={account}
+          userFollows={userFollows}
+          plan={pilotPlan}
+          onRerun={runPilot}
+          loading={pilotLoading}
+        />
+      )}
+
       {account && (userBalance > 0n || userFollows.size > 0) && (
         <ManagePanel
           sources={state?.sources || []}
@@ -839,6 +873,14 @@ function App() {
       </section>
     </main>
   );
+}
+
+function normalizeBytes32(hex: string): Hash {
+  let v = hex.startsWith("0x") || hex.startsWith("0X") ? hex.slice(2) : hex;
+  v = v.toLowerCase();
+  if (v.length > 64) v = v.slice(0, 64);
+  if (v.length < 64) v = v.padStart(64, "0");
+  return `0x${v}` as Hash;
 }
 
 async function switchToArc() {
@@ -1741,6 +1783,192 @@ function PilotCard({
       )}
     </section>
   );
+}
+
+type SourceHealth = {
+  source: SourceAgent;
+  status: "healthy" | "watch" | "stop";
+  recentCopies: number;
+  recentBlocks: number;
+  recentCopyRateBps: number;
+  recentPnlAvgBps: number | null;
+  signals: string[];
+};
+
+const HEALTH_WINDOW = 8;
+
+function assessFollowedSources(
+  state: ShadowState,
+  account: Address,
+  userFollows: Set<string>,
+): SourceHealth[] {
+  const acct = account.toLowerCase();
+  return state.sources
+    .filter((src) => userFollows.has(src.address.toLowerCase()))
+    .map((source) => {
+      const srcKey = source.address.toLowerCase();
+      const myReceipts = state.receipts
+        .filter((r) => r.sourceAgent.toLowerCase() === srcKey && r.follower.toLowerCase() === acct)
+        .sort((a, b) => Number(b.blockNumber - a.blockNumber))
+        .slice(0, HEALTH_WINDOW);
+      const recentCopies = myReceipts.filter((r) => r.status === "copied").length;
+      const recentBlocks = myReceipts.filter((r) => r.status === "blocked").length;
+      const totalRecent = recentCopies + recentBlocks;
+      const recentCopyRateBps = totalRecent === 0 ? 0 : Math.round((recentCopies / totalRecent) * 10_000);
+
+      const myCloses = state.positionCloses.filter(
+        (c) => c.sourceAgent.toLowerCase() === srcKey && c.follower.toLowerCase() === acct,
+      );
+      const recentCloses = myCloses
+        .sort((a, b) => Number(b.blockNumber - a.blockNumber))
+        .slice(0, HEALTH_WINDOW);
+      const recentPnlAvgBps =
+        recentCloses.length === 0
+          ? null
+          : Number(recentCloses.reduce((sum, c) => sum + c.pnlBps, 0n)) / recentCloses.length;
+
+      const signals: string[] = [];
+      let status: SourceHealth["status"] = "healthy";
+
+      if (totalRecent === 0) {
+        signals.push(`No recent receipts in the last ${HEALTH_WINDOW} intents for your wallet on this source.`);
+      } else if (recentCopyRateBps < 5_000) {
+        status = "watch";
+        signals.push(
+          `Only ${(recentCopyRateBps / 100).toFixed(0)}% of recent intents copied for your policy. Loosen minBpsOut or raise daily cap.`,
+        );
+      }
+      if (recentPnlAvgBps !== null) {
+        if (recentPnlAvgBps < -200) {
+          status = "stop";
+          signals.push(
+            `Recent realized PnL is ${recentPnlAvgBps.toFixed(0)} bps over ${recentCloses.length} closes. Consider unfollowing.`,
+          );
+        } else if (recentPnlAvgBps < 0) {
+          status = "watch";
+          signals.push(
+            `Recent realized PnL is ${recentPnlAvgBps.toFixed(0)} bps over ${recentCloses.length} closes. Watch the next close.`,
+          );
+        }
+      }
+
+      return {
+        source,
+        status,
+        recentCopies,
+        recentBlocks,
+        recentCopyRateBps,
+        recentPnlAvgBps,
+        signals,
+      };
+    });
+}
+
+function PilotMonitor({
+  state,
+  account,
+  userFollows,
+  plan,
+  onRerun,
+  loading,
+}: {
+  state: ShadowState;
+  account: Address;
+  userFollows: Set<string>;
+  plan: PilotPlan | null;
+  onRerun: () => Promise<void>;
+  loading: boolean;
+}) {
+  const assessments = useMemo(
+    () => assessFollowedSources(state, account, userFollows),
+    [state, account, userFollows],
+  );
+  if (assessments.length === 0) return null;
+  const anyWatch = assessments.some((a) => a.status !== "healthy");
+  const planAge = plan ? Math.max(0, Math.floor(Date.now() / 1000) - plan.generatedAt) : null;
+  return (
+    <section className="pilotMonitor">
+      <header className="pilotMonitorHeader">
+        <div>
+          <p className="eyebrow">AI monitor · fresh look at your follows</p>
+          <h2>The pilot watches every source you follow against live state.</h2>
+          <p className="pilotMonitorLede">
+            Each card reweighs the last {HEALTH_WINDOW} intents and any closed positions touching your wallet. When a
+            slice drifts off plan, the monitor flags it and offers a re evaluation that bakes the latest receipts back
+            into the next pilot decision.
+          </p>
+        </div>
+        <button
+          className="pilotMonitorRerun"
+          onClick={onRerun}
+          disabled={loading}
+          type="button"
+        >
+          {loading ? "re-evaluating…" : anyWatch ? "re-evaluate plan" : "ask for a fresh plan"}
+        </button>
+      </header>
+
+      <div className="pilotMonitorGrid">
+        {assessments.map((a) => (
+          <article className={`pilotMonitorCard pilotMonitorCard--${a.status}`} key={a.source.address}>
+            <header>
+              <strong>{a.source.name}</strong>
+              <span className={`pilotMonitorBadge pilotMonitorBadge--${a.status}`}>{statusLabel(a.status)}</span>
+            </header>
+            <dl>
+              <div>
+                <dt>recent copies</dt>
+                <dd>
+                  {a.recentCopies}
+                  <span className="pilotMonitorMuted"> / {a.recentCopies + a.recentBlocks}</span>
+                </dd>
+              </div>
+              <div>
+                <dt>copy rate</dt>
+                <dd>{a.recentCopies + a.recentBlocks === 0 ? "—" : `${(a.recentCopyRateBps / 100).toFixed(0)}%`}</dd>
+              </div>
+              <div>
+                <dt>recent PnL avg</dt>
+                <dd>{a.recentPnlAvgBps === null ? "—" : `${a.recentPnlAvgBps.toFixed(0)} bps`}</dd>
+              </div>
+            </dl>
+            {a.signals.length > 0 && (
+              <ul className="pilotMonitorSignals">
+                {a.signals.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            )}
+          </article>
+        ))}
+      </div>
+
+      {plan && planAge !== null && (
+        <footer className="pilotMonitorFooter">
+          <span>
+            anchored plan ·{" "}
+            <code>
+              {plan.decisionHash.slice(0, 10)}…{plan.decisionHash.slice(-6)}
+            </code>{" "}
+            · {ageLabel(planAge)} ago · confidence {(plan.confidenceBps / 100).toFixed(0)}%
+          </span>
+        </footer>
+      )}
+    </section>
+  );
+}
+
+function statusLabel(status: SourceHealth["status"]): string {
+  if (status === "healthy") return "healthy";
+  if (status === "watch") return "watch";
+  return "stop";
+}
+
+function ageLabel(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86_400)}d`;
 }
 
 function TechnicalPrimitive({ state }: { state: ShadowState | null }) {
