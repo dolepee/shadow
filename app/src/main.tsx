@@ -11,7 +11,7 @@ import {
   WebAuthnMode,
   type WebAuthnCredential,
 } from "@circle-fin/modular-wallets-core";
-import { createBundlerClient } from "viem/account-abstraction";
+import { createBundlerClient, toWebAuthnAccount } from "viem/account-abstraction";
 import { createPublicClient as createClient, encodeFunctionData, http } from "viem";
 import {
   addresses,
@@ -2623,7 +2623,8 @@ function ModularWalletCard() {
       chain: arcTestnet,
       transport: modularTransport,
     }) as any;
-    const smartAccount = await toCircleSmartAccount({ client, owner: cred as any });
+    const owner = toWebAuthnAccount({ credential: cred });
+    const smartAccount = await toCircleSmartAccount({ client, owner });
     const bundler = createBundlerClient({
       account: smartAccount,
       chain: arcTestnet,
