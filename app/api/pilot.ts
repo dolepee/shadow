@@ -12,7 +12,9 @@
 // can never exceed the user's deposit. If Bankr is unreachable, a heuristic
 // fallback ranks sources by mirror fees earned and realized PnL.
 
-export const config = { maxDuration: 15 };
+export const config = { maxDuration: 60 };
+
+const LLM_TIMEOUT_MS = 50000;
 
 const BANKR_URL = "https://llm.bankr.bot/v1/chat/completions";
 const DEFAULT_MODEL = "deepseek-v3.2";
@@ -153,6 +155,8 @@ async function decideWithLLM(req: PilotRequest): Promise<Omit<PilotResponse, "ge
   if (!apiKey) return heuristic(req, "BANKR_LLM_KEY missing");
   const model = (process.env.BANKR_LLM_MODEL || DEFAULT_MODEL).trim();
   const prompt = buildPrompt(req);
+  const controller = new AbortController();
+  const abortTimer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
   try {
     const res = await fetch(BANKR_URL, {
       method: "POST",
@@ -175,6 +179,7 @@ async function decideWithLLM(req: PilotRequest): Promise<Omit<PilotResponse, "ge
         max_tokens: 700,
         temperature: 0.4,
       }),
+      signal: controller.signal,
     });
     if (!res.ok) {
       return heuristic(req, `bankr http ${res.status}`);
@@ -186,7 +191,10 @@ async function decideWithLLM(req: PilotRequest): Promise<Omit<PilotResponse, "ge
     if (!parsed) return heuristic(req, "non-JSON completion");
     return clamp(parsed, req, model);
   } catch (err) {
-    return heuristic(req, `bankr error ${(err as Error).message}`);
+    const msg = (err as Error).name === "AbortError" ? "bankr timeout" : `bankr error ${(err as Error).message}`;
+    return heuristic(req, msg);
+  } finally {
+    clearTimeout(abortTimer);
   }
 }
 
@@ -199,9 +207,10 @@ function buildPrompt(req: PilotRequest): string {
   for (const s of req.sources) {
     const pnl = s.realizedPnlAvgBps == null ? "no closed positions yet" : `${s.realizedPnlAvgBps.toFixed(1)} bps avg`;
     lines.push(
-      `- ${s.name} (${shortAddr(s.address)}): ${s.intentsPublished} intents, ${s.copyCount} copies, ${s.blockCount} blocks, copyRate=${(s.copyRateBps / 100).toFixed(1)}%, routed=${s.routedUSDC} USDC, mirrorFees=${s.mirrorFeesUSDC} USDC, closes=${s.closedCount}, realizedPnL=${pnl}.`,
+      `- ${s.name} sourceAddress=${s.address}: ${s.intentsPublished} intents, ${s.copyCount} copies, ${s.blockCount} blocks, copyRate=${(s.copyRateBps / 100).toFixed(1)}%, routed=${s.routedUSDC} USDC, mirrorFees=${s.mirrorFeesUSDC} USDC, closes=${s.closedCount}, realizedPnL=${pnl}.`,
     );
   }
+  lines.push("", "When you echo sourceAddress in the allocation, copy the EXACT 0x... value above. Do not truncate.");
   lines.push(
     "",
     "Pick 1 to 3 sources to allocate across. The sum of weightBps MUST equal 10000.",
