@@ -927,6 +927,135 @@ h3 {
   opacity: 0.5;
 }
 
+.pilotThinking {
+  background: rgba(216, 255, 121, 0.05);
+  border: 1px solid rgba(216, 255, 121, 0.2);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.pilotThinkingHeader {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pilotThinkingHeader strong {
+  color: rgba(246, 240, 220, 0.92);
+}
+
+.pilotThinkingClock {
+  color: rgba(216, 255, 121, 0.78);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.pilotThinkingDot {
+  background: rgba(216, 255, 121, 0.92);
+  border-radius: 50%;
+  display: inline-block;
+  height: 8px;
+  width: 8px;
+  box-shadow: 0 0 0 0 rgba(216, 255, 121, 0.6);
+  animation: pilotPulse 1.4s ease-out infinite;
+}
+
+@keyframes pilotPulse {
+  0% { box-shadow: 0 0 0 0 rgba(216, 255, 121, 0.55); }
+  70% { box-shadow: 0 0 0 12px rgba(216, 255, 121, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(216, 255, 121, 0); }
+}
+
+.pilotThinkingBar {
+  background: rgba(246, 240, 220, 0.08);
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.pilotThinkingBar span {
+  background: linear-gradient(90deg, rgba(216, 255, 121, 0.55), rgba(216, 255, 121, 0.95));
+  display: block;
+  height: 100%;
+  transition: width 180ms linear;
+}
+
+.pilotThinkingSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pilotThinkingStep {
+  align-items: center;
+  color: rgba(246, 240, 220, 0.46);
+  display: flex;
+  font-size: 13px;
+  gap: 10px;
+  line-height: 1.5;
+  transition: color 200ms ease;
+}
+
+.pilotThinkingStep.done {
+  color: rgba(246, 240, 220, 0.7);
+}
+
+.pilotThinkingStep.active {
+  color: rgba(246, 240, 220, 0.96);
+}
+
+.pilotThinkingMark {
+  align-items: center;
+  background: rgba(246, 240, 220, 0.06);
+  border: 1px solid rgba(246, 240, 220, 0.12);
+  border-radius: 50%;
+  color: rgba(216, 255, 121, 0.92);
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 11px;
+  height: 16px;
+  justify-content: center;
+  width: 16px;
+}
+
+.pilotThinkingStep.done .pilotThinkingMark {
+  background: rgba(216, 255, 121, 0.16);
+  border-color: rgba(216, 255, 121, 0.4);
+}
+
+.pilotThinkingStep.active .pilotThinkingMark {
+  background: rgba(216, 255, 121, 0.1);
+  border-color: rgba(216, 255, 121, 0.55);
+  position: relative;
+}
+
+.pilotThinkingStep.active .pilotThinkingMark::after {
+  content: "";
+  background: rgba(216, 255, 121, 0.92);
+  border-radius: 50%;
+  height: 5px;
+  position: absolute;
+  width: 5px;
+  animation: pilotPulse 1.4s ease-out infinite;
+}
+
+.pilotThinkingNote {
+  color: rgba(246, 240, 220, 0.5);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+}
+
 .pilotError {
   background: rgba(255, 89, 89, 0.1);
   border: 1px solid rgba(255, 89, 89, 0.32);

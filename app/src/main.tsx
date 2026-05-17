@@ -1627,6 +1627,57 @@ function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
   );
 }
 
+const PILOT_STAGES: Array<{ label: string; at: number }> = [
+  { label: "Reading onchain reputation for every source agent", at: 0 },
+  { label: "Asking deepseek to allocate your deposit across the best fits", at: 2.5 },
+  { label: "Normalizing weights and matching presets to risk", at: 18 },
+  { label: "Hashing decision and preparing onchain attestation", at: 22 },
+];
+
+function PilotThinking() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const id = setInterval(() => setElapsed((Date.now() - start) / 1000), 120);
+    return () => clearInterval(id);
+  }, []);
+  const cappedPct = Math.min(95, (elapsed / 25) * 100);
+  const activeIdx = PILOT_STAGES.reduce((acc, st, i) => (elapsed >= st.at ? i : acc), 0);
+  return (
+    <div className="pilotThinking" role="status" aria-live="polite">
+      <div className="pilotThinkingHeader">
+        <span className="pilotThinkingDot" />
+        <strong>Pilot is reasoning</strong>
+        <span className="pilotThinkingClock">{elapsed.toFixed(1)}s</span>
+      </div>
+      <div className="pilotThinkingBar">
+        <span style={{ width: `${cappedPct}%` }} />
+      </div>
+      <ol className="pilotThinkingSteps">
+        {PILOT_STAGES.map((st, i) => {
+          const done = i < activeIdx;
+          const active = i === activeIdx;
+          return (
+            <li
+              key={st.label}
+              className={`pilotThinkingStep ${done ? "done" : ""} ${active ? "active" : ""}`}
+            >
+              <span className="pilotThinkingMark" aria-hidden>
+                {done ? "✓" : active ? "" : ""}
+              </span>
+              <span>{st.label}</span>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="pilotThinkingNote">
+        Bankr LLM round trips take 20 to 25 seconds for structured allocations. Heuristic fallback runs if the model
+        stalls.
+      </p>
+    </div>
+  );
+}
+
 function PilotCard({
   amount,
   onAmountChange,
@@ -1703,6 +1754,8 @@ function PilotCard({
           {loading ? "asking the pilot…" : plan ? "regenerate plan" : "generate plan"}
         </button>
       </div>
+
+      {loading && <PilotThinking />}
 
       {error && <div className="pilotError">pilot error: {error}</div>}
 
