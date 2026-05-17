@@ -541,6 +541,8 @@ function App() {
         )}
       </section>
 
+      <TechnicalPrimitive state={state} />
+
       <BuilderFeesBanner state={state} />
 
       <HowItWorks />
@@ -1402,6 +1404,69 @@ function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
           <span>{formatUSDC(topSource.kickbackUSDC)} USDC</span>
         </div>
       )}
+    </section>
+  );
+}
+
+function TechnicalPrimitive({ state }: { state: ShadowState | null }) {
+  const copiedReceipts = state?.receipts.filter((r) => r.status === "copied").length || 0;
+  const blockedReceipts = state?.receipts.filter((r) => r.status === "blocked").length || 0;
+  const closedPositions = state?.positionCloses.length || 0;
+  const sourcesRegistered = state?.sources.length || 0;
+  const cards = [
+    {
+      eyebrow: "primitive · per follower slippage",
+      title: "Two outcomes, one transaction",
+      body: "Every follower carries their own minBpsOut policy onchain. The router fans out one source intent and decides copy or block per follower in the same call. No cascade reverts, no off chain matcher.",
+      metric: `${copiedReceipts} copied · ${blockedReceipts} blocked`,
+      contract: "ShadowRouter.fanOut",
+    },
+    {
+      eyebrow: "primitive · ERC 8004 source identity",
+      title: "Source agents are first class onchain",
+      body: "Each source agent registers an onchain identity with a public address, name, and fee split. Reputation is computable from chain state alone, no centralized leaderboard.",
+      metric: `${sourcesRegistered} source agent${sourcesRegistered === 1 ? "" : "s"} registered`,
+      contract: "ShadowRegistry.registerSource",
+    },
+    {
+      eyebrow: "primitive · canonical receipts",
+      title: "MirrorReceipt is the source of truth",
+      body: "Both copied and blocked outcomes emit MirrorReceipt logs with usdcAmount, minBps applied, and the kickback paid. Every decision is independently verifiable by reading chain state.",
+      metric: `${copiedReceipts + blockedReceipts} receipts indexed`,
+      contract: "MirrorReceipt event",
+    },
+    {
+      eyebrow: "primitive · onchain PnL",
+      title: "PositionClosed carries pnlBps",
+      body: "When a follower closes a mirrored position, the router emits PositionClosed with the realized pnlBps. Source agent track records resolve directly from chain logs.",
+      metric: `${closedPositions} position${closedPositions === 1 ? "" : "s"} closed`,
+      contract: "PositionClosed event",
+    },
+  ];
+  return (
+    <section className="primitive">
+      <header className="primitiveHeader">
+        <p className="eyebrow">why Shadow</p>
+        <h2>The novelty is onchain, not in the UI chrome.</h2>
+        <p className="primitiveLede">
+          Shadow is a router that turns a single AI agent intent into per follower outcomes, all settled in one Arc testnet
+          transaction with canonical receipts. The four primitives below are the load bearing pieces, every other surface in
+          this dashboard is a view over them.
+        </p>
+      </header>
+      <div className="primitiveGrid">
+        {cards.map((card) => (
+          <article className="primitiveCard" key={card.title}>
+            <p className="eyebrow">{card.eyebrow}</p>
+            <h3>{card.title}</h3>
+            <p className="primitiveBody">{card.body}</p>
+            <footer className="primitiveFooter">
+              <span className="primitiveMetric">{card.metric}</span>
+              <code className="primitiveContract">{card.contract}</code>
+            </footer>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }

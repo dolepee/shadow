@@ -323,6 +323,103 @@ h3 {
   }
 }
 
+.primitive {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: 32px 0 8px;
+}
+
+.primitiveHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 720px;
+}
+
+.primitiveHeader h2 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  margin: 4px 0 0;
+}
+
+.primitiveLede {
+  color: rgba(246, 240, 220, 0.66);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+
+.primitiveGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.primitiveCard {
+  background: rgba(10, 14, 10, 0.6);
+  border: 1px solid rgba(246, 240, 220, 0.12);
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 24px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.primitiveCard:hover {
+  background: rgba(12, 18, 12, 0.7);
+  border-color: rgba(165, 255, 96, 0.28);
+}
+
+.primitiveCard h3 {
+  color: rgba(246, 240, 220, 0.96);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin: 0;
+}
+
+.primitiveBody {
+  color: rgba(246, 240, 220, 0.7);
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.primitiveFooter {
+  align-items: center;
+  border-top: 1px dashed rgba(246, 240, 220, 0.1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding-top: 12px;
+}
+
+.primitiveMetric {
+  color: rgba(200, 255, 160, 0.92);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.primitiveContract {
+  background: rgba(7, 9, 8, 0.6);
+  border: 1px solid rgba(246, 240, 220, 0.1);
+  border-radius: 8px;
+  color: rgba(246, 240, 220, 0.7);
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+@media (max-width: 720px) {
+  .primitiveGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .spotlight {
   background:
     radial-gradient(circle at 12% 0%, rgba(165, 255, 96, 0.18), transparent 22rem),
