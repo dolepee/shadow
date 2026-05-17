@@ -799,6 +799,378 @@ h3 {
   text-decoration: underline;
 }
 
+.pilot {
+  background:
+    radial-gradient(circle at 92% 0%, rgba(216, 255, 121, 0.18), transparent 24rem),
+    linear-gradient(135deg, rgba(10, 14, 24, 0.92), rgba(20, 14, 32, 0.85));
+  border: 1px solid rgba(216, 255, 121, 0.28);
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin: 36px 0 24px;
+  padding: 32px 32px 28px;
+}
+
+.pilotHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 760px;
+}
+
+.pilotHeader h2 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  margin: 4px 0 0;
+}
+
+.pilotLede {
+  color: rgba(246, 240, 220, 0.7);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 6px 0 0;
+}
+
+.pilotControls {
+  align-items: end;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 180px) minmax(0, 1fr) auto;
+}
+
+.pilotField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pilotField span {
+  color: rgba(246, 240, 220, 0.55);
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.pilotField input {
+  background: rgba(7, 9, 12, 0.7);
+  border: 1px solid rgba(246, 240, 220, 0.14);
+  border-radius: 12px;
+  color: rgba(246, 240, 220, 0.95);
+  font-size: 18px;
+  padding: 12px 14px;
+}
+
+.pilotField input:focus {
+  border-color: rgba(216, 255, 121, 0.55);
+  outline: none;
+}
+
+.pilotRiskGroup {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pilotRiskOption {
+  background: rgba(7, 9, 12, 0.5);
+  border: 1px solid rgba(246, 240, 220, 0.12);
+  border-radius: 14px;
+  color: rgba(246, 240, 220, 0.85);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  text-align: left;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.pilotRiskOption strong {
+  color: rgba(246, 240, 220, 0.96);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pilotRiskOption span {
+  color: rgba(246, 240, 220, 0.5);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.pilotRiskOption.selected {
+  background: rgba(216, 255, 121, 0.12);
+  border-color: rgba(216, 255, 121, 0.55);
+}
+
+.pilotRunBtn {
+  align-self: stretch;
+  background: rgba(216, 255, 121, 0.92);
+  border: 0;
+  border-radius: 14px;
+  color: #0a0e10;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 14px 22px;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.pilotRunBtn:hover:not(:disabled) {
+  background: rgba(216, 255, 121, 1);
+}
+
+.pilotRunBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pilotError {
+  background: rgba(255, 89, 89, 0.1);
+  border: 1px solid rgba(255, 89, 89, 0.32);
+  border-radius: 12px;
+  color: rgba(255, 178, 178, 0.95);
+  font-size: 13px;
+  padding: 10px 14px;
+}
+
+.pilotPlan {
+  border-top: 1px dashed rgba(246, 240, 220, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 22px;
+}
+
+.pilotPlanHeader {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.pilotHeadline {
+  color: rgba(246, 240, 220, 0.98);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin: 0;
+  max-width: 720px;
+}
+
+.pilotMeta {
+  color: rgba(246, 240, 220, 0.55);
+  display: flex;
+  font-size: 12px;
+  gap: 14px;
+}
+
+.pilotConfidence strong {
+  color: rgba(216, 255, 121, 0.92);
+  margin-left: 4px;
+}
+
+.pilotRationale {
+  color: rgba(246, 240, 220, 0.72);
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 760px;
+}
+
+.pilotAllocation {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.pilotSlice {
+  background: rgba(7, 9, 12, 0.6);
+  border: 1px solid rgba(246, 240, 220, 0.1);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.pilotSlice header {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+}
+
+.pilotSlice header strong {
+  color: rgba(246, 240, 220, 0.96);
+  font-size: 15px;
+}
+
+.pilotSlicePct {
+  color: rgba(216, 255, 121, 0.95);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.pilotSliceBar {
+  background: rgba(246, 240, 220, 0.08);
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.pilotSliceBar span {
+  background: rgba(216, 255, 121, 0.85);
+  display: block;
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
+.pilotSlice dl {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+}
+
+.pilotSlice dl div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pilotSlice dt {
+  color: rgba(246, 240, 220, 0.4);
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.pilotSlice dd {
+  color: rgba(246, 240, 220, 0.92);
+  font-size: 13px;
+  margin: 0;
+}
+
+.pilotPreset {
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  padding: 2px 8px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.pilotPreset--conservative {
+  background: rgba(180, 210, 255, 0.12);
+  color: rgba(180, 210, 255, 0.95);
+}
+
+.pilotPreset--balanced {
+  background: rgba(216, 255, 121, 0.12);
+  color: rgba(216, 255, 121, 0.95);
+}
+
+.pilotPreset--aggressive {
+  background: rgba(255, 170, 90, 0.14);
+  color: rgba(255, 195, 130, 0.95);
+}
+
+.pilotSliceReason {
+  color: rgba(246, 240, 220, 0.6);
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.pilotWatch {
+  background: rgba(7, 9, 12, 0.4);
+  border: 1px solid rgba(246, 240, 220, 0.1);
+  border-radius: 14px;
+  padding: 14px 18px;
+}
+
+.pilotWatch ul {
+  color: rgba(246, 240, 220, 0.75);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.pilotFooter {
+  align-items: center;
+  border-top: 1px dashed rgba(246, 240, 220, 0.1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding-top: 18px;
+}
+
+.pilotDecision {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pilotDecision code {
+  background: rgba(7, 9, 12, 0.6);
+  border: 1px solid rgba(246, 240, 220, 0.08);
+  border-radius: 8px;
+  color: rgba(216, 255, 121, 0.85);
+  font-size: 11px;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 6px 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pilotExecBtn {
+  background: rgba(216, 255, 121, 0.95);
+  border: 0;
+  border-radius: 14px;
+  color: #0a0e10;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 12px 22px;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.pilotExecBtn:hover:not(:disabled) {
+  background: rgba(216, 255, 121, 1);
+}
+
+.pilotExecBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pilotFallbackNote {
+  color: rgba(246, 240, 220, 0.45);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .pilotControls {
+    grid-template-columns: 1fr;
+  }
+
+  .pilotRiskGroup {
+    grid-template-columns: 1fr;
+  }
+}
+
 .followFlow {
   background: linear-gradient(135deg, rgba(8, 14, 8, 0.92), rgba(20, 14, 28, 0.78));
   border: 1px solid rgba(216, 255, 121, 0.22);

@@ -135,6 +135,30 @@ type ReasoningResponse = {
   error?: string;
 };
 
+type PilotSlice = {
+  sourceAddress: string;
+  name: string;
+  weightBps: number;
+  preset: PresetKey;
+  amountUSDC: string;
+  reason: string;
+};
+
+type PilotPlan = {
+  model: string;
+  fellBack: boolean;
+  fellBackReason?: string;
+  headline: string;
+  confidenceBps: number;
+  rationale: string;
+  watchSignals: string[];
+  allocation: PilotSlice[];
+  generatedAt: number;
+  decisionHash: string;
+};
+
+type PilotRisk = "low" | "balanced" | "high";
+
 function App() {
   const [state, setState] = useState<ShadowState | null>(null);
   const [loading, setLoading] = useState(false);
@@ -153,6 +177,12 @@ function App() {
   const [managing, setManaging] = useState(false);
   const [reasoning, setReasoning] = useState<ReasoningResponse | null>(null);
   const [closingIntentId, setClosingIntentId] = useState<bigint | null>(null);
+  const [pilotAmount, setPilotAmount] = useState("1");
+  const [pilotRisk, setPilotRisk] = useState<PilotRisk>("balanced");
+  const [pilotPlan, setPilotPlan] = useState<PilotPlan | null>(null);
+  const [pilotLoading, setPilotLoading] = useState(false);
+  const [pilotExecuting, setPilotExecuting] = useState(false);
+  const [pilotError, setPilotError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -398,6 +428,139 @@ function App() {
     }
   }
 
+  async function runPilot() {
+    if (!state) {
+      setPilotError("State is still loading; try again in a moment.");
+      return;
+    }
+    if (state.sources.length === 0) {
+      setPilotError("No source agents registered yet.");
+      return;
+    }
+    const amt = Number(pilotAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setPilotError("Enter a positive USDC amount.");
+      return;
+    }
+    setPilotLoading(true);
+    setPilotError(null);
+    try {
+      const reputation = computeEarnedReputation(state);
+      const sourceMap = new Map(reputation.map((r) => [r.source.address.toLowerCase(), r]));
+      // Make sure every registered source is sent, even if no reputation yet.
+      const payloadSources = state.sources.map((src) => {
+        const r = sourceMap.get(src.address.toLowerCase());
+        return {
+          address: src.address,
+          name: src.name,
+          intentsPublished: r?.intentsPublished || 0,
+          copyCount: r?.copyCount || 0,
+          blockCount: r?.blockCount || 0,
+          copyRateBps: r?.copyRateBps || 0,
+          routedUSDC: formatUSDC(r?.routedUSDC || 0n),
+          mirrorFeesUSDC: formatUSDC(r?.mirrorFeesUSDC || 0n),
+          closedCount: r?.closedCount || 0,
+          realizedPnlAvgBps: r?.realizedPnlAvgBps ?? null,
+        };
+      });
+      const response = await fetch("/api/pilot", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ amountUSDC: pilotAmount, risk: pilotRisk, sources: payloadSources }),
+      });
+      const data = (await response.json()) as PilotPlan & { error?: string };
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `pilot request failed with ${response.status}`);
+      }
+      setPilotPlan(data);
+    } catch (err) {
+      setPilotError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPilotLoading(false);
+    }
+  }
+
+  async function executePilot() {
+    if (!pilotPlan) return;
+    if (!isConfigured || !addresses.router || !addresses.usdc || !addresses.arceth) {
+      setAction({ label: "pilot blocked", error: "Configure addresses first." });
+      return;
+    }
+    if (!window.ethereum) {
+      setAction({ label: "pilot blocked", error: "Install a browser wallet." });
+      return;
+    }
+    setPilotExecuting(true);
+    setAction({ label: "pilot starting" });
+    try {
+      const [user] = (await window.ethereum.request({ method: "eth_requestAccounts" })) as Address[];
+      await switchToArc();
+      setAccount(user);
+      const wallet = createWalletClient({
+        account: user,
+        chain: arcTestnet,
+        transport: custom(window.ethereum),
+      });
+      const totalDeposit = pilotPlan.allocation.reduce(
+        (sum, slice) => sum + parseUnits(slice.amountUSDC || "0", 6),
+        0n,
+      );
+      if (totalDeposit > 0n) {
+        setAction({ label: `approve ${formatUSDC(totalDeposit)} USDC` });
+        const approveTx = await wallet.writeContract({
+          account: user,
+          address: addresses.usdc,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [addresses.router, totalDeposit],
+          chain: arcTestnet,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: approveTx });
+        setAction({ label: `deposit ${formatUSDC(totalDeposit)} USDC`, tx: approveTx });
+        const depositTx = await wallet.writeContract({
+          account: user,
+          address: addresses.router,
+          abi: routerAbi,
+          functionName: "depositUSDC",
+          args: [totalDeposit],
+          chain: arcTestnet,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: depositTx });
+        setAction({ label: "deposit confirmed", tx: depositTx });
+      }
+      for (let i = 0; i < pilotPlan.allocation.length; i++) {
+        const slice = pilotPlan.allocation[i];
+        const preset = PRESETS[slice.preset];
+        setAction({
+          label: `follow ${slice.name} ${preset.label.toLowerCase()} (${i + 1}/${pilotPlan.allocation.length})`,
+        });
+        const followTx = await wallet.writeContract({
+          account: user,
+          address: addresses.router,
+          abi: routerAbi,
+          functionName: "followSource",
+          args: [
+            slice.sourceAddress as Address,
+            parseUnits(preset.maxAmountPerIntent, 6),
+            parseUnits(preset.dailyCap, 6),
+            addresses.arceth,
+            preset.maxRiskLevel,
+            preset.minBpsOut,
+          ],
+          chain: arcTestnet,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: followTx });
+        setAction({ label: `${slice.name} followed`, tx: followTx });
+      }
+      setAction({ label: "pilot plan executed" });
+      await refresh();
+    } catch (err) {
+      setAction({ label: "pilot failed", error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setPilotExecuting(false);
+    }
+  }
+
   async function withdraw() {
     if (!isConfigured || !addresses.router) {
       setAction({ label: "withdraw blocked", error: "Configure addresses first." });
@@ -591,6 +754,20 @@ function App() {
           </div>
         </section>
       )}
+
+      <PilotCard
+        amount={pilotAmount}
+        onAmountChange={setPilotAmount}
+        risk={pilotRisk}
+        onRiskChange={setPilotRisk}
+        plan={pilotPlan}
+        loading={pilotLoading}
+        error={pilotError}
+        executing={pilotExecuting}
+        onRun={runPilot}
+        onExecute={executePilot}
+        sourcesCount={state?.sources.length || 0}
+      />
 
       <FollowFlow
         sources={state?.sources || []}
@@ -1402,6 +1579,164 @@ function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
           <p>top earner</p>
           <strong>{topSource.name}</strong>
           <span>{formatUSDC(topSource.kickbackUSDC)} USDC</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PilotCard({
+  amount,
+  onAmountChange,
+  risk,
+  onRiskChange,
+  plan,
+  loading,
+  error,
+  executing,
+  onRun,
+  onExecute,
+  sourcesCount,
+}: {
+  amount: string;
+  onAmountChange: (v: string) => void;
+  risk: PilotRisk;
+  onRiskChange: (v: PilotRisk) => void;
+  plan: PilotPlan | null;
+  loading: boolean;
+  error: string | null;
+  executing: boolean;
+  onRun: () => Promise<void>;
+  onExecute: () => Promise<void>;
+  sourcesCount: number;
+}) {
+  const riskOptions: Array<{ key: PilotRisk; label: string; sub: string }> = [
+    { key: "low", label: "Low", sub: "Conservative slices, single source." },
+    { key: "balanced", label: "Balanced", sub: "Diversify across 2 sources." },
+    { key: "high", label: "High", sub: "Up to 3 sources, aggressive presets." },
+  ];
+  return (
+    <section className="pilot">
+      <header className="pilotHeader">
+        <p className="eyebrow">AI pilot · RFB 06 social trading intelligence</p>
+        <h2>Tell the AI your size and risk. It picks, weights, and watches.</h2>
+        <p className="pilotLede">
+          The Pilot reads every source agent's onchain reputation, allocates your USDC across the best fits, and writes
+          watch signals you can act on. The follower stops being a manual picker and becomes a depositor with a goal.
+        </p>
+      </header>
+
+      <div className="pilotControls">
+        <label className="pilotField">
+          <span>Deposit (USDC)</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => onAmountChange(e.target.value)}
+            placeholder="1"
+          />
+        </label>
+        <div className="pilotRiskGroup" role="radiogroup" aria-label="Risk profile">
+          {riskOptions.map((opt) => (
+            <button
+              key={opt.key}
+              className={`pilotRiskOption ${risk === opt.key ? "selected" : ""}`}
+              onClick={() => onRiskChange(opt.key)}
+              type="button"
+              role="radio"
+              aria-checked={risk === opt.key}
+            >
+              <strong>{opt.label}</strong>
+              <span>{opt.sub}</span>
+            </button>
+          ))}
+        </div>
+        <button
+          className="pilotRunBtn"
+          onClick={onRun}
+          disabled={loading || sourcesCount === 0}
+          type="button"
+        >
+          {loading ? "asking the pilot…" : plan ? "regenerate plan" : "generate plan"}
+        </button>
+      </div>
+
+      {error && <div className="pilotError">pilot error: {error}</div>}
+
+      {plan && (
+        <div className="pilotPlan">
+          <div className="pilotPlanHeader">
+            <p className="pilotHeadline">{plan.headline}</p>
+            <div className="pilotMeta">
+              <span className="pilotConfidence">
+                confidence <strong>{(plan.confidenceBps / 100).toFixed(0)}%</strong>
+              </span>
+              <span className="pilotModel">
+                {plan.fellBack ? "heuristic fallback" : `model · ${plan.model}`}
+              </span>
+            </div>
+          </div>
+
+          <p className="pilotRationale">{plan.rationale}</p>
+
+          <div className="pilotAllocation">
+            {plan.allocation.map((slice) => (
+              <article className="pilotSlice" key={slice.sourceAddress}>
+                <header>
+                  <strong>{slice.name}</strong>
+                  <span className="pilotSlicePct">{(slice.weightBps / 100).toFixed(0)}%</span>
+                </header>
+                <div className="pilotSliceBar">
+                  <span style={{ width: `${slice.weightBps / 100}%` }} />
+                </div>
+                <dl>
+                  <div>
+                    <dt>allocate</dt>
+                    <dd>{slice.amountUSDC || "0"} USDC</dd>
+                  </div>
+                  <div>
+                    <dt>preset</dt>
+                    <dd className={`pilotPreset pilotPreset--${slice.preset}`}>{slice.preset}</dd>
+                  </div>
+                </dl>
+                {slice.reason && <p className="pilotSliceReason">{slice.reason}</p>}
+              </article>
+            ))}
+          </div>
+
+          {plan.watchSignals.length > 0 && (
+            <div className="pilotWatch">
+              <p className="eyebrow">watch signals · the pilot will revisit if</p>
+              <ul>
+                {plan.watchSignals.map((sig, i) => (
+                  <li key={i}>{sig}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <footer className="pilotFooter">
+            <div className="pilotDecision">
+              <span className="eyebrow">decision hash</span>
+              <code>{plan.decisionHash}</code>
+            </div>
+            <button
+              className="pilotExecBtn"
+              onClick={onExecute}
+              disabled={executing || plan.allocation.length === 0}
+              type="button"
+            >
+              {executing ? "executing plan…" : "execute plan onchain"}
+            </button>
+          </footer>
+
+          {plan.fellBack && plan.fellBackReason && (
+            <p className="pilotFallbackNote">
+              LLM unavailable ({plan.fellBackReason}); allocation produced by deterministic heuristic. Set
+              BANKR_LLM_KEY to enable model reasoning.
+            </p>
+          )}
         </div>
       )}
     </section>
