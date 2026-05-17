@@ -69,9 +69,20 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
   }
 
   const rpcUrl = requiredEnv("ARC_RPC_URL");
-  const usdc = requiredEnv("ARC_USDC") as Address;
-  const deployerKey = normalizeKey(requiredEnv("PRIVATE_KEY"));
-  const account = privateKeyToAccount(deployerKey);
+  const usdc = (process.env.ARC_USDC ||
+    process.env.VITE_ARC_USDC ||
+    "0x3600000000000000000000000000000000000000") as Address;
+  const rawKey =
+    process.env.PRIVATE_KEY ||
+    process.env.CAT_AGENT_PRIVATE_KEY ||
+    "";
+  if (!rawKey) {
+    res.status(500).json({
+      error: "No funder private key configured (PRIVATE_KEY or CAT_AGENT_PRIVATE_KEY).",
+    });
+    return;
+  }
+  const account = privateKeyToAccount(normalizeKey(rawKey));
 
   const arcTestnet = defineChain({
     id: 5_042_002,
