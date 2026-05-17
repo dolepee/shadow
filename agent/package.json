@@ -13,6 +13,7 @@
     "migrate-to-v4": "tsx src/migrate-to-v4.ts",
     "seed-v4-amm": "tsx src/seed-v4-amm.ts",
     "topup-gas": "tsx src/topup-gas.ts",
+    "topup-follower-b": "tsx src/topup-follower-b.ts",
     "close-position": "tsx src/close-position.ts",
     "pilot-execute": "tsx src/pilot-execute.ts"
   },

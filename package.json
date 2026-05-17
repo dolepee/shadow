@@ -12,6 +12,7 @@
     "app:typecheck": "pnpm --dir app typecheck",
     "agent:intent": "pnpm --dir agent intent",
     "agent:close-position": "pnpm --dir agent close-position",
+    "agent:topup-follower-b": "pnpm --dir agent topup-follower-b",
     "agent:pilot-execute": "pnpm --dir agent pilot-execute",
     "agent:typecheck": "pnpm --dir agent exec tsc --noEmit",
     "verify:slippage": "pnpm --dir agent verify-slippage",
