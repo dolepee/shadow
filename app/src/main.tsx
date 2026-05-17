@@ -2476,8 +2476,13 @@ function CircleStackPanel() {
         tokenOut,
       });
     } catch (err: any) {
-      const message =
+      const raw =
         err?.shortMessage || err?.message || String(err) || "Swap failed";
+      const looksLikeNoRoute =
+        /createSwap failed|Failed to fetch|no route|UnsupportedRoute/i.test(raw);
+      const message = looksLikeNoRoute
+        ? "Circle Stablecoin Service has no DEX route on Arc Testnet yet. The SDK call is wired (chain in enum, kitKey passed inline); once Arc Testnet appears in the routing graph this swap goes live without code changes."
+        : raw;
       setStatus({ kind: "error", message });
     }
   }
