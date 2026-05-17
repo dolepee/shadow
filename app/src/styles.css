@@ -2847,6 +2847,24 @@ h3 {
   opacity: 0.65;
 }
 
+.modularCopyBtn {
+  background: transparent;
+  border: 1px solid rgba(180, 140, 240, 0.24);
+  border-radius: 6px;
+  color: rgba(220, 200, 255, 0.7);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+.modularCopyBtn:hover {
+  background: rgba(180, 140, 240, 0.08);
+  color: rgba(230, 210, 255, 0.95);
+}
+
 .modularInfo {
   color: rgba(220, 200, 255, 0.7);
   font-size: 12px;

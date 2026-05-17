@@ -2577,6 +2577,8 @@ type ModularWalletState =
   | { kind: "loggingIn" }
   | { kind: "deriving" }
   | { kind: "ready"; address: Address; mode: "Register" | "Login" }
+  | { kind: "funding"; address: Address }
+  | { kind: "funded"; address: Address; tx?: string; alreadyFunded?: boolean }
   | { kind: "sending"; stage: string; address: Address }
   | { kind: "sent"; address: Address; userOpHash: string; txHash?: string }
   | { kind: "error"; message: string; address?: Address };
@@ -2672,8 +2674,47 @@ function ModularWalletCard() {
     }
   }
 
+  async function onFund() {
+    const addr =
+      state.kind === "ready" || state.kind === "funded" || state.kind === "error"
+        ? (state as any).address
+        : undefined;
+    if (!addr) return;
+    setState({ kind: "funding", address: addr });
+    try {
+      const res = await fetch("/api/fund-smart-account", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ address: addr }),
+      });
+      const json = (await res.json()) as {
+        funded?: boolean;
+        skipped?: boolean;
+        cached?: boolean;
+        tx?: string;
+        previousTx?: string;
+        error?: string;
+      };
+      if (!res.ok || json.error) {
+        throw new Error(json.error || `fund failed (HTTP ${res.status})`);
+      }
+      setState({
+        kind: "funded",
+        address: addr,
+        tx: json.tx || json.previousTx,
+        alreadyFunded: Boolean(json.skipped || json.cached),
+      });
+    } catch (err: any) {
+      setState({
+        kind: "error",
+        message: err?.shortMessage || err?.message || "fund failed",
+        address: addr,
+      });
+    }
+  }
+
   async function onSponsoredTip() {
-    if (state.kind !== "ready") return;
+    if (state.kind !== "ready" && state.kind !== "funded") return;
     const accountAddress = state.address;
     if (!recipient) {
       setState({ kind: "error", message: "VITE_SHADOW_ROUTER not set; nothing to tip.", address: accountAddress });
@@ -2722,9 +2763,13 @@ function ModularWalletCard() {
         txHash: receipt?.receipt?.transactionHash,
       });
     } catch (err: any) {
+      const raw = err?.shortMessage || err?.message || String(err);
+      const insufficient = /transfer amount exceeds balance|insufficient.*balance/i.test(raw);
       setState({
         kind: "error",
-        message: err?.shortMessage || err?.message || String(err),
+        message: insufficient
+          ? `Smart account has no USDC. Click "Fund smart account" first (the deployer sends 0.05 USDC from the faucet) and try again.`
+          : raw,
         address: accountAddress,
       });
     }
@@ -2764,22 +2809,60 @@ function ModularWalletCard() {
             </button>
           </div>
           {state.kind === "deriving" && <p className="modularInfo">Deriving smart account address…</p>}
-          {(state.kind === "ready" || state.kind === "sending" || state.kind === "sent" || (state.kind === "error" && (state as any).address)) && (
+          {(state.kind === "ready" ||
+            state.kind === "funding" ||
+            state.kind === "funded" ||
+            state.kind === "sending" ||
+            state.kind === "sent" ||
+            (state.kind === "error" && (state as any).address)) && (
             <div className="modularAccount">
               <p>
                 <span>Smart account</span>{" "}
-                <code>{shortAddress((state as any).address)}</code>
+                <code title={(state as any).address}>{(state as any).address}</code>{" "}
+                <button
+                  type="button"
+                  className="modularCopyBtn"
+                  onClick={() => navigator.clipboard?.writeText((state as any).address)}
+                  title="Copy address"
+                >
+                  copy
+                </button>
               </p>
-              <button
-                type="button"
-                className="modularBtnPrimary"
-                onClick={onSponsoredTip}
-                disabled={state.kind === "sending"}
-              >
-                {state.kind === "sending"
-                  ? `Sending… ${state.stage}`
-                  : "Send 0.01 USDC, gas sponsored by Circle"}
-              </button>
+              <div className="modularButtons">
+                <button
+                  type="button"
+                  className="modularBtnSecondary"
+                  onClick={onFund}
+                  disabled={state.kind === "funding" || state.kind === "sending"}
+                >
+                  {state.kind === "funding"
+                    ? "Funding…"
+                    : state.kind === "funded"
+                      ? state.alreadyFunded
+                        ? "Already funded ✓"
+                        : "Funded ✓ — re-fund"
+                      : "Fund smart account (0.05 USDC)"}
+                </button>
+                <button
+                  type="button"
+                  className="modularBtnPrimary"
+                  onClick={onSponsoredTip}
+                  disabled={state.kind === "sending" || state.kind === "funding"}
+                >
+                  {state.kind === "sending"
+                    ? `Sending… ${state.stage}`
+                    : "Send 0.01 USDC, gas sponsored by Circle"}
+                </button>
+              </div>
+              {state.kind === "funded" && state.tx && (
+                <p className="modularInfo">
+                  Faucet tx{" "}
+                  <a href={txUrl(state.tx as `0x${string}`)} target="_blank" rel="noreferrer">
+                    {state.tx.slice(0, 10)}…
+                  </a>
+                  . Now click "Send 0.01 USDC" — Circle Gas Station covers the gas.
+                </p>
+              )}
             </div>
           )}
           {state.kind === "sent" && (
