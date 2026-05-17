@@ -294,9 +294,14 @@ function clamp(
       ? parsed.rationale.slice(0, 800)
       : "AI provided no rationale; allocation derived from weights only.";
   const confidenceRaw = Number(parsed.confidenceBps);
-  const confidenceBps = Number.isFinite(confidenceRaw)
+  const modelConfidence = Number.isFinite(confidenceRaw)
     ? Math.max(0, Math.min(10_000, Math.round(confidenceRaw)))
     : 5_000;
+  const derivedConfidence = weightedCopyRate(allocation, req.sources);
+  // deepseek consistently stubs confidenceBps at 0 even on solid allocations.
+  // When the model gives us a near zero, prefer the weighted copy rate of the
+  // chosen sources so the UI shows a number grounded in onchain truth.
+  const confidenceBps = modelConfidence < 1_000 && derivedConfidence > 0 ? derivedConfidence : modelConfidence;
   const watchSignalsRaw = Array.isArray(parsed.watchSignals) ? parsed.watchSignals : [];
   const watchSignals = watchSignalsRaw
     .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
@@ -311,6 +316,22 @@ function clamp(
     watchSignals,
     allocation,
   };
+}
+
+function weightedCopyRate(allocation: Slice[], sources: SourceInput[]): number {
+  if (allocation.length === 0) return 0;
+  const byAddr = new Map(sources.map((s) => [s.address.toLowerCase(), s]));
+  let totalWeight = 0;
+  let weightedRate = 0;
+  for (const slice of allocation) {
+    const src = byAddr.get(slice.sourceAddress.toLowerCase());
+    if (!src) continue;
+    const sample = src.copyCount + src.blockCount;
+    if (sample === 0) continue;
+    totalWeight += slice.weightBps;
+    weightedRate += src.copyRateBps * slice.weightBps;
+  }
+  return totalWeight > 0 ? Math.round(weightedRate / totalWeight) : 0;
 }
 
 function heuristic(req: PilotRequest, reason: string): Omit<PilotResponse, "generatedAt" | "decisionHash"> {
