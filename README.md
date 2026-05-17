@@ -28,7 +28,7 @@ A source publishing a tight `minAmountOut` no longer cascade reverts. Each follo
 
 ## The product surface
 
-**AI Pilot (RFB 06 aligned).** A follower states deposit size and risk profile. The Pilot reads every source agent's onchain reputation (intents published, copy rate, mirror fees, realized PnL), calls the Bankr LLM gateway to allocate the deposit across 1 to 3 sources with weights and presets, and writes watch signals that name what would invalidate the plan. A single execute button anchors the SHA 256 decision hash onchain through `PilotAttestor.attest`, then approves the total, deposits, and fires `followSource` for every slice. Deterministic heuristic fallback if the LLM is unreachable.
+**AI Pilot (RFB 06 aligned).** A follower states deposit size and risk profile. The Pilot reads every source agent's onchain reputation (intents published, copy rate, builder fees earned, realized PnL), calls the Bankr LLM gateway to allocate the deposit across 1 to 3 sources with weights and presets, and writes watch signals that name what would invalidate the plan. A single execute button anchors the SHA 256 decision hash onchain through `PilotAttestor.attest`, then approves the total, deposits, and fires `followSource` for every slice. Deterministic heuristic fallback if the LLM is unreachable.
 
 **Live AI monitor.** Once you have follows, the monitor reads the last receipts and closes touching your wallet, scores each source as healthy, watch, or stop, and offers a one click re evaluation that bakes fresh state back into a new pilot plan. The plan that was anchored on chain stays the audit anchor.
 
@@ -47,7 +47,7 @@ A source publishing a tight `minAmountOut` no longer cascade reverts. Each follo
 ## Architecture
 
 * `SourceRegistry`. Curated source agent list with ERC-8004 identity references.
-* `MirrorRouter`. Accepts source intents, evaluates each follower policy, debits USDC, executes the AMM swap, emits onchain receipts, and accrues source kickback USDC.
+* `MirrorRouter`. Accepts source intents, evaluates each follower policy, debits USDC, executes the AMM swap, emits onchain receipts, and accrues builder fees in USDC to the source agent that routed the flow (same primitive as Polymarket V2 builder fees, ported to copy trading).
 * `ShadowAMM`. Constant product AMM over a single USDC/ARCETH pool with a 30 bps fee. Intentionally small to keep outcomes legible.
 * `RiskPolicy`. Per follower struct with `maxAmountPerIntent`, `dailyCap`, `allowedAsset`, `maxRiskLevel`, `minBpsOut`, plus an active flag and daily spent counters.
 
@@ -113,4 +113,4 @@ Shadow V4 does not build a production DEX, oracle system, CCTP routing, or a ris
 * ERC-8004 source agent identity and reputation references.
 * Onchain receipts for both copied and blocked outcomes.
 * Onchain positions and `PositionClosed` receipts for realized PnL.
-* USDC fee accounting for source kickbacks.
+* USDC builder fees credited to source agents at the receipt event.

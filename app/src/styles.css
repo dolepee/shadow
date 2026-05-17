@@ -288,6 +288,21 @@ h3 {
   color: rgba(200, 255, 160, 0.85);
 }
 
+.builderFeesReference {
+  border-left: 2px solid rgba(165, 255, 96, 0.32);
+  color: rgba(246, 240, 220, 0.52);
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 12px 0 0;
+  max-width: 640px;
+  padding: 2px 0 2px 10px;
+}
+
+.builderFeesReference strong {
+  color: rgba(200, 255, 160, 0.85);
+  font-weight: 600;
+}
+
 .builderFeesTop {
   background: rgba(7, 9, 8, 0.55);
   border: 1px solid rgba(165, 255, 96, 0.18);

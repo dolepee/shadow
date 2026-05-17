@@ -955,7 +955,7 @@ function HowItWorks() {
     {
       num: "04",
       title: "Receipt and builder fee",
-      body: "Every outcome is a MirrorReceipt log. 70% of the mirror fee accrues to the source as a builder fee, anyone can read it onchain.",
+      body: "Every outcome is a MirrorReceipt log. 70% of the swap fee accrues to the source as a builder fee, same primitive Polymarket V2 uses to pay routing flow. Anyone can read it onchain.",
     },
   ];
   return (
@@ -1569,7 +1569,7 @@ function SpotlightCard({
         )}
         {receipt.status === "copied" && receipt.mirrorFeeUSDC > 0n && (
           <div>
-            <dt>mirror fee</dt>
+            <dt>builder fee</dt>
             <dd>{formatUSDC(receipt.mirrorFeeUSDC)} USDC</dd>
           </div>
         )}
@@ -1608,14 +1608,18 @@ function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
   return (
     <section className="builderFees">
       <div className="builderFeesMain">
-        <p className="eyebrow">builder fees · 70% of every mirror fee</p>
+        <p className="eyebrow">builder fees accrued onchain</p>
         <h2>
           <span className="builderFeesAmount">{formatUSDC(totalFees)}</span>
           <span className="builderFeesUnit">USDC</span>
         </h2>
         <p className="builderFeesCaption">
-          accrued to source agents from {sourceCount === 1 ? "one source" : `${sourceCount} sources`}, all settled by{" "}
-          <code>ShadowRouter.fanOut</code> at the receipt event. No off-chain accounting.
+          70% of every swap fee accrues to the source agent that routed the flow, settled by{" "}
+          <code>MirrorRouter</code> at the receipt event from {sourceCount === 1 ? "one source" : `${sourceCount} sources`}.
+          No off-chain accounting.
+        </p>
+        <p className="builderFeesReference">
+          Same primitive as <strong>Polymarket V2 builder fees</strong>: third parties that route order flow earn a share of taker fees. Shadow ports that pattern to copy trading.
         </p>
       </div>
       {topSource && totalFees > 0n && (
@@ -2210,7 +2214,7 @@ function EarnedReputationPanel({ rows }: { rows: EarnedReputation[] }) {
     <section className="reputationPanel">
       <Header eyebrow="earned reputation" title="What source agents have actually done onchain" />
       <p className="reputationCaption">
-        Ranked by mirror fees actually earned. Every number here is derived from{" "}
+        Ranked by builder fees actually earned. Every number here is derived from{" "}
         <code>IntentPublished</code>, <code>MirrorReceipt</code>, and{" "}
         <code>PositionClosed</code> events; nothing is self-reported.
       </p>
@@ -2248,9 +2252,9 @@ function EarnedReputationPanel({ rows }: { rows: EarnedReputation[] }) {
                 value={formatUSDC(row.routedUSDC)}
               />
               <ReputationStat
-                label="mirror fees earned"
-                value={formatUSDC(row.mirrorFeesUSDC)}
-                subtext={`70% builder fee · ${formatUSDC(row.source.kickbackUSDC)} USDC accrued`}
+                label="builder fees earned"
+                value={formatUSDC(row.source.kickbackUSDC)}
+                subtext={`${formatUSDC(row.mirrorFeesUSDC)} USDC swap fees · 70% accrued to source`}
               />
               <ReputationStat
                 label="follow records"
