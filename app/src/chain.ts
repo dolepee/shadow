@@ -497,7 +497,8 @@ function blockReasonLabel(reason: number): string {
 }
 
 function readAddress(key: string, fallback?: string): Address | undefined {
-  const value = import.meta.env[key] || fallback;
+  const raw = import.meta.env[key] || fallback;
+  const value = typeof raw === "string" ? raw.trim() : raw;
   return value && /^0x[a-fA-F0-9]{40}$/.test(value) ? (value as Address) : undefined;
 }
 
