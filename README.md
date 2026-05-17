@@ -96,7 +96,7 @@ npm run verify:slippage    # Reproducible split outcome run
 
 ## Scope guard
 
-Shadow V4 does not build a production DEX, oracle system, CCTP routing, App Kit Swap integration, or a risk policy DSL. Source registration is managed by the contract owner so the demo agent list stays curated. Each source is capped at 50 follower records per intent.
+Shadow V4 does not build a production DEX, oracle system, CCTP routing, or a risk policy DSL. Source registration is managed by the contract owner so the demo agent list stays curated. Each source is capped at 50 follower records per intent.
 
 ## Known limits
 
