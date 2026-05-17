@@ -727,6 +727,8 @@ function App() {
         )}
       </section>
 
+      <TractionStrip state={state} />
+
       <TechnicalPrimitive state={state} />
 
       <BuilderFeesBanner state={state} />
@@ -2022,6 +2024,107 @@ function ageLabel(seconds: number): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
   if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h`;
   return `${Math.floor(seconds / 86_400)}d`;
+}
+
+function TractionStrip({ state }: { state: ShadowState | null }) {
+  const metrics = useMemo(() => {
+    if (!state) {
+      return {
+        wallets: 0,
+        usdcMirrored: 0n,
+        intents: 0,
+        copiedReceipts: 0,
+        blockedReceipts: 0,
+        closes: 0,
+        avgPnlBps: 0,
+        positivePnlCount: 0,
+      };
+    }
+    const followers = new Set<string>();
+    let usdcMirrored = 0n;
+    let copiedReceipts = 0;
+    let blockedReceipts = 0;
+    for (const r of state.receipts) {
+      followers.add(r.follower.toLowerCase());
+      if (r.status === "copied") {
+        copiedReceipts += 1;
+        usdcMirrored += r.usdcAmount;
+      } else {
+        blockedReceipts += 1;
+      }
+    }
+    let pnlSum = 0;
+    let positivePnlCount = 0;
+    for (const c of state.positionCloses) {
+      const bps = Number(c.pnlBps);
+      pnlSum += bps;
+      if (bps > 0) positivePnlCount += 1;
+    }
+    const closes = state.positionCloses.length;
+    return {
+      wallets: followers.size,
+      usdcMirrored,
+      intents: state.intents.length,
+      copiedReceipts,
+      blockedReceipts,
+      closes,
+      avgPnlBps: closes ? pnlSum / closes : 0,
+      positivePnlCount,
+    };
+  }, [state]);
+
+  const metricsList: Array<{ label: string; value: string; sub: string }> = [
+    {
+      label: "Distinct followers",
+      value: metrics.wallets.toString(),
+      sub: "unique wallets across receipts",
+    },
+    {
+      label: "USDC mirrored",
+      value: formatUSDC(metrics.usdcMirrored),
+      sub: `${metrics.copiedReceipts} copied · ${metrics.blockedReceipts} blocked`,
+    },
+    {
+      label: "Intents published",
+      value: metrics.intents.toString(),
+      sub: "by registered source agents",
+    },
+    {
+      label: "Receipts onchain",
+      value: (metrics.copiedReceipts + metrics.blockedReceipts).toString(),
+      sub: "copy and block, no off chain truth",
+    },
+    {
+      label: "Positions closed",
+      value: metrics.closes.toString(),
+      sub:
+        metrics.closes > 0
+          ? `${metrics.avgPnlBps >= 0 ? "+" : ""}${metrics.avgPnlBps.toFixed(0)} bps avg · ${metrics.positivePnlCount} positive`
+          : "awaiting realized PnL",
+    },
+  ];
+
+  return (
+    <section className="traction" aria-label="Live traction">
+      <div className="tractionHeader">
+        <p className="eyebrow">live traction · derived from onchain events</p>
+        <span className="tractionDot" /> <span className="tractionLive">live</span>
+      </div>
+      <div className="tractionGrid">
+        {metricsList.map((m) => (
+          <article className="tractionCard" key={m.label}>
+            <span className="tractionLabel">{m.label}</span>
+            <strong className="tractionValue">{m.value}</strong>
+            <span className="tractionSub">{m.sub}</span>
+          </article>
+        ))}
+      </div>
+      <p className="tractionFootnote">
+        Counts include both seeded developer wallets and any public follower. Computed live from MirrorReceipt and
+        PositionClosed event logs, not a backend cache. If the indexer goes down, the chain is still the source of truth.
+      </p>
+    </section>
+  );
 }
 
 function TechnicalPrimitive({ state }: { state: ShadowState | null }) {

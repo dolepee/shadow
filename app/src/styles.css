@@ -323,6 +323,92 @@ h3 {
   }
 }
 
+.traction {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tractionHeader {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.tractionHeader .eyebrow {
+  margin: 0;
+}
+
+.tractionDot {
+  background: rgba(216, 255, 121, 0.92);
+  border-radius: 50%;
+  display: inline-block;
+  height: 7px;
+  margin-left: auto;
+  width: 7px;
+  box-shadow: 0 0 0 0 rgba(216, 255, 121, 0.6);
+  animation: pilotPulse 1.6s ease-out infinite;
+}
+
+.tractionLive {
+  color: rgba(216, 255, 121, 0.78);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tractionGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.tractionCard {
+  background: rgba(246, 240, 220, 0.03);
+  border: 1px solid rgba(246, 240, 220, 0.1);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  transition: border-color 200ms ease;
+}
+
+.tractionCard:hover {
+  border-color: rgba(216, 255, 121, 0.3);
+}
+
+.tractionLabel {
+  color: rgba(246, 240, 220, 0.55);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.tractionValue {
+  color: rgba(246, 240, 220, 0.96);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.tractionSub {
+  color: rgba(246, 240, 220, 0.55);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tractionFootnote {
+  color: rgba(246, 240, 220, 0.45);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 760px;
+}
+
 .primitive {
   display: flex;
   flex-direction: column;
