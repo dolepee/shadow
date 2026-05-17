@@ -2303,7 +2303,21 @@ function AppKitTipButton({
   sourceAddress: Address;
   sourceName: string;
 }) {
+  const kitKey = (import.meta.env.VITE_CIRCLE_KIT_KEY || "").trim();
   const [status, setStatus] = useState<TipStatus>({ kind: "idle" });
+
+  if (!kitKey) {
+    return (
+      <div className="appKitTip">
+        <button type="button" className="appKitTipButton" disabled>
+          Tip {sourceName} via Circle App Kit
+        </button>
+        <p className="appKitTipMeta">
+          Set <code>VITE_CIRCLE_KIT_KEY</code> in env (Circle Console → Kit Keys) to enable <code>AppKit.send</code> tips.
+        </p>
+      </div>
+    );
+  }
 
   async function send() {
     const provider = typeof window !== "undefined" ? (window as any).ethereum : undefined;
@@ -2337,7 +2351,7 @@ function AppKitTipButton({
       });
       const adapter = await createViemAdapterFromProvider({ provider });
       setStatus({ kind: "sending", stage: "submitting USDC transfer" });
-      const kit = new AppKit();
+      const kit = new AppKit({ kitKey } as any);
       const step = await kit.send({
         from: { adapter, chain: "Arc_Testnet" as any },
         to: sourceAddress,
@@ -2417,6 +2431,7 @@ type SwapState =
   | { kind: "error"; message: string };
 
 function CircleStackPanel() {
+  const kitKey = (import.meta.env.VITE_CIRCLE_KIT_KEY || "").trim();
   const [direction, setDirection] = useState<SwapDirection>("USDC_TO_EURC");
   const [amount, setAmount] = useState("0.05");
   const [status, setStatus] = useState<SwapState>({ kind: "idle" });
@@ -2425,6 +2440,10 @@ function CircleStackPanel() {
     direction === "USDC_TO_EURC" ? ["USDC", "EURC"] : ["EURC", "USDC"];
 
   async function runSwap() {
+    if (!kitKey) {
+      setStatus({ kind: "error", message: "Set VITE_CIRCLE_KIT_KEY in env to enable AppKit.swap." });
+      return;
+    }
     const provider = typeof window !== "undefined" ? (window as any).ethereum : undefined;
     if (!provider) {
       setStatus({ kind: "error", message: "Connect an EVM wallet first." });
@@ -2441,7 +2460,7 @@ function CircleStackPanel() {
       setStatus({ kind: "running", stage: "preparing Circle adapter" });
       const adapter = await createViemAdapterFromProvider({ provider });
       setStatus({ kind: "running", stage: `routing ${tokenIn} → ${tokenOut} via Circle stablecoin service` });
-      const kit = new AppKit();
+      const kit = new AppKit({ kitKey } as any);
       const result = await kit.swap({
         from: { adapter, chain: "Arc_Testnet" as any },
         tokenIn: tokenIn as any,
@@ -2511,9 +2530,13 @@ function CircleStackPanel() {
             type="button"
             className="swapSubmit"
             onClick={runSwap}
-            disabled={status.kind === "running"}
+            disabled={status.kind === "running" || !kitKey}
           >
-            {status.kind === "running" ? `Swapping… ${status.stage}` : `Swap via Circle App Kit`}
+            {status.kind === "running"
+              ? `Swapping… ${status.stage}`
+              : kitKey
+                ? `Swap via Circle App Kit`
+                : `Add VITE_CIRCLE_KIT_KEY to enable`}
           </button>
           {status.kind === "success" && (
             <p className="swapOk">
