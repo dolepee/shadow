@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createWalletClient, custom, parseUnits, type Address } from "viem";
+import { AppKit } from "@circle-fin/app-kit";
+import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
+import {
+  toCircleSmartAccount,
+  toModularTransport,
+  toPasskeyTransport,
+  toWebAuthnCredential,
+  WebAuthnMode,
+  type WebAuthnCredential,
+} from "@circle-fin/modular-wallets-core";
+import { createBundlerClient } from "viem/account-abstraction";
+import { createPublicClient as createClient, encodeFunctionData, http } from "viem";
 import {
   addresses,
   arcTestnet,
@@ -651,6 +663,7 @@ function App() {
 
       <EarnedReputationPanel rows={state ? computeEarnedReputation(state) : []} />
 
+      <CircleStackPanel />
 
       <section className="panel">
         <Header eyebrow="controlled AMM" title="Real onchain exchange path, intentionally small" />
@@ -1474,10 +1487,112 @@ function EarnedReputationPanel({ rows }: { rows: EarnedReputation[] }) {
                 }
               />
             </div>
+            <AppKitTipButton
+              sourceAddress={row.source.address}
+              sourceName={row.source.name}
+            />
           </article>
         ))}
       </div>
     </section>
+  );
+}
+
+type TipStatus =
+  | { kind: "idle" }
+  | { kind: "sending"; stage: string }
+  | { kind: "success"; txHash?: string }
+  | { kind: "error"; message: string };
+
+function AppKitTipButton({
+  sourceAddress,
+  sourceName,
+}: {
+  sourceAddress: Address;
+  sourceName: string;
+}) {
+  const [status, setStatus] = useState<TipStatus>({ kind: "idle" });
+
+  async function send() {
+    const provider = typeof window !== "undefined" ? (window as any).ethereum : undefined;
+    if (!provider) {
+      setStatus({ kind: "error", message: "Connect an EVM wallet to tip via Circle App Kit." });
+      return;
+    }
+    setStatus({ kind: "sending", stage: "preparing adapter" });
+    try {
+      await provider.request({ method: "eth_requestAccounts" });
+      await provider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0x4cef52" }],
+      }).catch(async (err: any) => {
+        if (err && (err.code === 4902 || err.code === -32603)) {
+          await provider.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: "0x4cef52",
+                chainName: "Arc Testnet",
+                nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+                rpcUrls: [arcTestnet.rpcUrls.default.http[0]],
+                blockExplorerUrls: ["https://testnet.arcscan.app"],
+              },
+            ],
+          });
+        } else {
+          throw err;
+        }
+      });
+      const adapter = await createViemAdapterFromProvider({ provider });
+      setStatus({ kind: "sending", stage: "submitting USDC transfer" });
+      const kit = new AppKit();
+      const step = await kit.send({
+        from: { adapter, chain: "Arc_Testnet" as any },
+        to: sourceAddress,
+        amount: "0.01",
+        token: "USDC",
+      });
+      if (step.state === "error") {
+        setStatus({ kind: "error", message: step.errorMessage || "Send failed" });
+        return;
+      }
+      setStatus({ kind: "success", txHash: step.txHash });
+    } catch (err: any) {
+      const message =
+        err?.shortMessage || err?.message || String(err) || "Tip failed";
+      setStatus({ kind: "error", message });
+    }
+  }
+
+  return (
+    <div className="appKitTip">
+      <button
+        type="button"
+        className="appKitTipButton"
+        onClick={send}
+        disabled={status.kind === "sending"}
+      >
+        {status.kind === "sending"
+          ? `Sending… ${status.stage}`
+          : `Tip ${sourceName} 0.01 USDC via Circle App Kit`}
+      </button>
+      <p className="appKitTipMeta">
+        Calls <code>AppKit.send</code> with <code>chain: "Arc_Testnet"</code>. Same Circle SDK that ships in Wallet Wars.
+      </p>
+      {status.kind === "success" && (
+        <p className="appKitTipOk">
+          Tip routed.{" "}
+          {status.txHash ? (
+            <a href={txUrl(status.txHash as `0x${string}`)} target="_blank" rel="noreferrer">
+              view tx
+            </a>
+          ) : (
+            "Confirmed."
+          )}
+        </p>
+      )}
+      {status.kind === "error" && <p className="appKitTipErr">{status.message}</p>}
+    </div>
   );
 }
 
@@ -1497,6 +1612,369 @@ function ReputationStat({
       <p>{label}</p>
       <strong>{value}</strong>
       {subtext && <span>{subtext}</span>}
+    </div>
+  );
+}
+
+type SwapDirection = "USDC_TO_EURC" | "EURC_TO_USDC";
+
+type SwapState =
+  | { kind: "idle" }
+  | { kind: "running"; stage: string }
+  | { kind: "success"; txHash: string; explorerUrl?: string; amountOut?: string; tokenOut: string }
+  | { kind: "error"; message: string };
+
+function CircleStackPanel() {
+  const [direction, setDirection] = useState<SwapDirection>("USDC_TO_EURC");
+  const [amount, setAmount] = useState("0.05");
+  const [status, setStatus] = useState<SwapState>({ kind: "idle" });
+
+  const [tokenIn, tokenOut] =
+    direction === "USDC_TO_EURC" ? ["USDC", "EURC"] : ["EURC", "USDC"];
+
+  async function runSwap() {
+    const provider = typeof window !== "undefined" ? (window as any).ethereum : undefined;
+    if (!provider) {
+      setStatus({ kind: "error", message: "Connect an EVM wallet first." });
+      return;
+    }
+    const parsed = Number(amount);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setStatus({ kind: "error", message: "Enter an amount greater than 0." });
+      return;
+    }
+    setStatus({ kind: "running", stage: "switching to Arc Testnet" });
+    try {
+      await switchToArc();
+      setStatus({ kind: "running", stage: "preparing Circle adapter" });
+      const adapter = await createViemAdapterFromProvider({ provider });
+      setStatus({ kind: "running", stage: `routing ${tokenIn} → ${tokenOut} via Circle stablecoin service` });
+      const kit = new AppKit();
+      const result = await kit.swap({
+        from: { adapter, chain: "Arc_Testnet" as any },
+        tokenIn: tokenIn as any,
+        tokenOut: tokenOut as any,
+        amountIn: amount,
+      });
+      setStatus({
+        kind: "success",
+        txHash: result.txHash,
+        explorerUrl: result.explorerUrl,
+        amountOut: result.amountOut,
+        tokenOut,
+      });
+    } catch (err: any) {
+      const message =
+        err?.shortMessage || err?.message || String(err) || "Swap failed";
+      setStatus({ kind: "error", message });
+    }
+  }
+
+  function flip() {
+    setDirection((d) => (d === "USDC_TO_EURC" ? "EURC_TO_USDC" : "USDC_TO_EURC"));
+    setStatus({ kind: "idle" });
+  }
+
+  return (
+    <section className="circleStackPanel">
+      <Header
+        eyebrow="circle stack on arc"
+        title="App Kit Send, Swap, and Modular Wallets — three Circle products live on the same page"
+      />
+      <p className="circleStackCaption">
+        Tip buttons on each source agent invoke <code>AppKit.send</code>. The swap
+        below invokes <code>AppKit.swap</code>, routed through Circle&apos;s stablecoin
+        service for USDC ↔ EURC. The card on the right uses{" "}
+        <code>@circle-fin/modular-wallets-core</code> to mint a passkey-owned smart
+        account and pay zero gas via Circle Gas Station. All three are Circle&apos;s own SDKs, not a third-party shim.
+      </p>
+      <div className="circleStackGrid">
+        <div className="swapCard">
+          <div className="swapRow">
+            <label>
+              <span>From</span>
+              <strong>{tokenIn}</strong>
+            </label>
+            <button type="button" className="swapFlip" onClick={flip} disabled={status.kind === "running"}>
+              ⇅
+            </button>
+            <label>
+              <span>To</span>
+              <strong>{tokenOut}</strong>
+            </label>
+          </div>
+          <label className="swapAmountField">
+            <span>Amount in {tokenIn}</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              disabled={status.kind === "running"}
+            />
+          </label>
+          <button
+            type="button"
+            className="swapSubmit"
+            onClick={runSwap}
+            disabled={status.kind === "running"}
+          >
+            {status.kind === "running" ? `Swapping… ${status.stage}` : `Swap via Circle App Kit`}
+          </button>
+          {status.kind === "success" && (
+            <p className="swapOk">
+              Swap confirmed.{" "}
+              {status.amountOut !== undefined
+                ? `Received ${status.amountOut} ${status.tokenOut}.`
+                : ""}
+              {" "}
+              {status.explorerUrl ? (
+                <a href={status.explorerUrl} target="_blank" rel="noreferrer">
+                  view tx
+                </a>
+              ) : (
+                <a href={txUrl(status.txHash as `0x${string}`)} target="_blank" rel="noreferrer">
+                  view tx
+                </a>
+              )}
+            </p>
+          )}
+          {status.kind === "error" && <p className="swapErr">{status.message}</p>}
+        </div>
+        <ModularWalletCard />
+      </div>
+    </section>
+  );
+}
+
+type ModularWalletState =
+  | { kind: "idle" }
+  | { kind: "configMissing"; reason: string }
+  | { kind: "registering" }
+  | { kind: "loggingIn" }
+  | { kind: "deriving" }
+  | { kind: "ready"; address: Address; mode: "Register" | "Login" }
+  | { kind: "sending"; stage: string; address: Address }
+  | { kind: "sent"; address: Address; userOpHash: string; txHash?: string }
+  | { kind: "error"; message: string; address?: Address };
+
+const CREDENTIAL_STORAGE_KEY = "shadow:circleModularCredential";
+
+function ModularWalletCard() {
+  const clientKey = (import.meta.env.VITE_CIRCLE_CLIENT_KEY || "").trim();
+  const clientUrl = (import.meta.env.VITE_CIRCLE_CLIENT_URL || "").trim();
+  const recipient = (import.meta.env.VITE_SHADOW_ROUTER || "").trim() as Address;
+
+  const initial: ModularWalletState =
+    !clientKey || !clientUrl
+      ? {
+          kind: "configMissing",
+          reason:
+            "Set VITE_CIRCLE_CLIENT_KEY and VITE_CIRCLE_CLIENT_URL in your env (Circle Console → Modular Wallets) to enable passkey onboarding + Gas Station.",
+        }
+      : { kind: "idle" };
+
+  const [state, setState] = useState<ModularWalletState>(initial);
+
+  async function loadCredential(): Promise<WebAuthnCredential | null> {
+    try {
+      const raw = sessionStorage.getItem(CREDENTIAL_STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as WebAuthnCredential;
+    } catch {
+      return null;
+    }
+  }
+
+  function persistCredential(cred: WebAuthnCredential) {
+    try {
+      sessionStorage.setItem(CREDENTIAL_STORAGE_KEY, JSON.stringify(cred));
+    } catch {
+      // sessionStorage failures are non-fatal — credential survives only this tab
+    }
+  }
+
+  async function withSmartAccount(cred: WebAuthnCredential) {
+    const modularTransport = toModularTransport(`${clientUrl}/arcTestnet`, clientKey);
+    const client = createClient({
+      chain: arcTestnet,
+      transport: modularTransport,
+    }) as any;
+    const smartAccount = await toCircleSmartAccount({ client, owner: cred as any });
+    const bundler = createBundlerClient({
+      account: smartAccount,
+      chain: arcTestnet,
+      transport: modularTransport,
+      paymaster: true,
+    } as any);
+    return { smartAccount, bundler };
+  }
+
+  async function onRegister() {
+    setState({ kind: "registering" });
+    try {
+      const passkeyTransport = toPasskeyTransport(clientUrl, clientKey);
+      const credential = await toWebAuthnCredential({
+        transport: passkeyTransport,
+        mode: WebAuthnMode.Register,
+        username: `shadow-${Date.now()}`,
+      });
+      persistCredential(credential);
+      setState({ kind: "deriving" });
+      const { smartAccount } = await withSmartAccount(credential);
+      setState({ kind: "ready", address: smartAccount.address, mode: "Register" });
+    } catch (err: any) {
+      setState({ kind: "error", message: err?.message || String(err) });
+    }
+  }
+
+  async function onLogin() {
+    setState({ kind: "loggingIn" });
+    try {
+      const stored = await loadCredential();
+      const passkeyTransport = toPasskeyTransport(clientUrl, clientKey);
+      const credential = stored
+        ? stored
+        : await toWebAuthnCredential({
+            transport: passkeyTransport,
+            mode: WebAuthnMode.Login,
+          });
+      persistCredential(credential);
+      setState({ kind: "deriving" });
+      const { smartAccount } = await withSmartAccount(credential);
+      setState({ kind: "ready", address: smartAccount.address, mode: "Login" });
+    } catch (err: any) {
+      setState({ kind: "error", message: err?.message || String(err) });
+    }
+  }
+
+  async function onSponsoredTip() {
+    if (state.kind !== "ready") return;
+    const accountAddress = state.address;
+    if (!recipient) {
+      setState({ kind: "error", message: "VITE_SHADOW_ROUTER not set; nothing to tip.", address: accountAddress });
+      return;
+    }
+    setState({ kind: "sending", stage: "loading passkey credential", address: accountAddress });
+    try {
+      const credential = await loadCredential();
+      if (!credential) throw new Error("Passkey credential missing — log in again.");
+      setState({ kind: "sending", stage: "encoding USDC transfer", address: accountAddress });
+      const { smartAccount, bundler } = await withSmartAccount(credential);
+      const transferData = encodeFunctionData({
+        abi: [
+          {
+            type: "function",
+            name: "transfer",
+            stateMutability: "nonpayable",
+            inputs: [
+              { name: "to", type: "address" },
+              { name: "amount", type: "uint256" },
+            ],
+            outputs: [{ name: "", type: "bool" }],
+          },
+        ],
+        functionName: "transfer",
+        args: [recipient, parseUnits("0.01", 6)],
+      });
+      setState({ kind: "sending", stage: "asking Circle Gas Station to sponsor", address: accountAddress });
+      const userOpHash = (await (bundler as any).sendUserOperation({
+        account: smartAccount,
+        calls: [
+          {
+            to: addresses.usdc as Address,
+            value: 0n,
+            data: transferData,
+          },
+        ],
+        paymaster: true,
+      })) as `0x${string}`;
+      setState({ kind: "sending", stage: "waiting for receipt", address: accountAddress });
+      const receipt = await (bundler as any).waitForUserOperationReceipt({ hash: userOpHash });
+      setState({
+        kind: "sent",
+        address: accountAddress,
+        userOpHash,
+        txHash: receipt?.receipt?.transactionHash,
+      });
+    } catch (err: any) {
+      setState({
+        kind: "error",
+        message: err?.shortMessage || err?.message || String(err),
+        address: accountAddress,
+      });
+    }
+  }
+
+  return (
+    <div className="modularCard">
+      <div className="modularHeader">
+        <span className="modularBadge">Modular Wallets · MSCA · ERC-4337</span>
+        <h3>Passkey onboarding with sponsored gas</h3>
+      </div>
+      {state.kind === "configMissing" ? (
+        <p className="modularEmpty">{(state as any).reason}</p>
+      ) : (
+        <>
+          <p className="modularBody">
+            Create a Circle MSCA owned by your device passkey, then send a 0.01 USDC
+            payment with <code>paymaster: true</code>. Circle Gas Station pays the
+            gas — followers can onboard without holding a single USDC for gas first.
+          </p>
+          <div className="modularButtons">
+            <button
+              type="button"
+              className="modularBtnPrimary"
+              onClick={onRegister}
+              disabled={state.kind === "registering" || state.kind === "loggingIn" || state.kind === "deriving" || state.kind === "sending"}
+            >
+              {state.kind === "registering" ? "Registering…" : "Register passkey"}
+            </button>
+            <button
+              type="button"
+              className="modularBtnSecondary"
+              onClick={onLogin}
+              disabled={state.kind === "registering" || state.kind === "loggingIn" || state.kind === "deriving" || state.kind === "sending"}
+            >
+              {state.kind === "loggingIn" ? "Logging in…" : "Login with passkey"}
+            </button>
+          </div>
+          {state.kind === "deriving" && <p className="modularInfo">Deriving smart account address…</p>}
+          {(state.kind === "ready" || state.kind === "sending" || state.kind === "sent" || (state.kind === "error" && (state as any).address)) && (
+            <div className="modularAccount">
+              <p>
+                <span>Smart account</span>{" "}
+                <code>{shortAddress((state as any).address)}</code>
+              </p>
+              <button
+                type="button"
+                className="modularBtnPrimary"
+                onClick={onSponsoredTip}
+                disabled={state.kind === "sending"}
+              >
+                {state.kind === "sending"
+                  ? `Sending… ${state.stage}`
+                  : "Send 0.01 USDC, gas sponsored by Circle"}
+              </button>
+            </div>
+          )}
+          {state.kind === "sent" && (
+            <p className="modularOk">
+              UserOp confirmed.{" "}
+              {state.txHash ? (
+                <a href={txUrl(state.txHash as `0x${string}`)} target="_blank" rel="noreferrer">
+                  view tx
+                </a>
+              ) : (
+                <span>UserOp hash: <code>{state.userOpHash.slice(0, 10)}…</code></span>
+              )}
+            </p>
+          )}
+          {state.kind === "error" && <p className="modularErr">{state.message}</p>}
+        </>
+      )}
     </div>
   );
 }

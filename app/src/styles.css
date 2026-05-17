@@ -1591,3 +1591,356 @@ h3 {
 .reputationStat.tone-negative strong {
   color: rgba(240, 140, 130, 0.95);
 }
+
+.appKitTip {
+  border-top: 1px solid rgba(246, 240, 220, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 16px;
+}
+
+.appKitTipButton {
+  align-self: flex-start;
+  background: rgba(120, 170, 255, 0.14);
+  border: 1px solid rgba(120, 170, 255, 0.45);
+  border-radius: 999px;
+  color: rgba(220, 232, 255, 0.95);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 8px 14px;
+  text-transform: uppercase;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.appKitTipButton:hover:not(:disabled) {
+  background: rgba(120, 170, 255, 0.22);
+  border-color: rgba(120, 170, 255, 0.7);
+}
+
+.appKitTipButton:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.appKitTipMeta {
+  color: rgba(246, 240, 220, 0.45);
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.appKitTipMeta code {
+  color: rgba(220, 232, 255, 0.75);
+  font-size: 10.5px;
+}
+
+.appKitTipOk {
+  color: rgba(140, 220, 160, 0.95);
+  font-size: 12px;
+  margin: 0;
+}
+
+.appKitTipOk a {
+  color: rgba(140, 220, 160, 0.95);
+  text-decoration: underline;
+}
+
+.appKitTipErr {
+  color: rgba(240, 140, 130, 0.95);
+  font-size: 12px;
+  margin: 0;
+}
+
+.circleStackPanel {
+  background: rgba(7, 9, 8, 0.7);
+  border: 1px solid rgba(120, 170, 255, 0.22);
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
+}
+
+.circleStackCaption {
+  color: rgba(246, 240, 220, 0.65);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 720px;
+}
+
+.circleStackCaption code {
+  color: rgba(220, 232, 255, 0.85);
+}
+
+.swapCard {
+  background: rgba(13, 16, 14, 0.6);
+  border: 1px solid rgba(246, 240, 220, 0.08);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.swapRow {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr auto 1fr;
+}
+
+.swapRow label {
+  background: rgba(7, 9, 8, 0.5);
+  border: 1px solid rgba(246, 240, 220, 0.1);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+}
+
+.swapRow label span {
+  color: rgba(246, 240, 220, 0.45);
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.swapRow label strong {
+  color: rgba(220, 232, 255, 0.95);
+  font-size: 18px;
+}
+
+.swapFlip {
+  background: rgba(120, 170, 255, 0.14);
+  border: 1px solid rgba(120, 170, 255, 0.45);
+  border-radius: 50%;
+  color: rgba(220, 232, 255, 0.95);
+  cursor: pointer;
+  font-size: 18px;
+  height: 38px;
+  width: 38px;
+}
+
+.swapFlip:hover:not(:disabled) {
+  background: rgba(120, 170, 255, 0.22);
+}
+
+.swapAmountField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.swapAmountField span {
+  color: rgba(246, 240, 220, 0.5);
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.swapAmountField input {
+  background: rgba(7, 9, 8, 0.6);
+  border: 1px solid rgba(246, 240, 220, 0.14);
+  border-radius: 10px;
+  color: rgba(246, 240, 220, 0.95);
+  font-family: inherit;
+  font-size: 16px;
+  padding: 12px 14px;
+}
+
+.swapSubmit {
+  background: rgba(120, 170, 255, 0.18);
+  border: 1px solid rgba(120, 170, 255, 0.55);
+  border-radius: 14px;
+  color: rgba(220, 232, 255, 0.95);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  padding: 12px 16px;
+  text-transform: uppercase;
+}
+
+.swapSubmit:hover:not(:disabled) {
+  background: rgba(120, 170, 255, 0.28);
+}
+
+.swapSubmit:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.swapOk {
+  color: rgba(140, 220, 160, 0.95);
+  font-size: 13px;
+  margin: 0;
+}
+
+.swapOk a {
+  color: rgba(140, 220, 160, 0.95);
+  text-decoration: underline;
+}
+
+.swapErr {
+  color: rgba(240, 140, 130, 0.95);
+  font-size: 13px;
+  margin: 0;
+}
+
+.circleStackGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.modularCard {
+  background: rgba(13, 16, 14, 0.6);
+  border: 1px solid rgba(180, 140, 240, 0.28);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.modularHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modularBadge {
+  align-self: flex-start;
+  background: rgba(180, 140, 240, 0.12);
+  border: 1px solid rgba(180, 140, 240, 0.42);
+  border-radius: 999px;
+  color: rgba(220, 200, 255, 0.95);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  padding: 4px 10px;
+  text-transform: uppercase;
+}
+
+.modularHeader h3 {
+  color: rgba(246, 240, 220, 0.95);
+  font-size: 16px;
+  margin: 4px 0 0;
+}
+
+.modularBody {
+  color: rgba(246, 240, 220, 0.65);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.modularBody code,
+.modularAccount code {
+  color: rgba(220, 200, 255, 0.85);
+}
+
+.modularButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.modularBtnPrimary,
+.modularBtnSecondary {
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 10px 14px;
+  text-transform: uppercase;
+}
+
+.modularBtnPrimary {
+  background: rgba(180, 140, 240, 0.2);
+  border: 1px solid rgba(180, 140, 240, 0.55);
+  color: rgba(230, 210, 255, 0.96);
+}
+
+.modularBtnPrimary:hover:not(:disabled) {
+  background: rgba(180, 140, 240, 0.3);
+}
+
+.modularBtnSecondary {
+  background: transparent;
+  border: 1px solid rgba(180, 140, 240, 0.32);
+  color: rgba(230, 210, 255, 0.85);
+}
+
+.modularBtnSecondary:hover:not(:disabled) {
+  background: rgba(180, 140, 240, 0.08);
+}
+
+.modularBtnPrimary:disabled,
+.modularBtnSecondary:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.modularInfo {
+  color: rgba(220, 200, 255, 0.7);
+  font-size: 12px;
+  margin: 0;
+}
+
+.modularAccount {
+  background: rgba(7, 9, 8, 0.55);
+  border: 1px solid rgba(180, 140, 240, 0.2);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.modularAccount p {
+  color: rgba(246, 240, 220, 0.8);
+  font-size: 12px;
+  margin: 0;
+}
+
+.modularAccount p span {
+  color: rgba(246, 240, 220, 0.5);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.modularEmpty {
+  color: rgba(246, 240, 220, 0.55);
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.modularOk {
+  color: rgba(140, 220, 160, 0.95);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.modularOk a {
+  color: rgba(140, 220, 160, 0.95);
+  text-decoration: underline;
+}
+
+.modularOk code {
+  color: rgba(140, 220, 160, 0.85);
+}
+
+.modularErr {
+  color: rgba(240, 140, 130, 0.95);
+  font-size: 12.5px;
+  margin: 0;
+}
