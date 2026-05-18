@@ -1,0 +1,45 @@
+name: split-spotlight
+
+on:
+  schedule:
+    - cron: "5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: split-spotlight
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ARC_RPC_URL: ${{ secrets.ARC_RPC_URL }}
+      ARC_USDC: ${{ secrets.ARC_USDC }}
+      SHADOW_ROUTER: ${{ secrets.SHADOW_ROUTER }}
+      SHADOW_ARCETH: ${{ secrets.SHADOW_ARCETH }}
+      SHADOW_AMM: ${{ secrets.SHADOW_AMM }}
+      KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+      KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: install agent deps
+        working-directory: agent
+        run: pnpm install --no-frozen-lockfile --ignore-workspace
+      - name: top up follower B router balance
+        working-directory: agent
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          FOLLOWER_B_PRIVATE_KEY: ${{ secrets.FOLLOWER_B_PRIVATE_KEY }}
+        run: pnpm --ignore-workspace exec tsx src/topup-follower-b.ts
+      - name: publish guaranteed split-outcome intent
+        working-directory: agent
+        env:
+          CAT_AGENT_PRIVATE_KEY: ${{ secrets.CAT_AGENT_PRIVATE_KEY }}
+        run: pnpm --ignore-workspace exec tsx src/verify-slippage.ts

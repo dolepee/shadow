@@ -21,7 +21,7 @@ const erc20Abi = parseAbi([
   "function balanceOf(address) view returns (uint256)",
 ]);
 
-type Body = { address?: string };
+type Body = { address?: string; demoCode?: string };
 type KVConfig = { url: string; token: string };
 
 type VercelLikeResponse = {
@@ -46,6 +46,19 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
   }
 
   const body = parseBody(req.body);
+
+  const expectedCode = process.env.SHADOW_DEMO_CODE?.trim();
+  if (!expectedCode) {
+    res.status(503).json({ error: "demo funding disabled (SHADOW_DEMO_CODE not configured)" });
+    return;
+  }
+  const headerCode = headerValue(req.headers, "x-shadow-demo-code");
+  const submittedCode = (body.demoCode || headerCode || "").trim();
+  if (submittedCode !== expectedCode) {
+    res.status(403).json({ error: "invalid demo code" });
+    return;
+  }
+
   if (!body.address || !isAddress(body.address)) {
     res.status(400).json({ error: "address required (EVM hex)" });
     return;
@@ -139,6 +152,20 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       error: err?.shortMessage || err?.message || "fund failed",
     });
   }
+}
+
+function headerValue(
+  headers: Record<string, string | string[] | undefined> | undefined,
+  name: string,
+): string | undefined {
+  if (!headers) return undefined;
+  const lower = name.toLowerCase();
+  for (const [k, v] of Object.entries(headers)) {
+    if (k.toLowerCase() === lower) {
+      return Array.isArray(v) ? v[0] : v;
+    }
+  }
+  return undefined;
 }
 
 function parseBody(raw: unknown): Body {

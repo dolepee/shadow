@@ -115,13 +115,31 @@ type VerifyOutcome = VerifyResult | VerifyDiagnostic;
 let lastRun: { at: number; result: VerifyResult } | null = null;
 let inFlight: Promise<VerifyOutcome> | null = null;
 
-export default async function handler(req: { method?: string }, res: VercelLikeResponse) {
+export default async function handler(
+  req: {
+    method?: string;
+    body?: unknown;
+    headers?: Record<string, string | string[] | undefined>;
+  },
+  res: VercelLikeResponse,
+) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json");
 
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ error: "method not allowed, use POST" });
+    return;
+  }
+
+  const expectedCode = process.env.SHADOW_DEMO_CODE?.trim();
+  if (!expectedCode) {
+    res.status(503).json({ error: "demo verify disabled (SHADOW_DEMO_CODE not configured)" });
+    return;
+  }
+  const submittedCode = readDemoCode(req).trim();
+  if (submittedCode !== expectedCode) {
+    res.status(403).json({ error: "invalid demo code" });
     return;
   }
 
@@ -432,3 +450,30 @@ type VercelLikeResponse = {
   status(code: number): VercelLikeResponse;
   json(body: unknown): void;
 };
+
+function readDemoCode(req: {
+  body?: unknown;
+  headers?: Record<string, string | string[] | undefined>;
+}): string {
+  if (req.headers) {
+    for (const [k, v] of Object.entries(req.headers)) {
+      if (k.toLowerCase() === "x-shadow-demo-code") {
+        return Array.isArray(v) ? v[0] || "" : v || "";
+      }
+    }
+  }
+  if (req.body) {
+    let parsed: { demoCode?: string } | null = null;
+    if (typeof req.body === "string") {
+      try {
+        parsed = JSON.parse(req.body) as { demoCode?: string };
+      } catch {
+        parsed = null;
+      }
+    } else if (typeof req.body === "object") {
+      parsed = req.body as { demoCode?: string };
+    }
+    if (parsed?.demoCode) return parsed.demoCode;
+  }
+  return "";
+}

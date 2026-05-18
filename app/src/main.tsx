@@ -313,7 +313,12 @@ function App() {
     setVerifying(true);
     setVerifyError(null);
     try {
-      const response = await fetch("/api/verify-slippage", { method: "POST" });
+      const demoCode = ((import.meta as any).env?.VITE_SHADOW_DEMO_CODE as string | undefined) || "";
+      const response = await fetch("/api/verify-slippage", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-shadow-demo-code": demoCode },
+        body: JSON.stringify({ demoCode }),
+      });
       const data = (await response.json()) as VerifyResponse & { error?: string };
       if (!response.ok || data.error) {
         throw new Error(data.error || `request failed with ${response.status}`);
@@ -3170,10 +3175,11 @@ function ModularWalletCard() {
     if (!addr) return;
     setState({ kind: "funding", address: addr });
     try {
+      const demoCode = ((import.meta as any).env?.VITE_SHADOW_DEMO_CODE as string | undefined) || "";
       const res = await fetch("/api/fund-smart-account", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ address: addr }),
+        headers: { "content-type": "application/json", "x-shadow-demo-code": demoCode },
+        body: JSON.stringify({ address: addr, demoCode }),
       });
       const json = (await res.json()) as {
         funded?: boolean;

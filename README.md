@@ -53,7 +53,6 @@ The integration test: if we removed this path, the smart account onboarding beco
 Other Circle products in use:
 
 * `AppKit.send` powers the per source tip buttons (one click USDC tips to source agents). Load bearing for the source builder fee loop.
-* `AppKit.swap` is wired in code (call site preserved in `src/main.tsx`) but hidden from the homepage because Arc Testnet is not yet in Circle's stablecoin routing graph. We will light it up the moment Arc appears in the graph, no code change needed.
 
 ## Try it in 30 seconds
 
@@ -84,15 +83,33 @@ pnpm agent:headless-follower
 
 The only Shadow surface that requires a human is the Circle Modular Wallets + Gas Station path, and only because WebAuthn passkeys are device bound by design. Any pure agent skips that path and goes EOA, which is exactly what `headless-follower` does.
 
+* **Agent-facing follow planner.** `POST /api/agent/follow-plan` accepts `{ sourceAgent, follower, preset }` and returns ready to sign calldata for `approve`, `depositUSDC`, and `followSource` against the live Arc router, plus the policy summary and expected receipt behavior. Agents that hold a private key can hit this endpoint, sign the three transactions, and onboard without parsing the dashboard.
+
+```bash
+curl -X POST https://shadow-two-opal.vercel.app/api/agent/follow-plan \
+  -H "content-type: application/json" \
+  -d '{"sourceAgent":"0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8","follower":"0x0000000000000000000000000000000000000000","preset":"balanced"}'
+```
+
 ## Rubric fit (30 / 30 / 20 / 20)
 
 **Agentic Sophistication (30%).** Two cooperating autonomous surfaces. The source side runs as a GitHub Actions cron that publishes content addressed intents every 10 minutes with no human, and the follower side can run fully headless through `agent/src/headless-follower.ts`, which generates an EOA, funds itself, follows a source, watches receipts, and closes COPIED positions onchain. The dashboard is one access path, not the protocol. Shadow Pilot sits inside this same agent surface as a multi step onchain agent. It reads live source reputation from `MirrorRouter` and `SourceRegistry`, calls the Bankr LLM gateway to weight a deposit across 1 to 3 sources, anchors the SHA 256 decision hash onchain through `PilotAttestor.attest`, then commits the plan as approve plus deposit plus `followSource` per slice. After commit, the same agent runs Live Monitor: it rescores active follows from fresh chain state (last receipts, closes, builder fees, PnL), classifies each source as healthy / watch / stop, and proposes a re plan that anchors a new decision hash if a watch trips. Underneath it, three cron source agents publish content addressed intents every 10 minutes from GitHub Actions and `MirrorRouter` evaluates each follower policy onchain at intent time, emitting a receipt per follower with the exact block reason if denied. Every decision boundary that matters is enforced onchain, not in the browser.
 
-**Traction (30%).** Real users with real onchain receipts. The table above lists five distinct follower addresses on a single intent, each having bound USDC to a policy that the router enforced. The passkey smart account in the table onboarded through Circle Gas Station and is a real follower, not a placeholder. Follow count, intents published, mirrored USDC, and blocked receipts are visible on the dashboard hero stats and are read directly from chain logs.
+**Traction (30%).** Real follower wallets with real onchain receipts. The table above lists five distinct follower addresses on a single intent, each having bound USDC to a policy that the router enforced. The passkey smart account in the table onboarded through Circle Gas Station and produced a live onchain receipt, not a placeholder. Follow count, intents published, mirrored USDC, and blocked receipts are visible on the dashboard hero stats and are read directly from chain logs. External follower receipts will be appended to the section below as they land.
 
-**Circle Tool Usage (20%).** Two load bearing integrations: Modular Wallets plus Gas Station for sponsored follower onboarding (`src/main.tsx` `ModularWalletCard`), and AppKit.send for per source tipping. Each one passes the integration test: removing it degrades the product. The AppKit.swap call site stays in code so the homepage lights up when Arc Testnet enters Circle's stablecoin routing graph.
+**Circle Tool Usage (20%).** Two load bearing integrations: Modular Wallets plus Gas Station for sponsored follower onboarding (`src/main.tsx` `ModularWalletCard`), and AppKit.send for per source tipping. Each one passes the integration test: removing it degrades the product.
 
 **Innovation (20%).** The novel primitive is slippage each follower owns. A source publishing a tight `minAmountOut` no longer cascade reverts a batch of followers, because each follower's `minBpsOut` is evaluated against the live quote at the receipt event. Sponsored ERC-4337 onboarding for copy trading is unusual in this space; most copy trading products require the follower to hold the chain's gas token first.
+
+## External follower receipts
+
+Followers outside the deployer that produced live onchain receipts. Each row is an independent wallet that bound USDC to a policy and was evaluated by `MirrorRouter` against a published intent.
+
+| follower | onboarded via | action | tx |
+| --- | --- | --- | --- |
+| _to be appended_ | | | |
+
+The dashboard live feed shows every receipt as it lands. This table is the short list of receipts from wallets the protocol owner did not seed.
 
 ## Architecture
 
