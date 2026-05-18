@@ -10,13 +10,23 @@
       "permanent": true
     },
     {
-      "source": "/:path+",
+      "source": "/((?!\\.well-known).+)",
       "has": [{ "type": "host", "value": "shadow-two-opal.vercel.app" }],
-      "destination": "https://shadow-arc.vercel.app/:path+",
+      "destination": "https://shadow-arc.vercel.app/$1",
       "permanent": true
     }
   ],
+  "headers": [
+    {
+      "source": "/.well-known/webauthn",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Cache-Control", "value": "public, max-age=300" }
+      ]
+    }
+  ],
   "rewrites": [
-    { "source": "/((?!api|assets|favicon).*)", "destination": "/index.html" }
+    { "source": "/((?!api|assets|favicon|\\.well-known).*)", "destination": "/index.html" }
   ]
 }
