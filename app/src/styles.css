@@ -4289,6 +4289,11 @@ code {
   text-transform: uppercase;
 }
 
+.modularAlreadyFollowing {
+  align-self: center;
+  padding: 10px 14px;
+}
+
 .modularBtnPrimary,
 .modularBtnSecondary {
   border-radius: 8px;

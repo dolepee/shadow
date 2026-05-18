@@ -3537,16 +3537,22 @@ function ModularWalletCard() {
                         : "Funded ✓ — re-fund"
                       : "Fund smart account (0.05 USDC)"}
                 </button>
-                <button
-                  type="button"
-                  className="modularBtnPrimary"
-                  onClick={onSponsoredFollow}
-                  disabled={state.kind === "sending" || state.kind === "funding"}
-                >
-                  {state.kind === "sending"
-                    ? `Following… ${state.stage}`
-                    : `Follow ${selectedSource.name} (approve, deposit, followSource, sponsored)`}
-                </button>
+                {followerPolicy?.active ? (
+                  <span className="modularChipOk modularAlreadyFollowing">
+                    Already following {selectedSource.name} ✓
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="modularBtnPrimary"
+                    onClick={onSponsoredFollow}
+                    disabled={state.kind === "sending" || state.kind === "funding"}
+                  >
+                    {state.kind === "sending"
+                      ? `Following… ${state.stage}`
+                      : `Follow ${selectedSource.name} (approve, deposit, followSource, sponsored)`}
+                  </button>
+                )}
                 {(followerPolicy?.active || state.kind === "sent") && (
                   <button
                     type="button"
