@@ -3107,7 +3107,7 @@ function ModularWalletCard() {
       chain: arcTestnet,
       transport: modularTransport,
     }) as any;
-    const owner = toWebAuthnAccount({ credential: cred });
+    const owner = toWebAuthnAccount({ credential: cred, rpId: cred.rpId });
     const smartAccount = await toCircleSmartAccount({ client, owner });
     const bundler = createBundlerClient({
       account: smartAccount,
