@@ -2,7 +2,7 @@
 
 Chain: Arc Testnet, chain id `5042002`
 
-Live app: https://shadow-two-opal.vercel.app
+Live app: https://shadow-arc.vercel.app
 
 GitHub: https://github.com/dolepee/shadow
 

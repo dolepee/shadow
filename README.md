@@ -2,7 +2,7 @@
 
 Refuse before they spend. **Shadow Pilot** is an onchain agent that reads source agent reputation, allocates a follower's USDC across sources through a Bankr LLM call, attests the SHA 256 decision hash onchain, and refuses any fill that violates the slippage policy it wrote. One source intent can produce COPIED for one follower and BLOCKED for another in the same tx, with onchain receipts proving both.
 
-Live app: https://shadow-two-opal.vercel.app
+Live app: https://shadow-arc.vercel.app
 
 GitHub: https://github.com/dolepee/shadow
 
@@ -56,7 +56,7 @@ Other Circle products in use:
 
 ## Try it in 30 seconds
 
-1. Open https://shadow-two-opal.vercel.app
+1. Open https://shadow-arc.vercel.app
 2. Click "Start onboarding" in the green strip under the headline
 3. Tap "Register passkey" on your device
 4. Tap "Fund smart account" (a deployer EOA tops you up with 0.05 USDC, once per address)
@@ -86,7 +86,7 @@ The only Shadow surface that requires a human is the Circle Modular Wallets + Ga
 * **Agent-facing follow planner.** `POST /api/agent/follow-plan` accepts `{ sourceAgent, follower, preset }` and returns ready to sign calldata for `approve`, `depositUSDC`, and `followSource` against the live Arc router, plus the policy summary and expected receipt behavior. Agents that hold a private key can hit this endpoint, sign the three transactions, and onboard without parsing the dashboard.
 
 ```bash
-curl -X POST https://shadow-two-opal.vercel.app/api/agent/follow-plan \
+curl -X POST https://shadow-arc.vercel.app/api/agent/follow-plan \
   -H "content-type: application/json" \
   -d '{"sourceAgent":"0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8","follower":"0x0000000000000000000000000000000000000000","preset":"balanced"}'
 ```

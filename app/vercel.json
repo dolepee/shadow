@@ -2,6 +2,20 @@
   "framework": null,
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "shadow-two-opal.vercel.app" }],
+      "destination": "https://shadow-arc.vercel.app/",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "shadow-two-opal.vercel.app" }],
+      "destination": "https://shadow-arc.vercel.app/:path+",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/((?!api|assets|favicon).*)", "destination": "/index.html" }
   ]

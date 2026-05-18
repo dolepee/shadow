@@ -27,8 +27,8 @@ import { defineChain } from "viem";
 
 loadEnvFile();
 
-const PILOT_API = process.env.PILOT_API || "https://shadow-two-opal.vercel.app/api/pilot";
-const STATE_API = process.env.STATE_API || "https://shadow-two-opal.vercel.app/api/state";
+const PILOT_API = process.env.PILOT_API || "https://shadow-arc.vercel.app/api/pilot";
+const STATE_API = process.env.STATE_API || "https://shadow-arc.vercel.app/api/state";
 const EXPLORER = "https://explorer.testnet.arc-node.thecanteenapp.com";
 const EXECUTE = process.argv.includes("--execute");
 
