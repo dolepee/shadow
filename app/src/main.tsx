@@ -3213,16 +3213,25 @@ function ModularWalletCard() {
     } catch (err: any) {
       const msg = err?.message || String(err);
       const name = err?.name || "";
-      const isDuplicate =
+      const explicitDuplicate =
         name === "InvalidStateError" ||
         /InvalidStateError|already.*passkey|already.*registered|already.*enrolled/i.test(
           msg,
         );
+      const browserDedupCloak =
+        name === "NotAllowedError" ||
+        /timed out or was not allowed|talking to the credential manager|operation.*not allowed/i.test(
+          msg,
+        );
+      const blockedByExisting =
+        restoreCreate !== null && (explicitDuplicate || browserDedupCloak);
       setState({
         kind: "error",
-        message: isDuplicate
-          ? "This device already has a Shadow passkey. Tap Login to use it, or register from a different device for a new account."
-          : msg,
+        message: blockedByExisting
+          ? "This device already has a Shadow passkey (or the prompt was cancelled). Tap Login to use the existing passkey, or register from a different device for a new account."
+          : explicitDuplicate
+            ? "This device already has a Shadow passkey. Tap Login to use it, or register from a different device for a new account."
+            : msg,
       });
     } finally {
       restoreCreate?.();
