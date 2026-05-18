@@ -512,6 +512,7 @@ export type EarnedReputation = {
   mirrorFeesUSDC: bigint;
   closedCount: number;
   realizedPnlAvgBps: number | null;
+  lastIntent: IntentLog | null;
 };
 
 // Earned reputation is what the source has actually done on-chain: how many
@@ -523,9 +524,16 @@ export function computeEarnedReputation(state: ShadowState): EarnedReputation[] 
   return state.sources
     .map((source) => {
       const key = source.address.toLowerCase();
-      const intentsPublished = state.intents.filter(
+      const ownIntents = state.intents.filter(
         (intent) => intent.sourceAgent.toLowerCase() === key,
-      ).length;
+      );
+      const intentsPublished = ownIntents.length;
+      const lastIntent =
+        ownIntents.length === 0
+          ? null
+          : ownIntents.reduce((best, current) =>
+              current.blockNumber > best.blockNumber ? current : best,
+            );
       const sourceReceipts = state.receipts.filter(
         (receipt) => receipt.sourceAgent.toLowerCase() === key,
       );
@@ -555,6 +563,7 @@ export function computeEarnedReputation(state: ShadowState): EarnedReputation[] 
         mirrorFeesUSDC,
         closedCount: closes.length,
         realizedPnlAvgBps,
+        lastIntent,
       };
     })
     .sort((a, b) => {

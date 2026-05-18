@@ -1,0 +1,8 @@
+{
+  "framework": null,
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/((?!api|assets|favicon).*)", "destination": "/index.html" }
+  ]
+}

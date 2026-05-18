@@ -15,7 +15,8 @@
     "topup-gas": "tsx src/topup-gas.ts",
     "topup-follower-b": "tsx src/topup-follower-b.ts",
     "close-position": "tsx src/close-position.ts",
-    "pilot-execute": "tsx src/pilot-execute.ts"
+    "pilot-execute": "tsx src/pilot-execute.ts",
+    "headless-follower": "tsx src/headless-follower.ts"
   },
   "dependencies": {
     "viem": "^2.41.0"

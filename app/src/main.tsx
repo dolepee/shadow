@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import {
+  BrowserRouter,
+  Link,
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { createWalletClient, custom, keccak256, parseUnits, stringToBytes, type Address, type Hash, type Hex } from "viem";
 import { AppKit } from "@circle-fin/app-kit";
 import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
@@ -9,6 +19,7 @@ import {
   toPasskeyTransport,
   toWebAuthnCredential,
   WebAuthnMode,
+  getUserOperationGasPrice,
   type WebAuthnCredential,
 } from "@circle-fin/modular-wallets-core";
 import { createBundlerClient, toWebAuthnAccount } from "viem/account-abstraction";
@@ -345,7 +356,7 @@ function App() {
       return;
     }
     if (!selectedSource) {
-      setAction({ label: "follow blocked", error: "Pick a source agent." });
+      setAction({ label: "follow blocked", error: "Pick a trader." });
       return;
     }
     let parsedDeposit: bigint;
@@ -435,7 +446,7 @@ function App() {
       return;
     }
     if (state.sources.length === 0) {
-      setPilotError("No source agents registered yet.");
+      setPilotError("No traders registered yet.");
       return;
     }
     const amt = Number(pilotAmount);
@@ -702,98 +713,156 @@ function App() {
     }
   }
 
-  return (
-    <main className="shell">
-      <nav className="nav">
-        <span className="brand">Shadow</span>
-        <div className="navActions">
-          <span>Arc testnet</span>
-          <button onClick={connectWallet}>{account ? shortAddress(account) : "connect wallet"}</button>
-        </div>
-      </nav>
+  const navigate = useNavigate();
 
-      <section className="hero">
-        <p className="eyebrow">agent intent following</p>
-        <h1>Follow AI trading agents with policy controlled USDC mirroring.</h1>
-        <p className="lede">
-          A source agent publishes an intent. Shadow checks each follower policy. One follower can copy through a controlled
-          Arc testnet AMM while another is blocked with an onchain receipt. Source agents earn a 70% builder fee on every
-          mirrored swap.
-        </p>
-        {!isConfigured && (
-          <div className="warning">
-            Add Vite contract addresses after deployment to switch this dashboard from product shell to live mode.
+  const followFromAgents = (addr: Address) => {
+    setSelectedSource(addr);
+    navigate("/follow");
+  };
+
+  const homePage = (
+    <>
+      <section className="hero" id="top">
+        <div className="heroBackdrop" aria-hidden="true">
+          <span className="heroBackdropGrid" />
+          <span className="heroBackdropGlow heroBackdropGlow--graphite" />
+          <span className="heroBackdropGlow heroBackdropGlow--signal" />
+          <span className="heroBackdropTrail" />
+        </div>
+        <div className="heroGrid">
+          <div className="heroCopy">
+            <div className="heroBadge">
+              <span className="heroBadgeDot" />
+              live on arc testnet · chain 5042002
+            </div>
+            <h1>Follow AI trading agents. Keep your risk limits on-chain.</h1>
+            <p className="lede">
+              Pick an agent and set your rules. When it trades, Shadow either{" "}
+              <strong className="lede--copy">copies the swap to you</strong> or{" "}
+              <strong className="lede--block">blocks it because your policy says so</strong>. Every outcome is a receipt on Arc.
+            </p>
+            <div className="heroActions">
+              <Link to="/follow" className="heroCtaPrimary">
+                Start following
+                <span className="heroCtaArrow">→</span>
+              </Link>
+              <a href="#split" className="heroCtaSecondary">
+                Watch receipt split
+              </a>
+            </div>
+            <ul className="heroTrust" aria-label="Built on">
+              <li><span className="heroTrustDot heroTrustDot--signal" />Arc testnet</li>
+              <li><span className="heroTrustDot heroTrustDot--proof" />USDC escrow</li>
+              <li><span className="heroTrustDot heroTrustDot--proof" />Policy router</li>
+              <li><span className="heroTrustDot heroTrustDot--signal" />On-chain receipts</li>
+            </ul>
           </div>
-        )}
+          <HeroDiagram />
+        </div>
+        <HeroMetrics state={state} />
       </section>
 
-      <TractionStrip state={state} />
-
-      <TechnicalPrimitive state={state} />
-
-      <BuilderFeesBanner state={state} />
-
-      <HowItWorks />
-
-      {spotlight && (
-        <section className="spotlight">
-          <p className="eyebrow">policy split · live on Arc testnet</p>
-          <h2>One source intent. Two follower outcomes.</h2>
+      {spotlight ? (
+        <section className="spotlight" id="split">
+          <p className="eyebrow">same intent · two outcomes · live on Arc</p>
+          <h2>One agent trades. Your policy decides what happens to you.</h2>
           <p className="spotlightSummary">
             {sourceNameByAddress.get(spotlight.intent.sourceAgent.toLowerCase()) || shortAddress(spotlight.intent.sourceAgent)}{" "}
-            published intent #{spotlight.intent.intentId.toString()} for {formatUSDC(spotlight.intent.amountUSDC)} USDC.
-            The router fanned it out: one follower&apos;s policy let the swap through, another&apos;s blocked it. Both outcomes
-            settled in a single tx without cascade reverts.
+            wanted to swap {formatUSDC(spotlight.intent.amountUSDC)} USDC. Two followers were looking. One had room for it,
+            the other&apos;s risk rule said no. Both got an on-chain receipt in the same block.
           </p>
           <div className="spotlightGrid">
             <SpotlightCard
-              verdict="BLOCKED"
-              kind="blocked"
-              label="Follower · policy blocked"
-              follower={spotlight.blocked.follower}
-              receipt={spotlight.blocked}
-              detail={`Router emitted blocked receipt with reason "${spotlight.blocked.reason}". No swap, no fee, no debit.`}
-            />
-            <SpotlightCard
               verdict="COPIED"
               kind="copied"
-              label="Follower · policy allowed"
+              label="Follower A · policy let it through"
               follower={spotlight.copied.follower}
               receipt={spotlight.copied}
-              detail="Swap cleared through the controlled AMM. Mirror fee accrued and source builder fee routed."
+              detail="Within size, slippage, and daily cap. Swap went through. Mirror fee debited from this follower."
+            />
+            <div className="spotlightVs" aria-hidden="true">
+              <span className="spotlightVsLine" />
+              <span className="spotlightVsLabel">VS</span>
+              <span className="spotlightVsLine" />
+            </div>
+            <SpotlightCard
+              verdict="BLOCKED"
+              kind="blocked"
+              label="Follower B · policy refused"
+              follower={spotlight.blocked.follower}
+              receipt={spotlight.blocked}
+              detail={`Reason on chain: "${spotlight.blocked.reason}". Nothing was spent. The block is its own receipt.`}
             />
           </div>
 
           <div className="liveVerify">
             <div className="liveVerifyHeader">
-              <p className="eyebrow">don't trust the screenshot</p>
+              <p className="eyebrow">don&apos;t trust the screenshot</p>
               <p className="liveVerifyLede">
-                Publish a fresh intent right now. The button calls a Vercel function that signs as CatArb, picks an intent.minAmountOut to land between the two scaled minimums, waits for the MirrorReceipts, and prints them below. New onchain tx every click.
+                Publish a fresh intent right now. We sign as CatArb, pick a slippage that lands between the two followers&apos;
+                minimums, then print the on-chain receipts here. New transaction every click.
               </p>
             </div>
             <button className="liveVerifyButton" onClick={runVerify} disabled={verifying}>
-              {verifying ? "publishing intent…" : "run verify now"}
+              {verifying ? "publishing intent…" : "run live test"}
             </button>
             {verifyError && <div className="liveVerifyError">error: {verifyError}</div>}
             {verifyResult && <VerifyResultPanel result={verifyResult} />}
           </div>
         </section>
+      ) : (
+        <SplitMomentFallback />
       )}
 
-      <PilotCard
-        amount={pilotAmount}
-        onAmountChange={setPilotAmount}
-        risk={pilotRisk}
-        onRiskChange={setPilotRisk}
-        plan={pilotPlan}
-        loading={pilotLoading}
-        error={pilotError}
-        executing={pilotExecuting}
-        onRun={runPilot}
-        onExecute={executePilot}
-        sourcesCount={state?.sources.length || 0}
-      />
+      <TractionStrip state={state} />
 
+      <section className="pageNext">
+        <Link to="/agents" className="pageNextCard">
+          <span className="pageNextEyebrow">agents</span>
+          <span className="pageNextTitle">See the three source AI traders</span>
+          <span className="pageNextArrow">→</span>
+        </Link>
+        <Link to="/follow" className="pageNextCard">
+          <span className="pageNextEyebrow">follow</span>
+          <span className="pageNextTitle">Pick a preset and start mirroring</span>
+          <span className="pageNextArrow">→</span>
+        </Link>
+        <Link to="/receipts" className="pageNextCard">
+          <span className="pageNextEyebrow">receipts</span>
+          <span className="pageNextTitle">Watch the live copied vs blocked feed</span>
+          <span className="pageNextArrow">→</span>
+        </Link>
+      </section>
+    </>
+  );
+
+  const agentsPage = (
+    <>
+      <section className="pageHead">
+        <p className="pageEyebrow">agents · earned reputation</p>
+        <h1 className="pageTitle">Three AI traders. Public copy and block history.</h1>
+        <p className="pageLede">
+          Every stat is computed from on-chain receipts on Arc. No off-chain leaderboard, no curated numbers. Pick the one whose
+          discipline matches your risk and follow them with your own policy.
+        </p>
+      </section>
+      <EarnedReputationPanel
+        rows={state ? computeEarnedReputation(state) : []}
+        onFollow={followFromAgents}
+      />
+      <HowItWorks />
+    </>
+  );
+
+  const followPage = (
+    <>
+      <section className="pageHead">
+        <p className="pageEyebrow">follow · onboarding</p>
+        <h1 className="pageTitle">Set your policy. Deposit USDC. Mirror an agent.</h1>
+        <p className="pageLede">
+          Pick a preset for slippage, daily cap, and risk tolerance. Shadow enforces every rule on-chain through the router.
+        </p>
+      </section>
       <FollowFlow
         sources={state?.sources || []}
         selectedSource={selectedSource}
@@ -810,7 +879,6 @@ function App() {
         userFollows={userFollows}
         connectWallet={connectWallet}
       />
-
       {account && userFollows.size > 0 && state && (
         <PilotMonitor
           state={state}
@@ -821,7 +889,6 @@ function App() {
           loading={pilotLoading}
         />
       )}
-
       {account && (userBalance > 0n || userFollows.size > 0) && (
         <ManagePanel
           sources={state?.sources || []}
@@ -834,9 +901,32 @@ function App() {
           managing={managing}
         />
       )}
+      <PilotCard
+        amount={pilotAmount}
+        onAmountChange={setPilotAmount}
+        risk={pilotRisk}
+        onRiskChange={setPilotRisk}
+        plan={pilotPlan}
+        loading={pilotLoading}
+        error={pilotError}
+        executing={pilotExecuting}
+        onRun={runPilot}
+        onExecute={executePilot}
+        sourcesCount={state?.sources.length || 0}
+      />
+      <CircleStackPanel />
+    </>
+  );
 
-      <LatestReasoningPanel data={reasoning} />
-
+  const receiptsPage = (
+    <>
+      <section className="pageHead">
+        <p className="pageEyebrow">receipts · live on Arc</p>
+        <h1 className="pageTitle">Every intent settles into a receipt.</h1>
+        <p className="pageLede">
+          Copied or blocked, per follower, in the same block. Every entry below is one event you can verify on Arc testnet.
+        </p>
+      </section>
       {state && (
         <LiveFeed
           receipts={feedReceipts}
@@ -852,6 +942,8 @@ function App() {
         />
       )}
 
+      <LatestReasoningPanel data={reasoning} />
+
       <section className="grid">
         <Stat label="registered agents" value={String(state?.sources.length || 0)} />
         <Stat label="intent receipts" value={String(state?.receipts.length || 0)} />
@@ -861,10 +953,6 @@ function App() {
         <Stat label="1 USDC quote" value={`${formatAsset(state?.quoteForOneUSDC || 0n)} ARCETH`} />
       </section>
 
-      <EarnedReputationPanel rows={state ? computeEarnedReputation(state) : []} />
-
-      <CircleStackPanel />
-
       <section className="panel">
         <Header eyebrow="controlled AMM" title="Real onchain exchange path, intentionally small" />
         <div className="reserveGrid">
@@ -873,8 +961,68 @@ function App() {
           <Stat label="next intent id" value={String(state?.nextIntentId || 1n)} />
         </div>
       </section>
+
+      <BuilderFeesBanner state={state} />
+
+      <TechnicalPrimitive state={state} />
+    </>
+  );
+
+  return (
+    <main className="shell">
+      <nav className="nav">
+        <Link className="brand" to="/" aria-label="Shadow">
+          <ShadowMark />
+          <span>Shadow</span>
+        </Link>
+        <div className="navLinks">
+          <NavLink to="/" end className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+            Split
+          </NavLink>
+          <NavLink to="/agents" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+            Agents
+          </NavLink>
+          <NavLink to="/follow" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+            Follow
+          </NavLink>
+          <NavLink to="/receipts" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+            Receipts
+          </NavLink>
+        </div>
+        <div className="navActions">
+          {account ? (
+            <button className="navWallet" onClick={connectWallet}>
+              {shortAddress(account)}
+            </button>
+          ) : (
+            <Link to="/follow" className="navCta">
+              Start following
+            </Link>
+          )}
+        </div>
+      </nav>
+
+      <RouteScroll />
+
+      <Routes>
+        <Route path="/" element={homePage} />
+        <Route path="/agents" element={agentsPage} />
+        <Route path="/follow" element={followPage} />
+        <Route path="/receipts" element={receiptsPage} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+      <SiteFooter />
     </main>
   );
+}
+
+function RouteScroll() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [pathname]);
+  return null;
 }
 
 function normalizeBytes32(hex: string): Hash {
@@ -939,32 +1087,30 @@ function HowItWorks() {
   const steps = [
     {
       num: "01",
-      title: "Source agent publishes",
-      body: "An AI agent emits a USDC denominated intent on Arc with a minBpsOut slippage hint.",
+      tone: "policy",
+      title: "Pick an AI trader",
+      body: "Browse trader reputation from real onchain receipts. CatArb, LobsterRisk, MomentumOtter — each with public copy and block history.",
     },
     {
       num: "02",
-      title: "Router checks each policy",
-      body: "Every follower has on chain limits. The router decides copy, block, or skip per follower.",
+      tone: "policy",
+      title: "Set USDC limit and risk policy",
+      body: "Deposit USDC into the router. Set max per intent, daily cap, allowed asset, and minimum slippage. Your rules sit onchain, not in a backend.",
     },
     {
       num: "03",
-      title: "AMM executes the swap",
-      body: "Approved follower USDC swaps through a controlled pool. Mirror fee splits to protocol and source.",
-    },
-    {
-      num: "04",
-      title: "Receipt and builder fee",
-      body: "Every outcome is a MirrorReceipt log. 70% of the swap fee accrues to the source as a builder fee, same primitive Polymarket V2 uses to pay routing flow. Anyone can read it onchain.",
+      tone: "outcome",
+      title: "Copy or block every intent, onchain",
+      body: "When the trader publishes, Shadow either copies the swap or refuses it with an onchain receipt that names the exact policy field. No surprises, no off chain matcher.",
     },
   ];
   return (
     <section className="howItWorks">
       <p className="eyebrow">how Shadow works</p>
-      <h2 className="howTitle">Four onchain steps from agent signal to follower receipt.</h2>
+      <h2 className="howTitle">Three steps from picking a trader to a verifiable receipt.</h2>
       <div className="howSteps">
         {steps.map((step) => (
-          <div className="howStep" key={step.num}>
+          <div className={`howStep howStep--${step.tone}`} key={step.num}>
             <span>{step.num}</span>
             <strong>{step.title}</strong>
             <p>{step.body}</p>
@@ -1010,22 +1156,23 @@ function FollowFlow({
     sources.find((s) => s.address.toLowerCase() === selectedSource?.toLowerCase())?.name || "a source";
   const preset = PRESETS[selectedPreset];
   return (
-    <section className="followFlow">
+    <section className="followFlow" id="start">
       <header className="followHeader">
-        <p className="eyebrow">become a follower</p>
-        <h2>Pick a source, pick a risk profile, follow in one flow.</h2>
+        <p className="eyebrow">start following · web2-readable</p>
+        <h2>Choose an agent. Set your risk. Done in four taps.</h2>
         <p className="lede">
-          Connect your wallet, deposit Arc USDC, and your wallet will mirror every intent the source agent publishes,
-          gated by the policy you choose. Each policy can be raised or lowered at any time.
+          You stay in your own wallet. Shadow holds your USDC in escrow and only spends it when an agent&apos;s trade
+          fits the rules you set. Raise or lower those rules whenever you want.
         </p>
       </header>
 
       <div className="followStep">
         <span className="stepNum">1</span>
         <div className="stepBody">
-          <h3>Pick a source agent</h3>
+          <h3>Pick your agent</h3>
+          <p className="stepHint">These are the live AI traders on Arc. You can change later.</p>
           <div className="sourceChoices">
-            {sources.length === 0 && <Empty text="No source agents registered yet." />}
+            {sources.length === 0 && <Empty text="No traders registered yet." />}
             {sources.map((source) => {
               const isSelected = selectedSource?.toLowerCase() === source.address.toLowerCase();
               const isFollowed = userFollows.has(source.address.toLowerCase());
@@ -1054,7 +1201,8 @@ function FollowFlow({
       <div className="followStep">
         <span className="stepNum">2</span>
         <div className="stepBody">
-          <h3>Pick a risk profile</h3>
+          <h3>Pick your risk rule</h3>
+          <p className="stepHint">This is the rule the router will check on every intent. Anything outside it gets blocked, on-chain.</p>
           <div className="presetChoices">
             {(Object.keys(PRESETS) as PresetKey[]).map((key) => {
               const p = PRESETS[key];
@@ -1096,12 +1244,12 @@ function FollowFlow({
       <div className="followStep">
         <span className="stepNum">3</span>
         <div className="stepBody">
-          <h3>Choose deposit</h3>
+          <h3>Deposit USDC</h3>
           <p className="stepHint">
-            USDC moves into the router escrow. Mirror fees come out of this balance. You can deposit zero if you have
-            already funded. Need Arc testnet USDC? Grab some from{" "}
+            This is the budget for mirroring. It sits in escrow until your rule lets a trade through. You can withdraw any
+            unused balance any time. Need testnet USDC?{" "}
             <a href="https://faucet.circle.com" target="_blank" rel="noreferrer noopener">
-              Circle's faucet
+              Grab some from Circle&apos;s faucet
             </a>
             .
           </p>
@@ -1119,6 +1267,14 @@ function FollowFlow({
         </div>
       </div>
 
+      <div className="followSummary">
+        <span className="followSummaryLabel">What you&apos;re about to do</span>
+        <p className="followSummaryBody">
+          Follow <strong>{selectedName}</strong> with the <strong>{preset.label.toLowerCase()}</strong> rule. Any of its
+          trades up to <strong>{preset.maxAmountPerIntent} USDC</strong> per intent gets copied to you. Anything over
+          that, or anything riskier than <strong>L{preset.maxRiskLevel}</strong>, gets blocked on-chain.
+        </p>
+      </div>
       <div className="followAction">
         {!account ? (
           <button className="followCta" onClick={connectWallet} type="button">
@@ -1126,7 +1282,7 @@ function FollowFlow({
           </button>
         ) : (
           <button className="followCta" onClick={onFollow} disabled={following} type="button">
-            {following ? "submitting…" : `follow ${selectedName} with ${preset.label.toLowerCase()} policy`}
+            {following ? "submitting…" : `Follow ${selectedName} now`}
           </button>
         )}
         <div className={action.error ? "followStatus error" : "followStatus"}>
@@ -1288,7 +1444,7 @@ function LatestReasoningPanel({ data }: { data: ReasoningResponse | null }) {
       <p className="reasoningRationale">{packet.rationale}</p>
       <dl className="reasoningGrid">
         <div>
-          <dt>source agent</dt>
+          <dt>trader</dt>
           <dd>{shortAddress(packet.sourceAgent as `0x${string}`)}</dd>
         </div>
         <div>
@@ -1364,14 +1520,14 @@ function LiveFeed({
     .sort((a, b) => Number(b.blockNumber - a.blockNumber))
     .slice(0, 4);
   return (
-    <section className="liveFeed">
+    <section className="liveFeed" id="live-feed">
       <div className="liveFeedHeader">
         <div>
           <p className="eyebrow">
             <span className={`livePulse ${loading ? "loading" : ""}`} />
             live activity · auto refresh
           </p>
-          <h2>Every onchain receipt across every source agent.</h2>
+          <h2>Every onchain receipt across every trader.</h2>
         </div>
         <div className="liveFeedMeta">
           <div>
@@ -1390,7 +1546,7 @@ function LiveFeed({
       </div>
       <div className="liveFeedList">
         {receipts.length === 0 && <div className="empty">No receipts yet. Cron fires every 10 minutes.</div>}
-        {receipts.map((receipt) => {
+        {receipts.map((receipt, index) => {
           const sourceName = sourceNameByAddress.get(receipt.sourceAgent.toLowerCase()) || shortAddress(receipt.sourceAgent);
           const blocksAgo = latestBlock && receipt.blockNumber ? Number(latestBlock - receipt.blockNumber) : 0;
           const receiptKey = `${receipt.follower.toLowerCase()}:${receipt.intentId.toString()}`;
@@ -1399,8 +1555,9 @@ function LiveFeed({
             Boolean(accountKey) &&
             receipt.follower.toLowerCase() === accountKey &&
             !closedByFollowerIntent.has(receiptKey);
+          const isFresh = index === 0;
           return (
-            <article className={`liveFeedRow ${receipt.status}`} key={`${receipt.transactionHash}-${receipt.follower}`}>
+            <article className={`liveFeedRow ${receipt.status}${isFresh ? " fresh" : ""}`} key={`${receipt.transactionHash}-${receipt.follower}`}>
               <span className={`liveBadge ${receipt.status}`}>{receipt.status === "copied" ? "COPIED" : "BLOCKED"}</span>
               <div className="liveFeedSource">
                 <strong>{sourceName}</strong>
@@ -1553,13 +1710,19 @@ function SpotlightCard({
 }) {
   return (
     <article className={`spotlightCard ${kind}`}>
-      <p className="eyebrow">{label}</p>
-      <h3>{verdict}</h3>
-      <span className="follower">{shortAddress(follower)}</span>
+      <div className="spotlightCardStamp">
+        <span className="spotlightCardStampMark">{kind === "copied" ? "✓" : "✕"}</span>
+        <span className="spotlightCardStampText">{verdict}</span>
+      </div>
+      <p className="spotlightCardLabel">{label}</p>
+      <p className="spotlightCardFollower">{shortAddress(follower)}</p>
       <dl className="spotlightStats">
         <div>
-          <dt>USDC routed</dt>
-          <dd>{formatUSDC(receipt.usdcAmount)}</dd>
+          <dt>amount</dt>
+          <dd className="spotlightCardAmount">
+            {kind === "copied" ? formatUSDC(receipt.usdcAmount) : "—"}
+            {kind === "copied" && <span className="spotlightCardAmountUnit">USDC</span>}
+          </dd>
         </div>
         {receipt.status === "copied" && (
           <div>
@@ -1575,14 +1738,14 @@ function SpotlightCard({
         )}
         {receipt.status === "blocked" && (
           <div>
-            <dt>block reason</dt>
+            <dt>rule fired</dt>
             <dd>{receipt.reason}</dd>
           </div>
         )}
       </dl>
       <p className="spotlightDetail">{detail}</p>
       <a className="spotlightLink" href={txUrl(receipt.transactionHash)} target="_blank" rel="noreferrer noopener">
-        receipt tx · {shortAddress(receipt.transactionHash)}
+        on-chain receipt · {shortAddress(receipt.transactionHash)} →
       </a>
     </article>
   );
@@ -1614,7 +1777,7 @@ function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
           <span className="builderFeesUnit">USDC</span>
         </h2>
         <p className="builderFeesCaption">
-          70% of every swap fee accrues to the source agent that routed the flow, settled by{" "}
+          70% of every swap fee accrues to the trader that routed the flow, settled by{" "}
           <code>MirrorRouter</code> at the receipt event from {sourceCount === 1 ? "one source" : `${sourceCount} sources`}.
           No off-chain accounting.
         </p>
@@ -1634,7 +1797,7 @@ function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
 }
 
 const PILOT_STAGES: Array<{ label: string; at: number }> = [
-  { label: "Reading onchain reputation for every source agent", at: 0 },
+  { label: "Reading onchain reputation for every trader", at: 0 },
   { label: "Asking deepseek to allocate your deposit across the best fits", at: 2.5 },
   { label: "Normalizing weights and matching presets to risk", at: 18 },
   { label: "Hashing decision and preparing onchain attestation", at: 22 },
@@ -1717,11 +1880,11 @@ function PilotCard({
   return (
     <section className="pilot">
       <header className="pilotHeader">
-        <p className="eyebrow">AI pilot · RFB 06 social trading intelligence</p>
+        <p className="eyebrow">AI pilot</p>
         <h2>Tell the AI your size and risk. It picks, weights, and watches.</h2>
         <p className="pilotLede">
-          The Pilot reads every source agent's onchain reputation, allocates your USDC across the best fits, and writes
-          watch signals you can act on. The follower stops being a manual picker and becomes a depositor with a goal.
+          The Pilot reads every trader's onchain reputation, allocates your USDC across the best fits, and writes
+          watch signals you can act on. You stop manually picking and become a depositor with a goal.
         </p>
       </header>
 
@@ -2030,6 +2193,268 @@ function ageLabel(seconds: number): string {
   return `${Math.floor(seconds / 86_400)}d`;
 }
 
+function SplitMomentFallback() {
+  return (
+    <section className="spotlight spotlight--fallback" id="split">
+      <p className="eyebrow">same intent · two outcomes</p>
+      <h2>One agent trades. Your policy decides what happens to you.</h2>
+      <p className="spotlightSummary">
+        A trader agent on Arc just wanted to swap 0.02 USDC. Two followers were watching with different rules.
+        One had room. One didn&apos;t. Here&apos;s exactly what happens.
+      </p>
+      <div className="spotlightGrid">
+        <article className="spotlightCard copied spotlightCard--demo">
+          <div className="spotlightCardStamp">
+            <span className="spotlightCardStampMark">✓</span>
+            <span className="spotlightCardStampText">COPIED</span>
+          </div>
+          <p className="spotlightCardLabel">Follower A · policy let it through</p>
+          <p className="spotlightCardFollower">0x82A2…DfeA</p>
+          <dl className="spotlightStats">
+            <div>
+              <dt>amount</dt>
+              <dd className="spotlightCardAmount">0.02 <span className="spotlightCardAmountUnit">USDC</span></dd>
+            </div>
+            <div>
+              <dt>max per intent</dt>
+              <dd>0.05 USDC</dd>
+            </div>
+            <div>
+              <dt>slippage rule</dt>
+              <dd>≥ 70 bps out</dd>
+            </div>
+          </dl>
+          <p className="spotlightDetail">Within size, slippage, and daily cap. Swap went through, receipt on chain.</p>
+        </article>
+        <div className="spotlightVs" aria-hidden="true">
+          <span className="spotlightVsLine" />
+          <span className="spotlightVsLabel">VS</span>
+          <span className="spotlightVsLine" />
+        </div>
+        <article className="spotlightCard blocked spotlightCard--demo">
+          <div className="spotlightCardStamp">
+            <span className="spotlightCardStampMark">✕</span>
+            <span className="spotlightCardStampText">BLOCKED</span>
+          </div>
+          <p className="spotlightCardLabel">Follower B · policy refused</p>
+          <p className="spotlightCardFollower">0xBD9B…3F87</p>
+          <dl className="spotlightStats">
+            <div>
+              <dt>amount</dt>
+              <dd className="spotlightCardAmount">—</dd>
+            </div>
+            <div>
+              <dt>max per intent</dt>
+              <dd>0.01 USDC</dd>
+            </div>
+            <div>
+              <dt>rule fired</dt>
+              <dd>amount_too_high</dd>
+            </div>
+          </dl>
+          <p className="spotlightDetail">Block receipt on chain, no debit. Follower stays exactly where they were.</p>
+        </article>
+      </div>
+      <p className="spotlightFootnote">
+        Live receipts populate this card once the next cron fires (every 10 minutes). The block reason on real receipts is whatever
+        rule your policy hit first.
+      </p>
+    </section>
+  );
+}
+
+function ShadowMark() {
+  return (
+    <svg className="shadowMark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="5" y="5" width="14" height="14" rx="2" className="shadowMarkBack" />
+      <rect x="11" y="11" width="16" height="16" rx="2" className="shadowMarkFront" />
+      <rect x="15" y="15" width="8" height="8" className="shadowMarkCore" />
+    </svg>
+  );
+}
+
+function HeroDiagram() {
+  return (
+    <div className="heroLedger" aria-hidden="true">
+      <div className="heroLedgerHeader">
+        <span className="heroLedgerHeaderTitle">
+          <span className="heroLedgerHeaderDot" />
+          Same intent · two outcomes
+        </span>
+        <span className="heroLedgerLive">
+          <span className="heroLedgerLiveDot" />
+          Arc · block 8 411 902
+        </span>
+      </div>
+
+      <div className="heroLedgerIntent">
+        <span className="heroLedgerIntentLabel">Agent intent</span>
+        <div className="heroLedgerIntentBody">
+          <span className="agentTag">CatArb</span>
+          <span className="heroLedgerIntentVerb">swap</span>
+          <span className="heroLedgerIntentNumber">0.02&nbsp;USDC</span>
+          <span className="heroLedgerIntentArrow">→</span>
+          <span className="heroLedgerIntentNumber">0.0185&nbsp;ARCETH</span>
+        </div>
+      </div>
+
+      <div className="heroLedgerSplit">
+        <div className="heroLedgerCell copied">
+          <div className="heroLedgerCellHead">
+            <span className="heroLedgerCellStatus">
+              <span className="heroLedgerCellDot" />
+              COPIED
+            </span>
+            <span className="heroLedgerCellAddr">0x82A2…DfeA</span>
+          </div>
+          <div className="heroLedgerCellMain">+0.0185</div>
+          <div className="heroLedgerCellUnit">ARCETH credited to follower</div>
+          <div className="heroLedgerCellMeta">
+            <span className="heroLedgerCellMetaLabel">policy</span>
+            <span className="heroLedgerCellMetaValue">within cap · slippage 32&nbsp;bps · builder fee 0.05%</span>
+          </div>
+        </div>
+        <div className="heroLedgerCell blocked">
+          <div className="heroLedgerCellHead">
+            <span className="heroLedgerCellStatus">
+              <span className="heroLedgerCellDot" />
+              BLOCKED
+            </span>
+            <span className="heroLedgerCellAddr">0xBD9B…3F87</span>
+          </div>
+          <div className="heroLedgerCellMain">0.00</div>
+          <div className="heroLedgerCellUnit">USDC copied · blocked before spend</div>
+          <div className="heroLedgerCellMeta">
+            <span className="heroLedgerCellMetaLabel">policy rule</span>
+            <span className="heroLedgerCellMetaValue">amount&nbsp;&gt;&nbsp;cap · 0.02&nbsp;USDC exceeds 0.01 cap</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="heroLedgerProof">
+        <span className="heroLedgerProofLabel">receipt</span>
+        <span className="heroLedgerProofHash">0x9f2a…c4e1</span>
+        <span className="heroLedgerProofSep" />
+        <span className="heroLedgerProofChain">chain&nbsp;5042002</span>
+        <span className="heroLedgerProofVerify">verified onchain</span>
+      </div>
+    </div>
+  );
+}
+
+function SiteFooter() {
+  const sections: Array<{ title: string; links: Array<{ label: string; href: string }> }> = [
+    {
+      title: "Product",
+      links: [
+        { label: "Onboarding", href: "#circle-stack" },
+        { label: "Live receipts", href: "#live-feed" },
+        { label: "AI pilot", href: "#technical" },
+      ],
+    },
+    {
+      title: "Traders",
+      links: [
+        { label: "Earned reputation", href: "#traders" },
+        { label: "Builder fees", href: "#technical" },
+      ],
+    },
+    {
+      title: "Resources",
+      links: [
+        { label: "Source on GitHub", href: "https://github.com/dolepee/shadow" },
+        { label: "Arc explorer", href: "https://arc-testnet.explorer.thecanteenapp.com" },
+        { label: "Chain ID 5042002", href: "https://arc-testnet.explorer.thecanteenapp.com" },
+      ],
+    },
+  ];
+
+  return (
+    <footer className="siteFooter">
+      <div className="siteFooterTop">
+        <div className="siteFooterBrand">
+          <a className="brand brandFooter" href="#top" aria-label="Shadow">
+            <ShadowMark />
+            <span>Shadow</span>
+          </a>
+          <p className="siteFooterTagline">
+            Copy the best AI traders on Arc. Every copy and every refusal is an onchain receipt.
+          </p>
+          <div className="siteFooterBadge">
+            <span className="heroBadgeDot" />
+            live on arc testnet · chain 5042002
+          </div>
+        </div>
+        <div className="siteFooterColumns">
+          {sections.map((s) => (
+            <div className="siteFooterColumn" key={s.title}>
+              <span className="siteFooterColumnTitle">{s.title}</span>
+              {s.links.map((l) => (
+                <a key={l.label} href={l.href} target={l.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer">
+                  {l.label}
+                </a>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="siteFooterBottom">
+        <span>Built for Canteen × Circle Agora Agents · 2026</span>
+        <span>Shadow · onchain copy trading</span>
+      </div>
+    </footer>
+  );
+}
+
+function HeroMetrics({ state }: { state: ShadowState | null }) {
+  const numbers = useMemo(() => {
+    if (!state) return { usdcMirrored: 0n, receipts: 0, traders: 0, followers: 0 };
+    let usdcMirrored = 0n;
+    const followers = new Set<string>();
+    for (const r of state.receipts) {
+      followers.add(r.follower.toLowerCase());
+      if (r.status === "copied") usdcMirrored += r.usdcAmount;
+    }
+    return {
+      usdcMirrored,
+      receipts: state.receipts.length,
+      traders: state.sources.length,
+      followers: followers.size,
+    };
+  }, [state]);
+
+  const items: Array<{ label: string; value: string }> = [
+    { label: "USDC mirrored", value: formatUSDC(numbers.usdcMirrored) },
+    { label: "onchain receipts", value: numbers.receipts.toString() },
+    { label: "AI traders live", value: numbers.traders.toString() },
+    { label: "followers", value: numbers.followers.toString() },
+  ];
+
+  const hasLiveData =
+    numbers.receipts > 0 || numbers.traders > 0 || numbers.followers > 0 || numbers.usdcMirrored > 0n;
+
+  if (!hasLiveData) {
+    return (
+      <div className="heroMetrics heroMetrics--syncing" role="group" aria-label="Syncing live Arc data">
+        <span className="heroMetricsSyncDot" />
+        <span className="heroMetricsSyncLabel">Live Arc receipts</span>
+        <span className="heroMetricsSyncHint">update as agents publish intents on chain 5042002</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="heroMetrics" role="group" aria-label="Live numbers from Arc testnet">
+      {items.map((m) => (
+        <div className="heroMetric" key={m.label}>
+          <span className="heroMetricValue">{m.value}</span>
+          <span className="heroMetricLabel">{m.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function TractionStrip({ state }: { state: ShadowState | null }) {
   const metrics = useMemo(() => {
     if (!state) {
@@ -2091,7 +2516,7 @@ function TractionStrip({ state }: { state: ShadowState | null }) {
     {
       label: "Intents published",
       value: metrics.intents.toString(),
-      sub: "by registered source agents",
+      sub: "by registered traders",
     },
     {
       label: "Receipts onchain",
@@ -2108,10 +2533,22 @@ function TractionStrip({ state }: { state: ShadowState | null }) {
     },
   ];
 
+  const hasAnyTraction =
+    metrics.wallets > 0 ||
+    metrics.intents > 0 ||
+    metrics.copiedReceipts > 0 ||
+    metrics.blockedReceipts > 0 ||
+    metrics.closes > 0 ||
+    metrics.usdcMirrored > 0n;
+
+  if (!hasAnyTraction) {
+    return null;
+  }
+
   return (
     <section className="traction" aria-label="Live traction">
       <div className="tractionHeader">
-        <p className="eyebrow">live traction · derived from onchain events</p>
+        <p className="eyebrow">the full picture · every metric derived from onchain events</p>
         <span className="tractionDot" /> <span className="tractionLive">live</span>
       </div>
       <div className="tractionGrid">
@@ -2154,7 +2591,7 @@ function TechnicalPrimitive({ state }: { state: ShadowState | null }) {
     {
       eyebrow: "primitive · canonical receipts",
       title: "MirrorReceipt is the source of truth",
-      body: "Both copied and blocked outcomes emit MirrorReceipt logs with usdcAmount, minBps applied, and the kickback paid. Every decision is independently verifiable by reading chain state.",
+      body: "Both copied and blocked outcomes emit onchain receipts with usdcAmount, minBps applied, and the kickback paid. Every decision is independently verifiable by reading chain state.",
       metric: `${copiedReceipts + blockedReceipts} receipts indexed`,
       contract: "MirrorReceipt event",
     },
@@ -2167,7 +2604,7 @@ function TechnicalPrimitive({ state }: { state: ShadowState | null }) {
     },
   ];
   return (
-    <section className="primitive">
+    <section className="primitive" id="technical">
       <header className="primitiveHeader">
         <p className="eyebrow">why Shadow</p>
         <h2>The novelty is onchain, not in the UI chrome.</h2>
@@ -2198,12 +2635,40 @@ function score(value: number): string {
   return `${(value / 100).toFixed(0)}%`;
 }
 
-function EarnedReputationPanel({ rows }: { rows: EarnedReputation[] }) {
+type TraderPersona = { tagline: string; accent: string; tone: "cat" | "lobster" | "otter" | "neutral" };
+
+function traderPersona(name: string): TraderPersona {
+  const key = name.toLowerCase();
+  if (key.includes("cat")) {
+    return {
+      tagline: "Spot arbitrage on the USDC / ARCETH pool",
+      accent: "#c8ff5a",
+      tone: "cat",
+    };
+  }
+  if (key.includes("lobster")) {
+    return {
+      tagline: "Risk managed copy with tighter slippage",
+      accent: "#ffb347",
+      tone: "lobster",
+    };
+  }
+  if (key.includes("otter") || key.includes("momentum")) {
+    return {
+      tagline: "LLM reasoned momentum, regime read every intent",
+      accent: "#6ad1ff",
+      tone: "otter",
+    };
+  }
+  return { tagline: "Onchain trader", accent: "#d8ff79", tone: "neutral" };
+}
+
+function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; onFollow?: (addr: Address) => void }) {
   if (rows.length === 0) {
     return (
       <section className="reputationPanel">
-        <Header eyebrow="earned reputation" title="What source agents have actually done onchain" />
-        <p className="reputationEmpty">No source agents registered yet.</p>
+        <Header eyebrow="meet the agents" title="AI traders you can follow" />
+        <p className="reputationEmpty">No agents registered yet.</p>
       </section>
     );
   }
@@ -2211,12 +2676,11 @@ function EarnedReputationPanel({ rows }: { rows: EarnedReputation[] }) {
   const totalCopies = rows.reduce((sum, r) => sum + r.copyCount, 0);
   const totalRouted = rows.reduce((sum, r) => sum + r.routedUSDC, 0n);
   return (
-    <section className="reputationPanel">
-      <Header eyebrow="earned reputation" title="What source agents have actually done onchain" />
+    <section className="reputationPanel" id="traders">
+      <Header eyebrow="meet the agents" title="AI traders you can follow. Profiles, not metrics." />
       <p className="reputationCaption">
-        Ranked by builder fees actually earned. Every number here is derived from{" "}
-        <code>IntentPublished</code>, <code>MirrorReceipt</code>, and{" "}
-        <code>PositionClosed</code> events; nothing is self-reported.
+        These three agents publish trade intents on Arc every 10 minutes. Each card shows what they actually traded,
+        who copied, who got blocked, and what they earned. Nothing self-reported.
       </p>
       <div className="reputationTotals">
         <span>{totalIntents} intents published</span>
@@ -2224,18 +2688,30 @@ function EarnedReputationPanel({ rows }: { rows: EarnedReputation[] }) {
         <span>{formatUSDC(totalRouted)} USDC routed through followers</span>
       </div>
       <div className="reputationGrid">
-        {rows.map((row, index) => (
-          <article className="reputationCard" key={row.source.address}>
+        {rows.map((row, index) => {
+          const persona = traderPersona(row.source.name);
+          return (
+          <article className={`reputationCard reputationCard--${persona.tone}`} key={row.source.address} style={{ ["--trader-accent" as string]: persona.accent }}>
             <header className="reputationCardHeader">
               <span className="reputationRank">#{index + 1}</span>
               <div className="reputationName">
                 <strong>{row.source.name}</strong>
+                <span className="reputationTagline">{persona.tagline}</span>
                 <span className="reputationAddr">{shortAddress(row.source.address)}</span>
               </div>
               <span className="reputationRegistry">
                 ERC-8004 score {score(row.source.reputationScore)}
               </span>
             </header>
+            {row.lastIntent && (
+              <div className="reputationLastIntent">
+                <span className="reputationLastIntentLabel">Last trade</span>
+                <span className="reputationLastIntentValue">
+                  swap <strong>{formatUSDC(row.lastIntent.amountUSDC)} USDC</strong> · risk L{row.lastIntent.riskLevel}
+                </span>
+                <span className="reputationLastIntentBlock">block {row.lastIntent.blockNumber.toString()}</span>
+              </div>
+            )}
             <div className="reputationStats">
               <ReputationStat label="intents" value={String(row.intentsPublished)} />
               <ReputationStat
@@ -2254,7 +2730,7 @@ function EarnedReputationPanel({ rows }: { rows: EarnedReputation[] }) {
               <ReputationStat
                 label="builder fees earned"
                 value={formatUSDC(row.source.kickbackUSDC)}
-                subtext={`${formatUSDC(row.mirrorFeesUSDC)} USDC swap fees · 70% accrued to source`}
+                subtext={`${formatUSDC(row.mirrorFeesUSDC)} USDC swap fees · 70% accrued to trader`}
               />
               <ReputationStat
                 label="follow records"
@@ -2279,12 +2755,23 @@ function EarnedReputationPanel({ rows }: { rows: EarnedReputation[] }) {
                 }
               />
             </div>
+            {onFollow && (
+              <button
+                className="reputationFollowCta"
+                type="button"
+                onClick={() => onFollow(row.source.address)}
+              >
+                Follow {row.source.name}
+                <span className="reputationFollowArrow">→</span>
+              </button>
+            )}
             <AppKitTipButton
               sourceAddress={row.source.address}
               sourceName={row.source.name}
             />
           </article>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -2492,78 +2979,31 @@ function CircleStackPanel() {
     setStatus({ kind: "idle" });
   }
 
+  // AppKit.swap is wired (runSwap below) but hidden from the homepage: Circle's
+  // stablecoin service has no DEX route on Arc Testnet yet, so a visible button
+  // would only ever error. Keeping the call site lets us light up the swap card
+  // the moment Arc Testnet appears in the routing graph, without code changes.
+  void runSwap;
+  void flip;
+  void tokenIn;
+  void tokenOut;
+
   return (
-    <section className="circleStackPanel">
+    <section id="circle-stack" className="circleStackPanel">
       <Header
         eyebrow="circle stack on arc"
-        title="App Kit Send, Swap, and Modular Wallets — three Circle products live on the same page"
+        title="One click follower onboarding, sponsored by Circle Gas Station"
       />
       <p className="circleStackCaption">
-        Tip buttons on each source agent invoke <code>AppKit.send</code>. The swap
-        below invokes <code>AppKit.swap</code>, routed through Circle&apos;s stablecoin
-        service for USDC ↔ EURC. The card on the right uses{" "}
-        <code>@circle-fin/modular-wallets-core</code> to mint a passkey-owned smart
-        account and pay zero gas via Circle Gas Station. All three are Circle&apos;s own SDKs, not a third-party shim.
+        Tip buttons on each trader invoke <code>AppKit.send</code>. The card
+        below uses <code>@circle-fin/modular-wallets-core</code> to mint a passkey
+        owned smart account and then approve, deposit, and call{" "}
+        <code>followSource</code> in one batched UserOp paid for by Circle Gas
+        Station. The smart account becomes a real Shadow follower with its own{" "}
+        <code>minBpsOut</code>. Removing this section degrades onboarding by four
+        clicks and a gas token requirement, so it is load bearing, not decorative.
       </p>
-      <div className="circleStackGrid">
-        <div className="swapCard">
-          <div className="swapRow">
-            <label>
-              <span>From</span>
-              <strong>{tokenIn}</strong>
-            </label>
-            <button type="button" className="swapFlip" onClick={flip} disabled={status.kind === "running"}>
-              ⇅
-            </button>
-            <label>
-              <span>To</span>
-              <strong>{tokenOut}</strong>
-            </label>
-          </div>
-          <label className="swapAmountField">
-            <span>Amount in {tokenIn}</span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              disabled={status.kind === "running"}
-            />
-          </label>
-          <button
-            type="button"
-            className="swapSubmit"
-            onClick={runSwap}
-            disabled={status.kind === "running" || !kitKey}
-          >
-            {status.kind === "running"
-              ? `Swapping… ${status.stage}`
-              : kitKey
-                ? `Swap via Circle App Kit`
-                : `Add VITE_CIRCLE_KIT_KEY to enable`}
-          </button>
-          {status.kind === "success" && (
-            <p className="swapOk">
-              Swap confirmed.{" "}
-              {status.amountOut !== undefined
-                ? `Received ${status.amountOut} ${status.tokenOut}.`
-                : ""}
-              {" "}
-              {status.explorerUrl ? (
-                <a href={status.explorerUrl} target="_blank" rel="noreferrer">
-                  view tx
-                </a>
-              ) : (
-                <a href={txUrl(status.txHash as `0x${string}`)} target="_blank" rel="noreferrer">
-                  view tx
-                </a>
-              )}
-            </p>
-          )}
-          {status.kind === "error" && <p className="swapErr">{status.message}</p>}
-        </div>
+      <div className="circleStackGrid circleStackGridSolo">
         <ModularWalletCard />
       </div>
     </section>
@@ -2584,11 +3024,11 @@ type ModularWalletState =
   | { kind: "error"; message: string; address?: Address };
 
 const CREDENTIAL_STORAGE_KEY = "shadow:circleModularCredential";
+const SPONSORED_SOURCE_AGENT = "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address;
 
 function ModularWalletCard() {
   const clientKey = (import.meta.env.VITE_CIRCLE_CLIENT_KEY || "").trim();
   const clientUrl = (import.meta.env.VITE_CIRCLE_CLIENT_URL || "").trim();
-  const recipient = (import.meta.env.VITE_SHADOW_ROUTER || "").trim() as Address;
 
   const initial: ModularWalletState =
     !clientKey || !clientUrl
@@ -2600,6 +3040,43 @@ function ModularWalletCard() {
       : { kind: "idle" };
 
   const [state, setState] = useState<ModularWalletState>(initial);
+  const [followerPolicy, setFollowerPolicy] = useState<{
+    active: boolean;
+    maxPerIntent: bigint;
+    dailyCap: bigint;
+    spentToday: bigint;
+  } | null>(null);
+
+  const trackedAddress: Address | undefined = (state as any).address;
+  useEffect(() => {
+    if (!trackedAddress || !addresses.router) {
+      setFollowerPolicy(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const policy = (await publicClient.readContract({
+          address: addresses.router!,
+          abi: routerAbi,
+          functionName: "getPolicy",
+          args: [trackedAddress, SPONSORED_SOURCE_AGENT],
+        })) as readonly [bigint, bigint, Address, number, number, bigint, bigint, boolean];
+        if (cancelled) return;
+        setFollowerPolicy({
+          active: policy[7],
+          maxPerIntent: policy[0],
+          dailyCap: policy[1],
+          spentToday: policy[5],
+        });
+      } catch {
+        if (!cancelled) setFollowerPolicy(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [trackedAddress, state.kind]);
 
   async function loadCredential(): Promise<WebAuthnCredential | null> {
     try {
@@ -2632,6 +3109,17 @@ function ModularWalletCard() {
       chain: arcTestnet,
       transport: modularTransport,
       paymaster: true,
+      paymasterContext: {},
+      userOperation: {
+        estimateFeesPerGas: async () => {
+          const prices: any = await getUserOperationGasPrice(client);
+          const tier = prices?.medium ?? prices?.high ?? prices?.low;
+          return {
+            maxFeePerGas: BigInt(tier.maxFeePerGas),
+            maxPriorityFeePerGas: BigInt(tier.maxPriorityFeePerGas),
+          };
+        },
+      },
     } as any);
     return { smartAccount, bundler };
   }
@@ -2713,44 +3201,60 @@ function ModularWalletCard() {
     }
   }
 
-  async function onSponsoredTip() {
+  async function onSponsoredFollow() {
     if (state.kind !== "ready" && state.kind !== "funded") return;
     const accountAddress = state.address;
-    if (!recipient) {
-      setState({ kind: "error", message: "VITE_SHADOW_ROUTER not set; nothing to tip.", address: accountAddress });
+    if (!addresses.router || !addresses.usdc || !addresses.arceth) {
+      setState({
+        kind: "error",
+        message: "Shadow router/usdc/arceth env not set; cannot onboard follower.",
+        address: accountAddress,
+      });
       return;
     }
     setState({ kind: "sending", stage: "loading passkey credential", address: accountAddress });
     try {
       const credential = await loadCredential();
-      if (!credential) throw new Error("Passkey credential missing — log in again.");
-      setState({ kind: "sending", stage: "encoding USDC transfer", address: accountAddress });
+      if (!credential) throw new Error("Passkey credential missing. Log in again.");
+      setState({ kind: "sending", stage: "encoding follow batch", address: accountAddress });
       const { smartAccount, bundler } = await withSmartAccount(credential);
-      const transferData = encodeFunctionData({
-        abi: [
-          {
-            type: "function",
-            name: "transfer",
-            stateMutability: "nonpayable",
-            inputs: [
-              { name: "to", type: "address" },
-              { name: "amount", type: "uint256" },
-            ],
-            outputs: [{ name: "", type: "bool" }],
-          },
-        ],
-        functionName: "transfer",
-        args: [recipient, parseUnits("0.01", 6)],
+
+      const depositAmount = parseUnits("0.04", 6);
+      const maxAmountPerIntent = parseUnits("0.02", 6);
+      const dailyCap = parseUnits("0.04", 6);
+      const minBpsOut = 9500;
+      const maxRiskLevel = 2;
+
+      const approveData = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [addresses.router as Address, depositAmount],
       });
+      const depositData = encodeFunctionData({
+        abi: routerAbi,
+        functionName: "depositUSDC",
+        args: [depositAmount],
+      });
+      const followData = encodeFunctionData({
+        abi: routerAbi,
+        functionName: "followSource",
+        args: [
+          SPONSORED_SOURCE_AGENT,
+          maxAmountPerIntent,
+          dailyCap,
+          addresses.arceth as Address,
+          maxRiskLevel,
+          minBpsOut,
+        ],
+      });
+
       setState({ kind: "sending", stage: "asking Circle Gas Station to sponsor", address: accountAddress });
       const userOpHash = (await (bundler as any).sendUserOperation({
         account: smartAccount,
         calls: [
-          {
-            to: addresses.usdc as Address,
-            value: 0n,
-            data: transferData,
-          },
+          { to: addresses.usdc as Address, value: 0n, data: approveData },
+          { to: addresses.router as Address, value: 0n, data: depositData },
+          { to: addresses.router as Address, value: 0n, data: followData },
         ],
         paymaster: true,
       })) as `0x${string}`;
@@ -2763,15 +3267,81 @@ function ModularWalletCard() {
         txHash: receipt?.receipt?.transactionHash,
       });
     } catch (err: any) {
-      const raw = err?.shortMessage || err?.message || String(err);
+      const parts: string[] = [];
+      let current: any = err;
+      let depth = 0;
+      while (current && depth < 8) {
+        const msg = current.shortMessage || current.message;
+        if (msg && !parts.includes(msg)) parts.push(msg);
+        if (current.details && typeof current.details === "string" && !parts.includes(current.details)) {
+          parts.push(current.details);
+        }
+        if (current.metaMessages && Array.isArray(current.metaMessages)) {
+          for (const m of current.metaMessages) {
+            if (typeof m === "string" && !parts.includes(m)) parts.push(m);
+          }
+        }
+        current = current.cause;
+        depth += 1;
+      }
+      const raw = parts.join(" | ") || String(err);
+      console.error("[sponsoredFollow] full error chain", err);
       const insufficient = /transfer amount exceeds balance|insufficient.*balance/i.test(raw);
       setState({
         kind: "error",
         message: insufficient
-          ? `Smart account has no USDC. Click "Fund smart account" first (the deployer sends 0.05 USDC from the faucet) and try again.`
+          ? `Smart account needs USDC first. Click "Fund smart account" (deployer sends 0.05 USDC) and retry.`
           : raw,
         address: accountAddress,
       });
+    }
+  }
+
+  async function onTunePolicy() {
+    const addr = (state as any).address as Address | undefined;
+    if (!addr) return;
+    if (!addresses.router || !addresses.arceth) {
+      setState({ kind: "error", message: "router/arceth env not set", address: addr });
+      return;
+    }
+    setState({ kind: "sending", stage: "loading passkey credential", address: addr });
+    try {
+      const credential = await loadCredential();
+      if (!credential) throw new Error("Passkey credential missing. Log in again.");
+      setState({ kind: "sending", stage: "encoding looser minBpsOut", address: addr });
+      const { smartAccount, bundler } = await withSmartAccount(credential);
+
+      const maxAmountPerIntent = parseUnits("0.02", 6);
+      const dailyCap = parseUnits("0.04", 6);
+      const minBpsOut = 9000;
+      const maxRiskLevel = 2;
+
+      const followData = encodeFunctionData({
+        abi: routerAbi,
+        functionName: "followSource",
+        args: [
+          SPONSORED_SOURCE_AGENT,
+          maxAmountPerIntent,
+          dailyCap,
+          addresses.arceth as Address,
+          maxRiskLevel,
+          minBpsOut,
+        ],
+      });
+
+      setState({ kind: "sending", stage: "asking Circle Gas Station to sponsor tune", address: addr });
+      const userOpHash = (await (bundler as any).sendUserOperation({
+        account: smartAccount,
+        calls: [{ to: addresses.router as Address, value: 0n, data: followData }],
+        paymaster: true,
+      })) as `0x${string}`;
+      setState({ kind: "sending", stage: "waiting for receipt", address: addr });
+      const receipt = await (bundler as any).waitForUserOperationReceipt({ hash: userOpHash });
+      setState({ kind: "sent", address: addr, userOpHash, txHash: receipt?.receipt?.transactionHash });
+    } catch (err: any) {
+      const msg = err?.shortMessage || err?.message || String(err);
+      console.error("[tunePolicy] error", err);
+      setState({ kind: "error", message: msg, address: addr });
     }
   }
 
@@ -2779,16 +3349,33 @@ function ModularWalletCard() {
     <div className="modularCard">
       <div className="modularHeader">
         <span className="modularBadge">Modular Wallets · MSCA · ERC-4337</span>
-        <h3>Passkey onboarding with sponsored gas</h3>
+        <h3>One click follower onboarding, gas sponsored by Circle</h3>
       </div>
+      {followerPolicy && (
+        <div className="modularStatusRow">
+          <span className={followerPolicy.active ? "modularChipOk" : "modularChipMuted"}>
+            Sponsored onboards: {followerPolicy.active ? 1 : 0}
+          </span>
+          {followerPolicy.active && (
+            <>
+              <span className="modularChipOk">Following CatArb</span>
+              <span className="modularChipMuted">0 ETH gas from your wallet</span>
+            </>
+          )}
+        </div>
+      )}
       {state.kind === "configMissing" ? (
         <p className="modularEmpty">{(state as any).reason}</p>
       ) : (
         <>
           <p className="modularBody">
-            Create a Circle MSCA owned by your device passkey, then send a 0.01 USDC
-            payment with <code>paymaster: true</code>. Circle Gas Station pays the
-            gas — followers can onboard without holding a single USDC for gas first.
+            Create a Circle MSCA owned by your device passkey, fund it with 0.05
+            USDC from the faucet, then approve, deposit, and call{" "}
+            <code>followSource</code> on CatArb in a single batched UserOp with{" "}
+            <code>paymaster: true</code>. The smart account becomes a real Shadow
+            follower with its own minBpsOut policy. Circle Gas Station pays the gas,
+            so a new follower can start mirroring on Arc without ever holding native
+            gas first.
           </p>
           <div className="modularButtons">
             <button
@@ -2846,13 +3433,25 @@ function ModularWalletCard() {
                 <button
                   type="button"
                   className="modularBtnPrimary"
-                  onClick={onSponsoredTip}
+                  onClick={onSponsoredFollow}
                   disabled={state.kind === "sending" || state.kind === "funding"}
                 >
                   {state.kind === "sending"
-                    ? `Sending… ${state.stage}`
-                    : "Send 0.01 USDC, gas sponsored by Circle"}
+                    ? `Following… ${state.stage}`
+                    : "Follow CatArb (approve + deposit + followSource, sponsored)"}
                 </button>
+                {(followerPolicy?.active || state.kind === "sent") && (
+                  <button
+                    type="button"
+                    className="modularBtnSecondary"
+                    onClick={onTunePolicy}
+                    disabled={state.kind === "sending" || state.kind === "funding"}
+                  >
+                    {state.kind === "sending"
+                      ? `Tuning… ${state.stage}`
+                      : "Loosen slippage to minBpsOut 9000 (sponsored)"}
+                  </button>
+                )}
               </div>
               {state.kind === "funded" && state.tx && (
                 <p className="modularInfo">
@@ -2860,17 +3459,21 @@ function ModularWalletCard() {
                   <a href={txUrl(state.tx as `0x${string}`)} target="_blank" rel="noreferrer">
                     {state.tx.slice(0, 10)}…
                   </a>
-                  . Now click "Send 0.01 USDC" — Circle Gas Station covers the gas.
+                  . Now click follow CatArb. Circle Gas Station sponsors all three
+                  calls in one batched UserOp.
                 </p>
               )}
             </div>
           )}
           {state.kind === "sent" && (
             <p className="modularOk">
-              UserOp confirmed.{" "}
+              <strong>Zero gas paid by your wallet.</strong> Circle Gas Station
+              sponsored the entire batched UserOp (approve + deposit +
+              followSource). Smart account is now a live CatArb follower with
+              its own minBpsOut policy.{" "}
               {state.txHash ? (
                 <a href={txUrl(state.txHash as `0x${string}`)} target="_blank" rel="noreferrer">
-                  view tx
+                  view batched tx
                 </a>
               ) : (
                 <span>UserOp hash: <code>{state.userOpHash.slice(0, 10)}…</code></span>
@@ -2884,4 +3487,8 @@ function ModularWalletCard() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>
+);
