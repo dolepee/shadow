@@ -3570,8 +3570,8 @@ function ModularWalletCard() {
                     disabled={state.kind === "sending" || state.kind === "funding"}
                   >
                     {state.kind === "sending"
-                      ? `Tuning… ${state.stage}`
-                      : "Loosen slippage to minBpsOut 9000 (sponsored)"}
+                      ? `Updating slippage… ${state.stage}`
+                      : "Accept up to 10% slippage (was 5%, sponsored)"}
                   </button>
                 )}
               </div>
