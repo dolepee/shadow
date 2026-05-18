@@ -3031,6 +3031,16 @@ type ModularWalletState =
 const CREDENTIAL_STORAGE_KEY = "shadow:circleModularCredential";
 const SPONSORED_SOURCE_AGENT = "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address;
 
+function base64UrlToBytes(b64url: string): Uint8Array {
+  const padded =
+    b64url.replace(/-/g, "+").replace(/_/g, "/") +
+    "==".slice((b64url.length + 3) % 4);
+  const bin = atob(padded);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 function ModularWalletCard() {
   const clientKey = (import.meta.env.VITE_CIRCLE_CLIENT_KEY || "").trim();
   const clientUrl = (import.meta.env.VITE_CIRCLE_CLIENT_URL || "").trim();
@@ -3085,7 +3095,9 @@ function ModularWalletCard() {
 
   async function loadCredential(): Promise<WebAuthnCredential | null> {
     try {
-      const raw = sessionStorage.getItem(CREDENTIAL_STORAGE_KEY);
+      const raw =
+        localStorage.getItem(CREDENTIAL_STORAGE_KEY) ??
+        sessionStorage.getItem(CREDENTIAL_STORAGE_KEY);
       if (!raw) return null;
       return JSON.parse(raw) as WebAuthnCredential;
     } catch {
@@ -3095,9 +3107,13 @@ function ModularWalletCard() {
 
   function persistCredential(cred: WebAuthnCredential) {
     try {
-      sessionStorage.setItem(CREDENTIAL_STORAGE_KEY, JSON.stringify(cred));
+      localStorage.setItem(CREDENTIAL_STORAGE_KEY, JSON.stringify(cred));
     } catch {
-      // sessionStorage failures are non-fatal — credential survives only this tab
+      try {
+        sessionStorage.setItem(CREDENTIAL_STORAGE_KEY, JSON.stringify(cred));
+      } catch {
+        // Both stores blocked (private mode + quota). Credential reconstructable via Login.
+      }
     }
   }
 
@@ -3131,7 +3147,28 @@ function ModularWalletCard() {
 
   async function onRegister() {
     setState({ kind: "registering" });
+    let restoreCreate: (() => void) | null = null;
     try {
+      const existing = await loadCredential();
+      if (existing?.id) {
+        const originalCreate = navigator.credentials.create.bind(
+          navigator.credentials,
+        );
+        const excludeId = base64UrlToBytes(existing.id);
+        (navigator.credentials as any).create = async (opts: any) => {
+          if (opts?.publicKey) {
+            opts.publicKey.excludeCredentials = [
+              ...(opts.publicKey.excludeCredentials ?? []),
+              { type: "public-key", id: excludeId },
+            ];
+          }
+          return originalCreate(opts);
+        };
+        restoreCreate = () => {
+          (navigator.credentials as any).create = originalCreate;
+        };
+      }
+
       const passkeyTransport = toPasskeyTransport(clientUrl, clientKey);
       const credential = await toWebAuthnCredential({
         transport: passkeyTransport,
@@ -3143,7 +3180,21 @@ function ModularWalletCard() {
       const { smartAccount } = await withSmartAccount(credential);
       setState({ kind: "ready", address: smartAccount.address, mode: "Register" });
     } catch (err: any) {
-      setState({ kind: "error", message: err?.message || String(err) });
+      const msg = err?.message || String(err);
+      const name = err?.name || "";
+      const isDuplicate =
+        name === "InvalidStateError" ||
+        /InvalidStateError|already.*passkey|already.*registered|already.*enrolled/i.test(
+          msg,
+        );
+      setState({
+        kind: "error",
+        message: isDuplicate
+          ? "This device already has a Shadow passkey. Tap Login to use it, or register from a different device for a new account."
+          : msg,
+      });
+    } finally {
+      restoreCreate?.();
     }
   }
 
