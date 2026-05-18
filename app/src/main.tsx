@@ -3053,9 +3053,9 @@ const SOURCE_AGENTS: ReadonlyArray<{
 ];
 
 function base64UrlToBytes(b64url: string): Uint8Array {
-  const padded =
-    b64url.replace(/-/g, "+").replace(/_/g, "/") +
-    "==".slice((b64url.length + 3) % 4);
+  const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+  const mod = b64.length % 4;
+  const padded = mod === 0 ? b64 : b64 + "=".repeat(4 - mod);
   const bin = atob(padded);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
@@ -3173,16 +3173,24 @@ function ModularWalletCard() {
     let restoreCreate: (() => void) | null = null;
     try {
       const existing = await loadCredential();
+      let excludeId: Uint8Array | null = null;
       if (existing?.id) {
+        try {
+          excludeId = base64UrlToBytes(existing.id);
+        } catch {
+          excludeId = null;
+        }
+      }
+      if (excludeId) {
         const originalCreate = navigator.credentials.create.bind(
           navigator.credentials,
         );
-        const excludeId = base64UrlToBytes(existing.id);
+        const id = excludeId;
         (navigator.credentials as any).create = async (opts: any) => {
           if (opts?.publicKey) {
             opts.publicKey.excludeCredentials = [
               ...(opts.publicKey.excludeCredentials ?? []),
-              { type: "public-key", id: excludeId },
+              { type: "public-key", id },
             ];
           }
           return originalCreate(opts);
