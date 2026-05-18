@@ -3029,7 +3029,28 @@ type ModularWalletState =
   | { kind: "error"; message: string; address?: Address };
 
 const CREDENTIAL_STORAGE_KEY = "shadow:circleModularCredential";
-const SPONSORED_SOURCE_AGENT = "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address;
+
+const SOURCE_AGENTS: ReadonlyArray<{
+  address: Address;
+  name: string;
+  tagline: string;
+}> = [
+  {
+    address: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
+    name: "CatArb",
+    tagline: "spot arbitrage on USDC / ARCETH",
+  },
+  {
+    address: "0xFF3BDb60E16538333C9A290BB80bE52b3b82D2f3" as Address,
+    name: "LobsterRisk",
+    tagline: "risk managed copy, tighter slippage",
+  },
+  {
+    address: "0xe2f079d0aBe68a9CA0A9875e254fD976EaC0696B" as Address,
+    name: "MomentumOtter",
+    tagline: "LLM reasoned momentum, regime read per intent",
+  },
+];
 
 function base64UrlToBytes(b64url: string): Uint8Array {
   const padded =
@@ -3055,6 +3076,8 @@ function ModularWalletCard() {
       : { kind: "idle" };
 
   const [state, setState] = useState<ModularWalletState>(initial);
+  const [selectedSourceIndex, setSelectedSourceIndex] = useState(0);
+  const selectedSource = SOURCE_AGENTS[selectedSourceIndex];
   const [followerPolicy, setFollowerPolicy] = useState<{
     active: boolean;
     maxPerIntent: bigint;
@@ -3075,7 +3098,7 @@ function ModularWalletCard() {
           address: addresses.router!,
           abi: routerAbi,
           functionName: "getPolicy",
-          args: [trackedAddress, SPONSORED_SOURCE_AGENT],
+          args: [trackedAddress, selectedSource.address],
         })) as readonly [bigint, bigint, Address, number, number, bigint, bigint, boolean];
         if (cancelled) return;
         setFollowerPolicy({
@@ -3091,7 +3114,7 @@ function ModularWalletCard() {
     return () => {
       cancelled = true;
     };
-  }, [trackedAddress, state.kind]);
+  }, [trackedAddress, state.kind, selectedSource.address]);
 
   async function loadCredential(): Promise<WebAuthnCredential | null> {
     try {
@@ -3296,7 +3319,7 @@ function ModularWalletCard() {
         abi: routerAbi,
         functionName: "followSource",
         args: [
-          SPONSORED_SOURCE_AGENT,
+          selectedSource.address,
           maxAmountPerIntent,
           dailyCap,
           addresses.arceth as Address,
@@ -3377,7 +3400,7 @@ function ModularWalletCard() {
         abi: routerAbi,
         functionName: "followSource",
         args: [
-          SPONSORED_SOURCE_AGENT,
+          selectedSource.address,
           maxAmountPerIntent,
           dailyCap,
           addresses.arceth as Address,
@@ -3415,7 +3438,7 @@ function ModularWalletCard() {
           </span>
           {followerPolicy.active && (
             <>
-              <span className="modularChipOk">Following CatArb</span>
+              <span className="modularChipOk">Following {selectedSource.name}</span>
               <span className="modularChipMuted">0 ETH gas from your wallet</span>
             </>
           )}
@@ -3428,11 +3451,11 @@ function ModularWalletCard() {
           <p className="modularBody">
             Create a Circle MSCA owned by your device passkey, fund it with 0.05
             USDC from the faucet, then approve, deposit, and call{" "}
-            <code>followSource</code> on CatArb in a single batched UserOp with{" "}
-            <code>paymaster: true</code>. The smart account becomes a real Shadow
-            follower with its own minBpsOut policy. Circle Gas Station pays the gas,
-            so a new follower can start mirroring on Arc without ever holding native
-            gas first.
+            <code>followSource</code> on the source agent you pick in a single batched
+            UserOp with <code>paymaster: true</code>. The smart account becomes a real
+            Shadow follower with its own minBpsOut policy. Circle Gas Station pays the
+            gas, so a new follower can start mirroring on Arc without ever holding
+            native gas first.
           </p>
           <div className="modularButtons">
             <button
@@ -3472,6 +3495,25 @@ function ModularWalletCard() {
                   copy
                 </button>
               </p>
+              <div className="modularSourcePicker">
+                <span className="modularSourcePickerLabel">Source agent:</span>
+                {SOURCE_AGENTS.map((src, i) => (
+                  <button
+                    key={src.address}
+                    type="button"
+                    className={
+                      i === selectedSourceIndex
+                        ? "modularBtnPrimary"
+                        : "modularBtnSecondary"
+                    }
+                    onClick={() => setSelectedSourceIndex(i)}
+                    disabled={state.kind === "sending" || state.kind === "funding"}
+                    title={src.tagline}
+                  >
+                    {src.name}
+                  </button>
+                ))}
+              </div>
               <div className="modularButtons">
                 <button
                   type="button"
@@ -3495,7 +3537,7 @@ function ModularWalletCard() {
                 >
                   {state.kind === "sending"
                     ? `Following… ${state.stage}`
-                    : "Follow CatArb (approve + deposit + followSource, sponsored)"}
+                    : `Follow ${selectedSource.name} (approve, deposit, followSource, sponsored)`}
                 </button>
                 {(followerPolicy?.active || state.kind === "sent") && (
                   <button
@@ -3516,8 +3558,8 @@ function ModularWalletCard() {
                   <a href={txUrl(state.tx as `0x${string}`)} target="_blank" rel="noreferrer">
                     {state.tx.slice(0, 10)}…
                   </a>
-                  . Now click follow CatArb. Circle Gas Station sponsors all three
-                  calls in one batched UserOp.
+                  . Now click follow {selectedSource.name}. Circle Gas Station
+                  sponsors all three calls in one batched UserOp.
                 </p>
               )}
             </div>
@@ -3526,8 +3568,8 @@ function ModularWalletCard() {
             <p className="modularOk">
               <strong>Zero gas paid by your wallet.</strong> Circle Gas Station
               sponsored the entire batched UserOp (approve + deposit +
-              followSource). Smart account is now a live CatArb follower with
-              its own minBpsOut policy.{" "}
+              followSource). Smart account is now a live {selectedSource.name}{" "}
+              follower with its own minBpsOut policy.{" "}
               {state.txHash ? (
                 <a href={txUrl(state.txHash as `0x${string}`)} target="_blank" rel="noreferrer">
                   view batched tx

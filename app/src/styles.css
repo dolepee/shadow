@@ -4266,6 +4266,29 @@ code {
   gap: 8px;
 }
 
+.modularSourcePicker {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.modularSourcePicker .modularBtnPrimary,
+.modularSourcePicker .modularBtnSecondary {
+  font-size: 11px;
+  padding: 6px 10px;
+}
+
+.modularSourcePickerLabel {
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  margin-right: 4px;
+  text-transform: uppercase;
+}
+
 .modularBtnPrimary,
 .modularBtnSecondary {
   border-radius: 8px;
