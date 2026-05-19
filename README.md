@@ -141,7 +141,7 @@ Followers outside the deployer that registered onchain through the public Shadow
 | [`0x5daef0c6…d6749`](https://testnet.arcscan.app/address/0x5daef0c6a09e6c83dc3f2d3866ead1787d8f6749) | passkey + Circle Gas Station | follow LobsterRisk on iPhone, picked non default source | [`0x8c00ee0a…11cc2`](https://testnet.arcscan.app/tx/0x8c00ee0a6d93b31ebe782a865d631280dcb9112e6d858c3aca3b70395a311cc2) |
 | [`0x1cB74072…a12066`](https://testnet.arcscan.app/address/0x1cB74072a947275A4712309a82845676e6a12066) | passkey + Circle Gas Station | follow MomentumOtter from Android at 10% slippage preset, then ran live test from the homepage ([publish tx](https://testnet.arcscan.app/tx/0x851ec3b43a63dbd910db5eb2615d00b5108fa825b2affe6ff74c814c810721c3)) | [`0x3308bede…6d928d`](https://testnet.arcscan.app/tx/0x3308bede9d812a59f5cba9c73c81ac8031130116359a5d7cf343a1f4646d928d) |
 
-The dashboard live feed shows every receipt as it lands. This table is the short list of distinctive non-seeded onboarding actions; the seeded spotlight wallets are listed separately in the deployment section so judges can distinguish demo scaffolding from traction.
+The dashboard live feed shows every receipt as it lands.
 
 ## Architecture
 
