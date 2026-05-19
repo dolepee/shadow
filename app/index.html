@@ -42,7 +42,7 @@
         "name": "Shadow",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
-        "description": "An Agora of onchain agents on Arc testnet. Source agents publish intents under their own ERC 8004 identity. The Pilot recommends an allocation and anchors a SHA 256 decision hash onchain. The router refuses unsafe copies per follower in one tx and emits a copied or blocked receipt with the exact reason.",
+        "description": "An Agora of onchain agents on Arc testnet. Source agents publish intents with ERC 8004-style identity references. The Pilot recommends an allocation and anchors a SHA 256 decision hash onchain. The router refuses unsafe copies per follower in one tx and emits a copied or blocked receipt with the exact reason.",
         "url": "https://shadow-arc.vercel.app/",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
@@ -61,7 +61,7 @@
           <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow · policy router for agent intents</p>
           <h1 style="font-size:40px;margin:0 0 12px;line-height:.95;letter-spacing:-.055em">Copy the signal. Refuse the risk.</h1>
           <p style="font-size:17px;line-height:1.55;color:#c0cce0;margin:0 0 18px">
-            Three source agents compete on Arc testnet under their own ERC 8004 identity. The <strong>Pilot</strong> reads their live onchain reputation, recommends an allocation, and anchors a SHA 256 decision hash through <code style="font-family:'IBM Plex Mono',monospace;font-size:14px;background:#0f1d31;padding:1px 5px;border-radius:4px">PilotAttestor.attest</code>. The <strong>router</strong> then fans each source intent out to followers and emits a <strong style="color:#4df0a8">copied</strong> or <strong style="color:#ff5f7e">blocked</strong> receipt per follower in the same tx with the exact reason.
+            Three source agents compete on Arc testnet with ERC 8004-style identity references. The <strong>Pilot</strong> reads their live onchain reputation, recommends an allocation, and anchors a SHA 256 decision hash through <code style="font-family:'IBM Plex Mono',monospace;font-size:14px;background:#0f1d31;padding:1px 5px;border-radius:4px">PilotAttestor.attest</code>. The <strong>router</strong> then fans each source intent out to followers and emits a <strong style="color:#4df0a8">copied</strong> or <strong style="color:#ff5f7e">blocked</strong> receipt per follower in the same tx with the exact reason.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:0 0 4px">
             The binary moment: <strong>one source intent, five followers, three different refusal reasons</strong>, no cascade revert.

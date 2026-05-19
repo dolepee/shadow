@@ -959,7 +959,7 @@ function App() {
         <Stat label="intent receipts" value={String(state?.receipts.length || 0)} />
         <Stat label="USDC mirrored" value={formatUSDC(totalMirrored(copiedReceipts))} />
         <Stat label="blocked copies" value={String(blockedReceipts.length)} />
-        <Stat label="builder fees paid" value={formatUSDC(totalKickbacks(state))} />
+        <Stat label="source fees paid" value={formatUSDC(totalKickbacks(state))} />
         <Stat label="1 USDC quote" value={`${formatAsset(state?.quoteForOneUSDC || 0n)} ARCETH`} />
       </section>
 
@@ -1211,7 +1211,7 @@ function FollowFlow({
                   </div>
                   <span className="sourceChoiceAddr">{shortAddress(source.address)}</span>
                   <span className="sourceChoiceMeta">
-                    {source.followerCount.toString()} follow records · {(source.reputationScore / 100).toFixed(0)}% rep
+                    {source.followerCount.toString()} follow records · registry score {(source.reputationScore / 100).toFixed(0)}%
                   </span>
                 </button>
               );
@@ -1849,7 +1849,7 @@ function SpotlightCard({
         )}
         {receipt.status === "copied" && receipt.mirrorFeeUSDC > 0n && (
           <div>
-            <dt>builder fee</dt>
+            <dt>mirror fee</dt>
             <dd>{formatUSDC(receipt.mirrorFeeUSDC)} USDC</dd>
           </div>
         )}
@@ -1888,18 +1888,18 @@ function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
   return (
     <section className="builderFees">
       <div className="builderFeesMain">
-        <p className="eyebrow">builder fees accrued onchain</p>
+        <p className="eyebrow">source fees accrued onchain</p>
         <h2>
           <span className="builderFeesAmount">{formatUSDC(totalFees)}</span>
           <span className="builderFeesUnit">USDC</span>
         </h2>
         <p className="builderFeesCaption">
-          70% of every swap fee accrues to the trader that routed the flow, settled by{" "}
+          70% of every mirror fee accrues to the trader that routed the flow, settled by{" "}
           <code>MirrorRouter</code> at the receipt event from {sourceCount === 1 ? "one source" : `${sourceCount} sources`}.
           No off-chain accounting.
         </p>
         <p className="builderFeesReference">
-          Same primitive as <strong>Polymarket V2 builder fees</strong>: third parties that route order flow earn a share of taker fees. Shadow ports that pattern to copy trading.
+          Same primitive as <strong>Polymarket V2 builder fees</strong>: third parties that route order flow earn a share of routed fees. Shadow ports that pattern to copy trading.
         </p>
       </div>
       {topSource && totalFees > 0n && (
@@ -2428,7 +2428,7 @@ function HeroDiagram() {
           <div className="heroLedgerCellUnit">ARCETH credited to follower</div>
           <div className="heroLedgerCellMeta">
             <span className="heroLedgerCellMetaLabel">policy</span>
-            <span className="heroLedgerCellMetaValue">within cap · slippage 32&nbsp;bps · builder fee 0.05%</span>
+            <span className="heroLedgerCellMetaValue">within cap · slippage 32&nbsp;bps · mirror fee 0.10%</span>
           </div>
         </div>
         <div className="heroLedgerCell blocked">
@@ -2710,7 +2710,7 @@ function TechnicalPrimitive({ state }: { state: ShadowState | null }) {
       contract: "ShadowRouter.fanOut",
     },
     {
-      eyebrow: "primitive · ERC 8004 source identity",
+      eyebrow: "primitive · ERC 8004-style source reference",
       title: "Source agents are first class onchain",
       body: "Each source agent registers an onchain identity with a public address, name, and fee split. Reputation is computable from chain state alone, no centralized leaderboard.",
       metric: `${sourcesRegistered} source agent${sourcesRegistered === 1 ? "" : "s"} registered`,
@@ -2873,7 +2873,7 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
               <div className="reputationHeaderRight">
                 <SignalBadge level={signal.level} reason={signal.reason} />
                 <span className="reputationRegistry">
-                  ERC-8004 score {score(row.source.reputationScore)}
+                  registry score {score(row.source.reputationScore)}
                 </span>
               </div>
             </header>
@@ -2903,9 +2903,9 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
                 value={formatUSDC(row.routedUSDC)}
               />
               <ReputationStat
-                label="builder fees earned"
+                label="source fees earned"
                 value={formatUSDC(row.source.kickbackUSDC)}
-                subtext={`${formatUSDC(row.mirrorFeesUSDC)} USDC swap fees · 70% accrued to trader`}
+                subtext={`${formatUSDC(row.mirrorFeesUSDC)} USDC mirror fees · 70% accrued to trader`}
               />
               <ReputationStat
                 label="follow records"

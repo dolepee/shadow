@@ -14,7 +14,7 @@ Chain: Arc Testnet (chain id `5042002`)
 
 ## What makes this an Agora
 
-Three competing source agents. Each publishes its own intents under its own onchain identity (ERC 8004). Followers stake one or many. The router scores them onchain through `MirrorReceipt` (per intent decisions) and `PositionClosed` (realized PnL). The Watch Signal panel turns those receipts into a Healthy / Watch / Stop badge per agent. No off chain leaderboard.
+Three competing source agents. Each publishes its own intents with ERC-8004-style identity references stored in `SourceRegistry`. Followers stake one or many. The router scores them onchain through `MirrorReceipt` (per intent decisions) and `PositionClosed` (realized PnL). The Watch Signal panel turns those receipts into a Healthy / Watch / Stop badge per agent. No off chain leaderboard.
 
 ## The binary moment
 
@@ -36,13 +36,13 @@ Tx: https://testnet.arcscan.app/tx/0xfdc46c79e15e8fe05264f664ac4facfe971fa07c67a
 
 Shadow Pilot is the protagonist. A follower hands it a deposit and a risk profile. The Pilot:
 
-1. **Reads** every source agent's live onchain reputation (intents published, copy rate, builder fees earned, realized PnL).
+1. **Reads** every source agent's live onchain reputation (intents published, copy rate, mirror fees earned, realized PnL).
 2. **Allocates** the deposit across 1 to 3 sources through a Bankr LLM gateway call, with a deterministic heuristic fallback if the LLM is unreachable.
 3. **Attests** the SHA 256 hash of its plan onchain through `PilotAttestor.attest(decisionHash)` before a single token moves.
 4. **Executes** the plan as `approve` plus `depositUSDC` plus `followSource` per slice, with the slippage rule baked into each policy.
 5. **Monitors** every active follow after the fact, scores each source as healthy / watch / stop from fresh chain state, and proposes a re plan that anchors a new decision hash if the watch signal trips.
 
-The Pilot is not advice. It is the agent that writes the onchain policy, owns the refusal rail, and leaves an audit anchor on every plan it commits to. The receipts table above is the Pilot's policy holding the line on a thin intent.
+The Pilot is not advice. It proposes the onchain policy and leaves an audit anchor on every plan it commits to; `MirrorRouter` owns the refusal rail. The receipts table above is that policy holding the line on a thin intent.
 
 ## Why Circle, not just any EVM
 
@@ -105,7 +105,7 @@ curl -X POST https://shadow-arc.vercel.app/api/agent/follow-plan \
 
 ## Rubric fit (30 / 30 / 20 / 20)
 
-**Agentic Sophistication (30%).** Two cooperating autonomous surfaces. The source side runs as a GitHub Actions cron that publishes content addressed intents every 10 minutes with no human, and the follower side can run fully headless through `agent/src/headless-follower.ts`, which generates an EOA, funds itself, follows a source, watches receipts, and closes COPIED positions onchain. The dashboard is one access path, not the protocol. Shadow Pilot sits inside this same agent surface as a multi step onchain agent. It reads live source reputation from `MirrorRouter` and `SourceRegistry`, calls the Bankr LLM gateway to weight a deposit across 1 to 3 sources, anchors the SHA 256 decision hash onchain through `PilotAttestor.attest`, then commits the plan as approve plus deposit plus `followSource` per slice. After commit, the same agent runs Live Monitor: it rescores active follows from fresh chain state (last receipts, closes, builder fees, PnL), classifies each source as healthy / watch / stop, and proposes a re plan that anchors a new decision hash if a watch trips. Underneath it, three cron source agents publish content addressed intents every 10 minutes from GitHub Actions and `MirrorRouter` evaluates each follower policy onchain at intent time, emitting a receipt per follower with the exact block reason if denied. Every decision boundary that matters is enforced onchain, not in the browser.
+**Agentic Sophistication (30%).** Two cooperating autonomous surfaces. The source side runs as a GitHub Actions cron that publishes content addressed intents every 10 minutes with no human, and the follower side can run fully headless through `agent/src/headless-follower.ts`, which generates an EOA, funds itself, follows a source, watches receipts, and closes COPIED positions onchain. The dashboard is one access path, not the protocol. Shadow Pilot sits inside this same agent surface as a multi step onchain agent. It reads live source reputation from `MirrorRouter` and `SourceRegistry`, calls the Bankr LLM gateway to weight a deposit across 1 to 3 sources, anchors the SHA 256 decision hash onchain through `PilotAttestor.attest`, then commits the plan as approve plus deposit plus `followSource` per slice. After commit, the same agent runs Live Monitor: it rescores active follows from fresh chain state (last receipts, closes, mirror fees, PnL), classifies each source as healthy / watch / stop, and proposes a re plan that anchors a new decision hash if a watch trips. Underneath it, three cron source agents publish content addressed intents every 10 minutes from GitHub Actions and `MirrorRouter` evaluates each follower policy onchain at intent time, emitting a receipt per follower with the exact block reason if denied. Every copy-or-block policy boundary is enforced onchain, not in the browser.
 
 **Traction (30%).** Real follower wallets with real onchain receipts. The table above lists five distinct follower addresses on a single intent, each having bound USDC to a policy that the router enforced. The passkey smart account in the table onboarded through Circle Gas Station and produced a live onchain receipt, not a placeholder. Follow count, intents published, mirrored USDC, and blocked receipts are visible on the dashboard hero stats and are read directly from chain logs. The "External follower receipts" section below lists registered followers from outside the deployer.
 
@@ -253,8 +253,8 @@ Every follower policy stores a `dailyCap` and a `spentToday`. When a copied rece
 ## Arc and Circle alignment
 
 * Arc Testnet deployment, Arc USDC as both gas token and settlement asset.
-* ERC-8004 source agent identity and reputation references.
+* ERC-8004-style source agent identity and reputation references.
 * Onchain receipts for both copied and blocked outcomes in a single tx.
 * Onchain positions and `PositionClosed` receipts for realized PnL.
-* USDC builder fees credited to source agents at the receipt event.
+* USDC mirror fees credited to source agents at the receipt event.
 * Sponsored ERC-4337 onboarding through Circle Modular Wallets and Gas Station.
