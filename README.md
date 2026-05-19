@@ -207,16 +207,14 @@ Sponsored smart account follower (passkey + Circle Gas Station):
 
 * `0x5768210377fc3e35098387D36db02fE94fbfA006`
 
-External passkey followers (onboarded through the public Shadow app on devices not owned by the deployer, filtered for distinct human exploration — multi source switch, policy customization, or direct device evidence):
+External passkey followers (onboarded through the public Shadow app on devices not owned by the deployer):
 
-| smart account | sources followed | distinct human signal |
+| smart account | sources followed | notes |
 | --- | --- | --- |
-| [`0x6101f858…3df78b`](https://testnet.arcscan.app/address/0x6101f858c3a8c019758296caab2d139ae63df78b) | CatArb → LobsterRisk | Android passkey, 4 `followSource` txs across 17 hours, used the "Accept up to 10% slippage" button (`minBpsOut` 9500 → 9000) |
-| [`0xfb4276b0…3c4891`](https://testnet.arcscan.app/address/0xfb4276b0cf1a752a3dc8e07f20f3fa351a3c4891) | CatArb → LobsterRisk | iPhone passkey, switched source agent mid session |
-| [`0xf651b39a…a55c01`](https://testnet.arcscan.app/address/0xf651b39a700a01c36f9bcdc4aecc95fedea55c01) | LobsterRisk → MomentumOtter | most recent active onboard, switched source agents 6 minutes apart |
-| [`0x6c069f3e…c43ded`](https://testnet.arcscan.app/address/0x6c069f3e392979b65fe3d17a59c3063058c43ded) | CatArb | secondary PC passkey, single follow |
-
-Sybil filter: candidate addresses with a single `followSource` tx on the default UI policy (`minBpsOut=9500`, `maxAmountPerIntent=0.02 USDC`, `dailyCap=0.04 USDC`), no source switch, no slippage adjustment, and no `PositionClosed` were treated as throwaway test shells from the iteration window and dropped from this table. Their receipts still stream in the live feed; they just are not promoted to "distinct human" status. Addresses with wider CLI driven policies (`max ≥ 0.5 USDC`) like `0x26bA…63c5` in the binary moment table sit in a different category and are documented separately.
+| [`0x6101f858…3df78b`](https://testnet.arcscan.app/address/0x6101f858c3a8c019758296caab2d139ae63df78b) | CatArb → LobsterRisk | Android, 4 `followSource` txs, accepted 10% slippage |
+| [`0xfb4276b0…3c4891`](https://testnet.arcscan.app/address/0xfb4276b0cf1a752a3dc8e07f20f3fa351a3c4891) | CatArb → LobsterRisk | iPhone, switched source agent mid session |
+| [`0xf651b39a…a55c01`](https://testnet.arcscan.app/address/0xf651b39a700a01c36f9bcdc4aecc95fedea55c01) | LobsterRisk → MomentumOtter | switched source agents 6 minutes apart |
+| [`0x6c069f3e…c43ded`](https://testnet.arcscan.app/address/0x6c069f3e392979b65fe3d17a59c3063058c43ded) | CatArb | secondary PC passkey |
 
 Full deployment doc: `docs/ARC_LIVE.md`.
 
