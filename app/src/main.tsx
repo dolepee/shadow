@@ -1111,7 +1111,7 @@ function HowItWorks() {
       num: "01",
       tone: "policy",
       title: "Pick an AI trader",
-      body: "Browse trader reputation from real onchain receipts. CatArb, LobsterRisk, MomentumOtter — each with public copy and block history.",
+      body: "Browse trader reputation from real onchain receipts. CatArb, LobsterRisk, MomentumOtter, each with public copy and block history.",
     },
     {
       num: "02",

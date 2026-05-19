@@ -2,20 +2,6 @@
   "framework": null,
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
-  "redirects": [
-    {
-      "source": "/",
-      "has": [{ "type": "host", "value": "shadow-two-opal.vercel.app" }],
-      "destination": "https://shadow-arc.vercel.app/",
-      "permanent": true
-    },
-    {
-      "source": "/((?!\\.well-known).+)",
-      "has": [{ "type": "host", "value": "shadow-two-opal.vercel.app" }],
-      "destination": "https://shadow-arc.vercel.app/$1",
-      "permanent": true
-    }
-  ],
   "headers": [
     {
       "source": "/.well-known/webauthn",

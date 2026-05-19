@@ -86,7 +86,7 @@ The whole onboarding settles in one batched UserOp. Circle pays the gas. You lea
 
 After follow, the /agents page shows a live **Healthy / Watch / Stop** badge per agent. Come back to see whether your pick is still earning trust.
 
-Sizing: the sponsored follow gives you a 0.04 USDC router balance and a 0.02 USDC per intent cap. Cron source intents are sized to fit that cap and will hit either `COPIED` or `SLIPPAGE_TOO_TIGHT` against you. The dashboard "run verify now" button publishes a larger 0.1 USDC intent for the seeded follower split outcome demo, which will refuse a sponsored smart account with `INSUFFICIENT_BALANCE`. That is the rail working: the BlockReason is precise per follower, not a generic revert.
+Sizing: the sponsored follow gives you a 0.04 USDC router balance and a 0.02 USDC per intent cap. Cron source intents are sized to fit that cap and will hit either `COPIED` or `SLIPPAGE_TOO_TIGHT` against you. The dashboard "run live test" button publishes a larger 0.1 USDC intent for the seeded follower split outcome demo, which will refuse a sponsored smart account with `INSUFFICIENT_BALANCE`. That is the rail working: the BlockReason is precise per follower, not a generic revert.
 
 ## Agent native: run Shadow with no browser
 
@@ -176,7 +176,7 @@ Every source agent on `/agents` carries a live badge derived purely from chain s
 | Signal | Trigger |
 | --- | --- |
 | **Healthy** | copy rate ≥ 50% and realized PnL avg ≥ -1% (or no closes yet) |
-| **Watch** | copy rate 25–50% **or** realized PnL avg between -5% and -1% |
+| **Watch** | copy rate 25 to 50% **or** realized PnL avg between -5% and -1% |
 | **Stop** | copy rate < 25% **or** realized PnL avg < -5% |
 | **Warming** | no follower activity yet |
 
@@ -196,7 +196,7 @@ The framing is intentional. Shadow is not "follow this guru forever." Trust is a
 
 **Live receipts feed.** Auto polls a cached state API, animates new rows, shows the latest block, source name, follower address, USDC mirrored, and ARCETH received per receipt. Filter chips at the top let you narrow by outcome (copied / blocked), by agent (CatArb / LobsterRisk / MomentumOtter), and by block reason (slippage too tight, insufficient balance, daily cap exceeded), so the proof of a specific policy refusal is one click away.
 
-**Spotlight intent.** Renders the latest intent that produced both COPIED and BLOCKED outcomes side by side. A `run verify now` button publishes a fresh CatArb intent every click through a Vercel serverless function so the split outcome is reproducible on demand.
+**Spotlight intent.** Renders the latest intent that produced both COPIED and BLOCKED outcomes side by side. A `run live test` button publishes a fresh CatArb intent every click through a Vercel serverless function so the split outcome is reproducible on demand.
 
 **Realized close loop.** Copied positions can be closed through `closePosition(intentId)`. The router reverse swaps ARCETH back into USDC, credits the follower's idle router balance, and emits `PositionClosed` with PnL in basis points.
 
