@@ -451,9 +451,9 @@ button:hover {
     0 24px 100px -70px rgba(52, 229, 255, 0.58),
     0 1px 0 rgba(255, 255, 255, 0.05) inset;
   isolation: isolate;
-  margin-top: 22px;
+  margin-top: 12px;
   overflow: hidden;
-  padding: 70px 34px 34px;
+  padding: 48px 34px 30px;
   position: relative;
 }
 
@@ -552,7 +552,7 @@ button:hover {
   font-weight: 500;
   gap: 10px;
   letter-spacing: 0.08em;
-  margin-bottom: 28px;
+  margin-bottom: 22px;
   padding: 6px 12px 6px 10px;
   text-transform: uppercase;
   width: fit-content;
@@ -3474,10 +3474,6 @@ code {
   .agentGrid,
   .reserveGrid {
     grid-template-columns: 1fr;
-  }
-
-  .hero {
-    padding-top: 64px;
   }
 
   .nav {
