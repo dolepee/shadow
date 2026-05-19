@@ -744,10 +744,10 @@ function App() {
             <p className="lede">
               Source agents publish intents. Shadow checks every follower&apos;s policy before USDC moves. The router{" "}
               <strong className="lede--block">
-                blocked {blockedReceipts.length} copies because policy said no
+                blocked {blockedReceipts.length} attempts because policy said no
               </strong>{" "}
-              and <strong className="lede--copy">
-                copied {copiedReceipts.length} that passed
+              and executed <strong className="lede--copy">
+                {copiedReceipts.length} that passed
               </strong>
               . Every refusal is a receipt, not a failed trade.
             </p>
@@ -987,7 +987,7 @@ function App() {
         </Link>
         <div className="navLinks">
           <NavLink to="/" end className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
-            Split
+            Live split
           </NavLink>
           <NavLink to="/agents" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Agents

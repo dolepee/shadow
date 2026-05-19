@@ -523,8 +523,8 @@ button:hover {
 .heroGrid {
   align-items: center;
   display: grid;
-  gap: 48px;
-  grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
+  gap: 42px;
+  grid-template-columns: minmax(0, 1fr) minmax(400px, 0.92fr);
   position: relative;
 }
 
@@ -4569,7 +4569,6 @@ code {
   flex-direction: column;
   overflow: hidden;
   position: relative;
-  transform: rotate(-0.7deg);
 }
 
 .heroLedger::before {
@@ -4589,7 +4588,7 @@ code {
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
-  padding: 14px 20px;
+  padding: 12px 18px;
   position: relative;
   z-index: 1;
 }
@@ -4643,7 +4642,7 @@ code {
 
 .heroLedgerIntent {
   border-bottom: 1px solid var(--border);
-  padding: 18px 20px;
+  padding: 16px 18px;
   position: relative;
   z-index: 1;
 }
@@ -4722,7 +4721,7 @@ code {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 20px;
+  padding: 18px;
   position: relative;
 }
 
@@ -4730,9 +4729,9 @@ code {
   background: linear-gradient(90deg, currentColor, transparent);
   content: "";
   height: 3px;
-  left: 20px;
+  left: 18px;
   position: absolute;
-  right: 20px;
+  right: 18px;
   top: 0;
 }
 
@@ -4790,7 +4789,7 @@ code {
 .heroLedgerCellMain {
   color: var(--ink);
   font-family: var(--mono);
-  font-size: 30px;
+  font-size: 28px;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   letter-spacing: -0.025em;
@@ -4869,7 +4868,7 @@ code {
   font-weight: 500;
   gap: 10px;
   letter-spacing: 0.08em;
-  padding: 12px 20px;
+  padding: 11px 18px;
   position: relative;
   text-transform: uppercase;
   z-index: 1;
