@@ -215,6 +215,7 @@ External passkey followers (onboarded through the public Shadow app on devices n
 | [`0xfb4276b0…3c4891`](https://testnet.arcscan.app/address/0xfb4276b0cf1a752a3dc8e07f20f3fa351a3c4891) | CatArb → LobsterRisk | iPhone, switched source agent mid session |
 | [`0xf651b39a…a55c01`](https://testnet.arcscan.app/address/0xf651b39a700a01c36f9bcdc4aecc95fedea55c01) | LobsterRisk → MomentumOtter | switched source agents 6 minutes apart |
 | [`0x6c069f3e…c43ded`](https://testnet.arcscan.app/address/0x6c069f3e392979b65fe3d17a59c3063058c43ded) | CatArb | secondary PC passkey |
+| [`0x5daef0c6…6749`](https://testnet.arcscan.app/address/0x5daef0c6a09e6c83dc3f2d3866ead1787d8f6749) | LobsterRisk | iPhone passkey, picked LobsterRisk over the default CatArb |
 
 Full deployment doc: `docs/ARC_LIVE.md`.
 
