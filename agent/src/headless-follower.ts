@@ -90,12 +90,10 @@ async function main() {
   const publicClient = createPublicClient({ chain: arcTestnet, transport });
   const usdc = requiredEnv("ARC_USDC") as Address;
   const router = requiredEnv("SHADOW_ROUTER") as Address;
-  const deployer = privateKeyToAccount(normalizeKey(requiredEnv("PRIVATE_KEY")));
 
   const followerKey = (process.env.HEADLESS_FOLLOWER_PRIVATE_KEY as Hex | undefined) || generatePrivateKey();
   const account = privateKeyToAccount(followerKey);
   const followerWallet = createWalletClient({ account, chain: arcTestnet, transport });
-  const deployerWallet = createWalletClient({ account: deployer, chain: arcTestnet, transport });
 
   log(`agent EOA: ${account.address}`);
   if (!process.env.HEADLESS_FOLLOWER_PRIVATE_KEY) {
@@ -113,6 +111,14 @@ async function main() {
     });
     if (walletUsdc < FUND_USDC) {
       const delta = FUND_USDC - walletUsdc;
+      const deployerKey = process.env.PRIVATE_KEY;
+      if (!deployerKey) {
+        log(`agent EOA balance ${formatUnits(walletUsdc, 6)} USDC < required ${formatUnits(FUND_USDC, 6)} USDC.`);
+        log(`set PRIVATE_KEY to auto-fund from deployer, OR transfer ${formatUnits(delta, 6)} USDC to ${account.address} manually then re-run.`);
+        process.exit(2);
+      }
+      const deployer = privateKeyToAccount(normalizeKey(deployerKey));
+      const deployerWallet = createWalletClient({ account: deployer, chain: arcTestnet, transport });
       log(`fund: deployer transfer ${formatUnits(delta, 6)} USDC -> agent`);
       const tx = await deployerWallet.writeContract({
         address: usdc, abi: erc20Abi, functionName: "transfer", args: [account.address, delta], gas: 200_000n,
