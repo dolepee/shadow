@@ -3116,6 +3116,31 @@ function ModularWalletCard() {
     };
   }, [trackedAddress, state.kind, selectedSource.address]);
 
+  useEffect(() => {
+    if (state.kind !== "ready" || !addresses.usdc) return;
+    const addr = state.address;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const balance = (await publicClient.readContract({
+          address: addresses.usdc!,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [addr],
+        })) as bigint;
+        if (cancelled) return;
+        if (balance >= parseUnits("0.04", 6)) {
+          setState({ kind: "funded", address: addr, alreadyFunded: true });
+        }
+      } catch {
+        // leave state as ready; user can still click Fund manually
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [state.kind, (state as any).address]);
+
   async function loadCredential(): Promise<WebAuthnCredential | null> {
     try {
       const raw =
@@ -3467,7 +3492,7 @@ function ModularWalletCard() {
         <>
           <p className="modularBody">
             Create a Circle MSCA owned by your device passkey, fund it with 0.05
-            USDC from the faucet, then approve, deposit, and call{" "}
+            USDC (one click below), then approve, deposit, and call{" "}
             <code>followSource</code> on the source agent you pick in a single batched
             UserOp with <code>paymaster: true</code>. The smart account becomes a real
             Shadow follower with its own minBpsOut policy. Circle Gas Station pays the
