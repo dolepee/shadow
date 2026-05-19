@@ -130,7 +130,7 @@ curl -X POST https://shadow-arc.vercel.app/api/agent/follow-plan \
 
 ## External follower receipts
 
-Followers outside the deployer that registered onchain through the public Shadow app. As of submission, **13 external passkey followers are registered on the router**. Five are highlighted below with their most distinctive onchain action.
+Followers outside the deployer that registered onchain through the public Shadow app. As of submission, **14 external passkey followers are registered on the router**. Six are highlighted below with their most distinctive onchain action.
 
 | follower | onboarded via | action | tx |
 | --- | --- | --- | --- |
@@ -139,6 +139,7 @@ Followers outside the deployer that registered onchain through the public Shadow
 | [`0xf651b39a…a55c01`](https://testnet.arcscan.app/address/0xf651b39a700a01c36f9bcdc4aecc95fedea55c01) | passkey + Circle Gas Station | switched LobsterRisk → MomentumOtter 6 minutes apart | [`0x64ca5384…9595e`](https://testnet.arcscan.app/tx/0x64ca5384b65ea576276c457cb89a00f2116b8f4b5a48a2efa4ff2deac279595e) |
 | [`0x6c069f3e…c43ded`](https://testnet.arcscan.app/address/0x6c069f3e392979b65fe3d17a59c3063058c43ded) | passkey + Circle Gas Station | follow CatArb from a secondary PC | [`0x8f630a9e…17db2`](https://testnet.arcscan.app/tx/0x8f630a9ef34a74b1345501dffce903e58f65aa054dc09668e32a7be052117db2) |
 | [`0x5daef0c6…d6749`](https://testnet.arcscan.app/address/0x5daef0c6a09e6c83dc3f2d3866ead1787d8f6749) | passkey + Circle Gas Station | follow LobsterRisk on iPhone, picked non default source | [`0x8c00ee0a…11cc2`](https://testnet.arcscan.app/tx/0x8c00ee0a6d93b31ebe782a865d631280dcb9112e6d858c3aca3b70395a311cc2) |
+| [`0x1cB74072…a12066`](https://testnet.arcscan.app/address/0x1cB74072a947275A4712309a82845676e6a12066) | passkey + Circle Gas Station | follow MomentumOtter from Android at 10% slippage preset, then ran live test from the homepage ([publish tx](https://testnet.arcscan.app/tx/0x851ec3b43a63dbd910db5eb2615d00b5108fa825b2affe6ff74c814c810721c3)) | [`0x3308bede…6d928d`](https://testnet.arcscan.app/tx/0x3308bede9d812a59f5cba9c73c81ac8031130116359a5d7cf343a1f4646d928d) |
 
 The dashboard live feed shows every receipt as it lands. This table is the short list of distinctive non-seeded onboarding actions; the seeded spotlight wallets are listed separately in the deployment section so judges can distinguish demo scaffolding from traction.
 
