@@ -1030,10 +1030,19 @@ function App() {
 }
 
 function RouteScroll() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }, [pathname]);
+    if (hash) {
+      const id = hash.slice(1);
+      requestAnimationFrame(() => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        else window.scrollTo({ top: 0, behavior: "auto" });
+      });
+    } else {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [pathname, hash]);
   return null;
 }
 
@@ -1985,7 +1994,7 @@ function PilotCard({
     { key: "high", label: "High", sub: "Up to 3 sources, aggressive presets." },
   ];
   return (
-    <section className="pilot">
+    <section className="pilot" id="pilot">
       <header className="pilotHeader">
         <p className="eyebrow">AI pilot</p>
         <h2>Tell the AI your size and risk. It picks, weights, and watches.</h2>
@@ -2316,7 +2325,7 @@ function SplitMomentFallback() {
             <span className="spotlightCardStampText">COPIED</span>
           </div>
           <p className="spotlightCardLabel">Follower A · policy let it through</p>
-          <p className="spotlightCardFollower">0x82A2…DfeA</p>
+          <p className="spotlightCardFollower">0x7A3F…3AcD</p>
           <dl className="spotlightStats">
             <div>
               <dt>amount</dt>
@@ -2344,7 +2353,7 @@ function SplitMomentFallback() {
             <span className="spotlightCardStampText">BLOCKED</span>
           </div>
           <p className="spotlightCardLabel">Follower B · policy refused</p>
-          <p className="spotlightCardFollower">0xBD9B…3F87</p>
+          <p className="spotlightCardFollower">0x495c…8695</p>
           <dl className="spotlightStats">
             <div>
               <dt>amount</dt>
@@ -2412,7 +2421,7 @@ function HeroDiagram() {
               <span className="heroLedgerCellDot" />
               COPIED
             </span>
-            <span className="heroLedgerCellAddr">0x82A2…DfeA</span>
+            <span className="heroLedgerCellAddr">0x7A3F…3AcD</span>
           </div>
           <div className="heroLedgerCellMain">+0.0185</div>
           <div className="heroLedgerCellUnit">ARCETH credited to follower</div>
@@ -2427,7 +2436,7 @@ function HeroDiagram() {
               <span className="heroLedgerCellDot" />
               BLOCKED
             </span>
-            <span className="heroLedgerCellAddr">0xBD9B…3F87</span>
+            <span className="heroLedgerCellAddr">0x495c…8695</span>
           </div>
           <div className="heroLedgerCellMain">0.00</div>
           <div className="heroLedgerCellUnit">USDC copied · blocked before spend</div>
@@ -2440,7 +2449,7 @@ function HeroDiagram() {
 
       <div className="heroLedgerProof">
         <span className="heroLedgerProofLabel">receipt</span>
-        <span className="heroLedgerProofHash">0x9f2a…c4e1</span>
+        <span className="heroLedgerProofHash">0xfdc4…3ef7</span>
         <span className="heroLedgerProofSep" />
         <span className="heroLedgerProofChain">chain&nbsp;5042002</span>
         <span className="heroLedgerProofVerify">verified onchain</span>
@@ -2454,24 +2463,24 @@ function SiteFooter() {
     {
       title: "Product",
       links: [
-        { label: "Onboarding", href: "#circle-stack" },
-        { label: "Live receipts", href: "#live-feed" },
-        { label: "AI pilot", href: "#technical" },
+        { label: "Onboarding", href: "/follow#circle-stack" },
+        { label: "Live receipts", href: "/receipts#live-feed" },
+        { label: "AI pilot", href: "/follow#pilot" },
       ],
     },
     {
       title: "Traders",
       links: [
-        { label: "Earned reputation", href: "#traders" },
-        { label: "Builder fees", href: "#technical" },
+        { label: "Earned reputation", href: "/agents#traders" },
+        { label: "Builder fees", href: "/agents#traders" },
       ],
     },
     {
       title: "Resources",
       links: [
         { label: "Source on GitHub", href: "https://github.com/dolepee/shadow" },
-        { label: "Arc explorer", href: "https://arc-testnet.explorer.thecanteenapp.com" },
-        { label: "Chain ID 5042002", href: "https://arc-testnet.explorer.thecanteenapp.com" },
+        { label: "Arc explorer", href: "https://testnet.arcscan.app" },
+        { label: "Chain ID 5042002", href: "https://testnet.arcscan.app" },
       ],
     },
   ];
@@ -2480,10 +2489,10 @@ function SiteFooter() {
     <footer className="siteFooter">
       <div className="siteFooterTop">
         <div className="siteFooterBrand">
-          <a className="brand brandFooter" href="#top" aria-label="Shadow">
+          <Link className="brand brandFooter" to="/" aria-label="Shadow">
             <ShadowMark />
             <span>Shadow</span>
-          </a>
+          </Link>
           <p className="siteFooterTagline">
             Copy the best AI traders on Arc. Every copy and every refusal is an onchain receipt.
           </p>
@@ -2496,11 +2505,20 @@ function SiteFooter() {
           {sections.map((s) => (
             <div className="siteFooterColumn" key={s.title}>
               <span className="siteFooterColumnTitle">{s.title}</span>
-              {s.links.map((l) => (
-                <a key={l.label} href={l.href} target={l.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer">
-                  {l.label}
-                </a>
-              ))}
+              {s.links.map((l) => {
+                if (l.href.startsWith("http")) {
+                  return (
+                    <a key={l.label} href={l.href} target="_blank" rel="noreferrer">
+                      {l.label}
+                    </a>
+                  );
+                }
+                return (
+                  <Link key={l.label} to={l.href}>
+                    {l.label}
+                  </Link>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -2670,8 +2688,8 @@ function TractionStrip({ state }: { state: ShadowState | null }) {
         ))}
       </div>
       <p className="tractionFootnote">
-        Counts include both seeded developer wallets and any public follower. Computed live from MirrorReceipt and
-        PositionClosed event logs, not a backend cache. If the indexer goes down, the chain is still the source of truth.
+        Computed live from MirrorReceipt and PositionClosed event logs, not a backend cache. If the indexer goes down,
+        the chain is still the source of truth.
       </p>
     </section>
   );
