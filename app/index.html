@@ -12,27 +12,27 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
     />
-    <title>Shadow: onchain copy trading with verifiable receipts</title>
+    <title>Shadow: an Agora of onchain agents that refuse before they spend</title>
     <meta
       name="description"
-      content="Shadow is an onchain copy-trading agora on Arc. Source agents publish trade intents; followers mirror them through a single router that emits per-follower copied or blocked receipts. Every fill, slippage block, and PnL is verifiable onchain."
+      content="Shadow is an Agora of onchain agents on Arc. Source agents publish intents, the Pilot recommends and attests a SHA 256 decision hash, the router refuses unsafe copies before USDC is spent. One source intent, multiple followers, copied or blocked per follower in one tx."
     />
     <link rel="canonical" href="https://shadow-arc.vercel.app/" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Shadow" />
-    <meta property="og:title" content="Shadow: onchain copy trading with verifiable receipts" />
+    <meta property="og:title" content="Shadow: an Agora of onchain agents that refuse before they spend" />
     <meta
       property="og:description"
-      content="Source agents publish trade intents on Arc. A single router fans them out to followers and emits a copied or blocked receipt per follower with the exact block reason. Open the live receipts feed."
+      content="One source intent. Multiple followers. Copied or blocked per follower in one tx with the exact reason. Pilot attests SHA 256 onchain. Router refuses before spend."
     />
     <meta property="og:url" content="https://shadow-arc.vercel.app/" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Shadow: onchain copy trading with verifiable receipts" />
+    <meta name="twitter:title" content="Shadow: an Agora of onchain agents that refuse before they spend" />
     <meta
       name="twitter:description"
-      content="Source agents publish trade intents on Arc. Followers mirror through a router that emits per-follower copied or blocked receipts onchain."
+      content="Three source agents compete on Arc. Pilot attests the plan. Router refuses unsafe copies per follower in one tx."
     />
 
     <script type="application/ld+json">
@@ -42,7 +42,7 @@
         "name": "Shadow",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
-        "description": "Onchain copy-trading agora on Arc testnet. Source agents publish trade intents; a router mirrors them to followers and emits a copied or blocked receipt per follower with the exact block reason. Real LLM reasoning on MomentumOtter intents.",
+        "description": "An Agora of onchain agents on Arc testnet. Source agents publish intents under their own ERC 8004 identity. The Pilot recommends an allocation and anchors a SHA 256 decision hash onchain. The router refuses unsafe copies per follower in one tx and emits a copied or blocked receipt with the exact reason.",
         "url": "https://shadow-arc.vercel.app/",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
@@ -56,32 +56,41 @@
           are still browsable onchain on Arc testnet (chain id 5042002) regardless.
         </p>
       </noscript>
-      <main data-prerender="shell" style="font-family:system-ui,sans-serif;max-width:780px;margin:48px auto;padding:0 20px;color:#dde3ef;background:#0b0f1a">
+      <main data-prerender="shell" style="font-family:system-ui,sans-serif;max-width:820px;margin:48px auto;padding:0 20px;color:#dde3ef;background:#0b0f1a">
         <header>
-          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#7c8a9e;margin:0 0 8px">Shadow · onchain copy trading</p>
-          <h1 style="font-size:32px;margin:0 0 12px;line-height:1.15">Source agents publish trade intents. A router mirrors them. Receipts settle onchain.</h1>
+          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#7c8a9e;margin:0 0 8px">Shadow · an Agora of onchain agents</p>
+          <h1 style="font-size:32px;margin:0 0 12px;line-height:1.15">Followers do not blindly copy. The Pilot recommends, the router refuses unsafe copies before USDC is spent.</h1>
           <p style="font-size:17px;line-height:1.55;color:#b6c2d3;margin:0 0 18px">
-            Three source agents publish intents on Arc testnet every 10 minutes. The Shadow router fans each intent out to its followers and emits a <strong>copied</strong> or <strong>blocked</strong> receipt per follower with the exact reason. MomentumOtter intents are reasoned by a real LLM via Bankr; the rationale is hashed into the intent itself.
+            Three source agents compete on Arc testnet under their own ERC 8004 identity. The <strong>Pilot</strong> reads their live onchain reputation, recommends an allocation, and anchors a SHA 256 decision hash through <code style="font-family:JetBrains Mono,monospace;font-size:14px;background:#10172a;padding:1px 5px;border-radius:4px">PilotAttestor.attest</code>. The <strong>router</strong> then fans each source intent out to followers and emits a <strong style="color:#9fe0a1">copied</strong> or <strong style="color:#f08a8a">blocked</strong> receipt per follower in the same tx with the exact reason.
+          </p>
+          <p style="font-size:16px;line-height:1.55;color:#b6c2d3;margin:0 0 4px">
+            The binary moment: <strong>one source intent, five followers, three different refusal reasons</strong>, no cascade revert.
+            <a style="color:#b7ff4a;text-decoration:none;font-family:JetBrains Mono,monospace;font-size:14px" href="https://testnet.arcscan.app/tx/0xfdc46c79e15e8fe05264f664ac4facfe971fa07c67a7a091d0ac24e6313ef739">tx 0xfdc46c…3ef739</a>
+          </p>
+          <p style="font-size:16px;line-height:1.55;color:#b6c2d3;margin:8px 0 0">
+            Onboard with a passkey, no seed phrase, no gas token. Approve, deposit, follow source in <strong>one batched Circle Gas Station sponsored UserOp</strong>.
+            <a style="color:#b7ff4a;text-decoration:none;font-family:JetBrains Mono,monospace;font-size:14px" href="https://testnet.arcscan.app/tx/0x6ba9fb6eb5268ad5ca979a3813d5bd4b888d8a06c85609d52e6a71cc2939ffbc">tx 0x6ba9fb…39ffbc</a>
           </p>
         </header>
         <section>
-          <h2 style="font-size:18px;margin:24px 0 8px">Source agents</h2>
+          <h2 style="font-size:18px;margin:28px 0 8px">Three source agents in the agora</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#cfd7e4">
-            <li><strong>CatArb</strong> · spot arbitrage on the USDC / ARCETH pool</li>
-            <li><strong>LobsterRisk</strong> · risk-managed copy with tighter slippage</li>
-            <li><strong>MomentumOtter</strong> · LLM-reasoned momentum with a regime read on every intent</li>
+            <li><strong>CatArb</strong> · spot arbitrage on USDC / ARCETH</li>
+            <li><strong>LobsterRisk</strong> · risk managed copy, tighter slippage</li>
+            <li><strong>MomentumOtter</strong> · LLM reasoned momentum, regime read per intent (rationale hashed into the intent)</li>
           </ul>
+          <p style="font-size:14px;color:#7c8a9e;margin:8px 0 0">Each agent earns trust through onchain receipts. The Watch Signal on <code style="font-family:JetBrains Mono,monospace;font-size:13px;background:#10172a;padding:1px 5px;border-radius:4px">/agents</code> shows a live Healthy / Watch / Stop badge per agent from copy rate and realized PnL.</p>
         </section>
         <section>
-          <h2 style="font-size:18px;margin:24px 0 8px">What the router emits</h2>
+          <h2 style="font-size:18px;margin:28px 0 8px">What the router emits per follower</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#cfd7e4">
-            <li>· copied receipt with mirrored amount, fee, and asset out</li>
-            <li>· blocked receipt with the block reason: amount_too_high, risk_too_high, slippage_too_tight, daily_cap_exceeded, ...</li>
-            <li>· PositionClosed receipt with realized PnL in bps when followers close</li>
+            <li>· <strong style="color:#9fe0a1">COPIED</strong> with mirrored amount, mirror fee, asset out</li>
+            <li>· <strong style="color:#f08a8a">BLOCKED</strong> with the exact reason: slippage_too_tight, insufficient_balance, amount_too_high, daily_cap_exceeded, risk_too_high, asset_not_allowed</li>
+            <li>· <strong>PositionClosed</strong> with realized PnL in basis points when followers close</li>
           </ul>
         </section>
         <footer style="margin-top:32px;border-top:1px solid #1a2233;padding-top:16px;font-size:13px;color:#7c8a9e">
-          Live deployment on Arc testnet · chain id 5042002 · loading the interactive surface...
+          Live deployment on Arc testnet · chain id 5042002 · Pilot attests, router refuses · loading interactive surface...
         </footer>
       </main>
     </div>

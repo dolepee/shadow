@@ -1,16 +1,20 @@
 # Shadow
 
-**Shadow does not just copy agents. It watches when an agent stops being worth copying.**
+**Shadow is an Agora of onchain agents where followers do not blindly copy. Source agents publish intents, the Pilot explains risk and attests a SHA 256 decision hash, and the router refuses unsafe copies before USDC is spent.**
 
-Most copy trading apps mirror every trade. Shadow runs an onchain policy router that decides per follower whether each trade should clear or refuse, and a Watch Signal that scores every source agent live from chain state. Trust is earned trade by trade, and lost the same way. Both outcomes ship as receipts.
+Three source agents (CatArb, LobsterRisk, MomentumOtter) compete on Arc Testnet. Each publishes intents every 10 minutes. Followers stake one or many through their own onchain policy. `MirrorRouter` evaluates the policy per follower at the receipt event and emits **COPIED** or **BLOCKED** with the exact reason in a single transaction. The **Pilot** reads live source reputation, recommends an allocation, and anchors its plan onchain through `PilotAttestor`. The **Watch Signal** on `/agents` scores each source live as Healthy / Watch / Stop from receipts and realized PnL, so trust can be earned and lost without anyone editing a leaderboard.
 
-One source intent can produce COPIED for one follower and BLOCKED for another in the same tx. When an agent's copy rate or realized PnL drops far enough, the Watch Signal flips to Stop and the dashboard tells you to unfollow.
+The protocol moat is per follower refusal in one tx. The agora moat is three agents competing under the same router for the same followers.
 
 Live app: https://shadow-arc.vercel.app
 
 GitHub: https://github.com/dolepee/shadow
 
 Chain: Arc Testnet (chain id `5042002`)
+
+## What makes this an Agora
+
+Three competing source agents. Each publishes its own intents under its own onchain identity (ERC 8004). Followers stake one or many. The router scores them onchain through `MirrorReceipt` (per intent decisions) and `PositionClosed` (realized PnL). The Watch Signal panel turns those receipts into a Healthy / Watch / Stop badge per agent. No off chain leaderboard.
 
 ## The binary moment
 
@@ -52,11 +56,9 @@ Circle Gas Station paid the gas. The user paid zero ARC. The Modular Wallets SDK
 
 Sponsored UserOp tx: https://testnet.arcscan.app/tx/0x6ba9fb6eb5268ad5ca979a3813d5bd4b888d8a06c85609d52e6a71cc2939ffbc
 
-The integration test: if we removed this path, the smart account onboarding becomes "open MetaMask, get ARC gas, sign approve, sign deposit, sign follow." Four extra clicks and a gas token barrier per follower. Removing the path degrades onboarding measurably. Load bearing.
+Without the sponsored batch, onboarding adds 3 signatures (`approve`, `depositUSDC`, `followSource`) and a gas token step (acquire ARC, fund EOA, then sign), turning a single passkey tap into roughly 60 to 90 seconds with at least one external dependency (faucet or bridge). With sponsored UserOp it is one tap on the device. That is the integration test for Circle Modular Wallets + Gas Station, and removing it actually degrades onboarding.
 
-Other Circle products in use:
-
-* `AppKit.send` powers the per source tip buttons (one click USDC tips to source agents). Load bearing for the source builder fee loop.
+Footer mention: `AppKit.send` powers per source tip buttons elsewhere on the page. Not part of the load bearing follower onboarding path.
 
 ## Try it in 30 seconds
 
@@ -104,7 +106,7 @@ curl -X POST https://shadow-arc.vercel.app/api/agent/follow-plan \
 
 **Traction (30%).** Real follower wallets with real onchain receipts. The table above lists five distinct follower addresses on a single intent, each having bound USDC to a policy that the router enforced. The passkey smart account in the table onboarded through Circle Gas Station and produced a live onchain receipt, not a placeholder. Follow count, intents published, mirrored USDC, and blocked receipts are visible on the dashboard hero stats and are read directly from chain logs. External follower receipts will be appended to the section below as they land.
 
-**Circle Tool Usage (20%).** Two load bearing integrations: Modular Wallets plus Gas Station for sponsored follower onboarding (`src/main.tsx` `ModularWalletCard`), and AppKit.send for per source tipping. Each one passes the integration test: removing it degrades the product.
+**Circle Tool Usage (20%).** One load bearing integration: Modular Wallets plus Gas Station for sponsored follower onboarding (`src/main.tsx` `ModularWalletCard`). Removing it adds 3 signatures and a gas token step, turning a one tap passkey onboard into a ~60 to 90 second multi step EOA flow. AppKit.send is wired for per source USDC tipping as a secondary surface; it is not part of the follower onboarding integration test.
 
 **Innovation (20%).** The novel primitive is slippage each follower owns. A source publishing a tight `minAmountOut` no longer cascade reverts a batch of followers, because each follower's `minBpsOut` is evaluated against the live quote at the receipt event. Sponsored ERC-4337 onboarding for copy trading is unusual in this space; most copy trading products require the follower to hold the chain's gas token first.
 

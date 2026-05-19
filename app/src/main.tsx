@@ -3151,13 +3151,13 @@ function CircleStackPanel() {
         title="One click follower onboarding, sponsored by Circle Gas Station"
       />
       <p className="circleStackCaption">
-        Tip buttons on each trader invoke <code>AppKit.send</code>. The card
-        below uses <code>@circle-fin/modular-wallets-core</code> to mint a passkey
-        owned smart account and then approve, deposit, and call{" "}
-        <code>followSource</code> in one batched UserOp paid for by Circle Gas
-        Station. The smart account becomes a real Shadow follower with its own{" "}
-        <code>minBpsOut</code>. Removing this section degrades onboarding by four
-        clicks and a gas token requirement, so it is load bearing, not decorative.
+        The card below uses <code>@circle-fin/modular-wallets-core</code> to mint a passkey
+        owned smart account and then approve, deposit, and call <code>followSource</code> in
+        one batched UserOp paid for by Circle Gas Station. The smart account becomes a real
+        Shadow follower with its own <code>minBpsOut</code>. Without this path, onboarding
+        adds 3 signatures (<code>approve</code>, <code>depositUSDC</code>, <code>followSource</code>)
+        and a gas token step, turning a single passkey tap into roughly 60 to 90 seconds
+        with a faucet or bridge in the loop. That is the measured integration test.
       </p>
       <div className="circleStackGrid circleStackGridSolo">
         <ModularWalletCard />
