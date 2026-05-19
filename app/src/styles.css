@@ -254,20 +254,44 @@ button:hover {
 }
 
 .navWallet {
-  background: transparent;
-  border: 1px solid var(--border-strong);
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(184, 211, 255, 0.16);
   border-radius: 8px;
-  color: var(--ink);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
   font-family: var(--mono);
   font-size: 12px;
   font-weight: 500;
+  gap: 8px;
   letter-spacing: 0.04em;
   padding: 8px 14px;
 }
 
+.navWallet.connected {
+  background: rgba(52, 229, 255, 0.08);
+  border-color: rgba(52, 229, 255, 0.26);
+  color: var(--ink);
+}
+
+.navWalletDot {
+  background: rgba(184, 211, 255, 0.36);
+  border-radius: 999px;
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+}
+
+.navWallet.connected .navWalletDot {
+  background: var(--copy);
+  box-shadow: 0 0 14px rgba(51, 255, 166, 0.68);
+}
+
 .navWallet:hover {
-  background: var(--surface);
-  border-color: var(--ink-soft);
+  background: rgba(52, 229, 255, 0.08);
+  border-color: rgba(52, 229, 255, 0.3);
+  color: var(--ink);
 }
 
 .pageHead {

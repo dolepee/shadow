@@ -1000,15 +1000,18 @@ function App() {
           </NavLink>
         </div>
         <div className="navActions">
-          {account ? (
-            <button className="navWallet" onClick={connectWallet}>
-              {shortAddress(account)}
-            </button>
-          ) : (
-            <Link to="/follow" className="navCta">
-              Start following
-            </Link>
-          )}
+          <button
+            className={account ? "navWallet connected" : "navWallet"}
+            onClick={connectWallet}
+            type="button"
+            aria-label={account ? `Connected wallet ${account}` : "Connect wallet"}
+          >
+            <span className="navWalletDot" />
+            {account ? shortAddress(account) : "Wallet"}
+          </button>
+          <Link to="/follow" className="navCta">
+            Start following
+          </Link>
         </div>
       </nav>
 
