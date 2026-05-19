@@ -1,49 +1,49 @@
 :root {
-  background: #08090b;
-  color: #efeae0;
-  font-family: "Inter", "Space Grotesk", system-ui, -apple-system, sans-serif;
+  background: #07111f;
+  color: #f3f7ff;
+  font-family: "Bricolage Grotesque", system-ui, -apple-system, sans-serif;
   font-feature-settings: "cv11", "ss01", "ss03";
-  --bg: #08090b;
-  --bg-2: #0c0d10;
-  --surface: #101216;
-  --surface-2: #15181d;
-  --surface-3: #1c2027;
-  --border: rgba(239, 234, 224, 0.06);
-  --border-strong: rgba(239, 234, 224, 0.12);
-  --border-accent: rgba(200, 255, 90, 0.22);
-  --ink: #efeae0;
-  --ink-soft: #a8a39a;
-  --ink-faint: #6e6a64;
-  --accent: #b7ff4a;
-  --signal: #b7ff4a;
-  --signal-soft: rgba(183, 255, 74, 0.08);
-  --signal-line: rgba(183, 255, 74, 0.22);
-  --accent-soft: rgba(183, 255, 74, 0.08);
-  --accent-line: rgba(183, 255, 74, 0.22);
-  --copy: #b7ff4a;
-  --copy-soft: rgba(183, 255, 74, 0.08);
-  --copy-glow: rgba(183, 255, 74, 0.18);
-  --block: #ff8a6a;
-  --block-soft: rgba(255, 138, 106, 0.08);
-  --block-glow: rgba(255, 138, 106, 0.18);
-  --block-line: rgba(255, 138, 106, 0.35);
-  --warn: #f5b95c;
-  --warn-soft: rgba(245, 185, 92, 0.08);
-  --policy: #efeae0;
-  --policy-soft: rgba(239, 234, 224, 0.04);
-  --pending: #6e6a64;
-  --pending-soft: rgba(110, 106, 100, 0.08);
-  --proof: #a8a39a;
-  --proof-soft: rgba(168, 163, 154, 0.08);
-  --surface-line: rgba(239, 234, 224, 0.06);
-  --surface-line-strong: rgba(239, 234, 224, 0.12);
-  --cta-bg: #efeae0;
-  --cta-bg-hover: #ffffff;
-  --cta-fg: #08090b;
+  --bg: #07111f;
+  --bg-2: #0b1728;
+  --surface: #0f1d31;
+  --surface-2: #14243a;
+  --surface-3: #1b2c47;
+  --border: rgba(184, 211, 255, 0.1);
+  --border-strong: rgba(184, 211, 255, 0.18);
+  --border-accent: rgba(52, 229, 255, 0.28);
+  --ink: #f3f7ff;
+  --ink-soft: #aebbd0;
+  --ink-faint: #6d7d96;
+  --accent: #34e5ff;
+  --signal: #34e5ff;
+  --signal-soft: rgba(52, 229, 255, 0.11);
+  --signal-line: rgba(52, 229, 255, 0.3);
+  --accent-soft: rgba(52, 229, 255, 0.11);
+  --accent-line: rgba(52, 229, 255, 0.3);
+  --copy: #4df0a8;
+  --copy-soft: rgba(77, 240, 168, 0.1);
+  --copy-glow: rgba(77, 240, 168, 0.26);
+  --block: #ff5f7e;
+  --block-soft: rgba(255, 95, 126, 0.11);
+  --block-glow: rgba(255, 95, 126, 0.28);
+  --block-line: rgba(255, 95, 126, 0.38);
+  --warn: #ffd166;
+  --warn-soft: rgba(255, 209, 102, 0.1);
+  --policy: #f3f7ff;
+  --policy-soft: rgba(243, 247, 255, 0.055);
+  --pending: #6d7d96;
+  --pending-soft: rgba(109, 125, 150, 0.1);
+  --proof: #aebbd0;
+  --proof-soft: rgba(174, 187, 208, 0.1);
+  --surface-line: rgba(184, 211, 255, 0.1);
+  --surface-line-strong: rgba(184, 211, 255, 0.18);
+  --cta-bg: #34e5ff;
+  --cta-bg-hover: #85f2ff;
+  --cta-fg: #06101d;
   --cta-ghost-bg: transparent;
-  --cta-ghost-border: rgba(239, 234, 224, 0.16);
-  --cta-ghost-fg: #efeae0;
-  --mono: "JetBrains Mono", ui-monospace, "SF Mono", "Menlo", monospace;
+  --cta-ghost-border: rgba(184, 211, 255, 0.18);
+  --cta-ghost-fg: #f3f7ff;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", "Menlo", monospace;
 }
 
 html {
@@ -116,7 +116,10 @@ html {
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 14% 10%, rgba(52, 229, 255, 0.1), transparent 34vw),
+    radial-gradient(circle at 86% 18%, rgba(255, 95, 126, 0.09), transparent 30vw),
+    linear-gradient(145deg, #07111f 0%, #081426 44%, #040913 100%);
   letter-spacing: -0.01em;
   margin: 0;
   min-height: 100vh;
@@ -143,16 +146,18 @@ button:hover {
   margin: 0 auto;
   max-width: 1320px;
   min-height: 100vh;
-  padding: 24px 32px 48px;
+  padding: 18px 32px 48px;
 }
 
 .nav {
   align-items: center;
   backdrop-filter: saturate(180%) blur(16px);
   -webkit-backdrop-filter: saturate(180%) blur(16px);
-  background: rgba(8, 9, 11, 0.7);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(11, 23, 40, 0.82), rgba(7, 17, 31, 0.72));
+  border: 1px solid rgba(184, 211, 255, 0.13);
+  border-radius: 18px;
+  box-shadow: 0 18px 70px -46px rgba(52, 229, 255, 0.55);
   display: flex;
   justify-content: space-between;
   padding: 14px 18px;
@@ -165,8 +170,8 @@ button:hover {
   align-items: center;
   color: var(--ink);
   display: inline-flex;
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 800;
   gap: 10px;
   letter-spacing: -0.02em;
   text-decoration: none;
@@ -179,12 +184,12 @@ button:hover {
 }
 
 .shadowMarkBack {
-  fill: rgba(239, 234, 224, 0.18);
+  fill: rgba(52, 229, 255, 0.18);
 }
 
 .shadowMarkFront {
   fill: none;
-  stroke: var(--ink);
+  stroke: var(--accent);
   stroke-width: 1.5;
 }
 
@@ -221,7 +226,7 @@ button:hover {
 }
 
 .navLinks .navLink.active::after {
-  background: var(--ink);
+  background: linear-gradient(90deg, var(--accent), var(--copy));
   bottom: -8px;
   content: "";
   height: 1px;
@@ -231,9 +236,9 @@ button:hover {
 }
 
 .navCta {
-  background: var(--cta-bg);
-  border: 1px solid var(--cta-bg);
-  border-radius: 8px;
+  background: linear-gradient(135deg, var(--cta-bg), var(--copy));
+  border: 1px solid rgba(52, 229, 255, 0.46);
+  border-radius: 12px;
   color: var(--cta-fg);
   font-size: 13px;
   font-weight: 600;
@@ -244,8 +249,8 @@ button:hover {
 }
 
 .navCta:hover {
-  background: var(--cta-bg-hover);
-  border-color: var(--cta-bg-hover);
+  background: linear-gradient(135deg, var(--cta-bg-hover), #a5ffd4);
+  border-color: rgba(133, 242, 255, 0.7);
 }
 
 .navWallet {
@@ -440,15 +445,33 @@ button:hover {
 }
 
 .hero {
-  border-bottom: 1px solid var(--border);
+  border: 1px solid rgba(184, 211, 255, 0.12);
+  border-radius: 28px;
+  box-shadow:
+    0 24px 100px -70px rgba(52, 229, 255, 0.58),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset;
   isolation: isolate;
+  margin-top: 22px;
   overflow: hidden;
-  padding: 88px 0 80px;
+  padding: 70px 34px 34px;
   position: relative;
 }
 
+.hero::before {
+  background:
+    linear-gradient(90deg, rgba(52, 229, 255, 0.85), rgba(77, 240, 168, 0.65), rgba(255, 95, 126, 0.7)),
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  content: "";
+  height: 2px;
+  left: 26px;
+  position: absolute;
+  right: 26px;
+  top: 0;
+  z-index: 1;
+}
+
 .heroBackdrop {
-  inset: -10% -20% auto;
+  inset: 0;
   pointer-events: none;
   position: absolute;
   z-index: -1;
@@ -456,12 +479,12 @@ button:hover {
 
 .heroBackdropGrid {
   background-image:
-    linear-gradient(to right, rgba(239, 234, 224, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(239, 234, 224, 0.035) 1px, transparent 1px);
-  background-size: 64px 64px;
+    linear-gradient(to right, rgba(52, 229, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(52, 229, 255, 0.04) 1px, transparent 1px);
+  background-size: 42px 42px;
   inset: 0;
   mask-image:
-    radial-gradient(80% 70% at 50% 30%, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, transparent 100%);
+    radial-gradient(80% 70% at 50% 30%, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.5) 58%, transparent 100%);
   position: absolute;
 }
 
@@ -472,40 +495,36 @@ button:hover {
 }
 
 .heroBackdropGlow--graphite {
-  background: radial-gradient(circle, rgba(60, 70, 85, 0.55), transparent 70%);
-  height: 620px;
-  left: -120px;
-  top: -160px;
-  width: 620px;
+  background: radial-gradient(circle, rgba(52, 229, 255, 0.2), transparent 68%);
+  height: 640px;
+  left: -180px;
+  top: -220px;
+  width: 640px;
 }
 
 .heroBackdropGlow--signal {
-  background: radial-gradient(circle, rgba(183, 255, 74, 0.16), transparent 70%);
-  height: 460px;
-  right: -140px;
-  top: -80px;
-  width: 460px;
+  background: radial-gradient(circle, rgba(255, 95, 126, 0.16), transparent 70%);
+  height: 520px;
+  right: -160px;
+  top: -120px;
+  width: 520px;
 }
 
 .heroBackdropTrail {
-  background-image: repeating-linear-gradient(
-    115deg,
-    rgba(239, 234, 224, 0.025) 0,
-    rgba(239, 234, 224, 0.025) 1px,
-    transparent 1px,
-    transparent 120px
-  );
+  background:
+    linear-gradient(120deg, transparent 0 34%, rgba(52, 229, 255, 0.08) 34.2%, transparent 34.6% 100%),
+    repeating-linear-gradient(100deg, rgba(184, 211, 255, 0.035) 0, rgba(184, 211, 255, 0.035) 1px, transparent 1px, transparent 92px);
   inset: 0;
   mix-blend-mode: screen;
-  opacity: 0.55;
+  opacity: 0.75;
   position: absolute;
 }
 
 .heroGrid {
   align-items: center;
   display: grid;
-  gap: 64px;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 48px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
   position: relative;
 }
 
@@ -523,10 +542,10 @@ button:hover {
 
 .heroBadge {
   align-items: center;
-  background: transparent;
-  border: 1px solid var(--border-strong);
+  background: rgba(52, 229, 255, 0.075);
+  border: 1px solid rgba(52, 229, 255, 0.24);
   border-radius: 999px;
-  color: var(--ink-soft);
+  color: #c6f8ff;
   display: inline-flex;
   font-family: var(--mono);
   font-size: 11px;
@@ -542,6 +561,7 @@ button:hover {
 .heroBadgeDot {
   background: var(--accent);
   border-radius: 999px;
+  box-shadow: 0 0 12px rgba(52, 229, 255, 0.7);
   display: inline-block;
   height: 6px;
   width: 6px;
@@ -557,9 +577,10 @@ button:hover {
 
 .heroCtaPrimary {
   align-items: center;
-  background: var(--cta-bg);
-  border: 1px solid var(--cta-bg);
-  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--copy));
+  border: 1px solid rgba(52, 229, 255, 0.46);
+  border-radius: 13px;
+  box-shadow: 0 16px 42px -24px rgba(52, 229, 255, 0.9);
   color: var(--cta-fg);
   display: inline-flex;
   font-size: 14px;
@@ -572,8 +593,8 @@ button:hover {
 }
 
 .heroCtaPrimary:hover {
-  background: var(--cta-bg-hover);
-  border-color: var(--cta-bg-hover);
+  background: linear-gradient(135deg, var(--cta-bg-hover), #a5ffd4);
+  border-color: rgba(133, 242, 255, 0.7);
 }
 
 .heroCtaArrow {
@@ -590,7 +611,7 @@ button:hover {
   align-items: center;
   background: transparent;
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: 13px;
   color: var(--ink);
   display: inline-flex;
   font-size: 14.5px;
@@ -621,29 +642,26 @@ button:hover {
 }
 
 .heroMetrics {
-  border-top: 1px solid var(--border);
+  background: rgba(7, 17, 31, 0.52);
+  border: 1px solid rgba(184, 211, 255, 0.1);
+  border-radius: 18px;
   display: grid;
   gap: 0;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 64px;
+  margin-top: 36px;
+  overflow: hidden;
 }
 
 .heroMetric {
-  border-right: 1px solid var(--border);
+  border-right: 1px solid rgba(184, 211, 255, 0.1);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 24px 28px;
+  padding: 20px 22px;
 }
 
-.heroMetric:first-child {
-  padding-left: 0;
-}
-
-.heroMetric:last-child {
-  border-right: 0;
-  padding-right: 0;
-}
+.heroMetric:first-child { padding-left: 22px; }
+.heroMetric:last-child { border-right: 0; padding-right: 22px; }
 
 .heroMetricValue {
   color: var(--ink);
@@ -705,7 +723,7 @@ button:hover {
 }
 
 .heroTrust {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(184, 211, 255, 0.12);
   display: flex;
   flex-wrap: wrap;
   gap: 12px 24px;
@@ -716,7 +734,7 @@ button:hover {
 
 .heroTrust li {
   align-items: center;
-  color: var(--ink);
+  color: #c9d9ef;
   display: inline-flex;
   font-family: var(--mono);
   font-size: 12.5px;
@@ -744,7 +762,8 @@ button:hover {
 
 @media (max-width: 720px) {
   .hero {
-    padding: 56px 0 56px;
+    border-radius: 20px;
+    padding: 44px 18px 24px;
   }
   .hero h1 {
     font-size: clamp(30px, 7.5vw, 40px);
@@ -777,10 +796,9 @@ button:hover {
   }
   .heroMetric:nth-child(2) {
     border-right: 0;
-    padding-right: 0;
   }
   .heroMetric:nth-child(odd) {
-    padding-left: 0;
+    padding-left: 18px;
   }
   .heroMetric:nth-child(-n+2) {
     border-bottom: 1px solid var(--border);
@@ -827,16 +845,16 @@ button:hover {
 
 h1 {
   color: var(--ink);
-  font-size: clamp(40px, 5vw, 68px);
-  font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 1.02;
+  font-size: clamp(44px, 6vw, 86px);
+  font-weight: 800;
+  letter-spacing: -0.075em;
+  line-height: 0.9;
   margin: 0;
-  max-width: 680px;
+  max-width: 760px;
 }
 
 h1 strong {
-  font-weight: 600;
+  font-weight: 800;
 }
 
 h2 {
@@ -854,13 +872,13 @@ h3 {
 }
 
 .lede {
-  color: var(--ink-soft);
+  color: #c0cce0;
   font-size: clamp(16px, 1.2vw, 18px);
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: -0.005em;
   line-height: 1.55;
   margin: 22px 0 0;
-  max-width: 540px;
+  max-width: 600px;
 }
 
 .warning,
@@ -4117,74 +4135,6 @@ code {
   transform: translateX(3px);
 }
 
-.appKitTip {
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 4px;
-  padding-top: 16px;
-}
-
-.appKitTipButton {
-  align-self: flex-start;
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  color: var(--ink);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  padding: 6px 12px;
-  text-transform: uppercase;
-  transition: background-color 160ms ease, border-color 160ms ease;
-}
-
-.appKitTipButton:hover:not(:disabled) {
-  background: var(--surface-2);
-  border-color: var(--ink-soft);
-}
-
-.appKitTipButton:disabled {
-  cursor: progress;
-  opacity: 0.55;
-}
-
-.appKitTipMeta {
-  color: var(--ink-faint);
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.5;
-  margin: 0;
-}
-
-.appKitTipMeta code {
-  color: var(--ink-soft);
-  font-family: var(--mono);
-  font-size: 10.5px;
-}
-
-.appKitTipOk {
-  color: var(--copy);
-  font-family: var(--mono);
-  font-size: 11.5px;
-  margin: 0;
-}
-
-.appKitTipOk a {
-  color: var(--copy);
-  text-decoration: underline;
-}
-
-.appKitTipErr {
-  color: var(--block);
-  font-family: var(--mono);
-  font-size: 11.5px;
-  margin: 0;
-}
-
 .circleStackPanel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -4606,23 +4556,27 @@ code {
 
 .heroLedger {
   align-self: center;
-  background: linear-gradient(180deg, rgba(28, 32, 39, 0.85), rgba(16, 18, 22, 0.92));
-  border: 1px solid var(--border-strong);
-  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(12, 28, 48, 0.92), rgba(7, 17, 31, 0.94)),
+    radial-gradient(circle at 0% 0%, rgba(52, 229, 255, 0.1), transparent 44%);
+  border: 1px solid rgba(184, 211, 255, 0.16);
+  border-radius: 22px;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.04) inset,
-    0 30px 80px -40px rgba(0, 0, 0, 0.85),
-    0 0 0 1px rgba(255, 255, 255, 0.015);
+    0 42px 120px -56px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(52, 229, 255, 0.04);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   position: relative;
+  transform: rotate(-0.7deg);
 }
 
 .heroLedger::before {
   background:
-    radial-gradient(120% 80% at 0% 0%, rgba(183, 255, 74, 0.05), transparent 55%),
-    radial-gradient(120% 80% at 100% 100%, rgba(255, 138, 106, 0.04), transparent 55%);
+    radial-gradient(120% 80% at 0% 0%, rgba(52, 229, 255, 0.1), transparent 55%),
+    radial-gradient(120% 80% at 100% 100%, rgba(255, 95, 126, 0.08), transparent 55%),
+    repeating-linear-gradient(0deg, transparent 0, transparent 17px, rgba(184, 211, 255, 0.025) 18px);
   content: "";
   inset: 0;
   pointer-events: none;
@@ -4631,7 +4585,7 @@ code {
 
 .heroLedgerHeader {
   align-items: center;
-  background: rgba(8, 9, 11, 0.55);
+  background: rgba(5, 12, 22, 0.72);
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
@@ -4720,9 +4674,9 @@ code {
 }
 
 .heroLedgerIntentBody .agentTag {
-  background: rgba(239, 234, 224, 0.06);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  background: rgba(52, 229, 255, 0.12);
+  border: 1px solid rgba(52, 229, 255, 0.26);
+  border-radius: 999px;
   color: var(--ink);
   font-size: 11.5px;
   font-weight: 600;
@@ -4748,16 +4702,19 @@ code {
 
 .heroLedgerSplit {
   display: grid;
-  grid-template-columns: 1fr 1px 1fr;
+  grid-template-columns: 1fr 1fr;
   position: relative;
   z-index: 1;
 }
 
 .heroLedgerSplit::before {
-  background: var(--border);
+  background: rgba(184, 211, 255, 0.11);
   content: "";
-  grid-column: 2;
+  height: calc(100% - 28px);
+  left: 50%;
   margin: 14px 0;
+  position: absolute;
+  top: 0;
   width: 1px;
 }
 
@@ -4770,7 +4727,7 @@ code {
 }
 
 .heroLedgerCell::before {
-  background: currentColor;
+  background: linear-gradient(90deg, currentColor, transparent);
   content: "";
   height: 3px;
   left: 20px;
@@ -4780,11 +4737,11 @@ code {
 }
 
 .heroLedgerCell.copied {
-  background: linear-gradient(180deg, rgba(183, 255, 74, 0.03), transparent 70%);
+  background: linear-gradient(180deg, rgba(77, 240, 168, 0.055), transparent 70%);
   color: var(--copy);
 }
 .heroLedgerCell.blocked {
-  background: linear-gradient(180deg, rgba(255, 138, 106, 0.06), transparent 70%);
+  background: linear-gradient(180deg, rgba(255, 95, 126, 0.065), transparent 70%);
   color: var(--block);
 }
 
@@ -4816,11 +4773,11 @@ code {
 }
 
 .heroLedgerCell.copied .heroLedgerCellDot {
-  box-shadow: 0 0 10px rgba(183, 255, 74, 0.6);
+  box-shadow: 0 0 10px rgba(77, 240, 168, 0.64);
 }
 
 .heroLedgerCell.blocked .heroLedgerCellDot {
-  box-shadow: 0 0 10px rgba(255, 138, 106, 0.55);
+  box-shadow: 0 0 10px rgba(255, 95, 126, 0.58);
 }
 
 .heroLedgerCellAddr {
@@ -4860,7 +4817,7 @@ code {
 }
 
 .heroLedgerCellMeta {
-  background: rgba(8, 9, 11, 0.4);
+  background: rgba(5, 12, 22, 0.58);
   border: 1px solid var(--border);
   border-radius: 6px;
   display: flex;
@@ -4902,7 +4859,7 @@ code {
 
 .heroLedgerProof {
   align-items: center;
-  background: rgba(8, 9, 11, 0.55);
+  background: rgba(5, 12, 22, 0.72);
   border-top: 1px solid var(--border);
   color: var(--ink-faint);
   display: flex;

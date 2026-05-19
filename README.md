@@ -58,8 +58,6 @@ Sponsored UserOp tx: https://testnet.arcscan.app/tx/0x6ba9fb6eb5268ad5ca979a3813
 
 Without the sponsored batch, onboarding adds 3 signatures (`approve`, `depositUSDC`, `followSource`) and a gas token step (acquire ARC, fund EOA, then sign), turning a single passkey tap into roughly 60 to 90 seconds with at least one external dependency (faucet or bridge). With sponsored UserOp it is one tap on the device. That is the integration test for Circle Modular Wallets + Gas Station, and removing it actually degrades onboarding.
 
-Footer mention: `AppKit.send` powers per source tip buttons elsewhere on the page. Not part of the load bearing follower onboarding path.
-
 ## Try it in 30 seconds
 
 1. Open https://shadow-arc.vercel.app
@@ -111,7 +109,7 @@ curl -X POST https://shadow-arc.vercel.app/api/agent/follow-plan \
 
 **Traction (30%).** Real follower wallets with real onchain receipts. The table above lists five distinct follower addresses on a single intent, each having bound USDC to a policy that the router enforced. The passkey smart account in the table onboarded through Circle Gas Station and produced a live onchain receipt, not a placeholder. Follow count, intents published, mirrored USDC, and blocked receipts are visible on the dashboard hero stats and are read directly from chain logs. The "External follower receipts" section below lists registered followers from outside the deployer.
 
-**Circle Tool Usage (20%).** One load bearing integration: Modular Wallets plus Gas Station for sponsored follower onboarding (`src/main.tsx` `ModularWalletCard`). Removing it adds 3 signatures and a gas token step, turning a one tap passkey onboard into a ~60 to 90 second multi step EOA flow. AppKit.send is wired for per source USDC tipping as a secondary surface; it is not part of the follower onboarding integration test.
+**Circle Tool Usage (20%).** One load bearing integration: Modular Wallets plus Gas Station for sponsored follower onboarding (`src/main.tsx` `ModularWalletCard`). Removing it adds 3 signatures and a gas token step, turning a one tap passkey onboard into a ~60 to 90 second multi step EOA flow.
 
 **Innovation (20%).** The novel primitive is slippage each follower owns. A source publishing a tight `minAmountOut` no longer cascade reverts a batch of followers, because each follower's `minBpsOut` is evaluated against the live quote at the receipt event. Sponsored ERC-4337 onboarding for copy trading is unusual in this space; most copy trading products require the follower to hold the chain's gas token first.
 
@@ -260,4 +258,3 @@ Every follower policy stores a `dailyCap` and a `spentToday`. When a copied rece
 * Onchain positions and `PositionClosed` receipts for realized PnL.
 * USDC builder fees credited to source agents at the receipt event.
 * Sponsored ERC-4337 onboarding through Circle Modular Wallets and Gas Station.
-* AppKit.send tips on each source card (one click USDC tip).

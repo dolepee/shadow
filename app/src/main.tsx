@@ -11,8 +11,6 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { createWalletClient, custom, keccak256, parseUnits, stringToBytes, type Address, type Hash, type Hex } from "viem";
-import { AppKit } from "@circle-fin/app-kit";
-import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import {
   toCircleSmartAccount,
   toModularTransport,
@@ -742,16 +740,16 @@ function App() {
               <span className="heroBadgeDot" />
               live on arc testnet · chain 5042002
             </div>
-            <h1>Follow AI trading agents. Keep your risk limits on-chain.</h1>
+            <h1>Copy the signal. Refuse the risk.</h1>
             <p className="lede">
-              Most copy trading apps mirror every trade. Shadow's onchain router{" "}
+              Source agents publish intents. Shadow checks every follower&apos;s policy before USDC moves. The router{" "}
               <strong className="lede--block">
-                blocked {blockedReceipts.length} trades because your policy said no
+                blocked {blockedReceipts.length} copies because policy said no
               </strong>{" "}
               and <strong className="lede--copy">
                 copied {copiedReceipts.length} that passed
               </strong>
-              . The blocks are the proof.
+              . Every refusal is a receipt, not a failed trade.
             </p>
             <div className="heroActions">
               <Link to="/follow" className="heroCtaPrimary">
@@ -759,7 +757,7 @@ function App() {
                 <span className="heroCtaArrow">→</span>
               </Link>
               <a href="#split" className="heroCtaSecondary">
-                Watch receipt split
+                View split receipt
               </a>
             </div>
             <ul className="heroTrust" aria-label="Built on">
@@ -2939,127 +2937,11 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
                 <span className="reputationFollowArrow">→</span>
               </button>
             )}
-            <AppKitTipButton
-              sourceAddress={row.source.address}
-              sourceName={row.source.name}
-            />
           </article>
           );
         })}
       </div>
     </section>
-  );
-}
-
-type TipStatus =
-  | { kind: "idle" }
-  | { kind: "sending"; stage: string }
-  | { kind: "success"; txHash?: string }
-  | { kind: "error"; message: string };
-
-function AppKitTipButton({
-  sourceAddress,
-  sourceName,
-}: {
-  sourceAddress: Address;
-  sourceName: string;
-}) {
-  const kitKey = (import.meta.env.VITE_CIRCLE_KIT_KEY || "").trim();
-  const [status, setStatus] = useState<TipStatus>({ kind: "idle" });
-
-  if (!kitKey) {
-    return (
-      <div className="appKitTip">
-        <button type="button" className="appKitTipButton" disabled>
-          Tip {sourceName} via Circle App Kit
-        </button>
-        <p className="appKitTipMeta">
-          Set <code>VITE_CIRCLE_KIT_KEY</code> in env (Circle Console → Kit Keys) to enable <code>AppKit.send</code> tips.
-        </p>
-      </div>
-    );
-  }
-
-  async function send() {
-    const provider = typeof window !== "undefined" ? (window as any).ethereum : undefined;
-    if (!provider) {
-      setStatus({ kind: "error", message: "Connect an EVM wallet to tip via Circle App Kit." });
-      return;
-    }
-    setStatus({ kind: "sending", stage: "preparing adapter" });
-    try {
-      await provider.request({ method: "eth_requestAccounts" });
-      await provider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x4cef52" }],
-      }).catch(async (err: any) => {
-        if (err && (err.code === 4902 || err.code === -32603)) {
-          await provider.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: "0x4cef52",
-                chainName: "Arc Testnet",
-                nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
-                rpcUrls: [arcTestnet.rpcUrls.default.http[0]],
-                blockExplorerUrls: ["https://testnet.arcscan.app"],
-              },
-            ],
-          });
-        } else {
-          throw err;
-        }
-      });
-      const adapter = await createViemAdapterFromProvider({ provider });
-      setStatus({ kind: "sending", stage: "submitting USDC transfer" });
-      const kit = new AppKit();
-      const step = await kit.send({
-        from: { adapter, chain: "Arc_Testnet" as any },
-        to: sourceAddress,
-        amount: "0.01",
-        token: "USDC",
-      });
-      if (step.state === "error") {
-        setStatus({ kind: "error", message: step.errorMessage || "Send failed" });
-        return;
-      }
-      setStatus({ kind: "success", txHash: step.txHash });
-    } catch (err: any) {
-      const message =
-        err?.shortMessage || err?.message || String(err) || "Tip failed";
-      setStatus({ kind: "error", message });
-    }
-  }
-
-  return (
-    <div className="appKitTip">
-      <button
-        type="button"
-        className="appKitTipButton"
-        onClick={send}
-        disabled={status.kind === "sending"}
-      >
-        {status.kind === "sending"
-          ? `Sending… ${status.stage}`
-          : `Tip ${sourceName} 0.01 USDC via Circle App Kit`}
-      </button>
-      <p className="appKitTipMeta">
-        Calls <code>AppKit.send</code> with <code>chain: "Arc_Testnet"</code>. Same Circle SDK that ships in Wallet Wars.
-      </p>
-      {status.kind === "success" && (
-        <p className="appKitTipOk">
-          Tip routed.{" "}
-          {status.txHash ? (
-            <a href={txUrl(status.txHash as `0x${string}`)} target="_blank" rel="noreferrer">
-              view tx
-            </a>
-          ) : (
-            "Confirmed."
-          )}
-        </p>
-      )}
-      {status.kind === "error" && <p className="appKitTipErr">{status.message}</p>}
-    </div>
   );
 }
 
@@ -3083,85 +2965,7 @@ function ReputationStat({
   );
 }
 
-type SwapDirection = "USDC_TO_EURC" | "EURC_TO_USDC";
-
-type SwapState =
-  | { kind: "idle" }
-  | { kind: "running"; stage: string }
-  | { kind: "success"; txHash: string; explorerUrl?: string; amountOut?: string; tokenOut: string }
-  | { kind: "error"; message: string };
-
 function CircleStackPanel() {
-  const kitKey = (import.meta.env.VITE_CIRCLE_KIT_KEY || "").trim();
-  const [direction, setDirection] = useState<SwapDirection>("USDC_TO_EURC");
-  const [amount, setAmount] = useState("0.05");
-  const [status, setStatus] = useState<SwapState>({ kind: "idle" });
-
-  const [tokenIn, tokenOut] =
-    direction === "USDC_TO_EURC" ? ["USDC", "EURC"] : ["EURC", "USDC"];
-
-  async function runSwap() {
-    if (!kitKey) {
-      setStatus({ kind: "error", message: "Set VITE_CIRCLE_KIT_KEY in env to enable AppKit.swap." });
-      return;
-    }
-    const provider = typeof window !== "undefined" ? (window as any).ethereum : undefined;
-    if (!provider) {
-      setStatus({ kind: "error", message: "Connect an EVM wallet first." });
-      return;
-    }
-    const parsed = Number(amount);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      setStatus({ kind: "error", message: "Enter an amount greater than 0." });
-      return;
-    }
-    setStatus({ kind: "running", stage: "switching to Arc Testnet" });
-    try {
-      await switchToArc();
-      setStatus({ kind: "running", stage: "preparing Circle adapter" });
-      const adapter = await createViemAdapterFromProvider({ provider });
-      setStatus({ kind: "running", stage: `routing ${tokenIn} → ${tokenOut} via Circle stablecoin service` });
-      const kit = new AppKit();
-      const result = await kit.swap({
-        from: { adapter, chain: "Arc_Testnet" as any },
-        tokenIn: tokenIn as any,
-        tokenOut: tokenOut as any,
-        amountIn: amount,
-        config: { kitKey } as any,
-      });
-      setStatus({
-        kind: "success",
-        txHash: result.txHash,
-        explorerUrl: result.explorerUrl,
-        amountOut: result.amountOut,
-        tokenOut,
-      });
-    } catch (err: any) {
-      const raw =
-        err?.shortMessage || err?.message || String(err) || "Swap failed";
-      const looksLikeNoRoute =
-        /createSwap failed|Failed to fetch|no route|UnsupportedRoute/i.test(raw);
-      const message = looksLikeNoRoute
-        ? "Circle Stablecoin Service has no DEX route on Arc Testnet yet. The SDK call is wired (chain in enum, kitKey passed inline); once Arc Testnet appears in the routing graph this swap goes live without code changes."
-        : raw;
-      setStatus({ kind: "error", message });
-    }
-  }
-
-  function flip() {
-    setDirection((d) => (d === "USDC_TO_EURC" ? "EURC_TO_USDC" : "USDC_TO_EURC"));
-    setStatus({ kind: "idle" });
-  }
-
-  // AppKit.swap is wired (runSwap below) but hidden from the homepage: Circle's
-  // stablecoin service has no DEX route on Arc Testnet yet, so a visible button
-  // would only ever error. Keeping the call site lets us light up the swap card
-  // the moment Arc Testnet appears in the routing graph, without code changes.
-  void runSwap;
-  void flip;
-  void tokenIn;
-  void tokenOut;
-
   return (
     <section id="circle-stack" className="circleStackPanel">
       <Header
