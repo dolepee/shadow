@@ -112,13 +112,17 @@ curl -X POST https://shadow-arc.vercel.app/api/agent/follow-plan \
 
 ## External follower receipts
 
-Followers outside the deployer that produced live onchain receipts. Each row is an independent wallet that bound USDC to a policy and was evaluated by `MirrorRouter` against a published intent.
+Followers outside the deployer that registered onchain through the public Shadow app. As of submission, **14 external passkey followers are registered on the router**. Five are highlighted below with their most distinctive onchain action.
 
 | follower | onboarded via | action | tx |
 | --- | --- | --- | --- |
-| _to be appended_ | | | |
+| [`0x6101f858…3df78b`](https://testnet.arcscan.app/address/0x6101f858c3a8c019758296caab2d139ae63df78b) | passkey + Circle Gas Station | accepted 10% slippage on LobsterRisk (`minBpsOut` 9500 → 9000) | [`0x89dc1bf3…31aa4`](https://testnet.arcscan.app/tx/0x89dc1bf30413bd8b30f3527800e71d46c7ef59921c10ae5cacaf12b75b331aa4) |
+| [`0xfb4276b0…3c4891`](https://testnet.arcscan.app/address/0xfb4276b0cf1a752a3dc8e07f20f3fa351a3c4891) | passkey + Circle Gas Station | switched source agent CatArb → LobsterRisk mid session | [`0xb90e8c19…05223`](https://testnet.arcscan.app/tx/0xb90e8c19d290555045311134d5b4a9efc868fb392d8f171c45ec3fa2f5805223) |
+| [`0xf651b39a…a55c01`](https://testnet.arcscan.app/address/0xf651b39a700a01c36f9bcdc4aecc95fedea55c01) | passkey + Circle Gas Station | switched LobsterRisk → MomentumOtter 6 minutes apart | [`0x64ca5384…9595e`](https://testnet.arcscan.app/tx/0x64ca5384b65ea576276c457cb89a00f2116b8f4b5a48a2efa4ff2deac279595e) |
+| [`0x6c069f3e…c43ded`](https://testnet.arcscan.app/address/0x6c069f3e392979b65fe3d17a59c3063058c43ded) | passkey + Circle Gas Station | follow CatArb from a secondary PC | [`0x8f630a9e…17db2`](https://testnet.arcscan.app/tx/0x8f630a9ef34a74b1345501dffce903e58f65aa054dc09668e32a7be052117db2) |
+| [`0x5daef0c6…d6749`](https://testnet.arcscan.app/address/0x5daef0c6a09e6c83dc3f2d3866ead1787d8f6749) | passkey + Circle Gas Station | follow LobsterRisk on iPhone, picked non default source | [`0x8c00ee0a…11cc2`](https://testnet.arcscan.app/tx/0x8c00ee0a6d93b31ebe782a865d631280dcb9112e6d858c3aca3b70395a311cc2) |
 
-The dashboard live feed shows every receipt as it lands. This table is the short list of receipts from wallets the protocol owner did not seed.
+The dashboard live feed shows every receipt as it lands. This table is the short list of distinctive onboarding actions from wallets the protocol owner did not seed.
 
 ## Architecture
 
@@ -207,15 +211,7 @@ Sponsored smart account follower (passkey + Circle Gas Station):
 
 * `0x5768210377fc3e35098387D36db02fE94fbfA006`
 
-External passkey followers (onboarded through the public Shadow app on devices not owned by the deployer):
-
-| smart account | sources followed | notes |
-| --- | --- | --- |
-| [`0x6101f858…3df78b`](https://testnet.arcscan.app/address/0x6101f858c3a8c019758296caab2d139ae63df78b) | CatArb → LobsterRisk | Android, 4 `followSource` txs, accepted 10% slippage |
-| [`0xfb4276b0…3c4891`](https://testnet.arcscan.app/address/0xfb4276b0cf1a752a3dc8e07f20f3fa351a3c4891) | CatArb → LobsterRisk | iPhone, switched source agent mid session |
-| [`0xf651b39a…a55c01`](https://testnet.arcscan.app/address/0xf651b39a700a01c36f9bcdc4aecc95fedea55c01) | LobsterRisk → MomentumOtter | switched source agents 6 minutes apart |
-| [`0x6c069f3e…c43ded`](https://testnet.arcscan.app/address/0x6c069f3e392979b65fe3d17a59c3063058c43ded) | CatArb | secondary PC passkey |
-| [`0x5daef0c6…6749`](https://testnet.arcscan.app/address/0x5daef0c6a09e6c83dc3f2d3866ead1787d8f6749) | LobsterRisk | iPhone passkey, picked LobsterRisk over the default CatArb |
+External passkey followers: see the [External follower receipts](#external-follower-receipts) section above for the canonical list.
 
 Full deployment doc: `docs/ARC_LIVE.md`.
 
