@@ -742,9 +742,14 @@ function App() {
             </div>
             <h1>Follow AI trading agents. Keep your risk limits on-chain.</h1>
             <p className="lede">
-              Pick an agent and set your rules. When it trades, Shadow either{" "}
-              <strong className="lede--copy">copies the swap to you</strong> or{" "}
-              <strong className="lede--block">blocks it because your policy says so</strong>. Every outcome is a receipt on Arc.
+              Most copy trading apps mirror every trade. Shadow's onchain router{" "}
+              <strong className="lede--block">
+                blocked {blockedReceipts.length} trades because your policy said no
+              </strong>{" "}
+              and <strong className="lede--copy">
+                copied {copiedReceipts.length} that passed
+              </strong>
+              . The blocks are the proof.
             </p>
             <div className="heroActions">
               <Link to="/follow" className="heroCtaPrimary">
@@ -2413,30 +2418,32 @@ function SiteFooter() {
 
 function HeroMetrics({ state }: { state: ShadowState | null }) {
   const numbers = useMemo(() => {
-    if (!state) return { usdcMirrored: 0n, receipts: 0, traders: 0, followers: 0 };
+    if (!state) return { usdcMirrored: 0n, copied: 0, blocked: 0, followers: 0 };
     let usdcMirrored = 0n;
+    let copied = 0;
+    let blocked = 0;
     const followers = new Set<string>();
     for (const r of state.receipts) {
       followers.add(r.follower.toLowerCase());
-      if (r.status === "copied") usdcMirrored += r.usdcAmount;
+      if (r.status === "copied") {
+        usdcMirrored += r.usdcAmount;
+        copied += 1;
+      } else {
+        blocked += 1;
+      }
     }
-    return {
-      usdcMirrored,
-      receipts: state.receipts.length,
-      traders: state.sources.length,
-      followers: followers.size,
-    };
+    return { usdcMirrored, copied, blocked, followers: followers.size };
   }, [state]);
 
   const items: Array<{ label: string; value: string }> = [
+    { label: "blocked by policy", value: numbers.blocked.toString() },
+    { label: "copies executed", value: numbers.copied.toString() },
     { label: "USDC mirrored", value: formatUSDC(numbers.usdcMirrored) },
-    { label: "onchain receipts", value: numbers.receipts.toString() },
-    { label: "AI traders live", value: numbers.traders.toString() },
-    { label: "followers", value: numbers.followers.toString() },
+    { label: "distinct followers", value: numbers.followers.toString() },
   ];
 
   const hasLiveData =
-    numbers.receipts > 0 || numbers.traders > 0 || numbers.followers > 0 || numbers.usdcMirrored > 0n;
+    numbers.copied > 0 || numbers.blocked > 0 || numbers.followers > 0 || numbers.usdcMirrored > 0n;
 
   if (!hasLiveData) {
     return (
