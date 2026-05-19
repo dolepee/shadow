@@ -18,6 +18,22 @@ V4 deploy block: `42556765`
 
 V4 turns each copied intent into a tracked position: the router keeps the ARCETH it bought, records `Position{sourceAgent, assetAmount, usdcIn, closed}` per `(intentId, follower)`, and emits `PositionOpened`. Followers call `closePosition(intentId)` to reverse-swap the asset back to USDC; the router credits the follower's idle USDC balance and emits `PositionClosed(intentId, follower, sourceAgent, usdcIn, usdcOut, pnlBps)` so the UI can show realized PnL. ShadowAMM v2 ships `swapExactAssetForUSDC` to close the loop. Prior generations remain readable as historical state: V3 router `0x987d7886c9dA7Ffbb7CC66b7914518D8966975eb` (deploy block `42508627`), V2 router `0x4e194EFB8060C9e7919a06C7E0AE4cbf9e7D47fF` (deploy block `42361208`).
 
+## Current V4 Split Proof
+
+Latest verification run:
+
+- Intent amount: `0.1 USDC`
+- Source agent: CatArb
+- Publish tx: [`0x949d0e5a97f4b4c06bad477a22cca90c3df1eb213eee97a9383fce9c87886c42`](https://testnet.arcscan.app/tx/0x949d0e5a97f4b4c06bad477a22cca90c3df1eb213eee97a9383fce9c87886c42)
+- Block: `43061061`
+
+Receipts from the same source intent:
+
+- Follower A (strict, `minBpsOut = 10000`): `BLOCKED, SLIPPAGE_TOO_TIGHT`. No swap, no fee, no debit.
+- Follower B (lenient, `minBpsOut = 9000`): `COPIED, NONE`. The router executed the AMM swap and charged the 10 bps mirror fee.
+
+Interpretation: the current V4 router proves the demo claim directly. A single source intent can produce different onchain outcomes per follower, and failure for one follower does not cascade-revert the batch.
+
 ## Seeded Agents
 
 - CatArb: `0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8`
@@ -37,9 +53,9 @@ Seeded source agents store ERC-8004 style identity references to the Arc testnet
 
 Both follow CatArb with `maxAmountPerIntent = 2 USDC`, `dailyCap = 10 USDC`, `allowedAsset = ARCETH`, `maxRiskLevel = 3`.
 
-## V3 Slippage Demo
+## Historical V3 Slippage Demo
 
-Live demo intent at `intent.minAmountOut = 0.034 ARCETH`, `intent.amountUSDC = 0.5 USDC` against a live quote of `0.031702 ARCETH`:
+Historical V3 demo intent at `intent.minAmountOut = 0.034 ARCETH`, `intent.amountUSDC = 0.5 USDC` against a live quote of `0.031702 ARCETH`:
 
 - Intent id: `3`
 - Publish tx: `0x21de4f1a8adeb2e18dd922768e0ccaca39fa4079b0592b16ea3a8472ed9de239`
@@ -50,7 +66,7 @@ Receipts on intent 3:
 - Follower A (strict, 10000 bps): `BLOCKED, SLIPPAGE_TOO_TIGHT`. Scaled minimum `0.034 ARCETH` exceeds the live quote `0.031702 ARCETH`. No swap, no fee, no debit.
 - Follower B (lenient, 9000 bps): `COPIED, NONE`. Scaled minimum `0.0306 ARCETH` is below the live quote, so the swap executes and returns `0.031702 ARCETH`.
 
-Interpretation: a single source intent produces two outcomes that depend only on each follower's published slippage tolerance. A source that publishes a tight `minAmountOut` no longer cascade-reverts the whole `publishIntent` batch.
+Interpretation: this earlier router generation first proved the slippage split. V4 above is the current submission surface.
 
 ## Earlier Receipts (V1)
 

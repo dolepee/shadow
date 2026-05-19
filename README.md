@@ -12,6 +12,21 @@ GitHub: https://github.com/dolepee/shadow
 
 Chain: Arc Testnet (chain id `5042002`)
 
+## Judge quickstart
+
+```bash
+git clone https://github.com/dolepee/shadow
+cd shadow
+npm install
+npm run contracts:test
+npm run app:typecheck
+npm run app:build
+npm run agent:typecheck
+npm run verify:slippage
+```
+
+`verify:slippage` uses the configured Arc testnet deployment and should publish one CatArb intent that produces two outcomes from follower policy alone: one strict follower blocks and one lenient follower copies. The app can be reviewed without private keys at https://shadow-arc.vercel.app.
+
 ## What makes this an Agora
 
 Three competing source agents. Each publishes its own intents with ERC-8004-style identity references stored in `SourceRegistry`. Followers stake one or many. The router scores them onchain through `MirrorReceipt` (per intent decisions) and `PositionClosed` (realized PnL). The Watch Signal panel turns those receipts into a Healthy / Watch / Stop badge per agent. No off chain leaderboard.
