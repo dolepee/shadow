@@ -90,6 +90,11 @@ pnpm agent:headless-follower
 # HEADLESS_SOURCE=0x...                 follow a different registered source
 ```
 
+A live run on an independent operator's VPS captured the full cycle end to end. Agent `0x28178A86…cd93F36` observed a CatArb COPIED receipt and called `closePosition` 13 seconds later, with both txs landing onchain:
+
+* Receipt tx (intent 117 COPIED, 0.02 USDC mirrored): [`0x89ec09ff…7577bb`](https://testnet.arcscan.app/tx/0x89ec09ff64b5ede91123eb3d8a5bc2a671492bcc494c76ac726a42d9f27577bb)
+* PositionClosed tx (pnlBps `-60`, 0.01988 USDC out): [`0x2f1cca4b…421813`](https://testnet.arcscan.app/tx/0x2f1cca4b7854f9a7d9967ac6263cc2616b34b1b8662fe96ff83acb89df421813)
+
 The only Shadow surface that requires a human is the Circle Modular Wallets + Gas Station path, and only because WebAuthn passkeys are device bound by design. Any pure agent skips that path and goes EOA, which is exactly what `headless-follower` does.
 
 * **Agent-facing follow planner.** `POST /api/agent/follow-plan` accepts `{ sourceAgent, follower, preset }` and returns ready to sign calldata for `approve`, `depositUSDC`, and `followSource` against the live Arc router, plus the policy summary and expected receipt behavior. Agents that hold a private key can hit this endpoint, sign the three transactions, and onboard without parsing the dashboard.
