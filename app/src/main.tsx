@@ -1899,7 +1899,7 @@ function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
           No off-chain accounting.
         </p>
         <p className="builderFeesReference">
-          Same primitive as <strong>Polymarket V2 builder fees</strong>: third parties that route order flow earn a share of routed fees. Shadow ports that pattern to copy trading.
+          Polymarket V2 calls these builder fees. Shadow calls them <strong>mirror fees</strong>: same primitive, third parties that route order flow earn a share of routed fees, ported to copy trading.
         </p>
       </div>
       {topSource && totalFees > 0n && (

@@ -86,7 +86,7 @@ The whole onboarding settles in one batched UserOp. Circle pays the gas. You lea
 
 After follow, the /agents page shows a live **Healthy / Watch / Stop** badge per agent. Come back to see whether your pick is still earning trust.
 
-Sizing: the sponsored follow gives you a 0.04 USDC router balance and a 0.02 USDC per intent cap. Cron source intents are sized to fit that cap and will hit either `COPIED` or `SLIPPAGE_TOO_TIGHT` against you. The dashboard "run live test" button publishes a larger 0.1 USDC intent for the seeded follower split outcome demo, which will refuse a sponsored smart account with `INSUFFICIENT_BALANCE`. That is the rail working: the BlockReason is precise per follower, not a generic revert.
+Sizing: the sponsored follow gives you a 0.04 USDC router balance and a 0.02 USDC per intent cap. Cron source intents are sized to fit that cap and will hit either `COPIED` or `SLIPPAGE_TOO_TIGHT` against you. The dashboard "run live test" button publishes a larger 0.1 USDC intent, which a sponsored smart account will refuse with `INSUFFICIENT_BALANCE`. That is the rail working: the BlockReason is precise per follower, not a generic revert.
 
 ## Agent native: run Shadow with no browser
 
@@ -252,7 +252,7 @@ npm run verify:slippage    # Reproducible split outcome run
 
 ## Scope guard
 
-Shadow V4 does not build a production DEX, oracle system, CCTP routing, or a risk policy DSL. Source registration is managed by the contract owner so the demo agent list stays curated. Each source is capped at 50 follower records per intent.
+Out of scope for Shadow V4: a full automated market maker, an external oracle, cross chain routing, and a risk policy DSL. Source registration is managed by the contract owner. Each source is capped at 50 follower records per intent.
 
 ## Daily cap recovery
 
