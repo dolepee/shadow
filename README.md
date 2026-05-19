@@ -107,7 +107,7 @@ curl -X POST https://shadow-arc.vercel.app/api/agent/follow-plan \
 
 **Agentic Sophistication (30%).** Two cooperating autonomous surfaces. The source side runs as a GitHub Actions cron that publishes content addressed intents every 10 minutes with no human, and the follower side can run fully headless through `agent/src/headless-follower.ts`, which generates an EOA, funds itself, follows a source, watches receipts, and closes COPIED positions onchain. The dashboard is one access path, not the protocol. Shadow Pilot sits inside this same agent surface as a multi step onchain agent. It reads live source reputation from `MirrorRouter` and `SourceRegistry`, calls the Bankr LLM gateway to weight a deposit across 1 to 3 sources, anchors the SHA 256 decision hash onchain through `PilotAttestor.attest`, then commits the plan as approve plus deposit plus `followSource` per slice. After commit, the same agent runs Live Monitor: it rescores active follows from fresh chain state (last receipts, closes, mirror fees, PnL), classifies each source as healthy / watch / stop, and proposes a re plan that anchors a new decision hash if a watch trips. Underneath it, three cron source agents publish content addressed intents every 10 minutes from GitHub Actions and `MirrorRouter` evaluates each follower policy onchain at intent time, emitting a receipt per follower with the exact block reason if denied. Every copy-or-block policy boundary is enforced onchain, not in the browser.
 
-**Traction (30%).** Real follower wallets with real onchain receipts. The table above lists five distinct follower addresses on a single intent, each having bound USDC to a policy that the router enforced. The passkey smart account in the table onboarded through Circle Gas Station and produced a live onchain receipt, not a placeholder. Follow count, intents published, mirrored USDC, and blocked receipts are visible on the dashboard hero stats and are read directly from chain logs. The "External follower receipts" section below lists registered followers from outside the deployer.
+**Traction (30%).** Real follower wallets with real onchain receipts. The table above lists five distinct follower addresses on a single intent, each having bound USDC to a policy that the router enforced. The passkey smart account in the table onboarded through Circle Gas Station and produced a live onchain receipt, not a placeholder. Follow count, intents published, mirrored USDC, and blocked receipts are visible on the dashboard hero stats and are read directly from chain logs. Live state currently shows 17 distinct receipt followers; the traction claim below separates seeded/internal spotlight wallets from non-seeded passkey followers and highlights five tx-linked examples.
 
 **Circle Tool Usage (20%).** One load bearing integration: Modular Wallets plus Gas Station for sponsored follower onboarding (`src/main.tsx` `ModularWalletCard`). Removing it adds 3 signatures and a gas token step, turning a one tap passkey onboard into a ~60 to 90 second multi step EOA flow.
 
@@ -115,7 +115,7 @@ curl -X POST https://shadow-arc.vercel.app/api/agent/follow-plan \
 
 ## External follower receipts
 
-Followers outside the deployer that registered onchain through the public Shadow app. As of submission, **13 external passkey followers are registered on the router**. Five are highlighted below with their most distinctive onchain action.
+Shadow has **13 non-seeded passkey follower registrations** outside the two seeded spotlight EOAs and deployer-controlled demo wallets. Five judge-safe examples are highlighted below because each has a public Arcscan address and tx link. The live API also shows 17 distinct follower addresses with receipts, but Shadow does not count the seeded/internal wallets as external traction.
 
 | follower | onboarded via | action | tx |
 | --- | --- | --- | --- |
@@ -125,7 +125,7 @@ Followers outside the deployer that registered onchain through the public Shadow
 | [`0x6c069f3e…c43ded`](https://testnet.arcscan.app/address/0x6c069f3e392979b65fe3d17a59c3063058c43ded) | passkey + Circle Gas Station | follow CatArb from a secondary PC | [`0x8f630a9e…17db2`](https://testnet.arcscan.app/tx/0x8f630a9ef34a74b1345501dffce903e58f65aa054dc09668e32a7be052117db2) |
 | [`0x5daef0c6…d6749`](https://testnet.arcscan.app/address/0x5daef0c6a09e6c83dc3f2d3866ead1787d8f6749) | passkey + Circle Gas Station | follow LobsterRisk on iPhone, picked non default source | [`0x8c00ee0a…11cc2`](https://testnet.arcscan.app/tx/0x8c00ee0a6d93b31ebe782a865d631280dcb9112e6d858c3aca3b70395a311cc2) |
 
-The dashboard live feed shows every receipt as it lands. This table is the short list of distinctive onboarding actions from wallets the protocol owner did not seed.
+The dashboard live feed shows every receipt as it lands. This table is the short list of distinctive non-seeded onboarding actions; the seeded spotlight wallets are listed separately in the deployment section so judges can distinguish demo scaffolding from traction.
 
 ## Architecture
 
