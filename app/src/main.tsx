@@ -26,6 +26,7 @@ import { createBundlerClient, toWebAuthnAccount } from "viem/account-abstraction
 import { createPublicClient as createClient, encodeFunctionData, http } from "viem";
 import {
   addresses,
+  agentSignal,
   arcTestnet,
   computeEarnedReputation,
   erc20Abi,
@@ -38,6 +39,7 @@ import {
   routerAbi,
   shortAddress,
   txUrl,
+  type AgentSignal,
   type EarnedReputation,
   type PositionCloseLog,
   type ReceiptLog,
@@ -1518,6 +1520,9 @@ function LiveFeed({
   onClosePosition: (intentId: bigint) => Promise<void>;
 }) {
   const [now, setNow] = useState(Date.now());
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "copied" | "blocked">("all");
+  const [reasonFilter, setReasonFilter] = useState<string>("all");
   useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(tick);
@@ -1529,6 +1534,30 @@ function LiveFeed({
     .slice()
     .sort((a, b) => Number(b.blockNumber - a.blockNumber))
     .slice(0, 4);
+
+  const sourceOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of receipts) {
+      const key = r.sourceAgent.toLowerCase();
+      if (!map.has(key)) map.set(key, sourceNameByAddress.get(key) || shortAddress(r.sourceAgent));
+    }
+    return Array.from(map.entries());
+  }, [receipts, sourceNameByAddress]);
+
+  const reasonOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of receipts) if (r.status === "blocked") set.add(r.reason);
+    return Array.from(set);
+  }, [receipts]);
+
+  const filteredReceipts = useMemo(() => {
+    return receipts.filter((r) => {
+      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (sourceFilter !== "all" && r.sourceAgent.toLowerCase() !== sourceFilter) return false;
+      if (reasonFilter !== "all" && r.reason !== reasonFilter) return false;
+      return true;
+    });
+  }, [receipts, statusFilter, sourceFilter, reasonFilter]);
   return (
     <section className="liveFeed" id="live-feed">
       <div className="liveFeedHeader">
@@ -1554,9 +1583,77 @@ function LiveFeed({
           </div>
         </div>
       </div>
+      <div className="liveFeedFilters" role="group" aria-label="Receipt filters">
+        <div className="liveFeedFilterGroup">
+          <span className="liveFeedFilterLabel">Outcome</span>
+          {(["all", "copied", "blocked"] as const).map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              className={`liveFeedFilterBtn${statusFilter === opt ? " active" : ""}`}
+              onClick={() => setStatusFilter(opt)}
+            >
+              {opt === "all" ? "all" : opt}
+            </button>
+          ))}
+        </div>
+        {sourceOptions.length > 1 && (
+          <div className="liveFeedFilterGroup">
+            <span className="liveFeedFilterLabel">Agent</span>
+            <button
+              type="button"
+              className={`liveFeedFilterBtn${sourceFilter === "all" ? " active" : ""}`}
+              onClick={() => setSourceFilter("all")}
+            >
+              all
+            </button>
+            {sourceOptions.map(([addr, name]) => (
+              <button
+                key={addr}
+                type="button"
+                className={`liveFeedFilterBtn${sourceFilter === addr ? " active" : ""}`}
+                onClick={() => setSourceFilter(addr)}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
+        {statusFilter !== "copied" && reasonOptions.length > 0 && (
+          <div className="liveFeedFilterGroup">
+            <span className="liveFeedFilterLabel">Block reason</span>
+            <button
+              type="button"
+              className={`liveFeedFilterBtn${reasonFilter === "all" ? " active" : ""}`}
+              onClick={() => setReasonFilter("all")}
+            >
+              all
+            </button>
+            {reasonOptions.map((reason) => (
+              <button
+                key={reason}
+                type="button"
+                className={`liveFeedFilterBtn${reasonFilter === reason ? " active" : ""}`}
+                onClick={() => setReasonFilter(reason)}
+              >
+                {reason}
+              </button>
+            ))}
+          </div>
+        )}
+        <span className="liveFeedFilterCount">
+          {filteredReceipts.length} of {receipts.length}
+        </span>
+      </div>
       <div className="liveFeedList">
-        {receipts.length === 0 && <div className="empty">No receipts yet. Cron fires every 10 minutes.</div>}
-        {receipts.map((receipt, index) => {
+        {filteredReceipts.length === 0 && (
+          <div className="empty">
+            {receipts.length === 0
+              ? "No receipts yet. Cron fires every 10 minutes."
+              : "No receipts match these filters."}
+          </div>
+        )}
+        {filteredReceipts.map((receipt, index) => {
           const sourceName = sourceNameByAddress.get(receipt.sourceAgent.toLowerCase()) || shortAddress(receipt.sourceAgent);
           const blocksAgo = latestBlock && receipt.blockNumber ? Number(latestBlock - receipt.blockNumber) : 0;
           const receiptKey = `${receipt.follower.toLowerCase()}:${receipt.intentId.toString()}`;
@@ -2675,6 +2772,47 @@ function traderPersona(name: string): TraderPersona {
   return { tagline: "Onchain trader", accent: "#d8ff79", tone: "neutral" };
 }
 
+const SIGNAL_LABEL: Record<AgentSignal, string> = {
+  healthy: "Healthy",
+  watch: "Watch",
+  stop: "Stop",
+  warming: "Warming up",
+};
+
+function SignalBadge({ level, reason, compact = false }: { level: AgentSignal; reason?: string; compact?: boolean }) {
+  return (
+    <span className={`signalBadge signalBadge--${level}${compact ? " signalBadge--compact" : ""}`} title={reason}>
+      <span className="signalBadgeDot" />
+      {SIGNAL_LABEL[level]}
+    </span>
+  );
+}
+
+function SignalStrip({ rows }: { rows: EarnedReputation[] }) {
+  if (rows.length === 0) return null;
+  const signals = rows.map((row) => ({ row, ...agentSignal(row) }));
+  return (
+    <div className="signalStrip" role="group" aria-label="Per agent trust signal">
+      <div className="signalStripHeader">
+        <span className="signalStripDot" />
+        <strong>Signal monitor</strong>
+        <span className="signalStripHint">
+          Shadow does not just copy agents. It watches when an agent stops being worth copying. Computed live from receipts and closes.
+        </span>
+      </div>
+      <div className="signalStripGrid">
+        {signals.map(({ row, level, reason }) => (
+          <div className={`signalStripItem signalStripItem--${level}`} key={row.source.address}>
+            <SignalBadge level={level} compact />
+            <span className="signalStripName">{row.source.name}</span>
+            <span className="signalStripReason">{reason}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; onFollow?: (addr: Address) => void }) {
   if (rows.length === 0) {
     return (
@@ -2694,6 +2832,7 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
         These three agents publish trade intents on Arc every 10 minutes. Each card shows what they actually traded,
         who copied, who got blocked, and what they earned. Nothing self-reported.
       </p>
+      <SignalStrip rows={rows} />
       <div className="reputationTotals">
         <span>{totalIntents} intents published</span>
         <span>{totalCopies} copies executed</span>
@@ -2702,6 +2841,7 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
       <div className="reputationGrid">
         {rows.map((row, index) => {
           const persona = traderPersona(row.source.name);
+          const signal = agentSignal(row);
           return (
           <article className={`reputationCard reputationCard--${persona.tone}`} key={row.source.address} style={{ ["--trader-accent" as string]: persona.accent }}>
             <header className="reputationCardHeader">
@@ -2711,10 +2851,14 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
                 <span className="reputationTagline">{persona.tagline}</span>
                 <span className="reputationAddr">{shortAddress(row.source.address)}</span>
               </div>
-              <span className="reputationRegistry">
-                ERC-8004 score {score(row.source.reputationScore)}
-              </span>
+              <div className="reputationHeaderRight">
+                <SignalBadge level={signal.level} reason={signal.reason} />
+                <span className="reputationRegistry">
+                  ERC-8004 score {score(row.source.reputationScore)}
+                </span>
+              </div>
             </header>
+            <p className="reputationSignalReason">{signal.reason}</p>
             {row.lastIntent && (
               <div className="reputationLastIntent">
                 <span className="reputationLastIntentLabel">Last trade</span>

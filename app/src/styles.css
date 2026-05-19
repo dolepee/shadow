@@ -3119,6 +3119,62 @@ h3 {
   margin: 4px 0 0;
 }
 
+.liveFeedFilters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.liveFeedFilterGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.liveFeedFilterLabel {
+  color: var(--ink-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--mono);
+}
+
+.liveFeedFilterBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink-faint);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.liveFeedFilterBtn:hover {
+  color: var(--ink);
+  border-color: var(--ink-muted);
+}
+
+.liveFeedFilterBtn.active {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.liveFeedFilterCount {
+  margin-left: auto;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-family: var(--mono);
+}
+
 .liveFeedList {
   display: flex;
   flex-direction: column;
@@ -3795,6 +3851,138 @@ code {
   letter-spacing: 0.08em;
   padding: 3px 7px;
   text-transform: uppercase;
+}
+
+.reputationHeaderRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.reputationSignalReason {
+  color: var(--ink-muted);
+  font-size: 12px;
+  margin: -4px 0 0;
+  font-family: var(--mono);
+}
+
+.signalBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.signalBadgeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.signalBadge--healthy {
+  color: #6ee7a7;
+  border-color: rgba(110, 231, 167, 0.35);
+  background: rgba(110, 231, 167, 0.08);
+}
+
+.signalBadge--watch {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.signalBadge--stop {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.signalBadge--warming {
+  color: var(--ink-muted);
+  border-color: var(--border);
+}
+
+.signalBadge--compact {
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+.signalStrip {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 18px 0 22px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.signalStripHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.signalStripDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6ee7a7;
+  box-shadow: 0 0 10px rgba(110, 231, 167, 0.6);
+}
+
+.signalStripHeader strong {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.signalStripHint {
+  color: var(--ink-muted);
+  font-size: 12px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.signalStripGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.signalStripItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.signalStripItem--healthy { border-color: rgba(110, 231, 167, 0.3); }
+.signalStripItem--watch { border-color: rgba(251, 191, 36, 0.3); }
+.signalStripItem--stop { border-color: rgba(248, 113, 113, 0.35); }
+
+.signalStripName {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.signalStripReason {
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-family: var(--mono);
 }
 
 .reputationStats {

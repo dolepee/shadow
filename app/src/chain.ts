@@ -515,6 +515,52 @@ export type EarnedReputation = {
   lastIntent: IntentLog | null;
 };
 
+export type AgentSignal = "healthy" | "watch" | "stop" | "warming";
+
+export type AgentSignalDetail = {
+  level: AgentSignal;
+  reason: string;
+};
+
+// Brutally simple: trust an agent when the router copies its trades and
+// realized PnL on closed positions is not deeply negative. Drop trust when
+// the router blocks more than half its trades or losses exceed 5%. Pure
+// aggregation, no model, no LLM, no off chain truth.
+export function agentSignal(row: EarnedReputation): AgentSignalDetail {
+  const totalReceipts = row.copyCount + row.blockCount;
+  if (row.intentsPublished === 0 || totalReceipts === 0) {
+    return { level: "warming", reason: "no follower activity yet" };
+  }
+  const copyRatePct = row.copyRateBps / 100;
+  const pnlPct = row.realizedPnlAvgBps === null ? null : row.realizedPnlAvgBps / 100;
+
+  if (copyRatePct < 25 || (pnlPct !== null && pnlPct < -5)) {
+    return {
+      level: "stop",
+      reason:
+        copyRatePct < 25
+          ? `policy blocked ${(100 - copyRatePct).toFixed(0)}% of trades`
+          : `realized PnL ${pnlPct!.toFixed(2)}% on ${row.closedCount} closes`,
+    };
+  }
+  if (copyRatePct < 50 || (pnlPct !== null && pnlPct < -1)) {
+    return {
+      level: "watch",
+      reason:
+        copyRatePct < 50
+          ? `copy rate ${copyRatePct.toFixed(0)}%, leaning blocks`
+          : `realized PnL ${pnlPct!.toFixed(2)}% on ${row.closedCount} closes`,
+    };
+  }
+  return {
+    level: "healthy",
+    reason:
+      pnlPct === null
+        ? `copy rate ${copyRatePct.toFixed(0)}%, no realized PnL yet`
+        : `copy rate ${copyRatePct.toFixed(0)}%, PnL ${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%`,
+  };
+}
+
 // Earned reputation is what the source has actually done on-chain: how many
 // intents it published, how often followers copied vs blocked, USDC routed
 // through it, fees its activity generated, and the average realized PnL of

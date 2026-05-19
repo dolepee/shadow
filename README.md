@@ -1,6 +1,10 @@
 # Shadow
 
-Refuse before they spend. **Shadow Pilot** is an onchain agent that reads source agent reputation, allocates a follower's USDC across sources through a Bankr LLM call, attests the SHA 256 decision hash onchain, and refuses any fill that violates the slippage policy it wrote. One source intent can produce COPIED for one follower and BLOCKED for another in the same tx, with onchain receipts proving both.
+**Shadow does not just copy agents. It watches when an agent stops being worth copying.**
+
+Most copy trading apps mirror every trade. Shadow runs an onchain policy router that decides per follower whether each trade should clear or refuse, and a Watch Signal that scores every source agent live from chain state. Trust is earned trade by trade, and lost the same way. Both outcomes ship as receipts.
+
+One source intent can produce COPIED for one follower and BLOCKED for another in the same tx. When an agent's copy rate or realized PnL drops far enough, the Watch Signal flips to Stop and the dashboard tells you to unfollow.
 
 Live app: https://shadow-arc.vercel.app
 
@@ -57,12 +61,15 @@ Other Circle products in use:
 ## Try it in 30 seconds
 
 1. Open https://shadow-arc.vercel.app
-2. Click "Start onboarding" in the green strip under the headline
+2. Scroll to the Circle stack panel under the agent grid
 3. Tap "Register passkey" on your device
-4. Tap "Fund smart account" (a deployer EOA tops you up with 0.05 USDC, once per address)
-5. Tap "Follow CatArb (approve + deposit + followSource, sponsored)"
+4. Tap "Fund smart account" (a deployer EOA tops you up with 0.05 USDC, once per address). If you already have USDC, the UI detects the balance and skips this step
+5. Pick the agent you trust most from CatArb, LobsterRisk, or MomentumOtter
+6. Tap "Follow {agent} (approve, deposit, followSource, sponsored)"
 
-The whole onboarding settles in one batched UserOp. Circle pays the gas. You leave as a Shadow follower with your own slippage policy.
+The whole onboarding settles in one batched UserOp. Circle pays the gas. You leave as a Shadow follower with your own slippage policy on the one agent you chose. No bulk subscription, no auto split.
+
+After follow, the /agents page shows a live **Healthy / Watch / Stop** badge per agent. Come back to see whether your pick is still earning trust.
 
 Sizing: the sponsored follow gives you a 0.04 USDC router balance and a 0.02 USDC per intent cap. Cron source intents are sized to fit that cap and will hit either `COPIED` or `SLIPPAGE_TOO_TIGHT` against you. The dashboard "run verify now" button publishes a larger 0.1 USDC intent for the seeded follower split outcome demo, which will refuse a sponsored smart account with `INSUFFICIENT_BALANCE`. That is the rail working: the BlockReason is precise per follower, not a generic revert.
 
@@ -137,6 +144,21 @@ Source agents publish one intent. Each follower stores their own policy on chain
 
 Everyone else executes in the same tx without reverting the batch. Every refusal leaves an onchain receipt naming the exact policy field that fired, so a follower can prove what their policy blocked, not just that something blocked.
 
+## Watch Signal: trust that can flip
+
+Every source agent on `/agents` carries a live badge derived purely from chain state:
+
+| Signal | Trigger |
+| --- | --- |
+| **Healthy** | copy rate ≥ 50% and realized PnL avg ≥ -1% (or no closes yet) |
+| **Watch** | copy rate 25–50% **or** realized PnL avg between -5% and -1% |
+| **Stop** | copy rate < 25% **or** realized PnL avg < -5% |
+| **Warming** | no follower activity yet |
+
+Copy rate is `copied / (copied + blocked)` receipts. Realized PnL is the average `pnlBps` over `PositionClosed` events for the agent. No model, no LLM, no off chain truth. Same input data the dashboard already loads from `MirrorReceipt` and `PositionClosed` logs.
+
+The framing is intentional. Shadow is not "follow this guru forever." Trust is an onchain artifact that ages out of date the second an agent's hit rate decays. The badge gives a follower a return reason: open Shadow weekly to check whether their agent is still earning copy.
+
 ## The product surface
 
 **Shadow Pilot (RFB 06 aligned).** Detailed flow in "Meet the Pilot" above. The Pilot is the agent. Surface in this section is the execute panel that exposes its plan (weights, watch signals, preset per slice) and the single button that anchors `PilotAttestor.attest(decisionHash)` and fires the per slice batch.
@@ -147,7 +169,7 @@ Everyone else executes in the same tx without reverting the batch. Every refusal
 
 **Public follow flow (EOA).** Pick a source, pick a preset, deposit USDC. A single CTA wires up `approve`, `depositUSDC`, and `followSource` with the preset policy.
 
-**Live receipts feed.** Auto polls a cached state API, animates new rows, shows the latest block, source name, follower address, USDC mirrored, and ARCETH received per receipt.
+**Live receipts feed.** Auto polls a cached state API, animates new rows, shows the latest block, source name, follower address, USDC mirrored, and ARCETH received per receipt. Filter chips at the top let you narrow by outcome (copied / blocked), by agent (CatArb / LobsterRisk / MomentumOtter), and by block reason (slippage too tight, insufficient balance, daily cap exceeded), so the proof of a specific policy refusal is one click away.
 
 **Spotlight intent.** Renders the latest intent that produced both COPIED and BLOCKED outcomes side by side. A `run verify now` button publishes a fresh CatArb intent every click through a Vercel serverless function so the split outcome is reproducible on demand.
 
