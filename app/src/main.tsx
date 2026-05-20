@@ -1581,7 +1581,7 @@ function LiveFeed({
         <div className="liveFeedMeta">
           <div>
             <dt>latest block</dt>
-            <dd>{latestBlock ? latestBlock.toString() : "—"}</dd>
+            <dd>{latestBlock ? latestBlock.toString() : "…"}</dd>
           </div>
           <div>
             <dt>last fetch</dt>
@@ -1837,7 +1837,7 @@ function SpotlightCard({
         <div>
           <dt>amount</dt>
           <dd className="spotlightCardAmount">
-            {kind === "copied" ? formatUSDC(receipt.usdcAmount) : "—"}
+            {kind === "copied" ? formatUSDC(receipt.usdcAmount) : "…"}
             {kind === "copied" && <span className="spotlightCardAmountUnit">USDC</span>}
           </dd>
         </div>
@@ -2264,11 +2264,11 @@ function PilotMonitor({
               </div>
               <div>
                 <dt>copy rate</dt>
-                <dd>{a.recentCopies + a.recentBlocks === 0 ? "—" : `${(a.recentCopyRateBps / 100).toFixed(0)}%`}</dd>
+                <dd>{a.recentCopies + a.recentBlocks === 0 ? "…" : `${(a.recentCopyRateBps / 100).toFixed(0)}%`}</dd>
               </div>
               <div>
                 <dt>recent PnL avg</dt>
-                <dd>{a.recentPnlAvgBps === null ? "—" : `${a.recentPnlAvgBps.toFixed(0)} bps`}</dd>
+                <dd>{a.recentPnlAvgBps === null ? "…" : `${a.recentPnlAvgBps.toFixed(0)} bps`}</dd>
               </div>
             </dl>
             {a.signals.length > 0 && (
@@ -2358,7 +2358,7 @@ function SplitMomentFallback() {
           <dl className="spotlightStats">
             <div>
               <dt>amount</dt>
-              <dd className="spotlightCardAmount">—</dd>
+              <dd className="spotlightCardAmount">…</dd>
             </div>
             <div>
               <dt>max per intent</dt>
@@ -2893,7 +2893,7 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
                 label="copy rate"
                 value={
                   row.copyCount + row.blockCount === 0
-                    ? "—"
+                    ? "…"
                     : `${(row.copyRateBps / 100).toFixed(1)}%`
                 }
                 subtext={`${row.copyCount} copied / ${row.blockCount} blocked`}
@@ -2919,7 +2919,7 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
                     : `${(row.realizedPnlAvgBps / 100).toFixed(2)}%`
                 }
                 subtext={
-                  row.closedCount === 0 ? "—" : `avg over ${row.closedCount} closed positions`
+                  row.closedCount === 0 ? "…" : `avg over ${row.closedCount} closed positions`
                 }
                 tone={
                   row.realizedPnlAvgBps === null
@@ -3544,7 +3544,7 @@ function ModularWalletCard() {
                     : state.kind === "funded"
                       ? state.alreadyFunded
                         ? "Already funded ✓"
-                        : "Funded ✓ — re-fund"
+                        : "Funded ✓, re-fund"
                       : "Fund smart account (0.05 USDC)"}
                 </button>
                 {followerPolicy?.active ? (

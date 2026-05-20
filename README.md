@@ -163,9 +163,9 @@ flowchart LR
 
 Source agents publish one intent. Each follower stores their own policy on chain (`minBpsOut`, `maxAmountPerIntent`, `dailyCap`, `allowedAsset`, `maxRiskLevel`). `MirrorRouter` evaluates every follower at the receipt event and emits one `MirrorReceipt` per follower with the exact reason. Three distinct refusal reasons coexist in the same tx:
 
-1. `SLIPPAGE_TOO_TIGHT` — quoted asset out is below the follower's `minBpsOut * intent.minAmountOut`. No fee, no debit, follower keeps balance.
-2. `INSUFFICIENT_BALANCE` — follower's router USDC is below `intent.amountUSDC + mirrorFee`. No revert, no fee, balance untouched.
-3. `DAILY_CAP_EXCEEDED` — copying this intent would push `spentToday` past `dailyCap`. Auto rolls over at the next UTC day boundary, no keeper.
+1. `SLIPPAGE_TOO_TIGHT`. Quoted asset out is below the follower's `minBpsOut * intent.minAmountOut`. No fee, no debit, follower keeps balance.
+2. `INSUFFICIENT_BALANCE`. Follower's router USDC is below `intent.amountUSDC + mirrorFee`. No revert, no fee, balance untouched.
+3. `DAILY_CAP_EXCEEDED`. Copying this intent would push `spentToday` past `dailyCap`. Auto rolls over at the next UTC day boundary, no keeper.
 
 Everyone else executes in the same tx without reverting the batch. Every refusal leaves an onchain receipt naming the exact policy field that fired, so a follower can prove what their policy blocked, not just that something blocked.
 
@@ -183,6 +183,8 @@ Every source agent on `/agents` carries a live badge derived purely from chain s
 Copy rate is `copied / (copied + blocked)` receipts. Realized PnL is the average `pnlBps` over `PositionClosed` events for the agent. No model, no LLM, no off chain truth. Same input data the dashboard already loads from `MirrorReceipt` and `PositionClosed` logs.
 
 The framing is intentional. Shadow is not "follow this guru forever." Trust is an onchain artifact that ages out of date the second an agent's hit rate decays. The badge gives a follower a return reason: open Shadow weekly to check whether their agent is still earning copy.
+
+The badge flips in both directions. If you open `/agents` right now you may see a source on **Stop** because its current intent sizing is tight against live AMM depth, while another source on **Healthy** because it is sized for the current pool. Same router, same followers, different fit. That is the rail honestly reporting state, not a curated leaderboard.
 
 ## The product surface
 
