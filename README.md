@@ -65,7 +65,7 @@ Shadow does not add a new `PILOT_VETO` enum to the deployed router. The onchain 
 
 The UI can attach a **Pilot veto** label when a blocked receipt shares the same `intentHash` as the latest Pilot reasoning packet. In that case the receipt row shows the Pilot label first, then the raw onchain reason underneath (for example, `raw onchain reason: slippage too tight`). This keeps the demo honest: the Pilot explains why an intent was risky, while `MirrorRouter` still enforces the follower's actual policy onchain.
 
-CatArb intent 151 at block 43176529 is the live shot of that join. Same source intent, nineteen follower receipts in one transaction, three visible classes at a glance: copied, Pilot-vetoed policy refusal, and mechanical balance refusal.
+CatArb intent 151 at block 43176529 is the stable reference proof for that join. The live feed may advance as cron and verifier intents publish, but this transaction remains the recording/reference proof: same source intent, nineteen follower receipts in one transaction, three visible classes at a glance: copied, Pilot-vetoed policy refusal, and mechanical balance refusal.
 
 | follower | minBpsOut | outcome | UI label | raw onchain reason |
 | --- | --- | --- | --- | --- |
@@ -147,7 +147,7 @@ curl -X POST https://shadow-arc.vercel.app/api/agent/follow-plan \
 
 **Circle Tool Usage (20%).** One load bearing integration: Modular Wallets plus Gas Station for sponsored follower onboarding (`src/main.tsx` `ModularWalletCard`). Removing it adds 3 signatures and a gas token step, turning a one tap passkey onboard into a ~60 to 90 second multi step EOA flow.
 
-**Innovation (20%).** The novel primitive is slippage each follower owns. A source publishing a tight `minAmountOut` no longer cascade reverts a batch of followers, because each follower's `minBpsOut` is evaluated against the live quote at the receipt event. Sponsored ERC-4337 onboarding for copy trading is unusual in this space; most copy trading products require the follower to hold the chain's gas token first.
+**Innovation (20%).** The novel primitive is slippage each follower owns. A source publishing a tight `minAmountOut` no longer cascade reverts a batch of followers, because each follower's `minBpsOut` is evaluated against the live quote at the receipt event. Sponsored ERC-4337 onboarding for policy-controlled mirroring is unusual in this space; most mirroring products require the follower to hold the chain's gas token first.
 
 ## External follower receipts
 

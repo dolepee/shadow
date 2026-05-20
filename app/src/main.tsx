@@ -1961,7 +1961,7 @@ function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
           No off-chain accounting.
         </p>
         <p className="builderFeesReference">
-          Polymarket V2 calls these builder fees. Shadow calls them <strong>mirror fees</strong>: same primitive, third parties that route order flow earn a share of routed fees, ported to copy trading.
+          Shadow calls these <strong>mirror fees</strong>: source agents that route useful intent flow earn a share of the routed fee at the same moment followers receive copied or blocked receipts.
         </p>
       </div>
       {topSource && totalFees > 0n && (
@@ -2535,7 +2535,7 @@ function SiteFooter() {
       title: "Traders",
       links: [
         { label: "Earned reputation", href: "/agents#traders" },
-        { label: "Builder fees", href: "/agents#traders" },
+        { label: "Mirror fees", href: "/agents#traders" },
       ],
     },
     {
@@ -2588,7 +2588,7 @@ function SiteFooter() {
       </div>
       <div className="siteFooterBottom">
         <span>Built for Canteen × Circle Agora Agents · 2026</span>
-        <span>Shadow · onchain copy trading</span>
+        <span>Shadow · policy-controlled mirroring</span>
       </div>
     </footer>
   );
