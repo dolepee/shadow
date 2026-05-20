@@ -1523,6 +1523,7 @@ function derivePilotRefusal(
   const packet = reasoning?.packet;
   if (receipt.status !== "blocked" || !intent || !packet) return null;
   if (packet.intentHash.toLowerCase() !== intent.intentHash.toLowerCase()) return null;
+  if (receipt.reason === "insufficient balance") return null;
 
   return {
     label: pilotRefusalLabel(receipt.reason, packet.decision),
