@@ -65,19 +65,20 @@ Shadow does not add a new `PILOT_VETO` enum to the deployed router. The onchain 
 
 The UI can attach a **Pilot veto** label when a blocked receipt shares the same `intentHash` as the latest Pilot reasoning packet. In that case the receipt row shows the Pilot label first, then the raw onchain reason underneath (for example, `raw onchain reason: slippage too tight`). This keeps the demo honest: the Pilot explains why an intent was risky, while `MirrorRouter` still enforces the follower's actual policy onchain.
 
-CatArb intent 150 at block 43172913 is the live shot of that join. Same source intent, twelve follower receipts in one transaction, three distinct refusal flavors visible at a glance:
+CatArb intent 151 at block 43176529 is the live shot of that join. Same source intent, nineteen follower receipts in one transaction, three visible classes at a glance: copied, Pilot-vetoed policy refusal, and mechanical balance refusal.
 
 | follower | minBpsOut | outcome | UI label | raw onchain reason |
 | --- | --- | --- | --- | --- |
-| `0x7A3F...3AcD` | 9000 | COPIED | 0.1 USDC → 0.00227 ARCETH | n/a |
+| `0x7A3F...3AcD` | 9000 | COPIED | 0.1 USDC → 0.00224 ARCETH | n/a |
 | `0x495c...8695` | 10000 | BLOCKED | Pilot veto: live quote failed policy | slippage too tight |
 | `0x26bA...63c5` | 9500 | BLOCKED | Pilot veto: live quote failed policy | slippage too tight |
 | `0xbad3...4BAF` | 9500 | BLOCKED | Pilot veto: live quote failed policy | slippage too tight |
+| `0x6101...f78b` | 9000 | BLOCKED | Pilot veto: follower budget rejected | amount too high |
 | `0x5768...A006` (passkey) | 9500 | BLOCKED | none (mechanical) | insufficient balance |
 
-The Pilot label is suppressed on the passkey row because wallet balance is not a Pilot decision. The remaining seven blocked rows on intent 150 are also `insufficient balance` and render the same way: clean onchain reason, no derived label.
+The Pilot label is suppressed on the passkey row because wallet balance is not a Pilot decision. The other insufficient-balance rows on intent 151 render the same way: clean onchain reason, no derived label.
 
-Tx: https://testnet.arcscan.app/tx/0xfe8c9089f41f1a366f38612ac85375b24cd27b6a8390b0a81cfa228a8ede7da7
+Tx: https://testnet.arcscan.app/tx/0x0f1892d3a99f3ef303019f3aa59bce30718432aa5a5b03bf288053da60ff0563
 
 ## Why Circle, not just any EVM
 
