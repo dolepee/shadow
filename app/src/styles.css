@@ -3341,6 +3341,22 @@ code {
   letter-spacing: 0;
 }
 
+.refusalStack {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.liveFeedAmount .pilotRefusalLabel {
+  color: var(--warn);
+}
+
+.liveFeedAmount .rawOnchainReason {
+  color: var(--ink-faint);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
 .liveFeedAge {
   color: var(--ink-faint);
   display: flex;

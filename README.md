@@ -59,6 +59,12 @@ Shadow Pilot is the protagonist. A follower hands it a deposit and a risk profil
 
 The Pilot is not advice. It proposes the onchain policy and leaves an audit anchor on every plan it commits to; `MirrorRouter` owns the refusal rail. The receipts table above is that policy holding the line on a thin intent.
 
+## Pilot-labeled refusal receipts
+
+Shadow does not add a new `PILOT_VETO` enum to the deployed router. The onchain receipt remains the source of truth: `MirrorReceipt(BLOCKED, RiskPolicy.BlockReason, ...)`.
+
+The UI can attach a **Pilot veto** label when a blocked receipt shares the same `intentHash` as the latest Pilot reasoning packet. In that case the receipt row shows the Pilot label first, then the raw onchain reason underneath (for example, `raw onchain reason: slippage too tight`). This keeps the demo honest: the Pilot explains why an intent was risky, while `MirrorRouter` still enforces the follower's actual policy onchain.
+
 ## Why Circle, not just any EVM
 
 The fifth follower in the table above (`0x5768...a006`) is a passkey owned smart account. It onboarded itself in one batched ERC-4337 UserOp with three calls packed into one signature:
@@ -130,7 +136,7 @@ curl -X POST https://shadow-arc.vercel.app/api/agent/follow-plan \
 
 ## External follower receipts
 
-Followers outside the deployer that registered onchain through the public Shadow app. As of submission, **14 external passkey followers are registered on the router**. Six are highlighted below with their most distinctive onchain action.
+Followers outside the deployer that registered onchain through the public Shadow app. As of submission, **24 external passkey followers are registered on the router** across the three source agents (CatArb 19, LobsterRisk 8, MomentumOtter 7; some followers follow more than one source). Six are highlighted below with their most distinctive onchain action.
 
 | follower | onboarded via | action | tx |
 | --- | --- | --- | --- |
@@ -259,6 +265,20 @@ Out of scope for Shadow V4: a full automated market maker, an external oracle, c
 ## Daily cap recovery
 
 Every follower policy stores a `dailyCap` and a `spentToday`. When a copied receipt would push `spentToday` past `dailyCap`, the router emits `MirrorReceipt(BLOCKED, DAILY_CAP_EXCEEDED)` instead of swapping, no fee, no debit. `spentToday` rolls over to zero at the next UTC day boundary read from `block.timestamp`, no keeper required. A follower can therefore set an aggressive `maxAmountPerIntent` while keeping a hard ceiling on per day exposure, and the rail proves the ceiling held by emitting a refusal receipt the moment it would have been crossed.
+
+## Adversarial replay roadmap (Malachite-style DST)
+
+Shadow V4 ships a focused demo path, not a full deterministic simulation harness. The next safety milestone is a Malachite-style deterministic replay harness modeled on the WAL capture / replay approach in [`circlefin/malachite#1470`](https://github.com/circlefin/malachite/pull/1470).
+
+The replay target is the router/AMM/follower state machine under adversarial intent ordering and reserve movement. The invariants are:
+
+* A follower USDC balance is never debited unless the same receipt is `COPIED`.
+* A `BLOCKED` receipt never reduces follower balance or accrues mirror fee.
+* One `(intentId, follower)` pair cannot fill twice.
+* A source cannot spend beyond a follower's `maxAmountPerIntent`, `dailyCap`, asset allowlist, risk tier, or min-out rule.
+* Adversarial ordering may change AMM price and therefore copy/block outcomes, but it cannot bypass policy.
+
+This is documented as roadmap, not claimed as shipped.
 
 ## Known limits
 

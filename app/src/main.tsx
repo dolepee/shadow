@@ -39,6 +39,7 @@ import {
   txUrl,
   type AgentSignal,
   type EarnedReputation,
+  type IntentLog,
   type PositionCloseLog,
   type ReceiptLog,
   type ShadowState,
@@ -940,8 +941,10 @@ function App() {
       {state && (
         <LiveFeed
           receipts={feedReceipts}
+          intents={state.intents}
           closes={state.positionCloses}
           sourceNameByAddress={sourceNameByAddress}
+          reasoning={reasoning}
           latestBlock={state.latestBlock}
           fetchedAt={state.fetchedAt}
           loading={loading}
@@ -1506,10 +1509,48 @@ function LatestReasoningPanel({ data }: { data: ReasoningResponse | null }) {
   );
 }
 
+type DerivedRefusal = {
+  label: string;
+  detail: string;
+  rawReason: string;
+};
+
+function derivePilotRefusal(
+  receipt: ReceiptLog,
+  intent: IntentLog | undefined,
+  reasoning: ReasoningResponse | null,
+): DerivedRefusal | null {
+  const packet = reasoning?.packet;
+  if (receipt.status !== "blocked" || !intent || !packet) return null;
+  if (packet.intentHash.toLowerCase() !== intent.intentHash.toLowerCase()) return null;
+
+  return {
+    label: pilotRefusalLabel(receipt.reason, packet.decision),
+    detail: pilotRefusalDetail(receipt.reason, packet.rationale),
+    rawReason: receipt.reason,
+  };
+}
+
+function pilotRefusalLabel(rawReason: string, decision: ReasoningPacket["decision"]) {
+  if (decision === "skip") return "Pilot veto: source intent skipped";
+  if (rawReason === "slippage too tight") return "Pilot veto: live quote failed policy";
+  if (rawReason === "amount too high" || rawReason === "daily cap exceeded") return "Pilot veto: follower budget rejected";
+  if (rawReason === "risk too high") return "Pilot veto: risk tier rejected";
+  return "Pilot-labeled refusal";
+}
+
+function pilotRefusalDetail(rawReason: string, rationale: string) {
+  const cleanRationale = rationale.trim().replace(/\s+/g, " ");
+  const trimmedRationale = cleanRationale.length > 116 ? `${cleanRationale.slice(0, 113)}...` : cleanRationale;
+  return trimmedRationale || `Reasoning packet attached to this ${rawReason} receipt.`;
+}
+
 function LiveFeed({
   receipts,
+  intents,
   closes,
   sourceNameByAddress,
+  reasoning,
   latestBlock,
   fetchedAt,
   loading,
@@ -1519,8 +1560,10 @@ function LiveFeed({
   onClosePosition,
 }: {
   receipts: ReceiptLog[];
+  intents: IntentLog[];
   closes: PositionCloseLog[];
   sourceNameByAddress: Map<string, string>;
+  reasoning: ReasoningResponse | null;
   latestBlock: bigint;
   fetchedAt: number;
   loading: boolean;
@@ -1544,6 +1587,14 @@ function LiveFeed({
     .slice()
     .sort((a, b) => Number(b.blockNumber - a.blockNumber))
     .slice(0, 4);
+
+  const intentByKey = useMemo(() => {
+    const map = new Map<string, IntentLog>();
+    for (const intent of intents) {
+      map.set(`${intent.sourceAgent.toLowerCase()}:${intent.intentId.toString()}`, intent);
+    }
+    return map;
+  }, [intents]);
 
   const sourceOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -1667,6 +1718,8 @@ function LiveFeed({
           const sourceName = sourceNameByAddress.get(receipt.sourceAgent.toLowerCase()) || shortAddress(receipt.sourceAgent);
           const blocksAgo = latestBlock && receipt.blockNumber ? Number(latestBlock - receipt.blockNumber) : 0;
           const receiptKey = `${receipt.follower.toLowerCase()}:${receipt.intentId.toString()}`;
+          const linkedIntent = intentByKey.get(`${receipt.sourceAgent.toLowerCase()}:${receipt.intentId.toString()}`);
+          const pilotRefusal = derivePilotRefusal(receipt, linkedIntent, reasoning);
           const canClose =
             receipt.status === "copied" &&
             Boolean(accountKey) &&
@@ -1691,10 +1744,18 @@ function LiveFeed({
                     <span>for {formatAsset(receipt.assetAmountOut)} ARCETH</span>
                   </>
                 ) : (
-                  <>
-                    <strong>{receipt.reason}</strong>
-                    <span>{formatUSDC(receipt.usdcAmount)} USDC requested</span>
-                  </>
+                  pilotRefusal ? (
+                    <div className="refusalStack">
+                      <strong className="pilotRefusalLabel">{pilotRefusal.label}</strong>
+                      <span>{pilotRefusal.detail}</span>
+                      <span className="rawOnchainReason">raw onchain reason: {pilotRefusal.rawReason}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <strong>{receipt.reason}</strong>
+                      <span>{formatUSDC(receipt.usdcAmount)} USDC requested</span>
+                    </>
+                  )
                 )}
               </div>
               <a className="liveFeedAge" href={txUrl(receipt.transactionHash)} target="_blank" rel="noreferrer noopener">
