@@ -134,7 +134,10 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       args: [recipient, delta],
       gas: 200_000n,
     });
-    await publicClient.waitForTransactionReceipt({ hash: tx });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+    if (receipt.status !== "success") {
+      throw new Error(`fund tx reverted (hash ${tx}); funder likely out of USDC`);
+    }
 
     if (kv) {
       const cooldownKey = `shadow:fund:${recipient.toLowerCase()}`;
