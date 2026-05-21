@@ -100,6 +100,10 @@ const positionClosedEvent = parseAbiItem(
   "event PositionClosed(uint256 indexed intentId, address indexed follower, address indexed sourceAgent, uint256 usdcIn, uint256 usdcOut, int256 pnlBps)",
 );
 
+const followedEvent = parseAbiItem(
+  "event Followed(address indexed follower, address indexed sourceAgent, uint256 maxAmountPerIntent, uint256 dailyCap, address indexed allowedAsset, uint8 maxRiskLevel, uint16 minBpsOut)",
+);
+
 const LOG_CHUNK_SIZE = 90_000n;
 
 function logRanges(fromBlock: bigint, toBlock: bigint): { fromBlock: bigint; toBlock: bigint }[] {
@@ -160,11 +164,24 @@ export type PositionCloseLog = {
   blockNumber: bigint;
 };
 
+export type FollowLog = {
+  follower: Address;
+  sourceAgent: Address;
+  maxAmountPerIntent: bigint;
+  dailyCap: bigint;
+  allowedAsset: Address;
+  maxRiskLevel: number;
+  minBpsOut: number;
+  transactionHash: `0x${string}`;
+  blockNumber: bigint;
+};
+
 export type ShadowState = {
   sources: SourceAgent[];
   intents: IntentLog[];
   receipts: ReceiptLog[];
   positionCloses: PositionCloseLog[];
+  follows: FollowLog[];
   reserves: {
     usdc: bigint;
     asset: bigint;
@@ -222,6 +239,17 @@ type SerializedShadowState = {
     transactionHash: `0x${string}`;
     blockNumber: string;
   }>;
+  follows?: Array<{
+    follower: Address;
+    sourceAgent: Address;
+    maxAmountPerIntent: string;
+    dailyCap: string;
+    allowedAsset: Address;
+    maxRiskLevel: number;
+    minBpsOut: number;
+    transactionHash: `0x${string}`;
+    blockNumber: string;
+  }>;
   reserves?: { usdc: string; asset: string };
   quoteForOneUSDC?: string;
   nextIntentId?: string;
@@ -246,6 +274,7 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
       intents: [],
       receipts: [],
       positionCloses: [],
+      follows: [],
       reserves: { usdc: 0n, asset: 0n },
       quoteForOneUSDC: 0n,
       nextIntentId: 1n,
@@ -339,7 +368,7 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
   ]);
 
   const ranges = logRanges(startBlock, latestBlock);
-  const [intentChunks, receiptChunks, closeChunks] = await Promise.all([
+  const [intentChunks, receiptChunks, closeChunks, followChunks] = await Promise.all([
     Promise.all(
       ranges.map((range) =>
         client.getLogs({
@@ -370,10 +399,21 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
         }),
       ),
     ),
+    Promise.all(
+      ranges.map((range) =>
+        client.getLogs({
+          address: addresses.router!,
+          event: followedEvent,
+          fromBlock: range.fromBlock,
+          toBlock: range.toBlock,
+        }),
+      ),
+    ),
   ]);
   const intentLogs = intentChunks.flat();
   const receiptLogs = receiptChunks.flat();
   const closeLogs = closeChunks.flat();
+  const followLogs = followChunks.flat();
 
   return {
     sources,
@@ -406,6 +446,17 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
       usdcIn: log.args.usdcIn!,
       usdcOut: log.args.usdcOut!,
       pnlBps: log.args.pnlBps!,
+      transactionHash: log.transactionHash,
+      blockNumber: log.blockNumber,
+    })),
+    follows: followLogs.map((log) => ({
+      follower: log.args.follower!,
+      sourceAgent: log.args.sourceAgent!,
+      maxAmountPerIntent: log.args.maxAmountPerIntent!,
+      dailyCap: log.args.dailyCap!,
+      allowedAsset: log.args.allowedAsset!,
+      maxRiskLevel: Number(log.args.maxRiskLevel!),
+      minBpsOut: Number(log.args.minBpsOut!),
       transactionHash: log.transactionHash,
       blockNumber: log.blockNumber,
     })),
@@ -450,6 +501,12 @@ function hydrateShadowState(data: SerializedShadowState): ShadowState {
       usdcOut: BigInt(close.usdcOut),
       pnlBps: BigInt(close.pnlBps),
       blockNumber: BigInt(close.blockNumber),
+    })),
+    follows: (data.follows || []).map((f) => ({
+      ...f,
+      maxAmountPerIntent: BigInt(f.maxAmountPerIntent),
+      dailyCap: BigInt(f.dailyCap),
+      blockNumber: BigInt(f.blockNumber),
     })),
     reserves: {
       usdc: BigInt(data.reserves?.usdc || "0"),

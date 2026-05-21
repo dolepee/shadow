@@ -2596,13 +2596,11 @@ function SiteFooter() {
 
 function HeroMetrics({ state }: { state: ShadowState | null }) {
   const numbers = useMemo(() => {
-    if (!state) return { usdcMirrored: 0n, copied: 0, blocked: 0, followers: 0 };
+    if (!state) return { usdcMirrored: 0n, copied: 0, blocked: 0, onboarded: 0 };
     let usdcMirrored = 0n;
     let copied = 0;
     let blocked = 0;
-    const followers = new Set<string>();
     for (const r of state.receipts) {
-      followers.add(r.follower.toLowerCase());
       if (r.status === "copied") {
         usdcMirrored += r.usdcAmount;
         copied += 1;
@@ -2610,18 +2608,22 @@ function HeroMetrics({ state }: { state: ShadowState | null }) {
         blocked += 1;
       }
     }
-    return { usdcMirrored, copied, blocked, followers: followers.size };
+    const onboarded = new Set<string>();
+    for (const f of state.follows) {
+      onboarded.add(f.follower.toLowerCase());
+    }
+    return { usdcMirrored, copied, blocked, onboarded: onboarded.size };
   }, [state]);
 
   const items: Array<{ label: string; value: string }> = [
     { label: "blocked by policy", value: numbers.blocked.toString() },
     { label: "copies executed", value: numbers.copied.toString() },
     { label: "USDC mirrored", value: formatUSDC(numbers.usdcMirrored) },
-    { label: "distinct followers", value: numbers.followers.toString() },
+    { label: "onboarded followers", value: numbers.onboarded.toString() },
   ];
 
   const hasLiveData =
-    numbers.copied > 0 || numbers.blocked > 0 || numbers.followers > 0 || numbers.usdcMirrored > 0n;
+    numbers.copied > 0 || numbers.blocked > 0 || numbers.onboarded > 0 || numbers.usdcMirrored > 0n;
 
   if (!hasLiveData) {
     return (
@@ -2649,7 +2651,8 @@ function TractionStrip({ state }: { state: ShadowState | null }) {
   const metrics = useMemo(() => {
     if (!state) {
       return {
-        wallets: 0,
+        onboarded: 0,
+        activeWallets: 0,
         usdcMirrored: 0n,
         intents: 0,
         copiedReceipts: 0,
@@ -2659,18 +2662,22 @@ function TractionStrip({ state }: { state: ShadowState | null }) {
         positivePnlCount: 0,
       };
     }
-    const followers = new Set<string>();
+    const activeWallets = new Set<string>();
     let usdcMirrored = 0n;
     let copiedReceipts = 0;
     let blockedReceipts = 0;
     for (const r of state.receipts) {
-      followers.add(r.follower.toLowerCase());
+      activeWallets.add(r.follower.toLowerCase());
       if (r.status === "copied") {
         copiedReceipts += 1;
         usdcMirrored += r.usdcAmount;
       } else {
         blockedReceipts += 1;
       }
+    }
+    const onboarded = new Set<string>();
+    for (const f of state.follows) {
+      onboarded.add(f.follower.toLowerCase());
     }
     let pnlSum = 0;
     let positivePnlCount = 0;
@@ -2681,7 +2688,8 @@ function TractionStrip({ state }: { state: ShadowState | null }) {
     }
     const closes = state.positionCloses.length;
     return {
-      wallets: followers.size,
+      onboarded: onboarded.size,
+      activeWallets: activeWallets.size,
       usdcMirrored,
       intents: state.intents.length,
       copiedReceipts,
@@ -2694,9 +2702,9 @@ function TractionStrip({ state }: { state: ShadowState | null }) {
 
   const metricsList: Array<{ label: string; value: string; sub: string }> = [
     {
-      label: "Distinct followers",
-      value: metrics.wallets.toString(),
-      sub: "unique wallets across receipts",
+      label: "Onboarded followers",
+      value: metrics.onboarded.toString(),
+      sub: `${metrics.activeWallets} active across receipts`,
     },
     {
       label: "USDC mirrored",
@@ -2724,7 +2732,8 @@ function TractionStrip({ state }: { state: ShadowState | null }) {
   ];
 
   const hasAnyTraction =
-    metrics.wallets > 0 ||
+    metrics.onboarded > 0 ||
+    metrics.activeWallets > 0 ||
     metrics.intents > 0 ||
     metrics.copiedReceipts > 0 ||
     metrics.blockedReceipts > 0 ||

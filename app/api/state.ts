@@ -60,6 +60,9 @@ const mirrorReceiptEvent = parseAbiItem(
 const positionClosedEvent = parseAbiItem(
   "event PositionClosed(uint256 indexed intentId, address indexed follower, address indexed sourceAgent, uint256 usdcIn, uint256 usdcOut, int256 pnlBps)",
 );
+const followedEvent = parseAbiItem(
+  "event Followed(address indexed follower, address indexed sourceAgent, uint256 maxAmountPerIntent, uint256 dailyCap, address indexed allowedAsset, uint8 maxRiskLevel, uint16 minBpsOut)",
+);
 
 const REASON_LABELS = [
   "none",
@@ -160,6 +163,17 @@ type CachedState = {
     transactionHash: `0x${string}`;
     blockNumber: string;
   }>;
+  follows: Array<{
+    follower: Address;
+    sourceAgent: Address;
+    maxAmountPerIntent: string;
+    dailyCap: string;
+    allowedAsset: Address;
+    maxRiskLevel: number;
+    minBpsOut: number;
+    transactionHash: `0x${string}`;
+    blockNumber: string;
+  }>;
   reserves: { usdc: string; asset: string };
   quoteForOneUSDC: string;
   nextIntentId: string;
@@ -243,7 +257,7 @@ async function fetchSerializedState(): Promise<CachedState> {
   ]);
 
   const ranges = logRanges(startBlock, latestBlock);
-  const [intentChunks, receiptChunks, closeChunks] = await Promise.all([
+  const [intentChunks, receiptChunks, closeChunks, followChunks] = await Promise.all([
     Promise.all(
       ranges.map((r) =>
         client.getLogs({ address: router, event: intentPublishedEvent, fromBlock: r.fromBlock, toBlock: r.toBlock }),
@@ -257,6 +271,11 @@ async function fetchSerializedState(): Promise<CachedState> {
     Promise.all(
       ranges.map((r) =>
         client.getLogs({ address: router, event: positionClosedEvent, fromBlock: r.fromBlock, toBlock: r.toBlock }),
+      ),
+    ),
+    Promise.all(
+      ranges.map((r) =>
+        client.getLogs({ address: router, event: followedEvent, fromBlock: r.fromBlock, toBlock: r.toBlock }),
       ),
     ),
   ]);
@@ -295,6 +314,17 @@ async function fetchSerializedState(): Promise<CachedState> {
       usdcIn: log.args.usdcIn!.toString(),
       usdcOut: log.args.usdcOut!.toString(),
       pnlBps: log.args.pnlBps!.toString(),
+      transactionHash: log.transactionHash,
+      blockNumber: log.blockNumber.toString(),
+    })),
+    follows: followChunks.flat().map((log) => ({
+      follower: log.args.follower! as Address,
+      sourceAgent: log.args.sourceAgent! as Address,
+      maxAmountPerIntent: log.args.maxAmountPerIntent!.toString(),
+      dailyCap: log.args.dailyCap!.toString(),
+      allowedAsset: log.args.allowedAsset! as Address,
+      maxRiskLevel: Number(log.args.maxRiskLevel!),
+      minBpsOut: Number(log.args.minBpsOut!),
       transactionHash: log.transactionHash,
       blockNumber: log.blockNumber.toString(),
     })),
