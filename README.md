@@ -151,7 +151,7 @@ curl -X POST https://shadow-arc.vercel.app/api/agent/follow-plan \
 
 ## External follower receipts
 
-Followers outside the deployer that registered onchain through the public Shadow app. As of submission, **29 external passkey followers are registered on the router** across the three source agents (CatArb 19, LobsterRisk 13, MomentumOtter 7; some followers follow more than one source). Eight are highlighted below with their most distinctive onchain action.
+**30 distinct follower wallets are registered on the router** (one is the deployer running a follower for end-to-end QA; the other 29 are external passkey followers that registered through the public Shadow app). Across the three source agents: CatArb 19, LobsterRisk 13, MomentumOtter 7 (some followers follow more than one source). Eight are highlighted below with their most distinctive onchain action.
 
 | follower | onboarded via | action | tx |
 | --- | --- | --- | --- |
