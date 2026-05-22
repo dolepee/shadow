@@ -12,27 +12,27 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
     />
-    <title>Shadow: an Agora of onchain agents that refuse before they spend</title>
+    <title>Shadow: the policy layer for autonomous trading agents on Arc</title>
     <meta
       name="description"
-      content="Shadow is an Agora of onchain agents on Arc. Source agents publish intents, the Pilot recommends and attests a SHA 256 decision hash, the router refuses unsafe copies before USDC is spent. One source intent, multiple followers, copied or blocked per follower in one tx."
+      content="Shadow is the policy layer for autonomous trading agents on Arc. Source agents publish intents, followers set onchain policies, and the router copies or refuses per follower with verifiable receipts."
     />
     <link rel="canonical" href="https://shadow-arc.vercel.app/" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Shadow" />
-    <meta property="og:title" content="Shadow: an Agora of onchain agents that refuse before they spend" />
+    <meta property="og:title" content="Shadow: the policy layer for autonomous trading agents on Arc" />
     <meta
       property="og:description"
-      content="One source intent. Multiple followers. Copied or blocked per follower in one tx with the exact reason. Pilot attests SHA 256 onchain. Router refuses before spend."
+      content="One source intent. Multiple followers. Copied or blocked per follower in one tx with the exact reason. Policy-controlled delegation for USDC agents on Arc."
     />
     <meta property="og:url" content="https://shadow-arc.vercel.app/" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Shadow: an Agora of onchain agents that refuse before they spend" />
+    <meta name="twitter:title" content="Shadow: the policy layer for autonomous trading agents on Arc" />
     <meta
       name="twitter:description"
-      content="Three source agents compete on Arc. Pilot attests the plan. Router refuses unsafe copies per follower in one tx."
+      content="Source agents publish intents. Followers set policy. Shadow copies or refuses per follower with Arc receipts."
     />
 
     <script type="application/ld+json">
@@ -42,7 +42,7 @@
         "name": "Shadow",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
-        "description": "An Agora of onchain agents on Arc testnet. Source agents publish intents with ERC 8004-style identity references. The Pilot recommends an allocation and anchors a SHA 256 decision hash onchain. The router refuses unsafe copies per follower in one tx and emits a copied or blocked receipt with the exact reason.",
+        "description": "The policy layer for autonomous trading agents on Arc testnet. Source agents publish intents, followers set onchain policy, and the router emits copied or blocked receipts per follower in one tx.",
         "url": "https://shadow-arc.vercel.app/",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
@@ -58,10 +58,10 @@
       </noscript>
       <main data-prerender="shell" style="font-family:'Bricolage Grotesque',system-ui,sans-serif;max-width:860px;margin:48px auto;padding:24px;color:#f3f7ff;background:#07111f;border:1px solid rgba(184,211,255,.14);border-radius:22px">
         <header>
-          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow · policy router for agent intents</p>
-          <h1 style="font-size:40px;margin:0 0 12px;line-height:.95;letter-spacing:-.055em">Copy the signal. Refuse the risk.</h1>
+          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow · policy layer for autonomous trading agents</p>
+          <h1 style="font-size:40px;margin:0 0 12px;line-height:.95;letter-spacing:-.055em">Delegate to agents. Keep policy onchain.</h1>
           <p style="font-size:17px;line-height:1.55;color:#c0cce0;margin:0 0 18px">
-            Three source agents compete on Arc testnet with ERC 8004-style identity references. The <strong>Pilot</strong> reads their live onchain reputation, recommends an allocation, and anchors a SHA 256 decision hash through <code style="font-family:'IBM Plex Mono',monospace;font-size:14px;background:#0f1d31;padding:1px 5px;border-radius:4px">PilotAttestor.attest</code>. The <strong>router</strong> then fans each source intent out to followers and emits a <strong style="color:#4df0a8">copied</strong> or <strong style="color:#ff5f7e">blocked</strong> receipt per follower in the same tx with the exact reason.
+            Three source agents compete on Arc testnet with ERC 8004-style identity references. Followers define risk policy before USDC moves. The <strong>Pilot</strong> reads live onchain reputation, recommends an allocation, and anchors a SHA 256 decision hash through <code style="font-family:'IBM Plex Mono',monospace;font-size:14px;background:#0f1d31;padding:1px 5px;border-radius:4px">PilotAttestor.attest</code>. The <strong>router</strong> then fans each source intent out to followers and emits a <strong style="color:#4df0a8">copied</strong> or <strong style="color:#ff5f7e">blocked</strong> receipt per follower in the same tx with the exact reason.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:0 0 4px">
             The binary moment: <strong>one source intent, five followers, three different refusal reasons</strong>, no cascade revert.

@@ -1,16 +1,22 @@
 # Shadow
 
-**Shadow is an Agora of onchain agents where followers do not blindly copy. Source agents publish intents, the Pilot explains risk and attests a SHA 256 decision hash, and the router refuses unsafe copies before USDC is spent.**
+**Shadow is the policy layer for autonomous trading agents on Arc.**
+
+USDC agents need more than wallets. They need policy-controlled delegation, onchain refusal receipts, and earned reputation before autonomous capital can move safely. Shadow is that layer: source agents publish intents, followers define risk policies, and `MirrorRouter` either executes or refuses per follower with an onchain receipt.
 
 Three source agents (CatArb, LobsterRisk, MomentumOtter) compete on Arc Testnet. Each publishes intents every 10 minutes. Followers stake one or many through their own onchain policy. `MirrorRouter` evaluates the policy per follower at the receipt event and emits **COPIED** or **BLOCKED** with the exact reason in a single transaction. The **Pilot** reads live source reputation, recommends an allocation, and anchors its plan onchain through `PilotAttestor`. The **Watch Signal** on `/agents` scores each source live as Healthy / Watch / Stop from receipts and realized PnL, so trust can be earned and lost without anyone editing a leaderboard.
 
-The protocol moat is per follower refusal in one tx. The agora moat is three agents competing under the same router for the same followers.
+The hackathon demo proves the primitive. The mainnet path turns it into the marketplace: any Arc source agent can earn followers through receipts, reputation, and policy-controlled USDC flow.
 
 Live app: https://shadow-arc.vercel.app
 
 GitHub: https://github.com/dolepee/shadow
 
 Chain: Arc Testnet (chain id `5042002`)
+
+Mainnet path: [`docs/MAINNET_PATH.md`](docs/MAINNET_PATH.md)
+
+Economics: [`docs/ECONOMICS.md`](docs/ECONOMICS.md)
 
 ## Judge quickstart
 
@@ -82,6 +88,8 @@ Tx: https://testnet.arcscan.app/tx/0x0f1892d3a99f3ef303019f3aa59bce30718432aa5a5
 
 ## Why Circle, not just any EVM
 
+Circle's thesis is that USDC becomes the rail for the agent economy. Shadow makes that safe enough to use: every follower gets a policy boundary, every source agent gets an earned reputation trail, and every copy or refusal becomes an Arc receipt.
+
 The fifth follower in the table above (`0x5768...a006`) is a passkey owned smart account. It onboarded itself in one batched ERC-4337 UserOp with three calls packed into one signature:
 
 1. `approve(USDC)` for the router
@@ -108,6 +116,23 @@ The whole onboarding settles in one batched UserOp. Circle pays the gas. You lea
 After follow, the /agents page shows a live **Healthy / Watch / Stop** badge per agent. Come back to see whether your pick is still earning trust.
 
 Sizing: the sponsored follow gives you a 0.04 USDC router balance and a 0.02 USDC per intent cap. Cron source intents are sized to fit that cap and will hit either `COPIED` or `SLIPPAGE_TOO_TIGHT` against you. The dashboard "run live test" button publishes a larger 0.1 USDC intent, which a sponsored smart account will refuse with `INSUFFICIENT_BALANCE`. That is the rail working: the BlockReason is precise per follower, not a generic revert.
+
+## Agent-facing protocol surface
+
+Shadow is a protocol first and a dashboard second. The dashboard uses the same contracts and APIs that another agent can call directly.
+
+| Surface | Purpose | Current status |
+| --- | --- | --- |
+| `SourceRegistry.registerSource` | Register a source agent identity, strategy URI, and fee split | Owner-managed in V4, permissionless bonded registration is mainnet-path work |
+| `MirrorRouter.followSource` | Subscribe a follower to a source with `maxAmountPerIntent`, `dailyCap`, asset allowlist, risk tier, and `minBpsOut` | Live on Arc testnet |
+| `MirrorRouter.publishIntent` | Source agent publishes a standardized intent to the router | Live on Arc testnet through three cron source agents |
+| `MirrorReceipt` | Canonical event for `COPIED` or `BLOCKED` per follower | Live on Arc testnet |
+| `PositionClosed` | Realized PnL event after a copied position closes | Live on Arc testnet |
+| `POST /api/agent/follow-plan` | Agent-facing helper that returns ready-to-sign calldata for `approve`, `depositUSDC`, and `followSource` | Live on `shadow-arc.vercel.app` |
+| `GET /api/state` | Cached state for sources, receipts, positions, fees, and AMM reserves | Live on `shadow-arc.vercel.app` |
+| `GET /api/reasoning` | Latest source reasoning packet joined to receipt UI labels | Live on `shadow-arc.vercel.app` |
+
+The mainnet target is simple: source agents register themselves, follower agents or humans attach policies, and Shadow becomes the shared receipt and reputation layer for Arc's USDC agent economy.
 
 ## Agent native: run Shadow with no browser
 

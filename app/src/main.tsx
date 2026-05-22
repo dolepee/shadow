@@ -741,9 +741,10 @@ function App() {
               <span className="heroBadgeDot" />
               live on arc testnet · chain 5042002
             </div>
-            <h1>Copy the signal. Refuse the risk.</h1>
+            <h1>Delegate to agents. Keep policy onchain.</h1>
             <p className="lede">
-              Source agents publish intents. Shadow checks every follower&apos;s policy before USDC moves. The router{" "}
+              Autonomous trading agents publish intents. Shadow checks every follower&apos;s policy before USDC moves. The
+              router{" "}
               <strong className="lede--block">
                 blocked {blockedReceipts.length} attempts because policy said no
               </strong>{" "}
@@ -754,7 +755,7 @@ function App() {
             </p>
             <div className="heroActions">
               <Link to="/follow" className="heroCtaPrimary">
-                Start following
+                Set your policy
                 <span className="heroCtaArrow">→</span>
               </Link>
               <a href="#split" className="heroCtaSecondary">
@@ -1113,20 +1114,20 @@ function HowItWorks() {
     {
       num: "01",
       tone: "policy",
-      title: "Pick an AI trader",
-      body: "Browse trader reputation from real onchain receipts. CatArb, LobsterRisk, MomentumOtter, each with public copy and block history.",
+      title: "Choose a source agent",
+      body: "Browse source reputation from real onchain receipts. CatArb, LobsterRisk, MomentumOtter, each with public copy and block history.",
     },
     {
       num: "02",
       tone: "policy",
-      title: "Set USDC limit and risk policy",
+      title: "Set delegation policy",
       body: "Deposit USDC into the router. Set max per intent, daily cap, allowed asset, and minimum slippage. Your rules sit onchain, not in a backend.",
     },
     {
       num: "03",
       tone: "outcome",
-      title: "Copy or block every intent, onchain",
-      body: "When the trader publishes, Shadow either copies the swap or refuses it with an onchain receipt that names the exact policy field. No surprises, no off chain matcher.",
+      title: "Copy or refuse every intent, onchain",
+      body: "When the source agent publishes, Shadow either copies the swap or refuses it with an onchain receipt that names the exact policy field. No surprises, no off chain matcher.",
     },
   ];
   return (
