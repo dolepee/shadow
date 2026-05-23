@@ -362,7 +362,7 @@ function App() {
       return;
     }
     if (!selectedSource) {
-      setAction({ label: "follow blocked", error: "Pick a trader." });
+      setAction({ label: "follow blocked", error: "Pick a source agent." });
       return;
     }
     let parsedDeposit: bigint;
@@ -452,7 +452,7 @@ function App() {
       return;
     }
     if (state.sources.length === 0) {
-      setPilotError("No traders registered yet.");
+      setPilotError("No source agents registered yet.");
       return;
     }
     const amt = Number(pilotAmount);
@@ -751,7 +751,7 @@ function App() {
               and executed <strong className="lede--copy">
                 {copiedReceipts.length} that passed
               </strong>
-              . Every refusal is a receipt, not a failed trade.
+              . Every refusal is a receipt, not a failed intent.
             </p>
             <div className="heroActions">
               <Link to="/follow" className="heroCtaPrimary">
@@ -777,7 +777,7 @@ function App() {
       {spotlight ? (
         <section className="spotlight" id="split">
           <p className="eyebrow">same intent · two outcomes · live on Arc</p>
-          <h2>One agent trades. Your policy decides what happens to you.</h2>
+          <h2>One source intent lands. Your policy decides what happens to you.</h2>
           <p className="spotlightSummary">
             {sourceNameByAddress.get(spotlight.intent.sourceAgent.toLowerCase()) || shortAddress(spotlight.intent.sourceAgent)}{" "}
             wanted to swap {formatUSDC(spotlight.intent.amountUSDC)} USDC. Two followers were looking. One had room for it,
@@ -787,7 +787,7 @@ function App() {
             <SpotlightCard
               verdict="COPIED"
               kind="copied"
-              label="Follower A · policy let it through"
+              label="Copied follower · policy let it through"
               follower={spotlight.copied.follower}
               receipt={spotlight.copied}
               detail="Within size, slippage, and daily cap. Swap went through. Mirror fee debited from this follower."
@@ -800,7 +800,7 @@ function App() {
             <SpotlightCard
               verdict="BLOCKED"
               kind="blocked"
-              label="Follower B · policy refused"
+              label="Blocked follower · policy refused"
               follower={spotlight.blocked.follower}
               receipt={spotlight.blocked}
               detail={`Reason on chain: "${spotlight.blocked.reason}". Nothing was spent. The block is its own receipt.`}
@@ -831,7 +831,7 @@ function App() {
       <section className="pageNext">
         <Link to="/agents" className="pageNextCard">
           <span className="pageNextEyebrow">agents</span>
-          <span className="pageNextTitle">See the three source AI traders</span>
+          <span className="pageNextTitle">See the three source AI agents</span>
           <span className="pageNextArrow">→</span>
         </Link>
         <Link to="/follow" className="pageNextCard">
@@ -852,7 +852,7 @@ function App() {
     <>
       <section className="pageHead">
         <p className="pageEyebrow">agents · earned reputation</p>
-        <h1 className="pageTitle">Three AI traders. Public copy and block history.</h1>
+        <h1 className="pageTitle">Three source AI agents. Public copy and block history.</h1>
         <p className="pageLede">
           Every stat is computed from on-chain receipts on Arc. No off-chain leaderboard, no curated numbers. Pick the one whose
           discipline matches your risk and follow them with your own policy.
@@ -1133,7 +1133,7 @@ function HowItWorks() {
   return (
     <section className="howItWorks">
       <p className="eyebrow">how Shadow works</p>
-      <h2 className="howTitle">Three steps from picking a trader to a verifiable receipt.</h2>
+      <h2 className="howTitle">Three steps from picking a source to a verifiable receipt.</h2>
       <div className="howSteps">
         {steps.map((step) => (
           <div className={`howStep howStep--${step.tone}`} key={step.num}>
@@ -1187,7 +1187,7 @@ function FollowFlow({
         <p className="eyebrow">start following · web2-readable</p>
         <h2>Choose an agent. Set your risk. Done in four taps.</h2>
         <p className="lede">
-          You stay in your own wallet. Shadow holds your USDC in escrow and only spends it when an agent&apos;s trade
+          You stay in your own wallet. Shadow holds your USDC in escrow and only spends it when an agent&apos;s intent
           fits the rules you set. Raise or lower those rules whenever you want.
         </p>
       </header>
@@ -1196,9 +1196,9 @@ function FollowFlow({
         <span className="stepNum">1</span>
         <div className="stepBody">
           <h3>Pick your agent</h3>
-          <p className="stepHint">These are the live AI traders on Arc. You can change later.</p>
+          <p className="stepHint">These are the live AI source agents on Arc. You can change later.</p>
           <div className="sourceChoices">
-            {sources.length === 0 && <Empty text="No traders registered yet." />}
+            {sources.length === 0 && <Empty text="No source agents registered yet." />}
             {sources.map((source) => {
               const isSelected = selectedSource?.toLowerCase() === source.address.toLowerCase();
               const isFollowed = userFollows.has(source.address.toLowerCase());
@@ -1272,7 +1272,7 @@ function FollowFlow({
         <div className="stepBody">
           <h3>Deposit USDC</h3>
           <p className="stepHint">
-            This is the budget for mirroring. It sits in escrow until your rule lets a trade through. You can withdraw any
+            This is the budget for mirroring. It sits in escrow until your rule lets an intent through. You can withdraw any
             unused balance any time. Need testnet USDC?{" "}
             <a href="https://faucet.circle.com" target="_blank" rel="noreferrer noopener">
               Grab some from Circle&apos;s faucet
@@ -1297,7 +1297,7 @@ function FollowFlow({
         <span className="followSummaryLabel">What you&apos;re about to do</span>
         <p className="followSummaryBody">
           Follow <strong>{selectedName}</strong> with the <strong>{preset.label.toLowerCase()}</strong> rule. Any of its
-          trades up to <strong>{preset.maxAmountPerIntent} USDC</strong> per intent gets copied to you. Anything over
+          intents up to <strong>{preset.maxAmountPerIntent} USDC</strong> per intent get copied to you. Anything over
           that, or anything riskier than <strong>L{preset.maxRiskLevel}</strong>, gets blocked on-chain.
         </p>
       </div>
@@ -1470,7 +1470,7 @@ function LatestReasoningPanel({ data }: { data: ReasoningResponse | null }) {
       <p className="reasoningRationale">{packet.rationale}</p>
       <dl className="reasoningGrid">
         <div>
-          <dt>trader</dt>
+          <dt>source</dt>
           <dd>{shortAddress(packet.sourceAgent as `0x${string}`)}</dd>
         </div>
         <div>
@@ -1629,7 +1629,7 @@ function LiveFeed({
             <span className={`livePulse ${loading ? "loading" : ""}`} />
             live activity · auto refresh
           </p>
-          <h2>Every onchain receipt across every trader.</h2>
+          <h2>Every onchain receipt across every source.</h2>
         </div>
         <div className="liveFeedMeta">
           <div>
@@ -1957,7 +1957,7 @@ function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
           <span className="builderFeesUnit">USDC</span>
         </h2>
         <p className="builderFeesCaption">
-          70% of every mirror fee accrues to the trader that routed the flow, settled by{" "}
+          70% of every mirror fee accrues to the source agent that routed the flow, settled by{" "}
           <code>MirrorRouter</code> at the receipt event from {sourceCount === 1 ? "one source" : `${sourceCount} sources`}.
           No off-chain accounting.
         </p>
@@ -1977,7 +1977,7 @@ function BuilderFeesBanner({ state }: { state: ShadowState | null }) {
 }
 
 const PILOT_STAGES: Array<{ label: string; at: number }> = [
-  { label: "Reading onchain reputation for every trader", at: 0 },
+  { label: "Reading onchain reputation for every source agent", at: 0 },
   { label: "Asking deepseek to allocate your deposit across the best fits", at: 2.5 },
   { label: "Normalizing weights and matching presets to risk", at: 18 },
   { label: "Hashing decision and preparing onchain attestation", at: 22 },
@@ -2063,7 +2063,7 @@ function PilotCard({
         <p className="eyebrow">AI pilot</p>
         <h2>Tell the AI your size and risk. It picks, weights, and watches.</h2>
         <p className="pilotLede">
-          The Pilot reads every trader's onchain reputation, allocates your USDC across the best fits, and writes
+          The Pilot reads every source agent's onchain reputation, allocates your USDC across the best fits, and writes
           watch signals you can act on. You stop manually picking and become a depositor with a goal.
         </p>
       </header>
@@ -2377,9 +2377,9 @@ function SplitMomentFallback() {
   return (
     <section className="spotlight spotlight--fallback" id="split">
       <p className="eyebrow">same intent · two outcomes</p>
-      <h2>One agent trades. Your policy decides what happens to you.</h2>
+      <h2>One source intent lands. Your policy decides what happens to you.</h2>
       <p className="spotlightSummary">
-        A trader agent on Arc just wanted to swap 0.02 USDC. Two followers were watching with different rules.
+        A source agent on Arc just published a 0.02 USDC intent. Two followers were watching with different rules.
         One had room. One didn&apos;t. Here&apos;s exactly what happens.
       </p>
       <div className="spotlightGrid">
@@ -2388,7 +2388,7 @@ function SplitMomentFallback() {
             <span className="spotlightCardStampMark">✓</span>
             <span className="spotlightCardStampText">COPIED</span>
           </div>
-          <p className="spotlightCardLabel">Follower A · policy let it through</p>
+          <p className="spotlightCardLabel">Copied follower · policy let it through</p>
           <p className="spotlightCardFollower">0x7A3F…3AcD</p>
           <dl className="spotlightStats">
             <div>
@@ -2416,7 +2416,7 @@ function SplitMomentFallback() {
             <span className="spotlightCardStampMark">✕</span>
             <span className="spotlightCardStampText">BLOCKED</span>
           </div>
-          <p className="spotlightCardLabel">Follower B · policy refused</p>
+          <p className="spotlightCardLabel">Blocked follower · policy refused</p>
           <p className="spotlightCardFollower">0x495c…8695</p>
           <dl className="spotlightStats">
             <div>
@@ -2535,8 +2535,8 @@ function SiteFooter() {
     {
       title: "Traders",
       links: [
-        { label: "Earned reputation", href: "/agents#traders" },
-        { label: "Mirror fees", href: "/agents#traders" },
+        { label: "Earned reputation", href: "/agents#sources" },
+        { label: "Mirror fees", href: "/agents#sources" },
       ],
     },
     {
@@ -2558,7 +2558,7 @@ function SiteFooter() {
             <span>Shadow</span>
           </Link>
           <p className="siteFooterTagline">
-            Copy the best AI traders on Arc. Every copy and every refusal is an onchain receipt.
+            Mirror the best AI source agents on Arc. Every copy and every refusal is an onchain receipt.
           </p>
           <div className="siteFooterBadge">
             <span className="heroBadgeDot" />
@@ -2715,7 +2715,7 @@ function TractionStrip({ state }: { state: ShadowState | null }) {
     {
       label: "Intents published",
       value: metrics.intents.toString(),
-      sub: "by registered traders",
+      sub: "by registered sources",
     },
     {
       label: "Receipts onchain",
@@ -2860,7 +2860,7 @@ function traderPersona(name: string): TraderPersona {
       tone: "otter",
     };
   }
-  return { tagline: "Onchain trader", accent: "#d8ff79", tone: "neutral" };
+  return { tagline: "Onchain source", accent: "#d8ff79", tone: "neutral" };
 }
 
 const SIGNAL_LABEL: Record<AgentSignal, string> = {
@@ -2908,7 +2908,7 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
   if (rows.length === 0) {
     return (
       <section className="reputationPanel">
-        <Header eyebrow="meet the agents" title="AI traders you can follow" />
+        <Header eyebrow="meet the agents" title="AI source agents you can follow" />
         <p className="reputationEmpty">No agents registered yet.</p>
       </section>
     );
@@ -2917,10 +2917,10 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
   const totalCopies = rows.reduce((sum, r) => sum + r.copyCount, 0);
   const totalRouted = rows.reduce((sum, r) => sum + r.routedUSDC, 0n);
   return (
-    <section className="reputationPanel" id="traders">
-      <Header eyebrow="meet the agents" title="AI traders you can follow. Profiles, not metrics." />
+    <section className="reputationPanel" id="sources">
+      <Header eyebrow="meet the agents" title="AI source agents you can follow. Profiles, not metrics." />
       <p className="reputationCaption">
-        These three agents publish trade intents on Arc every 10 minutes. Each card shows what they actually traded,
+        These three agents publish intents on Arc every 10 minutes. Each card shows what their intents actually did,
         who copied, who got blocked, and what they earned. Nothing self-reported.
       </p>
       <SignalStrip rows={rows} />
@@ -2952,7 +2952,7 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
             <p className="reputationSignalReason">{signal.reason}</p>
             {row.lastIntent && (
               <div className="reputationLastIntent">
-                <span className="reputationLastIntentLabel">Last trade</span>
+                <span className="reputationLastIntentLabel">Last intent</span>
                 <span className="reputationLastIntentValue">
                   swap <strong>{formatUSDC(row.lastIntent.amountUSDC)} USDC</strong> · risk L{row.lastIntent.riskLevel}
                 </span>
@@ -2977,7 +2977,7 @@ function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; o
               <ReputationStat
                 label="source fees earned"
                 value={formatUSDC(row.source.kickbackUSDC)}
-                subtext={`${formatUSDC(row.mirrorFeesUSDC)} USDC mirror fees · 70% accrued to trader`}
+                subtext={`${formatUSDC(row.mirrorFeesUSDC)} USDC mirror fees · 70% accrued to source`}
               />
               <ReputationStat
                 label="follow records"

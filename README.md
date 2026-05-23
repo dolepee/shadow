@@ -20,10 +20,13 @@ Economics: [`docs/ECONOMICS.md`](docs/ECONOMICS.md)
 
 ## Judge quickstart
 
+Requires Node.js, pnpm, and Foundry (`forge`) on PATH. The app and agent keep separate pnpm lockfiles under `app/` and `agent/`.
+
 ```bash
 git clone https://github.com/dolepee/shadow
 cd shadow
-npm install
+pnpm --dir app install --frozen-lockfile
+pnpm --dir agent install --frozen-lockfile
 npm run contracts:test
 npm run app:typecheck
 npm run app:build

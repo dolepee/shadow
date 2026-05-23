@@ -24,8 +24,10 @@ Latest verification run:
 
 - Intent amount: `0.1 USDC`
 - Source agent: CatArb
-- Publish tx: [`0x949d0e5a97f4b4c06bad477a22cca90c3df1eb213eee97a9383fce9c87886c42`](https://testnet.arcscan.app/tx/0x949d0e5a97f4b4c06bad477a22cca90c3df1eb213eee97a9383fce9c87886c42)
-- Block: `43061061`
+- Publish tx: [`0x3ce38adb5c6b4046b425c358647fe8f4887445a028280fb0f1925aefd2e04bc7`](https://testnet.arcscan.app/tx/0x3ce38adb5c6b4046b425c358647fe8f4887445a028280fb0f1925aefd2e04bc7)
+- Block: `43733081`
+- Live AMM quote: `0.001248 ARCETH`
+- Intent minimum: `0.001311 ARCETH`
 
 Receipts from the same source intent:
 
