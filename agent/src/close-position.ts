@@ -34,7 +34,8 @@ async function main() {
   const rpcUrl = requiredEnv("ARC_RPC_URL");
   const router = requiredEnv("SHADOW_ROUTER") as Address;
   const transport = http(rpcUrl);
-  const publicClient = createPublicClient({ chain: arcTestnet, transport });
+  const readTransport = http(process.env.ARC_PUBLIC_RPC_URL || rpcUrl);
+  const publicClient = createPublicClient({ chain: arcTestnet, transport: readTransport });
 
   const closeLimit = Number(process.env.CLOSE_LIMIT || "2");
   const scanLimit = Number(process.env.CLOSE_SCAN_LIMIT || "30");

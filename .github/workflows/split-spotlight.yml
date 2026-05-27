@@ -1,9 +1,8 @@
 name: split-spotlight
 
 on:
-  # schedule paused 2026-05-27: Arc gas market shifted, stuck nonces being unblocked
-  # schedule:
-  #   - cron: "5 * * * *"
+  schedule:
+    - cron: "5 * * * *"
   workflow_dispatch:
 
 concurrency:
@@ -16,6 +15,7 @@ jobs:
     timeout-minutes: 5
     env:
       ARC_RPC_URL: ${{ secrets.ARC_RPC_URL }}
+      ARC_PUBLIC_RPC_URL: ${{ secrets.ARC_PUBLIC_RPC_URL }}
       ARC_USDC: ${{ secrets.ARC_USDC }}
       SHADOW_ROUTER: ${{ secrets.SHADOW_ROUTER }}
       SHADOW_ARCETH: ${{ secrets.SHADOW_ARCETH }}

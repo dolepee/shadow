@@ -40,7 +40,8 @@ await main();
 async function main() {
   const rpcUrl = requiredEnv("ARC_RPC_URL");
   const transport = http(rpcUrl);
-  const publicClient = createPublicClient({ chain: arcTestnet, transport });
+  const readTransport = http(process.env.ARC_PUBLIC_RPC_URL || rpcUrl);
+  const publicClient = createPublicClient({ chain: arcTestnet, transport: readTransport });
   const usdc = requiredEnv("ARC_USDC") as Address;
   const router = requiredEnv("SHADOW_ROUTER") as Address;
   const followerBKey = normalizeKey(requiredEnv("FOLLOWER_B_PRIVATE_KEY"));

@@ -58,7 +58,8 @@ async function main() {
 
   const account = privateKeyToAccount(publisherKey);
   const transport = http(rpcUrl);
-  const publicClient = createPublicClient({ chain: arcTestnet, transport });
+  const readTransport = http(process.env.ARC_PUBLIC_RPC_URL || rpcUrl);
+  const publicClient = createPublicClient({ chain: arcTestnet, transport: readTransport });
   const walletClient = createWalletClient({ account, chain: arcTestnet, transport });
 
   const probeAmountUSDC = parseUnits(defaultAmountStr, 6);

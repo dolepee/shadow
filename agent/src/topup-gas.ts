@@ -22,8 +22,10 @@ const TARGET_NATIVE = parseUnits("0.3", 18);
 await main();
 
 async function main() {
-  const transport = http(requiredEnv("ARC_RPC_URL"));
-  const publicClient = createPublicClient({ chain: arcTestnet, transport });
+  const rpcUrl = requiredEnv("ARC_RPC_URL");
+  const transport = http(rpcUrl);
+  const readTransport = http(process.env.ARC_PUBLIC_RPC_URL || rpcUrl);
+  const publicClient = createPublicClient({ chain: arcTestnet, transport: readTransport });
   const deployer = privateKeyToAccount(normalizeKey(requiredEnv("PRIVATE_KEY")));
   const wallet = createWalletClient({ account: deployer, chain: arcTestnet, transport });
 
