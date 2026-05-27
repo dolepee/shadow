@@ -1,8 +1,9 @@
 name: publish-intents
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"
+  # schedule paused 2026-05-27: Arc gas market shifted, stuck nonces being unblocked
+  # schedule:
+  #   - cron: "*/10 * * * *"
   workflow_dispatch:
 
 concurrency:
