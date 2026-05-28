@@ -40,6 +40,9 @@ async function main() {
   const deployerBalance = await publicClient.getBalance({ address: deployer.address });
   console.log(`deployer ${deployer.address} native=${formatUnits(deployerBalance, 18)} USDC`);
 
+  // Seed nonce from canonical RPC; canteen proxy lags between sequential txs from the same wallet.
+  let nonce = await publicClient.getTransactionCount({ address: deployer.address });
+
   for (const t of targets) {
     const raw = process.env[t.envKey];
     if (!raw) {
@@ -58,8 +61,10 @@ async function main() {
       to: addr,
       value: delta,
       gas: 100_000n,
+      nonce,
     });
     const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+    nonce++;
     const after = await publicClient.getBalance({ address: addr });
     console.log(`[${t.name}] tx=${tx} block=${receipt.blockNumber} native=${formatUnits(after, 18)} USDC`);
   }

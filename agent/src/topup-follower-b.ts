@@ -72,12 +72,14 @@ async function main() {
     const fundNeeded = delta - walletUsdc + parseUnits("0.05", 6); // small gas buffer
     console.log(`funding from deployer ${deployer.address}: ${fundNeeded.toString()} USDC...`);
     const deployerWallet = createWalletClient({ account: deployer, chain: arcTestnet, transport });
+    const deployerNonce = await publicClient.getTransactionCount({ address: deployer.address });
     const transferTx = await deployerWallet.writeContract({
       address: usdc,
       abi: erc20Abi,
       functionName: "transfer",
       args: [account.address, fundNeeded],
       gas: 200_000n,
+      nonce: deployerNonce,
     });
     await publicClient.waitForTransactionReceipt({ hash: transferTx });
     console.log(`transfer tx=${transferTx}`);
@@ -86,14 +88,19 @@ async function main() {
   const wallet = createWalletClient({ account, chain: arcTestnet, transport });
   console.log(`Follower B router existing=${existing.toString()} target=${TARGET.toString()} delta=${delta.toString()}`);
 
+  // Nonce seeded from canonical RPC; canteen proxy lags and returns stale "next nonce" between sequential txs.
+  let nonce = await publicClient.getTransactionCount({ address: account.address });
+
   const approveTx = await wallet.writeContract({
     address: usdc,
     abi: erc20Abi,
     functionName: "approve",
     args: [router, delta],
+    nonce,
   });
   await publicClient.waitForTransactionReceipt({ hash: approveTx });
   console.log(`approve tx=${approveTx}`);
+  nonce++;
 
   const depositTx = await wallet.writeContract({
     address: router,
@@ -101,6 +108,7 @@ async function main() {
     functionName: "depositUSDC",
     args: [delta],
     gas: 200_000n,
+    nonce,
   });
   await publicClient.waitForTransactionReceipt({ hash: depositTx });
   console.log(`deposit tx=${depositTx}`);

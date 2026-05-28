@@ -60,6 +60,8 @@ async function main() {
 
     const account = privateKeyToAccount(normalizeKey(rawKey));
     const wallet = createWalletClient({ account, chain: arcTestnet, transport });
+    // Seed nonce from canonical RPC; canteen proxy lags between sequential txs from the same wallet.
+    let nonce = await publicClient.getTransactionCount({ address: account.address });
     console.log(`[${label}] scanning open positions for ${account.address}`);
 
     const minIntent = nextIntentId > BigInt(scanLimit) ? nextIntentId - BigInt(scanLimit) : 1n;
@@ -85,8 +87,10 @@ async function main() {
         functionName: "closePosition",
         args: [intentId],
         gas: 500_000n,
+        nonce,
       });
       const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+      nonce++;
       console.log(`[${label}] closed intent=${intentId.toString()} tx=${tx} block=${receipt.blockNumber.toString()}`);
       closed++;
     }
