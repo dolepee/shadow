@@ -34,6 +34,7 @@ jobs:
         working-directory: agent
         run: pnpm install --no-frozen-lockfile --ignore-workspace
       - name: top up publisher gas
+        continue-on-error: true
         working-directory: agent
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
@@ -44,6 +45,7 @@ jobs:
           FOLLOWER_B_PRIVATE_KEY: ${{ secrets.FOLLOWER_B_PRIVATE_KEY }}
         run: pnpm --ignore-workspace exec tsx src/topup-gas.ts
       - name: publish CatArb intent (split outcome)
+        continue-on-error: true
         working-directory: agent
         env:
           PUBLISHER_KEY: ${{ secrets.CAT_AGENT_PRIVATE_KEY }}
@@ -54,6 +56,7 @@ jobs:
           INTENT_RISK_LEVEL: "2"
         run: pnpm --ignore-workspace exec tsx src/cron-publish.ts
       - name: publish LobsterRisk intent (safe copy)
+        continue-on-error: true
         working-directory: agent
         env:
           PUBLISHER_KEY: ${{ secrets.LOBSTER_AGENT_PRIVATE_KEY }}
@@ -64,6 +67,7 @@ jobs:
           INTENT_RISK_LEVEL: "1"
         run: pnpm --ignore-workspace exec tsx src/cron-publish.ts
       - name: publish MomentumOtter intent (LLM-reasoned)
+        continue-on-error: true
         working-directory: agent
         env:
           PUBLISHER_KEY: ${{ secrets.OTTER_AGENT_PRIVATE_KEY }}
@@ -77,6 +81,7 @@ jobs:
           BANKR_LLM_MODEL: deepseek-v3.2
         run: pnpm --ignore-workspace exec tsx src/cron-publish.ts
       - name: close copied positions
+        continue-on-error: true
         working-directory: agent
         env:
           FOLLOWER_A_PRIVATE_KEY: ${{ secrets.FOLLOWER_A_PRIVATE_KEY }}
