@@ -147,6 +147,12 @@ async function main() {
     console.log(`[${label}] kv: not configured (KV_REST_API_URL/KV_REST_API_TOKEN missing) — skipping reasoning storage`);
   }
 
+  // Seed nonce from canonical RPC; the canteen proxy can lag by ~10 nonces
+  // between sequential cron runs, so eth_getTransactionCount on the write
+  // transport returns a stale value and the tx reverts with "nonce too low".
+  const nonce = await publicClient.getTransactionCount({ address: account.address });
+  console.log(`[${label}] seeded nonce=${nonce}`);
+
   // Arc USDC precompile StackUnderflows during gas estimation when publishIntent
   // fans out swaps across multiple followers, so pin a generous gas limit.
   const tx = await walletClient.writeContract({
@@ -164,6 +170,7 @@ async function main() {
       },
     ],
     gas: 800_000n,
+    nonce,
   });
   console.log(`[${label}] tx=${tx}`);
 
