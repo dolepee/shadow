@@ -169,6 +169,14 @@ async function main() {
     }
   }
 
+  // Seed nonce from canonical RPC; the canteen proxy can lag by ~10+
+  // nonces between hourly cron runs and viem's default eth_getTransactionCount
+  // hits the write transport, so the publishIntent tx ships with a stale
+  // nonce and reverts. Same pattern already used by close-position,
+  // topup-follower-b, topup-gas, and cron-publish.
+  const nonce = await publicClient.getTransactionCount({ address: account.address });
+  console.log(`seeded nonce=${nonce}`);
+
   console.log("\npublishing intent...");
   const tx = await walletClient.writeContract({
     address: router,
@@ -184,6 +192,7 @@ async function main() {
         intentHash,
       },
     ],
+    nonce,
   });
   console.log(`tx: ${tx}`);
 
