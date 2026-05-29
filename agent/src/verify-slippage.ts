@@ -184,6 +184,11 @@ async function main() {
   console.log(`seeded nonce=${nonce}`);
 
   console.log("\npublishing intent...");
+  // Arc USDC precompile makes viem's gas estimation StackUnderflow, so
+  // the estimated limit comes back ~489k which is exactly what 1 follower
+  // fanout consumes and then ran out of gas mid-second-follower copy.
+  // Pin a generous gas limit (1.0M) the same way cron-publish.ts does.
+  // Two followers (A: BLOCKED ~70k, B: COPIED ~350-450k) plus overhead.
   const tx = await walletClient.writeContract({
     address: router,
     abi: routerAbi,
@@ -199,6 +204,7 @@ async function main() {
       },
     ],
     nonce,
+    gas: 1_000_000n,
   });
   console.log(`tx: ${tx}`);
 
