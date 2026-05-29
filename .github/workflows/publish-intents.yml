@@ -63,6 +63,11 @@ jobs:
           INTENT_MIN_BPS: "9800"
           INTENT_RISK_LEVEL: "1"
         run: pnpm --ignore-workspace exec tsx src/cron-publish.ts
+      # MomentumOtter is the LLM-reasoned persona. BANKR_LLM_KEY MUST be a
+      # non-empty repo secret; if empty the code silently falls back to the
+      # deterministic policy (logged as model=fallback fellBack=true) and the
+      # "AI-driven intent" story becomes theater. Verify after a deploy by
+      # grepping the run log for "model=deepseek-v3.2 fellBack=false".
       - name: publish MomentumOtter intent (LLM-reasoned)
         working-directory: agent
         env:
