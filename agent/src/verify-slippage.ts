@@ -144,7 +144,13 @@ async function main() {
   console.log(`Follower B  9000 bps:  scaled min ${formatAsset(scaledMinB)} ARCETH  (below quote, expect COPIED)`);
   console.log("============================================================");
 
-  const rationale = `CatArb verify script picked ${formatUSDC(amountUSDC)} USDC with a 5.00% strict split: Follower A blocks on ${formatAsset(scaledMinA)} ARCETH while Follower B can copy at ${formatAsset(scaledMinB)} ARCETH against a live ${formatAsset(liveQuote)} ARCETH quote.`;
+  // intentHash uniqueness: the router rejects duplicate hashes. When the
+  // pool sits still, the live quote barely moves and every other input is
+  // deterministic, so consecutive runs reproduce the same hash and revert
+  // on publish. Tag the rationale with the current epoch so the hash
+  // varies per run.
+  const tag = Math.floor(Date.now() / 1000);
+  const rationale = `CatArb verify script picked ${formatUSDC(amountUSDC)} USDC with a 5.00% strict split: Follower A blocks on ${formatAsset(scaledMinA)} ARCETH while Follower B can copy at ${formatAsset(scaledMinB)} ARCETH against a live ${formatAsset(liveQuote)} ARCETH quote. Tag: ${tag}.`;
   const packet = buildPacket({
     sourceAgent: account.address,
     sourceName: "CatArb",
@@ -197,6 +203,9 @@ async function main() {
   console.log(`tx: ${tx}`);
 
   const txReceipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+  if (txReceipt.status !== "success") {
+    fail(`publishIntent reverted on chain. tx=${tx} status=${txReceipt.status} block=${txReceipt.blockNumber.toString()} gasUsed=${txReceipt.gasUsed.toString()}.`);
+  }
   console.log(`confirmed in block ${txReceipt.blockNumber.toString()}`);
   if (kv) {
     try {
