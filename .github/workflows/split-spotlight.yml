@@ -34,14 +34,12 @@ jobs:
         working-directory: agent
         run: pnpm install --no-frozen-lockfile --ignore-workspace
       - name: top up follower B router balance
-        continue-on-error: true
         working-directory: agent
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           FOLLOWER_B_PRIVATE_KEY: ${{ secrets.FOLLOWER_B_PRIVATE_KEY }}
         run: pnpm --ignore-workspace exec tsx src/topup-follower-b.ts
       - name: publish guaranteed split-outcome intent
-        continue-on-error: true
         working-directory: agent
         env:
           CAT_AGENT_PRIVATE_KEY: ${{ secrets.CAT_AGENT_PRIVATE_KEY }}
