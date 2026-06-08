@@ -17,6 +17,12 @@ export const config = { maxDuration: 20 };
 const CACHE_KEY = "state:cache:v2";
 const CACHE_TTL_SECONDS = 20;
 const LOG_CHUNK_SIZE = 90_000n;
+// The Canteen Arc RPC is a pruning node: getLogs against blocks older than its
+// retention window fails with "pruned history unavailable". Cap historical scans
+// to a recent window and let pruned ranges degrade to empty so /api/state never
+// 500s on pruning. Live view reads (sources, follower counts, reserves, totals)
+// are current-state reads and stay accurate regardless.
+const SAFE_LOG_LOOKBACK = BigInt(process.env.SHADOW_LOG_LOOKBACK || "750000");
 
 type KVConfig = { url: string; token: string };
 
@@ -112,15 +118,42 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
     res.setHeader("Cache-Control", `public, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=60`);
     res.status(200).json({ source: "live", ageSec: 0, ...fresh });
   } catch (error) {
+    // Last-ditch: serve any cached snapshot rather than erroring, and never leak
+    // RPC URLs/tokens or request bodies in the public response.
+    if (kv) {
+      try {
+        const cached = await kvGet<CachedState>(kv, CACHE_KEY);
+        if (cached) {
+          const ageSec = Math.max(0, Math.floor((Date.now() - cached.fetchedAt) / 1000));
+          res.setHeader("Cache-Control", "no-store");
+          res.status(200).json({ source: "stale-cache", ageSec, ...cached });
+          return;
+        }
+      } catch {
+        // ignore and fall through to the sanitized error
+      }
+    }
     res.setHeader("Cache-Control", "no-store");
-    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    res.status(503).json({ error: sanitizeError(error), degraded: true });
   }
+}
+
+// Collapse upstream errors to a short, single line with no RPC URL, swarm token,
+// or request body, so the public error response can never leak the endpoint.
+function sanitizeError(error: unknown): string {
+  let msg = error instanceof Error ? error.message : String(error);
+  msg = msg
+    .replace(/https?:\/\/[^\s"']+/gi, "[rpc]")
+    .replace(/swrm_[a-z0-9]+/gi, "[redacted]");
+  msg = (msg.split("\n")[0] || "").slice(0, 200).trim();
+  return msg || "upstream RPC unavailable";
 }
 
 type CachedState = {
   configured: boolean;
   fetchedAt: number;
   latestBlock: string;
+  historyTruncated: boolean;
   sources: Array<{
     address: Address;
     name: string;
@@ -256,26 +289,31 @@ async function fetchSerializedState(): Promise<CachedState> {
     client.getBlockNumber(),
   ]);
 
-  const ranges = logRanges(startBlock, latestBlock);
+  // Start no earlier than the node's retention window, and let any pruned/failed
+  // range degrade to an empty slice instead of throwing the whole request.
+  const effectiveFrom =
+    latestBlock > startBlock + SAFE_LOG_LOOKBACK ? latestBlock - SAFE_LOG_LOOKBACK : startBlock;
+  const historyTruncated = effectiveFrom > startBlock;
+  const ranges = logRanges(effectiveFrom, latestBlock);
   const [intentChunks, receiptChunks, closeChunks, followChunks] = await Promise.all([
     Promise.all(
       ranges.map((r) =>
-        client.getLogs({ address: router, event: intentPublishedEvent, fromBlock: r.fromBlock, toBlock: r.toBlock }),
+        client.getLogs({ address: router, event: intentPublishedEvent, fromBlock: r.fromBlock, toBlock: r.toBlock }).catch(() => []),
       ),
     ),
     Promise.all(
       ranges.map((r) =>
-        client.getLogs({ address: router, event: mirrorReceiptEvent, fromBlock: r.fromBlock, toBlock: r.toBlock }),
+        client.getLogs({ address: router, event: mirrorReceiptEvent, fromBlock: r.fromBlock, toBlock: r.toBlock }).catch(() => []),
       ),
     ),
     Promise.all(
       ranges.map((r) =>
-        client.getLogs({ address: router, event: positionClosedEvent, fromBlock: r.fromBlock, toBlock: r.toBlock }),
+        client.getLogs({ address: router, event: positionClosedEvent, fromBlock: r.fromBlock, toBlock: r.toBlock }).catch(() => []),
       ),
     ),
     Promise.all(
       ranges.map((r) =>
-        client.getLogs({ address: router, event: followedEvent, fromBlock: r.fromBlock, toBlock: r.toBlock }),
+        client.getLogs({ address: router, event: followedEvent, fromBlock: r.fromBlock, toBlock: r.toBlock }).catch(() => []),
       ),
     ),
   ]);
@@ -284,6 +322,7 @@ async function fetchSerializedState(): Promise<CachedState> {
     configured: true,
     fetchedAt: Date.now(),
     latestBlock: latestBlock.toString(),
+    historyTruncated,
     sources,
     intents: intentChunks.flat().map((log) => ({
       intentId: log.args.intentId!.toString(),
