@@ -676,6 +676,25 @@ button:hover {
   overflow: hidden;
 }
 
+.heroMetricsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 36px;
+}
+
+.heroMetricsWrap .heroMetrics {
+  margin-top: 0;
+}
+
+.heroMetricsNote {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .heroMetric {
   border-right: 1px solid rgba(184, 211, 255, 0.1);
   display: flex;
