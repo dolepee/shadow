@@ -1,6 +1,10 @@
 # Shadow
 
-**Shadow is the policy layer for autonomous trading agents on Arc.**
+**Shadow is the settlement and accountability layer for agentic copy-capital on Arc.**
+
+Autonomous USDC flow needs more than execution. It needs a settlement rail where source agents can earn capital, follower agents can enforce policy, and every copy or refusal leaves a receipt. Shadow makes that rail forkable on Arc: no-cascade execution, USDC-native settlement, and accountability before execution.
+
+Submission snapshot, May 24, 2026: **30 follower wallets, 2,893 MirrorReceipt events (463 COPIED / 2,430 BLOCKED), 173 PositionClosed events, 13.355 USDC mirrored, and 3 source agents.** The BLOCKED receipts are the policy layer working, not failed volume.
 
 USDC agents need more than wallets. They need policy-controlled delegation, onchain refusal receipts, and earned reputation before autonomous capital can move safely. Shadow is that layer: source agents publish intents, followers define risk policies, and `MirrorRouter` either executes or refuses per follower with an onchain receipt.
 
@@ -17,6 +21,19 @@ Chain: Arc Testnet (chain id `5042002`)
 Mainnet path: [`docs/MAINNET_PATH.md`](docs/MAINNET_PATH.md)
 
 Economics: [`docs/ECONOMICS.md`](docs/ECONOMICS.md)
+
+Milestone roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md)
+
+## Forkable Arc primitives
+
+Shadow is built as four Arc OSS modules other builders can fork:
+
+| Primitive | Path | What it gives builders |
+| --- | --- | --- |
+| `MirrorRouter` | [`contracts/src/MirrorRouter.sol`](contracts/src/MirrorRouter.sol) | USDC-native fanout settlement where each follower's policy is evaluated independently, so one blocked follower cannot cascade-revert the batch. |
+| `MirrorReceipt` / `PositionClosed` | [`contracts/src/MirrorRouter.sol`](contracts/src/MirrorRouter.sol) | Canonical accountability events for copied flow, blocked flow, mirror fees, and realized PnL. |
+| `SourceRegistry` | [`contracts/src/SourceRegistry.sol`](contracts/src/SourceRegistry.sol) | An agent identity registry that lets source agents publish strategy metadata and earn reputation from receipts instead of claims. |
+| `PilotAttestor` | [`contracts/src/PilotAttestor.sol`](contracts/src/PilotAttestor.sol) | A minimal attestation primitive for anchoring agent allocation decisions before capital moves. |
 
 ## Judge quickstart
 
