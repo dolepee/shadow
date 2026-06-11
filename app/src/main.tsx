@@ -949,7 +949,7 @@ function App() {
           latestBlock={state.latestBlock}
           fetchedAt={state.fetchedAt}
           loading={loading}
-          totalReceipts={state.receipts.length}
+          totalReceipts={state.recentWindow.receipts}
           account={account}
           closingIntentId={closingIntentId}
           onClosePosition={closePosition}
@@ -960,9 +960,9 @@ function App() {
 
       <section className="grid">
         <Stat label="registered agents" value={String(state?.sources.length || 0)} />
-        <Stat label="intent receipts" value={String(state?.receipts.length || 0)} />
-        <Stat label="USDC mirrored" value={formatUSDC(totalMirrored(copiedReceipts))} />
-        <Stat label="blocked copies" value={String(blockedReceipts.length)} />
+        <Stat label="recent receipts" value={String(state?.recentWindow.receipts || 0)} />
+        <Stat label="recent USDC mirrored" value={formatUSDC(totalMirrored(copiedReceipts))} />
+        <Stat label="recent blocked copies" value={String(blockedReceipts.length)} />
         <Stat label="source fees paid" value={formatUSDC(totalKickbacks(state))} />
         <Stat label="1 USDC quote" value={`${formatAsset(state?.quoteForOneUSDC || 0n)} ARCETH`} />
       </section>
@@ -1627,9 +1627,9 @@ function LiveFeed({
         <div>
           <p className="eyebrow">
             <span className={`livePulse ${loading ? "loading" : ""}`} />
-            live activity · auto refresh
+            recent-window activity · auto refresh
           </p>
-          <h2>Every onchain receipt across every source.</h2>
+          <h2>Recent onchain receipts across every source.</h2>
         </div>
         <div className="liveFeedMeta">
           <div>
@@ -1641,7 +1641,7 @@ function LiveFeed({
             <dd>{secondsSince}s ago</dd>
           </div>
           <div>
-            <dt>total receipts</dt>
+            <dt>window receipts</dt>
             <dd>{totalReceipts}</dd>
           </div>
         </div>
@@ -2596,35 +2596,17 @@ function SiteFooter() {
 }
 
 function HeroMetrics({ state }: { state: ShadowState | null }) {
-  const numbers = useMemo(() => {
-    if (!state) return { usdcMirrored: 0n, copied: 0, blocked: 0, onboarded: 0 };
-    let usdcMirrored = 0n;
-    let copied = 0;
-    let blocked = 0;
-    for (const r of state.receipts) {
-      if (r.status === "copied") {
-        usdcMirrored += r.usdcAmount;
-        copied += 1;
-      } else {
-        blocked += 1;
-      }
-    }
-    const onboarded = new Set<string>();
-    for (const f of state.follows) {
-      onboarded.add(f.follower.toLowerCase());
-    }
-    return { usdcMirrored, copied, blocked, onboarded: onboarded.size };
-  }, [state]);
+  const lifetime = state?.lifetime;
 
   const items: Array<{ label: string; value: string }> = [
-    { label: "blocked by policy", value: numbers.blocked.toString() },
-    { label: "copies executed", value: numbers.copied.toString() },
-    { label: "USDC mirrored", value: formatUSDC(numbers.usdcMirrored) },
-    { label: "onboarded followers", value: numbers.onboarded.toString() },
+    { label: "blocked by policy", value: lifetime?.blocked.toLocaleString() ?? "0" },
+    { label: "copies executed", value: lifetime?.copied.toLocaleString() ?? "0" },
+    { label: "USDC mirrored", value: lifetime ? formatUSDC(lifetime.mirroredUsdcAtomic) : "0" },
+    { label: "onboarded followers", value: lifetime?.followerWallets.toLocaleString() ?? "0" },
   ];
 
   const hasLiveData =
-    numbers.copied > 0 || numbers.blocked > 0 || numbers.onboarded > 0 || numbers.usdcMirrored > 0n;
+    Boolean(lifetime) && (lifetime!.copied > 0 || lifetime!.blocked > 0 || lifetime!.followerWallets > 0 || lifetime!.mirroredUsdcAtomic > 0n);
 
   if (!hasLiveData) {
     return (
@@ -2637,109 +2619,55 @@ function HeroMetrics({ state }: { state: ShadowState | null }) {
   }
 
   return (
-    <div className="heroMetrics" role="group" aria-label="Live numbers from Arc testnet">
-      {items.map((m) => (
-        <div className="heroMetric" key={m.label}>
-          <span className="heroMetricValue">{m.value}</span>
-          <span className="heroMetricLabel">{m.label}</span>
-        </div>
-      ))}
+    <div className="heroMetricsWrap" role="group" aria-label="Snapshot-anchored lifetime numbers from Arc testnet">
+      <div className="heroMetrics">
+        {items.map((m) => (
+          <div className="heroMetric" key={m.label}>
+            <span className="heroMetricValue">{m.value}</span>
+            <span className="heroMetricLabel">{m.label}</span>
+          </div>
+        ))}
+      </div>
+      <span className="heroMetricsNote">
+        since launch, snapshot-anchored at {lifetime?.snapshotAt}; recent feed remains windowed
+      </span>
     </div>
   );
 }
 
 function TractionStrip({ state }: { state: ShadowState | null }) {
-  const metrics = useMemo(() => {
-    if (!state) {
-      return {
-        onboarded: 0,
-        activeWallets: 0,
-        usdcMirrored: 0n,
-        intents: 0,
-        copiedReceipts: 0,
-        blockedReceipts: 0,
-        closes: 0,
-        avgPnlBps: 0,
-        positivePnlCount: 0,
-      };
-    }
-    const activeWallets = new Set<string>();
-    let usdcMirrored = 0n;
-    let copiedReceipts = 0;
-    let blockedReceipts = 0;
-    for (const r of state.receipts) {
-      activeWallets.add(r.follower.toLowerCase());
-      if (r.status === "copied") {
-        copiedReceipts += 1;
-        usdcMirrored += r.usdcAmount;
-      } else {
-        blockedReceipts += 1;
-      }
-    }
-    const onboarded = new Set<string>();
-    for (const f of state.follows) {
-      onboarded.add(f.follower.toLowerCase());
-    }
-    let pnlSum = 0;
-    let positivePnlCount = 0;
-    for (const c of state.positionCloses) {
-      const bps = Number(c.pnlBps);
-      pnlSum += bps;
-      if (bps > 0) positivePnlCount += 1;
-    }
-    const closes = state.positionCloses.length;
-    return {
-      onboarded: onboarded.size,
-      activeWallets: activeWallets.size,
-      usdcMirrored,
-      intents: state.intents.length,
-      copiedReceipts,
-      blockedReceipts,
-      closes,
-      avgPnlBps: closes ? pnlSum / closes : 0,
-      positivePnlCount,
-    };
-  }, [state]);
+  const metrics = state?.lifetime;
+  const recent = state?.recentWindow;
 
   const metricsList: Array<{ label: string; value: string; sub: string }> = [
     {
-      label: "Onboarded followers",
-      value: metrics.onboarded.toString(),
-      sub: `${metrics.activeWallets} active across receipts`,
+      label: "Follower wallets",
+      value: metrics?.followerWallets.toLocaleString() ?? "0",
+      sub: "since launch, snapshot-anchored",
     },
     {
       label: "USDC mirrored",
-      value: formatUSDC(metrics.usdcMirrored),
-      sub: `${metrics.copiedReceipts} copied · ${metrics.blockedReceipts} blocked`,
+      value: metrics ? formatUSDC(metrics.mirroredUsdcAtomic) : "0",
+      sub: `${metrics?.copied.toLocaleString() ?? "0"} copied · ${metrics?.blocked.toLocaleString() ?? "0"} blocked`,
     },
     {
-      label: "Intents published",
-      value: metrics.intents.toString(),
-      sub: "by registered sources",
+      label: "Source agents",
+      value: metrics?.sourceAgents.toLocaleString() ?? "0",
+      sub: "registered source agents",
     },
     {
       label: "Receipts onchain",
-      value: (metrics.copiedReceipts + metrics.blockedReceipts).toString(),
-      sub: "copy and block, no off chain truth",
+      value: metrics?.receipts.toLocaleString() ?? "0",
+      sub: "copy and block, no offchain truth",
     },
     {
       label: "Positions closed",
-      value: metrics.closes.toString(),
-      sub:
-        metrics.closes > 0
-          ? `${metrics.avgPnlBps >= 0 ? "+" : ""}${metrics.avgPnlBps.toFixed(0)} bps avg · ${metrics.positivePnlCount} positive`
-          : "awaiting realized PnL",
+      value: metrics?.closedPositions.toLocaleString() ?? "0",
+      sub: "realized close receipts",
     },
   ];
 
-  const hasAnyTraction =
-    metrics.onboarded > 0 ||
-    metrics.activeWallets > 0 ||
-    metrics.intents > 0 ||
-    metrics.copiedReceipts > 0 ||
-    metrics.blockedReceipts > 0 ||
-    metrics.closes > 0 ||
-    metrics.usdcMirrored > 0n;
+  const hasAnyTraction = Boolean(metrics && metrics.receipts > 0);
 
   if (!hasAnyTraction) {
     return null;
@@ -2748,8 +2676,8 @@ function TractionStrip({ state }: { state: ShadowState | null }) {
   return (
     <section className="traction" aria-label="Live traction">
       <div className="tractionHeader">
-        <p className="eyebrow">the full picture · every metric derived from onchain events</p>
-        <span className="tractionDot" /> <span className="tractionLive">live</span>
+        <p className="eyebrow">the full picture · lifetime floor plus live deltas</p>
+        <span className="tractionDot" /> <span className="tractionLive">snapshot anchored</span>
       </div>
       <div className="tractionGrid">
         {metricsList.map((m) => (
@@ -2761,8 +2689,14 @@ function TractionStrip({ state }: { state: ShadowState | null }) {
         ))}
       </div>
       <p className="tractionFootnote">
-        Computed live from MirrorReceipt and PositionClosed event logs, not a backend cache. If the indexer goes down,
-        the chain is still the source of truth.
+        Lifetime totals use the May 24, 2026 submission snapshot as a floor, then add receipts after block{" "}
+        {metrics?.snapshotBlock}. The live feed is intentionally recent-window only
+        {recent
+          ? ` (${recent.receipts.toLocaleString()} receipts from blocks ${recent.fromBlock}-${recent.toBlock}${
+              recent.historyTruncated ? ", pruned history hidden" : ""
+            })`
+          : ""}
+        .
       </p>
     </section>
   );

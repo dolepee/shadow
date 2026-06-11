@@ -8,6 +8,11 @@ import {
   type PublicClient,
 } from "viem";
 import { defineChain } from "viem";
+import {
+  LIFETIME_SNAPSHOT_FLOOR,
+  type LifetimeTotals,
+  type RecentWindowTotals,
+} from "./lifetimeSnapshot";
 
 export const arcTestnet = defineChain({
   id: 5_042_002,
@@ -190,13 +195,27 @@ export type ShadowState = {
   nextIntentId: bigint;
   protocolFeesUSDC: bigint;
   latestBlock: bigint;
+  historyTruncated: boolean;
+  lifetime: HydratedLifetimeTotals;
+  recentWindow: HydratedRecentWindowTotals;
   fetchedAt: number;
+};
+
+export type HydratedLifetimeTotals = Omit<LifetimeTotals, "mirroredUsdcAtomic"> & {
+  mirroredUsdcAtomic: bigint;
+};
+
+export type HydratedRecentWindowTotals = Omit<RecentWindowTotals, "mirroredUsdcAtomic"> & {
+  mirroredUsdcAtomic: bigint;
 };
 
 type SerializedShadowState = {
   configured?: boolean;
   fetchedAt?: number;
   latestBlock?: string;
+  historyTruncated?: boolean;
+  lifetime?: LifetimeTotals;
+  recentWindow?: RecentWindowTotals;
   sources?: Array<{
     address: Address;
     name: string;
@@ -280,6 +299,9 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
       nextIntentId: 1n,
       protocolFeesUSDC: 0n,
       latestBlock: 0n,
+      historyTruncated: false,
+      lifetime: hydrateLifetimeTotals(),
+      recentWindow: emptyRecentWindowTotals(),
       fetchedAt: Date.now(),
     };
   }
@@ -415,6 +437,40 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
   const closeLogs = closeChunks.flat();
   const followLogs = followChunks.flat();
 
+  const receipts = receiptLogs.map((log) => ({
+    intentId: log.args.intentId!,
+    follower: log.args.follower!,
+    sourceAgent: log.args.sourceAgent!,
+    status: log.args.status === 0 ? ("copied" as const) : ("blocked" as const),
+    reason: blockReasonLabel(Number(log.args.reason!)),
+    usdcAmount: log.args.usdcAmount!,
+    mirrorFeeUSDC: log.args.mirrorFeeUSDC!,
+    assetAmountOut: log.args.assetAmountOut!,
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber,
+  }));
+  const positionCloses = closeLogs.map((log) => ({
+    intentId: log.args.intentId!,
+    follower: log.args.follower!,
+    sourceAgent: log.args.sourceAgent!,
+    usdcIn: log.args.usdcIn!,
+    usdcOut: log.args.usdcOut!,
+    pnlBps: log.args.pnlBps!,
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber,
+  }));
+  const follows = followLogs.map((log) => ({
+    follower: log.args.follower!,
+    sourceAgent: log.args.sourceAgent!,
+    maxAmountPerIntent: log.args.maxAmountPerIntent!,
+    dailyCap: log.args.dailyCap!,
+    allowedAsset: log.args.allowedAsset!,
+    maxRiskLevel: Number(log.args.maxRiskLevel!),
+    minBpsOut: Number(log.args.minBpsOut!),
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber,
+  }));
+
   return {
     sources,
     intents: intentLogs.map((log) => ({
@@ -427,39 +483,9 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
       transactionHash: log.transactionHash,
       blockNumber: log.blockNumber,
     })),
-    receipts: receiptLogs.map((log) => ({
-      intentId: log.args.intentId!,
-      follower: log.args.follower!,
-      sourceAgent: log.args.sourceAgent!,
-      status: log.args.status === 0 ? "copied" : "blocked",
-      reason: blockReasonLabel(Number(log.args.reason!)),
-      usdcAmount: log.args.usdcAmount!,
-      mirrorFeeUSDC: log.args.mirrorFeeUSDC!,
-      assetAmountOut: log.args.assetAmountOut!,
-      transactionHash: log.transactionHash,
-      blockNumber: log.blockNumber,
-    })),
-    positionCloses: closeLogs.map((log) => ({
-      intentId: log.args.intentId!,
-      follower: log.args.follower!,
-      sourceAgent: log.args.sourceAgent!,
-      usdcIn: log.args.usdcIn!,
-      usdcOut: log.args.usdcOut!,
-      pnlBps: log.args.pnlBps!,
-      transactionHash: log.transactionHash,
-      blockNumber: log.blockNumber,
-    })),
-    follows: followLogs.map((log) => ({
-      follower: log.args.follower!,
-      sourceAgent: log.args.sourceAgent!,
-      maxAmountPerIntent: log.args.maxAmountPerIntent!,
-      dailyCap: log.args.dailyCap!,
-      allowedAsset: log.args.allowedAsset!,
-      maxRiskLevel: Number(log.args.maxRiskLevel!),
-      minBpsOut: Number(log.args.minBpsOut!),
-      transactionHash: log.transactionHash,
-      blockNumber: log.blockNumber,
-    })),
+    receipts,
+    positionCloses,
+    follows,
     reserves: {
       usdc: reserveUSDC,
       asset: reserveAsset,
@@ -468,46 +494,54 @@ export async function fetchShadowState(client: PublicClient = publicClient): Pro
     nextIntentId,
     protocolFeesUSDC,
     latestBlock,
+    historyTruncated: false,
+    lifetime: buildLifetimeFromState(receipts, positionCloses, sources.length),
+    recentWindow: buildRecentWindowFromState(receipts, positionCloses, follows, sources.length, startBlock, latestBlock, false),
     fetchedAt: Date.now(),
   };
 }
 
 function hydrateShadowState(data: SerializedShadowState): ShadowState {
+  const receipts = (data.receipts || []).map((receipt) => ({
+    ...receipt,
+    intentId: BigInt(receipt.intentId),
+    usdcAmount: BigInt(receipt.usdcAmount),
+    mirrorFeeUSDC: BigInt(receipt.mirrorFeeUSDC),
+    assetAmountOut: BigInt(receipt.assetAmountOut),
+    blockNumber: BigInt(receipt.blockNumber),
+  }));
+  const positionCloses = (data.positionCloses || []).map((close) => ({
+    ...close,
+    intentId: BigInt(close.intentId),
+    usdcIn: BigInt(close.usdcIn),
+    usdcOut: BigInt(close.usdcOut),
+    pnlBps: BigInt(close.pnlBps),
+    blockNumber: BigInt(close.blockNumber),
+  }));
+  const follows = (data.follows || []).map((f) => ({
+    ...f,
+    maxAmountPerIntent: BigInt(f.maxAmountPerIntent),
+    dailyCap: BigInt(f.dailyCap),
+    blockNumber: BigInt(f.blockNumber),
+  }));
+  const sources = (data.sources || []).map((source) => ({
+    ...source,
+    erc8004TokenId: BigInt(source.erc8004TokenId),
+    followerCount: BigInt(source.followerCount),
+    kickbackUSDC: BigInt(source.kickbackUSDC),
+  }));
+  const latestBlock = BigInt(data.latestBlock || "0");
   return {
-    sources: (data.sources || []).map((source) => ({
-      ...source,
-      erc8004TokenId: BigInt(source.erc8004TokenId),
-      followerCount: BigInt(source.followerCount),
-      kickbackUSDC: BigInt(source.kickbackUSDC),
-    })),
+    sources,
     intents: (data.intents || []).map((intent) => ({
       ...intent,
       intentId: BigInt(intent.intentId),
       amountUSDC: BigInt(intent.amountUSDC),
       blockNumber: BigInt(intent.blockNumber),
     })),
-    receipts: (data.receipts || []).map((receipt) => ({
-      ...receipt,
-      intentId: BigInt(receipt.intentId),
-      usdcAmount: BigInt(receipt.usdcAmount),
-      mirrorFeeUSDC: BigInt(receipt.mirrorFeeUSDC),
-      assetAmountOut: BigInt(receipt.assetAmountOut),
-      blockNumber: BigInt(receipt.blockNumber),
-    })),
-    positionCloses: (data.positionCloses || []).map((close) => ({
-      ...close,
-      intentId: BigInt(close.intentId),
-      usdcIn: BigInt(close.usdcIn),
-      usdcOut: BigInt(close.usdcOut),
-      pnlBps: BigInt(close.pnlBps),
-      blockNumber: BigInt(close.blockNumber),
-    })),
-    follows: (data.follows || []).map((f) => ({
-      ...f,
-      maxAmountPerIntent: BigInt(f.maxAmountPerIntent),
-      dailyCap: BigInt(f.dailyCap),
-      blockNumber: BigInt(f.blockNumber),
-    })),
+    receipts,
+    positionCloses,
+    follows,
     reserves: {
       usdc: BigInt(data.reserves?.usdc || "0"),
       asset: BigInt(data.reserves?.asset || "0"),
@@ -515,8 +549,100 @@ function hydrateShadowState(data: SerializedShadowState): ShadowState {
     quoteForOneUSDC: BigInt(data.quoteForOneUSDC || "0"),
     nextIntentId: BigInt(data.nextIntentId || "1"),
     protocolFeesUSDC: BigInt(data.protocolFeesUSDC || "0"),
-    latestBlock: BigInt(data.latestBlock || "0"),
+    latestBlock,
+    historyTruncated: Boolean(data.historyTruncated),
+    lifetime: data.lifetime
+      ? hydrateLifetimeTotals(data.lifetime)
+      : buildLifetimeFromState(receipts, positionCloses, sources.length),
+    recentWindow:
+      hydrateRecentWindowTotals(data.recentWindow) ??
+      buildRecentWindowFromState(receipts, positionCloses, follows, sources.length, 0n, latestBlock, Boolean(data.historyTruncated)),
     fetchedAt: data.fetchedAt || Date.now(),
+  };
+}
+
+function hydrateLifetimeTotals(totals?: LifetimeTotals): HydratedLifetimeTotals {
+  const source = totals ?? LIFETIME_SNAPSHOT_FLOOR;
+  return {
+    ...source,
+    mirroredUsdcAtomic: BigInt(source.mirroredUsdcAtomic),
+  };
+}
+
+function hydrateRecentWindowTotals(totals?: RecentWindowTotals): HydratedRecentWindowTotals | null {
+  if (!totals) return null;
+  return {
+    ...totals,
+    mirroredUsdcAtomic: BigInt(totals.mirroredUsdcAtomic),
+  };
+}
+
+function emptyRecentWindowTotals(): HydratedRecentWindowTotals {
+  return {
+    fromBlock: "0",
+    toBlock: "0",
+    historyTruncated: false,
+    followerWallets: 0,
+    receipts: 0,
+    copied: 0,
+    blocked: 0,
+    closedPositions: 0,
+    mirroredUsdc: "0",
+    mirroredUsdcAtomic: 0n,
+    sourceAgents: 0,
+  };
+}
+
+function buildLifetimeFromState(
+  receipts: ReceiptLog[],
+  positionCloses: PositionCloseLog[],
+  sourceAgents: number,
+): HydratedLifetimeTotals {
+  const snapshotBlock = BigInt(LIFETIME_SNAPSHOT_FLOOR.snapshotBlock);
+  const receiptsAfterSnapshot = receipts.filter((r) => r.blockNumber > snapshotBlock);
+  const copiedAfterSnapshot = receiptsAfterSnapshot.filter((r) => r.status === "copied");
+  const blockedAfterSnapshot = receiptsAfterSnapshot.length - copiedAfterSnapshot.length;
+  const closesAfterSnapshot = positionCloses.filter((c) => c.blockNumber > snapshotBlock);
+  const mirroredUsdcAtomic =
+    BigInt(LIFETIME_SNAPSHOT_FLOOR.mirroredUsdcAtomic) +
+    copiedAfterSnapshot.reduce((sum, receipt) => sum + receipt.usdcAmount, 0n);
+  return {
+    snapshotAt: LIFETIME_SNAPSHOT_FLOOR.snapshotAt,
+    snapshotBlock: LIFETIME_SNAPSHOT_FLOOR.snapshotBlock,
+    followerWallets: LIFETIME_SNAPSHOT_FLOOR.followerWallets,
+    receipts: LIFETIME_SNAPSHOT_FLOOR.receipts + receiptsAfterSnapshot.length,
+    copied: LIFETIME_SNAPSHOT_FLOOR.copied + copiedAfterSnapshot.length,
+    blocked: LIFETIME_SNAPSHOT_FLOOR.blocked + blockedAfterSnapshot,
+    closedPositions: LIFETIME_SNAPSHOT_FLOOR.closedPositions + closesAfterSnapshot.length,
+    mirroredUsdc: formatUnits(mirroredUsdcAtomic, 6),
+    mirroredUsdcAtomic,
+    sourceAgents: Math.max(LIFETIME_SNAPSHOT_FLOOR.sourceAgents, sourceAgents),
+  };
+}
+
+function buildRecentWindowFromState(
+  receipts: ReceiptLog[],
+  positionCloses: PositionCloseLog[],
+  follows: FollowLog[],
+  sourceAgents: number,
+  fromBlock: bigint,
+  toBlock: bigint,
+  historyTruncated: boolean,
+): HydratedRecentWindowTotals {
+  const copiedReceipts = receipts.filter((r) => r.status === "copied");
+  const mirroredUsdcAtomic = copiedReceipts.reduce((sum, receipt) => sum + receipt.usdcAmount, 0n);
+  return {
+    fromBlock: fromBlock.toString(),
+    toBlock: toBlock.toString(),
+    historyTruncated,
+    followerWallets: new Set(follows.map((f) => f.follower.toLowerCase())).size,
+    receipts: receipts.length,
+    copied: copiedReceipts.length,
+    blocked: receipts.length - copiedReceipts.length,
+    closedPositions: positionCloses.length,
+    mirroredUsdc: formatUnits(mirroredUsdcAtomic, 6),
+    mirroredUsdcAtomic,
+    sourceAgents,
   };
 }
 

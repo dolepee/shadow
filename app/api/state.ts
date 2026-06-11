@@ -8,6 +8,11 @@ import {
   type PublicClient,
 } from "viem";
 import { defineChain } from "viem";
+import {
+  LIFETIME_SNAPSHOT_FLOOR,
+  type LifetimeTotals,
+  type RecentWindowTotals,
+} from "../src/lifetimeSnapshot";
 
 export const config = { maxDuration: 20 };
 
@@ -154,6 +159,8 @@ type CachedState = {
   fetchedAt: number;
   latestBlock: string;
   historyTruncated: boolean;
+  lifetime: LifetimeTotals;
+  recentWindow: RecentWindowTotals;
   sources: Array<{
     address: Address;
     name: string;
@@ -318,60 +325,142 @@ async function fetchSerializedState(): Promise<CachedState> {
     ),
   ]);
 
+  const intents = intentChunks.flat().map((log) => ({
+    intentId: log.args.intentId!.toString(),
+    sourceAgent: log.args.sourceAgent! as Address,
+    asset: log.args.asset! as Address,
+    amountUSDC: log.args.amountUSDC!.toString(),
+    riskLevel: Number(log.args.riskLevel!),
+    intentHash: log.args.intentHash! as `0x${string}`,
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber.toString(),
+  }));
+  const receipts = receiptChunks.flat().map((log) => ({
+    intentId: log.args.intentId!.toString(),
+    follower: log.args.follower! as Address,
+    sourceAgent: log.args.sourceAgent! as Address,
+    status: log.args.status === 0 ? ("copied" as const) : ("blocked" as const),
+    reason: REASON_LABELS[Number(log.args.reason!)] ?? `reason ${log.args.reason}`,
+    usdcAmount: log.args.usdcAmount!.toString(),
+    mirrorFeeUSDC: log.args.mirrorFeeUSDC!.toString(),
+    assetAmountOut: log.args.assetAmountOut!.toString(),
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber.toString(),
+  }));
+  const positionCloses = closeChunks.flat().map((log) => ({
+    intentId: log.args.intentId!.toString(),
+    follower: log.args.follower! as Address,
+    sourceAgent: log.args.sourceAgent! as Address,
+    usdcIn: log.args.usdcIn!.toString(),
+    usdcOut: log.args.usdcOut!.toString(),
+    pnlBps: log.args.pnlBps!.toString(),
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber.toString(),
+  }));
+  const follows = followChunks.flat().map((log) => ({
+    follower: log.args.follower! as Address,
+    sourceAgent: log.args.sourceAgent! as Address,
+    maxAmountPerIntent: log.args.maxAmountPerIntent!.toString(),
+    dailyCap: log.args.dailyCap!.toString(),
+    allowedAsset: log.args.allowedAsset! as Address,
+    maxRiskLevel: Number(log.args.maxRiskLevel!),
+    minBpsOut: Number(log.args.minBpsOut!),
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber.toString(),
+  }));
+  const recentWindow = summarizeRecentWindow({
+    fromBlock: effectiveFrom.toString(),
+    toBlock: latestBlock.toString(),
+    historyTruncated,
+    receipts,
+    positionCloses,
+    follows,
+    sourceAgents: sources.length,
+  });
+
   return {
     configured: true,
     fetchedAt: Date.now(),
     latestBlock: latestBlock.toString(),
     historyTruncated,
+    lifetime: applyLifetimeFloor({
+      receipts,
+      positionCloses,
+      sourceAgents: sources.length,
+    }),
+    recentWindow,
     sources,
-    intents: intentChunks.flat().map((log) => ({
-      intentId: log.args.intentId!.toString(),
-      sourceAgent: log.args.sourceAgent! as Address,
-      asset: log.args.asset! as Address,
-      amountUSDC: log.args.amountUSDC!.toString(),
-      riskLevel: Number(log.args.riskLevel!),
-      intentHash: log.args.intentHash! as `0x${string}`,
-      transactionHash: log.transactionHash,
-      blockNumber: log.blockNumber.toString(),
-    })),
-    receipts: receiptChunks.flat().map((log) => ({
-      intentId: log.args.intentId!.toString(),
-      follower: log.args.follower! as Address,
-      sourceAgent: log.args.sourceAgent! as Address,
-      status: log.args.status === 0 ? ("copied" as const) : ("blocked" as const),
-      reason: REASON_LABELS[Number(log.args.reason!)] ?? `reason ${log.args.reason}`,
-      usdcAmount: log.args.usdcAmount!.toString(),
-      mirrorFeeUSDC: log.args.mirrorFeeUSDC!.toString(),
-      assetAmountOut: log.args.assetAmountOut!.toString(),
-      transactionHash: log.transactionHash,
-      blockNumber: log.blockNumber.toString(),
-    })),
-    positionCloses: closeChunks.flat().map((log) => ({
-      intentId: log.args.intentId!.toString(),
-      follower: log.args.follower! as Address,
-      sourceAgent: log.args.sourceAgent! as Address,
-      usdcIn: log.args.usdcIn!.toString(),
-      usdcOut: log.args.usdcOut!.toString(),
-      pnlBps: log.args.pnlBps!.toString(),
-      transactionHash: log.transactionHash,
-      blockNumber: log.blockNumber.toString(),
-    })),
-    follows: followChunks.flat().map((log) => ({
-      follower: log.args.follower! as Address,
-      sourceAgent: log.args.sourceAgent! as Address,
-      maxAmountPerIntent: log.args.maxAmountPerIntent!.toString(),
-      dailyCap: log.args.dailyCap!.toString(),
-      allowedAsset: log.args.allowedAsset! as Address,
-      maxRiskLevel: Number(log.args.maxRiskLevel!),
-      minBpsOut: Number(log.args.minBpsOut!),
-      transactionHash: log.transactionHash,
-      blockNumber: log.blockNumber.toString(),
-    })),
+    intents,
+    receipts,
+    positionCloses,
+    follows,
     reserves: { usdc: (reserveUSDC as bigint).toString(), asset: (reserveAsset as bigint).toString() },
     quoteForOneUSDC: (quoteForOneUSDC as bigint).toString(),
     nextIntentId: (nextIntentId as bigint).toString(),
     protocolFeesUSDC: (protocolFeesUSDC as bigint).toString(),
   };
+}
+
+type SerializedReceipt = CachedState["receipts"][number];
+type SerializedClose = CachedState["positionCloses"][number];
+type SerializedFollow = CachedState["follows"][number];
+
+function summarizeRecentWindow(input: {
+  fromBlock: string;
+  toBlock: string;
+  historyTruncated: boolean;
+  receipts: SerializedReceipt[];
+  positionCloses: SerializedClose[];
+  follows: SerializedFollow[];
+  sourceAgents: number;
+}): RecentWindowTotals {
+  const copied = input.receipts.filter((r) => r.status === "copied");
+  const blocked = input.receipts.length - copied.length;
+  const followerWallets = new Set(input.follows.map((f) => f.follower.toLowerCase())).size;
+  const mirroredUsdcAtomic = copied.reduce((sum, receipt) => sum + BigInt(receipt.usdcAmount), 0n);
+  return {
+    fromBlock: input.fromBlock,
+    toBlock: input.toBlock,
+    historyTruncated: input.historyTruncated,
+    followerWallets,
+    receipts: input.receipts.length,
+    copied: copied.length,
+    blocked,
+    closedPositions: input.positionCloses.length,
+    mirroredUsdc: formatUsdc(mirroredUsdcAtomic),
+    mirroredUsdcAtomic: mirroredUsdcAtomic.toString(),
+    sourceAgents: input.sourceAgents,
+  };
+}
+
+function applyLifetimeFloor(input: {
+  receipts: SerializedReceipt[];
+  positionCloses: SerializedClose[];
+  sourceAgents: number;
+}): LifetimeTotals {
+  const snapshotBlock = BigInt(LIFETIME_SNAPSHOT_FLOOR.snapshotBlock);
+  const receiptsAfterSnapshot = input.receipts.filter((r) => BigInt(r.blockNumber) > snapshotBlock);
+  const copiedAfterSnapshot = receiptsAfterSnapshot.filter((r) => r.status === "copied");
+  const blockedAfterSnapshot = receiptsAfterSnapshot.length - copiedAfterSnapshot.length;
+  const closesAfterSnapshot = input.positionCloses.filter((c) => BigInt(c.blockNumber) > snapshotBlock);
+  const mirroredDelta = copiedAfterSnapshot.reduce((sum, receipt) => sum + BigInt(receipt.usdcAmount), 0n);
+  const mirroredUsdcAtomic = BigInt(LIFETIME_SNAPSHOT_FLOOR.mirroredUsdcAtomic) + mirroredDelta;
+  return {
+    snapshotAt: LIFETIME_SNAPSHOT_FLOOR.snapshotAt,
+    snapshotBlock: LIFETIME_SNAPSHOT_FLOOR.snapshotBlock,
+    followerWallets: LIFETIME_SNAPSHOT_FLOOR.followerWallets,
+    receipts: LIFETIME_SNAPSHOT_FLOOR.receipts + receiptsAfterSnapshot.length,
+    copied: LIFETIME_SNAPSHOT_FLOOR.copied + copiedAfterSnapshot.length,
+    blocked: LIFETIME_SNAPSHOT_FLOOR.blocked + blockedAfterSnapshot,
+    closedPositions: LIFETIME_SNAPSHOT_FLOOR.closedPositions + closesAfterSnapshot.length,
+    mirroredUsdc: formatUsdc(mirroredUsdcAtomic),
+    mirroredUsdcAtomic: mirroredUsdcAtomic.toString(),
+    sourceAgents: Math.max(LIFETIME_SNAPSHOT_FLOOR.sourceAgents, input.sourceAgents),
+  };
+}
+
+function formatUsdc(value: bigint): string {
+  return formatUnits(value, 6);
 }
 
 function logRanges(from: bigint, to: bigint) {
