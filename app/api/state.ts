@@ -8,13 +8,54 @@ import {
   type PublicClient,
 } from "viem";
 import { defineChain } from "viem";
-import {
-  LIFETIME_SNAPSHOT_FLOOR,
-  type LifetimeTotals,
-  type RecentWindowTotals,
-} from "../src/lifetimeSnapshot";
 
 export const config = { maxDuration: 20 };
+
+// Inlined from src/lifetimeSnapshot.ts (kept in sync; the frontend imports
+// that module). Vercel's node runtime transpiles api/*.ts without bundling,
+// so a relative ../src import does not exist at runtime
+// (ERR_MODULE_NOT_FOUND): api functions must stay self-contained beyond npm
+// packages.
+const LIFETIME_SNAPSHOT_FLOOR = {
+  snapshotAt: "2026-05-24",
+  // Stable May 24 reference proof block already documented in README.
+  snapshotBlock: "43176529",
+  followerWallets: 30,
+  receipts: 2893,
+  copied: 463,
+  blocked: 2430,
+  closedPositions: 173,
+  mirroredUsdc: "13.355",
+  mirroredUsdcAtomic: "13355000",
+  sourceAgents: 3,
+} as const;
+
+type LifetimeTotals = {
+  snapshotAt: string;
+  snapshotBlock: string;
+  followerWallets: number;
+  receipts: number;
+  copied: number;
+  blocked: number;
+  closedPositions: number;
+  mirroredUsdc: string;
+  mirroredUsdcAtomic: string;
+  sourceAgents: number;
+};
+
+type RecentWindowTotals = {
+  fromBlock: string;
+  toBlock: string;
+  historyTruncated: boolean;
+  followerWallets: number;
+  receipts: number;
+  copied: number;
+  blocked: number;
+  closedPositions: number;
+  mirroredUsdc: string;
+  mirroredUsdcAtomic: string;
+  sourceAgents: number;
+};
 
 // Cache the heavy log scans for 20s. Browser polls are typically every 30s, so
 // most requests hit the cache; the underlying RPC sees one read per source per
