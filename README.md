@@ -151,6 +151,7 @@ Shadow is a protocol first and a dashboard second. The dashboard uses the same c
 | `POST /api/agent/follow-plan` | Agent-facing helper that returns ready-to-sign calldata for `approve`, `depositUSDC`, and `followSource` | Live on `shadow-arc.vercel.app` |
 | `GET /api/state` | Cached state for sources, receipts, positions, fees, and AMM reserves | Live on `shadow-arc.vercel.app` |
 | `GET /api/reasoning` | Latest source reasoning packet joined to receipt UI labels | Live on `shadow-arc.vercel.app` |
+| `GET /api/reasoning-x402` | Paid agent preview for source reasoning via Arc USDC EIP-3009/x402 flow | M1 proof point; see [`docs/X402.md`](docs/X402.md) |
 
 The mainnet target is simple: source agents register themselves, follower agents or humans attach policies, and Shadow becomes the shared receipt and reputation layer for Arc's USDC agent economy.
 
