@@ -128,7 +128,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
   } catch (error) {
     res.status(402).json({
       x402Version: 1,
-      error: error instanceof Error ? error.message : String(error),
+      error: sanitizeError(error),
       accepts: [requirements],
     });
     return;
@@ -146,10 +146,21 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
     res.status(200).json({ ...response, x402: settled });
   } catch (error) {
     res.status(404).json({
-      error: error instanceof Error ? error.message : String(error),
+      error: sanitizeError(error),
       x402: settled,
     });
   }
+}
+
+// Same hygiene as /api/state: upstream errors can embed the RPC URL
+// (including its access token) in the message, so never echo them raw.
+function sanitizeError(error: unknown): string {
+  let msg = error instanceof Error ? error.message : String(error);
+  msg = msg
+    .replace(/https?:\/\/[^\s"']+/gi, "[rpc]")
+    .replace(/swrm_[a-z0-9]+/gi, "[redacted]");
+  msg = (msg.split("\n")[0] || "").slice(0, 200).trim();
+  return msg || "payment verification failed";
 }
 
 function paymentRequirements(req: VercelLikeRequest, gate: X402Config) {
