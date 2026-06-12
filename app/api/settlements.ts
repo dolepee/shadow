@@ -223,21 +223,28 @@ async function handlePost(req: VercelLikeRequest, res: VercelLikeResponse) {
   }
 }
 
+// Vercel env values on this project are known to carry literal "\n" tails
+// (see SHADOW_ROUTER); always sanitize before address validation.
+function cleanEnv(value: string | undefined): string | undefined {
+  const cleaned = value?.replace(/\\n/g, "").trim();
+  return cleaned || undefined;
+}
+
 function settlementConfigFromEnv(): SettlementConfig | null {
-  const payToRaw = process.env.GATEWAY_SETTLEMENT_PAY_TO || process.env.X402_PAY_TO;
-  const routerRaw = process.env.SHADOW_ROUTER;
+  const payToRaw = cleanEnv(process.env.GATEWAY_SETTLEMENT_PAY_TO) || cleanEnv(process.env.X402_PAY_TO);
+  const routerRaw = cleanEnv(process.env.SHADOW_ROUTER);
   if (!payToRaw || !routerRaw || !isAddress(payToRaw) || !isAddress(routerRaw)) return null;
-  const usdcRaw = process.env.GATEWAY_USDC || process.env.ARC_USDC || DEFAULT_USDC;
-  const gatewayWalletRaw = process.env.GATEWAY_WALLET_ADDRESS || DEFAULT_GATEWAY_WALLET;
+  const usdcRaw = cleanEnv(process.env.GATEWAY_USDC) || cleanEnv(process.env.ARC_USDC) || DEFAULT_USDC;
+  const gatewayWalletRaw = cleanEnv(process.env.GATEWAY_WALLET_ADDRESS) || DEFAULT_GATEWAY_WALLET;
   if (!isAddress(usdcRaw) || !isAddress(gatewayWalletRaw)) return null;
   return {
-    rpcUrl: process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network",
+    rpcUrl: cleanEnv(process.env.ARC_RPC_URL) || "https://rpc.testnet.arc.network",
     router: getAddress(routerRaw),
     usdc: getAddress(usdcRaw),
     payTo: getAddress(payToRaw),
     gatewayWallet: getAddress(gatewayWalletRaw),
-    feeAtomic: BigInt(process.env.GATEWAY_NANOSETTLEMENT_FEE_ATOMIC || DEFAULT_FEE_ATOMIC),
-    facilitatorUrl: process.env.GATEWAY_FACILITATOR_URL?.trim() || undefined,
+    feeAtomic: BigInt(cleanEnv(process.env.GATEWAY_NANOSETTLEMENT_FEE_ATOMIC) || DEFAULT_FEE_ATOMIC),
+    facilitatorUrl: cleanEnv(process.env.GATEWAY_FACILITATOR_URL),
   };
 }
 
