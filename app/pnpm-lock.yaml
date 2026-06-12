@@ -19,7 +19,10 @@ importers:
         version: 1.0.13(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)(zod@3.25.67)
       '@circle-fin/x402-batching':
         specifier: ^2.1.0
-        version: 2.1.0(@x402/core@2.14.0)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)(zod@3.25.67))
+        version: 2.1.0(@x402/core@2.14.0)(@x402/evm@2.14.0(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6))(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)(zod@3.25.67))
+      '@x402/evm':
+        specifier: ^2.14.0
+        version: 2.14.0(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)
       react:
         specifier: ^19.0.0
         version: 19.2.6
@@ -672,6 +675,9 @@ packages:
 
   '@x402/core@2.14.0':
     resolution: {integrity: sha512-+xTM6hfGduYvFcQ7QwKvCwommL6+zqzqmr5IuPojbt+RZjo4QUjSkHW+arMtPoIKRLxWAI+e6P4UJMMblwG+Dw==}
+
+  '@x402/evm@2.14.0':
+    resolution: {integrity: sha512-Qrm0+hN1gMK1vrX4vW4sdcx5txYTx8J2uDNulcNoIdtz15kTU5hjNUyZaCpI3i6x0MXnUBGfyar9Ut9uoAoPMw==}
 
   abitype@0.7.1:
     resolution: {integrity: sha512-VBkRHTDZf9Myaek/dO3yMmOzB/y2s3Zo6nVU7yaw1G+TvCHAjwaJzNGN9yo4K5D8bU/VZXKP1EJpRhFr862PlQ==}
@@ -1641,10 +1647,12 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@circle-fin/x402-batching@2.1.0(@x402/core@2.14.0)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)(zod@3.25.67))':
+  '@circle-fin/x402-batching@2.1.0(@x402/core@2.14.0)(@x402/evm@2.14.0(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6))(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)(zod@3.25.67))':
     dependencies:
       '@x402/core': 2.14.0
       viem: 2.48.11(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)(zod@3.25.67)
+    optionalDependencies:
+      '@x402/evm': 2.14.0(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)
 
   '@coral-xyz/anchor-errors@0.31.1': {}
 
@@ -2051,6 +2059,16 @@ snapshots:
   '@x402/core@2.14.0':
     dependencies:
       zod: 3.25.67
+
+  '@x402/evm@2.14.0(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)':
+    dependencies:
+      '@x402/core': 2.14.0
+      viem: 2.48.11(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)(zod@3.25.67)
+      zod: 3.25.67
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
 
   abitype@0.7.1(typescript@5.9.2)(zod@3.25.67):
     dependencies:
