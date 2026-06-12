@@ -69,3 +69,9 @@ GATEWAY_PAYER_PRIVATE_KEY=0x... SHADOW_APP_URL=https://shadow-arc.vercel.app pnp
 ```
 
 The resulting settlement should appear in `/api/settlements`, then in `/api/state` under the matching copied receipt.
+
+## Live settlement proof (Jun 12, 2026)
+
+First real batch settled: 5 copied mirror receipts charged 0.0001 USDC each via Circle Gateway (GatewayWalletBatched), payer CatArb `0xBDb1...1Fb8`, batch `25f6e033-e6bd-4229-b6f0-80d108928771`, records served at `/api/settlements` and merged into `/api/state` receipt rows.
+
+Operational notes discovered en route: the payer must `deposit()` USDC into the Gateway wallet first (spending uses Gateway balance, not the raw token balance); advertised `maxTimeoutSeconds` must be long (30d) or the facilitator rejects `authorization_validity_too_short`; never send a duplicate content-type header (platform rejects the body).
