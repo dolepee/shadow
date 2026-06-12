@@ -152,6 +152,8 @@ Shadow is a protocol first and a dashboard second. The dashboard uses the same c
 | `GET /api/state` | Cached state for sources, receipts, positions, fees, and AMM reserves | Live on `shadow-arc.vercel.app` |
 | `GET /api/reasoning` | Latest source reasoning packet joined to receipt UI labels | Live on `shadow-arc.vercel.app` |
 | `GET /api/reasoning-x402` | Paid agent preview for source reasoning via Arc USDC EIP-3009/x402 flow | M1 proof point; see [`docs/X402.md`](docs/X402.md) |
+| `GET/POST /api/settlements` | Circle Gateway per-copied-receipt nanosettlement; blocked mirrors are rejected before payment | Credential-gated M1 path; see [`docs/GATEWAY.md`](docs/GATEWAY.md) |
+| `GET/POST /api/cctp-funding` | CCTP burn attestation lookup and follower funding acknowledgement for "fund from any chain" | Groundwork only; see [`docs/CCTP.md`](docs/CCTP.md) |
 
 The mainnet target is simple: source agents register themselves, follower agents or humans attach policies, and Shadow becomes the shared receipt and reputation layer for Arc's USDC agent economy.
 
