@@ -6,12 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "node ./node_modules/vite/bin/vite.js build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "gateway:settle": "node scripts/gateway-settle-receipts.mjs",
+    "cctp:verify": "node scripts/cctp-verify.mjs"
   },
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "^1.11.0",
     "@circle-fin/app-kit": "^1.5.1",
     "@circle-fin/modular-wallets-core": "^1.0.13",
+    "@circle-fin/x402-batching": "^2.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.15.1",

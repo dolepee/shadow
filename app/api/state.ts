@@ -62,6 +62,7 @@ type RecentWindowTotals = {
 // 20s window regardless of how many viewers are loaded.
 const CACHE_KEY = "state:cache:v2";
 const CACHE_TTL_SECONDS = 20;
+const GATEWAY_SETTLEMENT_INDEX_KEY = "gateway:settlements:index:v1";
 const LOG_CHUNK_SIZE = 90_000n;
 // The Canteen Arc RPC is a pruning node: getLogs against blocks older than its
 // retention window fails with "pruned history unavailable". Cap historical scans
@@ -71,6 +72,27 @@ const LOG_CHUNK_SIZE = 90_000n;
 const SAFE_LOG_LOOKBACK = BigInt(process.env.SHADOW_LOG_LOOKBACK || "750000");
 
 type KVConfig = { url: string; token: string };
+
+type GatewaySettlementSummary = {
+  feeAtomic: string;
+  feeUSDC: string;
+  gatewayBatchId: string | null;
+  gatewayTx: string | null;
+  payer: string | null;
+  rail: "circle-gateway-x402-batching";
+  status: "settled";
+  at: string;
+  testnet: true;
+};
+
+type GatewaySettlementRecord = GatewaySettlementSummary & {
+  mirrorTx: `0x${string}`;
+  follower: Address;
+  sourceAgent: Address;
+  intentId: string;
+  network: "arc-testnet";
+  receiptBlockNumber: string;
+};
 
 type VercelLikeRequest = {
   method?: string;
@@ -233,6 +255,7 @@ type CachedState = {
     assetAmountOut: string;
     transactionHash: `0x${string}`;
     blockNumber: string;
+    gatewaySettlement?: GatewaySettlementSummary;
   }>;
   positionCloses: Array<{
     intentId: string;
@@ -376,7 +399,7 @@ async function fetchSerializedState(): Promise<CachedState> {
     transactionHash: log.transactionHash,
     blockNumber: log.blockNumber.toString(),
   }));
-  const receipts = receiptChunks.flat().map((log) => ({
+  const rawReceipts = receiptChunks.flat().map((log) => ({
     intentId: log.args.intentId!.toString(),
     follower: log.args.follower! as Address,
     sourceAgent: log.args.sourceAgent! as Address,
@@ -388,6 +411,12 @@ async function fetchSerializedState(): Promise<CachedState> {
     transactionHash: log.transactionHash,
     blockNumber: log.blockNumber.toString(),
   }));
+  const settlementByReceipt = await loadGatewaySettlementMap();
+  const receipts = rawReceipts.map((receipt) => {
+    if (receipt.status !== "copied") return receipt;
+    const settlement = settlementByReceipt.get(gatewaySettlementKey(receipt));
+    return settlement ? { ...receipt, gatewaySettlement: settlement } : receipt;
+  });
   const positionCloses = closeChunks.flat().map((log) => ({
     intentId: log.args.intentId!.toString(),
     follower: log.args.follower! as Address,
@@ -548,6 +577,33 @@ async function kvSet(kv: KVConfig, key: string, value: unknown, ttlSec: number):
   if (!res.ok) {
     throw new Error(`kv set failed status=${res.status} body=${await res.text()}`);
   }
+}
+
+async function loadGatewaySettlementMap(): Promise<Map<string, GatewaySettlementSummary>> {
+  const kv = kvConfigFromEnv();
+  if (!kv) return new Map();
+  const records = await kvGet<GatewaySettlementRecord[]>(kv, GATEWAY_SETTLEMENT_INDEX_KEY).catch(() => null);
+  const out = new Map<string, GatewaySettlementSummary>();
+  for (const record of records || []) {
+    if (record.status !== "settled") continue;
+    out.set(gatewaySettlementKey(record), {
+      feeAtomic: record.feeAtomic,
+      feeUSDC: record.feeUSDC,
+      gatewayBatchId: record.gatewayBatchId,
+      gatewayTx: record.gatewayTx,
+      payer: record.payer,
+      rail: record.rail,
+      status: record.status,
+      at: record.at,
+      testnet: record.testnet,
+    });
+  }
+  return out;
+}
+
+function gatewaySettlementKey(input: { transactionHash?: string; mirrorTx?: string; follower: string; intentId: string }) {
+  const mirrorTx = input.transactionHash || input.mirrorTx || "";
+  return `${mirrorTx.toLowerCase()}:${input.follower.toLowerCase()}:${input.intentId}`;
 }
 
 function readQueryParam(req: VercelLikeRequest, name: string): string | null {
