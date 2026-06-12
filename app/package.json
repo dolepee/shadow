@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "node ./node_modules/vite/bin/vite.js build",
     "typecheck": "tsc --noEmit",
-    "gateway:settle": "node scripts/gateway-settle-receipts.mjs"
+    "gateway:settle": "node scripts/gateway-settle-receipts.mjs",
+    "cctp:verify": "node scripts/cctp-verify.mjs"
   },
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "^1.11.0",
