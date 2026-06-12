@@ -269,7 +269,10 @@ function paymentRequirements(req: VercelLikeRequest, gate: SettlementConfig, tar
     asset: gate.usdc,
     amount: gate.feeAtomic.toString(),
     payTo: gate.payTo,
-    maxTimeoutSeconds: 345600,
+    // Gateway batches settle lazily; its facilitator rejects authorizations
+    // with short validity (authorization_validity_too_short at 4 days), so
+    // advertise 30 days. The client derives validBefore from this value.
+    maxTimeoutSeconds: 2_592_000,
     extra: {
       name: "GatewayWalletBatched",
       version: "1",

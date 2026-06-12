@@ -43,16 +43,25 @@ const client = new GatewayClient({
   rpcUrl: env.ARC_RPC_URL || env.VITE_ARC_RPC_URL,
 });
 
+let settled = 0;
 for (const body of bodies) {
-  const result = await client.pay(`${baseUrl}/api/settlements`, {
-    method: "POST",
-    body,
-    headers: { "content-type": "application/json" },
-  });
-
-  console.log("Gateway settlement result:");
-  console.log(JSON.stringify(result, stringifyBigInt, 2));
+  try {
+    // No explicit content-type: the Gateway client already sets Content-Type,
+    // and adding a lowercase duplicate makes the platform reject the body.
+    const result = await client.pay(`${baseUrl}/api/settlements`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    settled += 1;
+    console.log("Gateway settlement result:");
+    console.log(JSON.stringify(result, stringifyBigInt, 2));
+  } catch (error) {
+    // A receipt the pruning RPC can no longer verify (or any per-receipt
+    // failure) must not kill the batch; skip and continue.
+    console.warn(`skip ${body.mirrorTx}: ${error.message}`);
+  }
 }
+console.log(`settled ${settled}/${bodies.length}`);
 
 function readVercelEnv(path) {
   if (!existsSync(path)) return {};
