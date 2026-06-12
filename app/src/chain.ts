@@ -156,6 +156,19 @@ export type ReceiptLog = {
   assetAmountOut: bigint;
   transactionHash: `0x${string}`;
   blockNumber: bigint;
+  gatewaySettlement?: GatewaySettlementSummary;
+};
+
+export type GatewaySettlementSummary = {
+  feeAtomic: string;
+  feeUSDC: string;
+  gatewayBatchId: string | null;
+  gatewayTx: string | null;
+  payer: string | null;
+  rail: "circle-gateway-x402-batching";
+  status: "settled";
+  at: string;
+  testnet: true;
 };
 
 export type PositionCloseLog = {
@@ -247,6 +260,7 @@ type SerializedShadowState = {
     assetAmountOut: string;
     transactionHash: `0x${string}`;
     blockNumber: string;
+    gatewaySettlement?: GatewaySettlementSummary;
   }>;
   positionCloses?: Array<{
     intentId: string;

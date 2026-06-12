@@ -17,6 +17,9 @@ importers:
       '@circle-fin/modular-wallets-core':
         specifier: ^1.0.13
         version: 1.0.13(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)(zod@3.25.67)
+      '@circle-fin/x402-batching':
+        specifier: ^2.1.0
+        version: 2.1.0(@x402/core@2.14.0)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)(zod@3.25.67))
       react:
         specifier: ^19.0.0
         version: 19.2.6
@@ -178,6 +181,17 @@ packages:
   '@circle-fin/unified-balance-kit@1.1.1':
     resolution: {integrity: sha512-+ySFsdi+xoFHEuqNmFHUmbTtcKiliVadfUAki3D3IQP6pnKEZgPSsxhyqjoUDGwwKrH6HEJSoX6py9IrJ2Ue7A==}
     engines: {node: '>=16.0.0'}
+
+  '@circle-fin/x402-batching@2.1.0':
+    resolution: {integrity: sha512-FtumeFYROaucW491+3DcH5EfIJL5KKPJje5q1iiAEptmuJHMZ38bcib2W1ifmh7IVvO+ZUVCbMq9aqbIqgsiQw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@x402/core': ^2.3.0
+      '@x402/evm': ^2.3.0
+      viem: ^2.0.0
+    peerDependenciesMeta:
+      '@x402/evm':
+        optional: true
 
   '@coral-xyz/anchor-errors@0.31.1':
     resolution: {integrity: sha512-NhNEku4F3zzUSBtrYz84FzYWm48+9OvmT1Hhnwr6GnPQry2dsEqH/ti/7ASjjpoFTWRnPXrjAIT1qM6Isop+LQ==}
@@ -655,6 +669,9 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
+
+  '@x402/core@2.14.0':
+    resolution: {integrity: sha512-+xTM6hfGduYvFcQ7QwKvCwommL6+zqzqmr5IuPojbt+RZjo4QUjSkHW+arMtPoIKRLxWAI+e6P4UJMMblwG+Dw==}
 
   abitype@0.7.1:
     resolution: {integrity: sha512-VBkRHTDZf9Myaek/dO3yMmOzB/y2s3Zo6nVU7yaw1G+TvCHAjwaJzNGN9yo4K5D8bU/VZXKP1EJpRhFr862PlQ==}
@@ -1624,6 +1641,11 @@ snapshots:
       - typescript
       - utf-8-validate
 
+  '@circle-fin/x402-batching@2.1.0(@x402/core@2.14.0)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)(zod@3.25.67))':
+    dependencies:
+      '@x402/core': 2.14.0
+      viem: 2.48.11(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)(zod@3.25.67)
+
   '@coral-xyz/anchor-errors@0.31.1': {}
 
   '@coral-xyz/anchor@0.31.1(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6)':
@@ -2025,6 +2047,10 @@ snapshots:
       vite: 7.3.3(@types/node@24.12.4)
     transitivePeerDependencies:
       - supports-color
+
+  '@x402/core@2.14.0':
+    dependencies:
+      zod: 3.25.67
 
   abitype@0.7.1(typescript@5.9.2)(zod@3.25.67):
     dependencies:

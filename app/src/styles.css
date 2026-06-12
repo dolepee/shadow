@@ -3360,6 +3360,12 @@ code {
   letter-spacing: 0;
 }
 
+.liveFeedAmount .gatewaySettlementLine {
+  color: var(--copy);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
 .refusalStack {
   display: grid;
   gap: 3px;

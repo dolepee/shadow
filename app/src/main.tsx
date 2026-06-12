@@ -1744,6 +1744,11 @@ function LiveFeed({
                   <>
                     <strong>{formatUSDC(receipt.usdcAmount)} USDC</strong>
                     <span>for {formatAsset(receipt.assetAmountOut)} ARCETH</span>
+                    {receipt.gatewaySettlement?.status === "settled" && (
+                      <span className="gatewaySettlementLine">
+                        fee {receipt.gatewaySettlement.feeUSDC} USDC settled · Gateway
+                      </span>
+                    )}
                   </>
                 ) : (
                   pilotRefusal ? (
@@ -1914,6 +1919,12 @@ function SpotlightCard({
           <div>
             <dt>mirror fee</dt>
             <dd>{formatUSDC(receipt.mirrorFeeUSDC)} USDC</dd>
+          </div>
+        )}
+        {receipt.status === "copied" && receipt.gatewaySettlement?.status === "settled" && (
+          <div>
+            <dt>Gateway</dt>
+            <dd>{receipt.gatewaySettlement.feeUSDC} USDC settled</dd>
           </div>
         )}
         {receipt.status === "blocked" && (
