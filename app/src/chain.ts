@@ -43,6 +43,7 @@ export const leptonAddresses = {
   mandateAttestor: readAddress("VITE_SHADOW_MANDATE_ATTESTOR", "0x440ef290d63174182c6115b4356727e0ac136d48"),
   bondedEnforcer: readAddress("VITE_SHADOW_BONDED_ENFORCER", "0x05a11588155c6bde55bb7b3986f200ca556b23cc"),
   v4StyleAdapter: readAddress("VITE_SHADOW_V4_STYLE_ADAPTER", "0x16ebc65c9f3188734277c9fafd73d9f13b93d868"),
+  morphoStyleAdapter: readAddress("VITE_SHADOW_MORPHO_STYLE_ADAPTER", "0x805db94a0b94c0d937063291ddaafb41690f5dee"),
 };
 
 export const startBlock = BigInt(import.meta.env.VITE_SHADOW_START_BLOCK || 0);
@@ -131,6 +132,14 @@ export const v4StyleArcAdapterAbi = parseAbi([
   "function blockedUSDC() view returns (uint256)",
   "function liquiditySink() view returns (address)",
   "function beforeSwapStyleAction((uint256 mandateId,address actor,address circleAccount,address settlementAsset,address target,uint8 actionType,uint256 amountUSDC,uint8 riskLevel,uint16 minBpsOut,uint256 expiry,bytes32 intentHash,bytes32 executionRef) action) returns (bytes32 receiptHash,bool allowed,uint8 reason)",
+]);
+
+export const morphoStyleVaultAdapterAbi = parseAbi([
+  "function adapterBondUSDC() view returns (uint256)",
+  "function depositedUSDC() view returns (uint256)",
+  "function blockedUSDC() view returns (uint256)",
+  "function vaultSink() view returns (address)",
+  "function marketId() view returns (bytes32)",
 ]);
 
 export const mandateVaultSinkAbi = parseAbi([
@@ -271,6 +280,12 @@ export type LeptonState = {
   blockedUSDC: bigint;
   vaultDepositedUSDC?: bigint;
   liquiditySink?: Address;
+  morphoConfigured: boolean;
+  morphoAdapterBondUSDC?: bigint;
+  morphoDepositedUSDC?: bigint;
+  morphoBlockedUSDC?: bigint;
+  morphoVaultDepositedUSDC?: bigint;
+  morphoVaultSink?: Address;
   fetchedAt: number;
 };
 
@@ -335,6 +350,9 @@ export async function fetchLeptonState(): Promise<LeptonState | null> {
       functionName: "totalDepositedUSDC",
     })
     .catch(() => undefined);
+  const morphoState = leptonAddresses.morphoStyleAdapter
+    ? await fetchMorphoLeptonState(leptonAddresses.morphoStyleAdapter)
+    : undefined;
 
   return {
     configured: true,
@@ -348,8 +366,51 @@ export async function fetchLeptonState(): Promise<LeptonState | null> {
     blockedUSDC,
     vaultDepositedUSDC,
     liquiditySink,
+    morphoConfigured: Boolean(morphoState),
+    morphoAdapterBondUSDC: morphoState?.adapterBondUSDC,
+    morphoDepositedUSDC: morphoState?.depositedUSDC,
+    morphoBlockedUSDC: morphoState?.blockedUSDC,
+    morphoVaultDepositedUSDC: morphoState?.vaultDepositedUSDC,
+    morphoVaultSink: morphoState?.vaultSink,
     fetchedAt: Date.now(),
   };
+}
+
+async function fetchMorphoLeptonState(adapter: Address) {
+  try {
+    const [adapterBondUSDC, depositedUSDC, blockedUSDC, vaultSink] = await Promise.all([
+      publicClient.readContract({
+        address: adapter,
+        abi: morphoStyleVaultAdapterAbi,
+        functionName: "adapterBondUSDC",
+      }),
+      publicClient.readContract({
+        address: adapter,
+        abi: morphoStyleVaultAdapterAbi,
+        functionName: "depositedUSDC",
+      }),
+      publicClient.readContract({
+        address: adapter,
+        abi: morphoStyleVaultAdapterAbi,
+        functionName: "blockedUSDC",
+      }),
+      publicClient.readContract({
+        address: adapter,
+        abi: morphoStyleVaultAdapterAbi,
+        functionName: "vaultSink",
+      }),
+    ]);
+    const vaultDepositedUSDC = await publicClient
+      .readContract({
+        address: vaultSink,
+        abi: mandateVaultSinkAbi,
+        functionName: "totalDepositedUSDC",
+      })
+      .catch(() => undefined);
+    return { adapterBondUSDC, depositedUSDC, blockedUSDC, vaultSink, vaultDepositedUSDC };
+  } catch {
+    return undefined;
+  }
 }
 
 type SerializedShadowState = {

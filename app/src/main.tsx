@@ -2834,6 +2834,8 @@ function LeptonM1Panel({
     { label: "BondedEnforcer", value: leptonAddresses.bondedEnforcer },
     { label: "V4StyleArcAdapter", value: leptonAddresses.v4StyleAdapter },
     { label: "MandateVaultSink", value: state?.liquiditySink },
+    { label: "MorphoStyleAdapter", value: leptonAddresses.morphoStyleAdapter },
+    { label: "MorphoVaultSink", value: state?.morphoVaultSink },
   ];
   const proofSteps = [
     "Circle wallet is the scoped capital account",
@@ -2851,7 +2853,7 @@ function LeptonM1Panel({
     },
     {
       name: "Morpho-style vault deposits",
-      status: "tested code",
+      status: configured && state?.morphoConfigured ? "live proof" : "deploy pending",
       detail: "Deposit-only adapter gates USDC before vault movement through the same bonded enforcer.",
     },
   ];
@@ -2860,6 +2862,13 @@ function LeptonM1Panel({
     txHash: "0x98b8b175d4ec8bf6d457d653383932e69d74300bd0b8a7e324e0cae3ac35a529" as `0x${string}`,
     mandateId: "2",
     amount: "0.01 USDC",
+  };
+  const morphoProof = {
+    adapter: "0x805db94a0b94c0d937063291ddaafb41690f5dee" as Address,
+    vault: "0x0e157aeaffbebe59becb7b93007015a06c5dec90" as Address,
+    mandateId: "3",
+    allowTx: "0x477f9378f0f8d68302d5cfa7149026e6597fadd2a9939ade4931efe72e0031cc" as `0x${string}`,
+    blockTx: "0xcc72f59c00df7109b2140d9a30053930592df29eb72827223a8283088c12bef9" as `0x${string}`,
   };
   const updated = state ? new Date(state.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
 
@@ -2885,6 +2894,14 @@ function LeptonM1Panel({
         <LeptonMetric label="mandates" value={configured ? state!.mandateCount.toString() : "pending"} />
         <LeptonMetric label="receipts" value={configured ? state!.receiptCount.toString() : "pending"} />
         <LeptonMetric label="adapter bond" value={configured ? `${formatUSDC(state!.adapterBondUSDC)} USDC` : "pending"} />
+        <LeptonMetric
+          label="vault bond"
+          value={
+            configured && state!.morphoAdapterBondUSDC !== undefined
+              ? `${formatUSDC(state!.morphoAdapterBondUSDC)} USDC`
+              : "pending"
+          }
+        />
         <LeptonMetric label="minimum bond" value={configured ? `${formatUSDC(state!.minBondUSDC)} USDC` : "pending"} />
         <LeptonMetric label="allowed USDC" value={configured ? formatUSDC(state!.executedUSDC) : "0"} tone="allow" />
         <LeptonMetric
@@ -2892,7 +2909,17 @@ function LeptonM1Panel({
           value={configured && state!.vaultDepositedUSDC !== undefined ? formatUSDC(state!.vaultDepositedUSDC) : "pending"}
           tone="allow"
         />
+        <LeptonMetric
+          label="morpho allowed"
+          value={configured && state!.morphoDepositedUSDC !== undefined ? formatUSDC(state!.morphoDepositedUSDC) : "pending"}
+          tone="allow"
+        />
         <LeptonMetric label="blocked USDC" value={configured ? formatUSDC(state!.blockedUSDC) : "0"} tone="block" />
+        <LeptonMetric
+          label="morpho blocked"
+          value={configured && state!.morphoBlockedUSDC !== undefined ? formatUSDC(state!.morphoBlockedUSDC) : "pending"}
+          tone="block"
+        />
       </div>
 
       <div className="leptonGrid">
@@ -2971,6 +2998,47 @@ function LeptonM1Panel({
           <p>
             Circle Gas Station sponsored one passkey-owned account to approve USDC, create a Lepton mandate, and execute
             the allowed adapter action that raised the receipt count and vault-recorded USDC.
+          </p>
+        </article>
+      )}
+
+      {!compact && (
+        <article className="leptonPasskeyProof">
+          <div className="leptonBoxHeader">
+            <span>Morpho-style vault proof</span>
+            <small>live adapter</small>
+          </div>
+          <div className="leptonProofFacts">
+            <div>
+              <span>Adapter</span>
+              <code title={morphoProof.adapter}>{shortAddress(morphoProof.adapter)}</code>
+            </div>
+            <div>
+              <span>Mandate</span>
+              <strong>#{morphoProof.mandateId}</strong>
+            </div>
+            <div>
+              <span>Allowed / blocked</span>
+              <strong>
+                {configured && state!.morphoDepositedUSDC !== undefined && state!.morphoBlockedUSDC !== undefined
+                  ? `${formatUSDC(state!.morphoDepositedUSDC)} / ${formatUSDC(state!.morphoBlockedUSDC)} USDC`
+                  : "0.1 / 0.3 USDC"}
+              </strong>
+            </div>
+            <div>
+              <span>Proof txs</span>
+              <a href={txUrl(morphoProof.allowTx)} target="_blank" rel="noreferrer">
+                allow
+              </a>
+              {" / "}
+              <a href={txUrl(morphoProof.blockTx)} target="_blank" rel="noreferrer">
+                block
+              </a>
+            </div>
+          </div>
+          <p>
+            The second protocol surface uses the same bonded enforcer as the v4-style adapter: one deposit-shaped action
+            moved USDC after an ALLOW receipt, and one oversized deposit wrote a BLOCK receipt without moving funds.
           </p>
         </article>
       )}

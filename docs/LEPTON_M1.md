@@ -43,7 +43,7 @@ The adapter is named `MorphoStyleVaultAdapter` because a Morpho-like deposit/all
 | Surface | Action type | Proof status | What is bound into the receipt path |
 | --- | --- | --- | --- |
 | `V4StyleArcAdapter` | `SWAP` | Deployed on Arc testnet and proven through EOA + Circle passkey flows | USDC account, amount, risk, slippage floor, target adapter, and a pool-key-shaped `executionRef` |
-| `MorphoStyleVaultAdapter` | `DEPOSIT` | Implemented and covered by tests; Arc deployment needs a separate vault sink and adapter bond | USDC account, amount, risk, target adapter, market-like parameters, and a vault deposit record |
+| `MorphoStyleVaultAdapter` | `DEPOSIT` | Deployed on Arc testnet and proven through allowed + blocked deposit actions | USDC account, amount, risk, target adapter, market-like parameters, and a vault deposit record |
 
 ## Current Arc Testnet Proof
 
@@ -56,8 +56,10 @@ Deployed June 19, 2026 on Arc Testnet (`5042002`):
 | `BondedMandateEnforcer` | `0x05a11588155c6bde55bb7b3986f200ca556b23cc` |
 | `MandateVaultSink` | `0x2b18c771466f8647df2ef32a459fcc54438b2de7` |
 | `V4StyleArcAdapter` | `0x16ebc65c9f3188734277c9fafd73d9f13b93d868` |
+| `MorphoStyleVaultAdapter` | `0x805db94a0b94c0d937063291ddaafb41690f5dee` |
+| `MorphoStyleVaultSink` | `0x0e157aeaffbebe59becb7b93007015a06c5dec90` |
 
-The current live deployment is the v4-style proof. The Morpho-style adapter is implemented and tested in this repo, but should be deployed with its own `MandateVaultSink` and posted adapter bond before it is presented as live on Arc testnet.
+The v4-style adapter and Morpho-style adapter are separate bonded surfaces that share the same `MandateRegistry`, `MandateAttestor`, and `BondedMandateEnforcer`. Each adapter has its own `MandateVaultSink`, so one proof surface does not overwrite the other.
 
 Deployment txs:
 
@@ -69,6 +71,10 @@ Deployment txs:
 - Registry recorder set: `0xc3c585a31f812fbcefd4d3eccd65fccc95ef0e782ab35691050430fd5cc72b4a`
 - Attestor recorder set: `0x92d7a6f971681fe8e489fafd115f2bc147802c79f3d1f1a87375a01216163391`
 - Vault adapter set: `0x88640fb23032725a9bde63dc2819d01e229ad4b8e2a075c9472703ab1b6365d9`
+- Morpho vault sink: `0x17fd79d065efb5a88bd2b946d8355060f1cb41815b0d461cc4155c46642e5fb1`
+- Morpho adapter: `0x6938f27ae9c5680b5cae554c98089ad28b4ddcbf45bffe568b6005ea86bf0203`
+- Morpho vault adapter set: `0x42497c0b4c5d6f1fba8d4c207a9aea9e2fb52bd1e03a4111baf20d547bbdc5a1`
+- Morpho adapter bond: `0xfbde9d9cf35a5e86e9a5af1a136cf18a48c232c3b3bdf62b25ffc1705bf03f43`
 
 Smoke proof:
 
@@ -101,6 +107,20 @@ Verified post-passkey state:
 - `V4StyleArcAdapter.executedUSDC() = 1.01 USDC`
 - `V4StyleArcAdapter.blockedUSDC() = 3 USDC`
 - `MandateVaultSink.totalDepositedUSDC() = 1.01 USDC`
+
+Morpho-style vault proof:
+
+- `createMandate`: `0xd71706058602546bc97718c0c166da602436e16041f000ffbdadccd5f380af97`
+- `ALLOW` deposit: `0x477f9378f0f8d68302d5cfa7149026e6597fadd2a9939ade4931efe72e0031cc`
+- `BLOCK` deposit: `0xcc72f59c00df7109b2140d9a30053930592df29eb72827223a8283088c12bef9`
+
+Verified post-Morpho state:
+
+- `MandateAttestor.receiptCount() = 5`
+- `MorphoStyleVaultAdapter.adapterBondUSDC() = 10 USDC`
+- `MorphoStyleVaultAdapter.depositedUSDC() = 0.1 USDC`
+- `MorphoStyleVaultAdapter.blockedUSDC() = 0.3 USDC`
+- `MorphoStyleVaultSink.totalDepositedUSDC() = 0.1 USDC`
 
 ## Deploy
 
