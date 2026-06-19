@@ -35,11 +35,13 @@ import {
   isConfigured,
   isLeptonConfigured,
   leptonAddresses,
+  mandateRegistryAbi,
   pilotAttestorAbi,
   publicClient,
   routerAbi,
   shortAddress,
   txUrl,
+  v4StyleArcAdapterAbi,
   type AgentSignal,
   type EarnedReputation,
   type IntentLog,
@@ -3147,16 +3149,14 @@ function CircleStackPanel() {
     <section id="circle-stack" className="circleStackPanel">
       <Header
         eyebrow="circle stack on arc"
-        title="One click follower onboarding, sponsored by Circle Gas Station"
+        title="Passkey-controlled USDC actions, sponsored by Circle Gas Station"
       />
       <p className="circleStackCaption">
         The card below uses <code>@circle-fin/modular-wallets-core</code> to mint a passkey
-        owned smart account and then approve, deposit, and call <code>followSource</code> in
-        one batched UserOp paid for by Circle Gas Station. The smart account becomes a real
-        Shadow follower with its own <code>minBpsOut</code>. Without this path, onboarding
-        adds 3 signatures (<code>approve</code>, <code>depositUSDC</code>, <code>followSource</code>)
-        and a gas token step, turning a single passkey tap into roughly 60 to 90 seconds
-        with a faucet or bridge in the loop. That is the measured integration test.
+        owned smart account and then run sponsored USDC actions on Arc. It can onboard as
+        a Shadow follower, or use the new Lepton mandate engine to create a
+        Circle-wallet-scoped mandate and execute an allowed adapter action in one batched
+        UserOp. Circle Gas Station pays the gas; the wallet stays self-custodial.
       </p>
       <div className="circleStackGrid circleStackGridSolo">
         <ModularWalletCard />
@@ -3175,7 +3175,7 @@ type ModularWalletState =
   | { kind: "funding"; address: Address }
   | { kind: "funded"; address: Address; tx?: string; alreadyFunded?: boolean }
   | { kind: "sending"; stage: string; address: Address }
-  | { kind: "sent"; address: Address; userOpHash: string; txHash?: string }
+  | { kind: "sent"; address: Address; userOpHash: string; txHash?: string; mode?: "follow" | "lepton"; mandateId?: bigint; amountUSDC?: bigint }
   | { kind: "error"; message: string; address?: Address };
 
 const CREDENTIAL_STORAGE_KEY = "shadow:circleModularCredential";
@@ -3435,7 +3435,7 @@ function ModularWalletCard() {
 
   async function onFund() {
     const addr =
-      state.kind === "ready" || state.kind === "funded" || state.kind === "error"
+      state.kind === "ready" || state.kind === "funded" || state.kind === "sent" || state.kind === "error"
         ? (state as any).address
         : undefined;
     if (!addr) return;
@@ -3537,6 +3537,7 @@ function ModularWalletCard() {
         address: accountAddress,
         userOpHash,
         txHash: receipt?.receipt?.transactionHash,
+        mode: "follow",
       });
     } catch (err: any) {
       const parts: string[] = [];
@@ -3564,6 +3565,135 @@ function ModularWalletCard() {
         message: insufficient
           ? `Smart account needs USDC first. Click "Fund smart account" (deployer sends 0.05 USDC) and retry.`
           : raw,
+        address: accountAddress,
+      });
+    }
+  }
+
+  async function onSponsoredLeptonMandate() {
+    const accountAddress = (state as any).address as Address | undefined;
+    if (!accountAddress || state.kind === "funding" || state.kind === "sending") return;
+    if (!addresses.usdc || !isLeptonConfigured || !leptonAddresses.mandateRegistry || !leptonAddresses.v4StyleAdapter) {
+      setState({
+        kind: "error",
+        message: "Lepton registry/adapter/usdc addresses are not configured.",
+        address: accountAddress,
+      });
+      return;
+    }
+
+    setState({ kind: "sending", stage: "loading passkey credential", address: accountAddress });
+    try {
+      const credential = await loadCredential();
+      if (!credential) throw new Error("Passkey credential missing. Log in again.");
+      const { smartAccount, bundler } = await withSmartAccount(credential);
+      const smartAddress = smartAccount.address as Address;
+      const amountUSDC = parseUnits("0.01", 6);
+      const dailyCap = parseUnits("0.02", 6);
+
+      setState({ kind: "sending", stage: "checking passkey USDC balance", address: smartAddress });
+      const balance = (await publicClient.readContract({
+        address: addresses.usdc as Address,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [smartAddress],
+      })) as bigint;
+      if (balance < amountUSDC) {
+        throw new Error(`Smart account needs at least ${formatUSDC(amountUSDC)} USDC. Click "Fund smart account" and retry.`);
+      }
+
+      setState({ kind: "sending", stage: "reading next mandate id", address: smartAddress });
+      const mandateId = (await publicClient.readContract({
+        address: leptonAddresses.mandateRegistry,
+        abi: mandateRegistryAbi,
+        functionName: "nextMandateId",
+      })) as bigint;
+      const now = Math.floor(Date.now() / 1000);
+
+      const approveData = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [leptonAddresses.v4StyleAdapter, amountUSDC],
+      });
+      const createMandateData = encodeFunctionData({
+        abi: mandateRegistryAbi,
+        functionName: "createMandate",
+        args: [
+          smartAddress,
+          addresses.usdc as Address,
+          leptonAddresses.v4StyleAdapter,
+          1,
+          amountUSDC,
+          dailyCap,
+          3,
+          9_900,
+          keccak256(stringToBytes(`shadow-lepton-passkey-${smartAddress}-${now}`)),
+        ],
+      });
+      const actionData = encodeFunctionData({
+        abi: v4StyleArcAdapterAbi,
+        functionName: "beforeSwapStyleAction",
+        args: [
+          {
+            mandateId,
+            actor: smartAddress,
+            circleAccount: smartAddress,
+            settlementAsset: addresses.usdc as Address,
+            target: leptonAddresses.v4StyleAdapter,
+            actionType: 1,
+            amountUSDC,
+            riskLevel: 2,
+            minBpsOut: 9_950,
+            expiry: BigInt(now + 86_400),
+            intentHash: keccak256(stringToBytes(`shadow-lepton-passkey-allow-${now}`)),
+            executionRef: keccak256(stringToBytes("circle-passkey-lepton-allow")),
+          },
+        ],
+      });
+
+      setState({ kind: "sending", stage: "asking Circle Gas Station to sponsor Lepton batch", address: smartAddress });
+      const userOpHash = (await (bundler as any).sendUserOperation({
+        account: smartAccount,
+        calls: [
+          { to: addresses.usdc as Address, value: 0n, data: approveData },
+          { to: leptonAddresses.mandateRegistry, value: 0n, data: createMandateData },
+          { to: leptonAddresses.v4StyleAdapter, value: 0n, data: actionData },
+        ],
+        paymaster: true,
+      })) as `0x${string}`;
+      setState({ kind: "sending", stage: "waiting for Lepton receipt", address: smartAddress });
+      const receipt = await (bundler as any).waitForUserOperationReceipt({ hash: userOpHash });
+      setState({
+        kind: "sent",
+        address: smartAddress,
+        userOpHash,
+        txHash: receipt?.receipt?.transactionHash,
+        mode: "lepton",
+        mandateId,
+        amountUSDC,
+      });
+    } catch (err: any) {
+      const parts: string[] = [];
+      let current: any = err;
+      let depth = 0;
+      while (current && depth < 8) {
+        const msg = current.shortMessage || current.message;
+        if (msg && !parts.includes(msg)) parts.push(msg);
+        if (current.details && typeof current.details === "string" && !parts.includes(current.details)) {
+          parts.push(current.details);
+        }
+        if (current.metaMessages && Array.isArray(current.metaMessages)) {
+          for (const m of current.metaMessages) {
+            if (typeof m === "string" && !parts.includes(m)) parts.push(m);
+          }
+        }
+        current = current.cause;
+        depth += 1;
+      }
+      console.error("[sponsoredLeptonMandate] full error chain", err);
+      setState({
+        kind: "error",
+        message: parts.join(" | ") || String(err),
         address: accountAddress,
       });
     }
@@ -3749,6 +3879,17 @@ function ModularWalletCard() {
                       : "Accept up to 10% slippage (was 5%, sponsored)"}
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="modularBtnPrimary"
+                  onClick={onSponsoredLeptonMandate}
+                  disabled={state.kind === "sending" || state.kind === "funding"}
+                  title="Create a Lepton mandate and execute an allowed USDC movement through the bonded adapter"
+                >
+                  {state.kind === "sending"
+                    ? `Lepton… ${state.stage}`
+                    : "Run Lepton mandate proof (sponsored)"}
+                </button>
               </div>
               {state.kind === "funded" && state.tx && (
                 <p className="modularInfo">
@@ -3764,10 +3905,21 @@ function ModularWalletCard() {
           )}
           {state.kind === "sent" && (
             <p className="modularOk">
-              <strong>Zero gas paid by your wallet.</strong> Circle Gas Station
-              sponsored the entire batched UserOp (approve + deposit +
-              followSource). Smart account is now a live {selectedSource.name}{" "}
-              follower with its own minBpsOut policy.{" "}
+              <strong>Zero gas paid by your wallet.</strong>{" "}
+              {state.mode === "lepton" ? (
+                <>
+                  Circle Gas Station sponsored the Lepton batch: approve USDC,
+                  create mandate #{state.mandateId?.toString()}, then execute{" "}
+                  {state.amountUSDC ? formatUSDC(state.amountUSDC) : "0.01"} USDC
+                  through the bonded adapter with an ALLOW receipt and vault record.{" "}
+                </>
+              ) : (
+                <>
+                  Circle Gas Station sponsored the entire batched UserOp (approve + deposit +
+                  followSource). Smart account is now a live {selectedSource.name}{" "}
+                  follower with its own minBpsOut policy.{" "}
+                </>
+              )}
               {state.txHash ? (
                 <a href={txUrl(state.txHash as `0x${string}`)} target="_blank" rel="noreferrer">
                   view batched tx

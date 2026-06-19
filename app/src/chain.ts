@@ -111,6 +111,7 @@ export const mandateRegistryAbi = parseAbi([
   "function nextMandateId() view returns (uint256)",
   "function getMandateSpend(uint256 mandateId) view returns (uint256 spentToday, uint64 day)",
   "function getMandateAccounts(uint256 mandateId) view returns (address mandateOwner, address circleAccount, address requiredSettlementAsset, address allowedTarget)",
+  "function createMandate(address circleAccount,address requiredSettlementAsset,address allowedTarget,uint8 actionType,uint256 maxAmountPerIntent,uint256 dailyCap,uint8 maxRiskLevel,uint16 minBpsOut,bytes32 labelHash) returns (uint256)",
 ]);
 
 export const mandateAttestorAbi = parseAbi([
@@ -129,6 +130,7 @@ export const v4StyleArcAdapterAbi = parseAbi([
   "function executedUSDC() view returns (uint256)",
   "function blockedUSDC() view returns (uint256)",
   "function liquiditySink() view returns (address)",
+  "function beforeSwapStyleAction((uint256 mandateId,address actor,address circleAccount,address settlementAsset,address target,uint8 actionType,uint256 amountUSDC,uint8 riskLevel,uint16 minBpsOut,uint256 expiry,bytes32 intentHash,bytes32 executionRef) action) returns (bytes32 receiptHash,bool allowed,uint8 reason)",
 ]);
 
 export const mandateVaultSinkAbi = parseAbi([
