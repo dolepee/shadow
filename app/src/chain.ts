@@ -38,6 +38,13 @@ export const addresses = {
   pilotAttestor: readAddress("VITE_SHADOW_PILOT_ATTESTOR"),
 };
 
+export const leptonAddresses = {
+  mandateRegistry: readAddress("VITE_SHADOW_MANDATE_REGISTRY", "0x394b6955162ce147e813e0eea6104cd1164e3d33"),
+  mandateAttestor: readAddress("VITE_SHADOW_MANDATE_ATTESTOR", "0x440ef290d63174182c6115b4356727e0ac136d48"),
+  bondedEnforcer: readAddress("VITE_SHADOW_BONDED_ENFORCER", "0x05a11588155c6bde55bb7b3986f200ca556b23cc"),
+  v4StyleAdapter: readAddress("VITE_SHADOW_V4_STYLE_ADAPTER", "0x16ebc65c9f3188734277c9fafd73d9f13b93d868"),
+};
+
 export const startBlock = BigInt(import.meta.env.VITE_SHADOW_START_BLOCK || 0);
 
 export const arcExplorerUrl = "https://testnet.arcscan.app";
@@ -47,6 +54,13 @@ export function txUrl(hash: `0x${string}`): string {
 }
 
 export const isConfigured = Boolean(addresses.arceth && addresses.amm && addresses.registry && addresses.router);
+
+export const isLeptonConfigured = Boolean(
+  leptonAddresses.mandateRegistry &&
+    leptonAddresses.mandateAttestor &&
+    leptonAddresses.bondedEnforcer &&
+    leptonAddresses.v4StyleAdapter,
+);
 
 export const publicClient = createPublicClient({
   chain: arcTestnet,
@@ -91,6 +105,35 @@ export const pilotAttestorAbi = parseAbi([
   "function attest(bytes32 decisionHash, uint256 totalUSDC, uint8 sliceCount, uint16 confidenceBps, bytes32 modelHash)",
   "function attestationCount() view returns (uint256)",
   "function attestationsByFollower(address) view returns (uint256)",
+]);
+
+export const mandateRegistryAbi = parseAbi([
+  "function nextMandateId() view returns (uint256)",
+  "function getMandateSpend(uint256 mandateId) view returns (uint256 spentToday, uint64 day)",
+  "function getMandateAccounts(uint256 mandateId) view returns (address mandateOwner, address circleAccount, address requiredSettlementAsset, address allowedTarget)",
+]);
+
+export const mandateAttestorAbi = parseAbi([
+  "function nextReceiptId() view returns (uint256)",
+  "function receiptCount() view returns (uint256)",
+  "function receiptByActionHash(bytes32 actionHash) view returns (bytes32)",
+]);
+
+export const bondedMandateEnforcerAbi = parseAbi([
+  "function minBondUSDC() view returns (uint256)",
+  "function bondUSDC(address enforcer) view returns (uint256)",
+]);
+
+export const v4StyleArcAdapterAbi = parseAbi([
+  "function adapterBondUSDC() view returns (uint256)",
+  "function executedUSDC() view returns (uint256)",
+  "function blockedUSDC() view returns (uint256)",
+  "function liquiditySink() view returns (address)",
+]);
+
+export const mandateVaultSinkAbi = parseAbi([
+  "function totalDepositedUSDC() view returns (uint256)",
+  "function adapter() view returns (address)",
 ]);
 
 const intentPublishedEvent = parseAbiItem(
@@ -214,6 +257,21 @@ export type ShadowState = {
   fetchedAt: number;
 };
 
+export type LeptonState = {
+  configured: boolean;
+  nextMandateId: bigint;
+  mandateCount: bigint;
+  nextReceiptId: bigint;
+  receiptCount: bigint;
+  minBondUSDC: bigint;
+  adapterBondUSDC: bigint;
+  executedUSDC: bigint;
+  blockedUSDC: bigint;
+  vaultDepositedUSDC?: bigint;
+  liquiditySink?: Address;
+  fetchedAt: number;
+};
+
 export type HydratedLifetimeTotals = Omit<LifetimeTotals, "mirroredUsdcAtomic"> & {
   mirroredUsdcAtomic: bigint;
 };
@@ -221,6 +279,76 @@ export type HydratedLifetimeTotals = Omit<LifetimeTotals, "mirroredUsdcAtomic"> 
 export type HydratedRecentWindowTotals = Omit<RecentWindowTotals, "mirroredUsdcAtomic"> & {
   mirroredUsdcAtomic: bigint;
 };
+
+export async function fetchLeptonState(): Promise<LeptonState | null> {
+  if (!isLeptonConfigured) return null;
+
+  const [nextMandateId, nextReceiptId, receiptCount, minBondUSDC, adapterBondUSDC, executedUSDC, blockedUSDC, liquiditySink] =
+    await Promise.all([
+      publicClient.readContract({
+        address: leptonAddresses.mandateRegistry!,
+        abi: mandateRegistryAbi,
+        functionName: "nextMandateId",
+      }),
+      publicClient.readContract({
+        address: leptonAddresses.mandateAttestor!,
+        abi: mandateAttestorAbi,
+        functionName: "nextReceiptId",
+      }),
+      publicClient.readContract({
+        address: leptonAddresses.mandateAttestor!,
+        abi: mandateAttestorAbi,
+        functionName: "receiptCount",
+      }),
+      publicClient.readContract({
+        address: leptonAddresses.bondedEnforcer!,
+        abi: bondedMandateEnforcerAbi,
+        functionName: "minBondUSDC",
+      }),
+      publicClient.readContract({
+        address: leptonAddresses.v4StyleAdapter!,
+        abi: v4StyleArcAdapterAbi,
+        functionName: "adapterBondUSDC",
+      }),
+      publicClient.readContract({
+        address: leptonAddresses.v4StyleAdapter!,
+        abi: v4StyleArcAdapterAbi,
+        functionName: "executedUSDC",
+      }),
+      publicClient.readContract({
+        address: leptonAddresses.v4StyleAdapter!,
+        abi: v4StyleArcAdapterAbi,
+        functionName: "blockedUSDC",
+      }),
+      publicClient.readContract({
+        address: leptonAddresses.v4StyleAdapter!,
+        abi: v4StyleArcAdapterAbi,
+        functionName: "liquiditySink",
+      }),
+    ]);
+  const vaultDepositedUSDC = await publicClient
+    .readContract({
+      address: liquiditySink,
+      abi: mandateVaultSinkAbi,
+      functionName: "totalDepositedUSDC",
+    })
+    .catch(() => undefined);
+
+  return {
+    configured: true,
+    nextMandateId,
+    mandateCount: nextMandateId > 0n ? nextMandateId - 1n : 0n,
+    nextReceiptId,
+    receiptCount,
+    minBondUSDC,
+    adapterBondUSDC,
+    executedUSDC,
+    blockedUSDC,
+    vaultDepositedUSDC,
+    liquiditySink,
+    fetchedAt: Date.now(),
+  };
+}
 
 type SerializedShadowState = {
   configured?: boolean;

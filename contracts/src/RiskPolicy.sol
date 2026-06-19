@@ -34,14 +34,27 @@ library RiskPolicy {
         uint8 riskLevel,
         uint256 expiry
     ) internal view returns (BlockReason) {
+        Policy memory snapshot = policy;
+        return evaluateSnapshot(snapshot, followerBalance, asset, amountUSDC, riskLevel, expiry, block.timestamp);
+    }
+
+    function evaluateSnapshot(
+        Policy memory policy,
+        uint256 followerBalance,
+        address asset,
+        uint256 amountUSDC,
+        uint8 riskLevel,
+        uint256 expiry,
+        uint256 timestamp
+    ) internal pure returns (BlockReason) {
         if (!policy.active) return BlockReason.NOT_FOLLOWING;
-        if (expiry < block.timestamp) return BlockReason.INTENT_EXPIRED;
+        if (expiry < timestamp) return BlockReason.INTENT_EXPIRED;
         if (followerBalance < amountUSDC) return BlockReason.INSUFFICIENT_BALANCE;
         if (amountUSDC > policy.maxAmountPerIntent) return BlockReason.AMOUNT_TOO_HIGH;
         if (policy.allowedAsset != asset) return BlockReason.ASSET_NOT_ALLOWED;
         if (riskLevel > policy.maxRiskLevel) return BlockReason.RISK_TOO_HIGH;
 
-        uint64 currentDay = uint64(block.timestamp / 1 days);
+        uint64 currentDay = uint64(timestamp / 1 days);
         uint256 spent = policy.day == currentDay ? policy.spentToday : 0;
         if (policy.dailyCap > 0 && spent + amountUSDC > policy.dailyCap) {
             return BlockReason.DAILY_CAP_EXCEEDED;

@@ -6,6 +6,8 @@ Autonomous USDC flow needs more than execution. It needs a settlement rail where
 
 Submission snapshot, May 24, 2026: **30 follower wallets, 2,893 MirrorReceipt events (463 COPIED / 2,430 BLOCKED), 173 PositionClosed events, 13.355 USDC mirrored, and 3 source agents.** The BLOCKED receipts are the policy layer working, not failed volume.
 
+Lepton M1 adds the protocol-facing version of the same primitive: a Circle-wallet-scoped USDC mandate is checked before capital moves, every `ALLOW` or `BLOCK` is recorded through `MandateAttestor`, and the enforcing adapter must be bonded. See [`docs/LEPTON_M1.md`](docs/LEPTON_M1.md).
+
 USDC agents need more than wallets. They need policy-controlled delegation, onchain refusal receipts, and earned reputation before autonomous capital can move safely. Shadow is that layer: source agents publish intents, followers define risk policies, and `MirrorRouter` either executes or refuses per follower with an onchain receipt.
 
 Three source agents (CatArb, LobsterRisk, MomentumOtter) compete on Arc Testnet. Each publishes intents every 10 minutes. Followers stake one or many through their own onchain policy. `MirrorRouter` evaluates the policy per follower at the receipt event and emits **COPIED** or **BLOCKED** with the exact reason in a single transaction. The **Pilot** reads live source reputation, recommends an allocation, and anchors its plan onchain through `PilotAttestor`. The **Watch Signal** on `/agents` scores each source live as Healthy / Watch / Stop from receipts and realized PnL, so trust can be earned and lost without anyone editing a leaderboard.

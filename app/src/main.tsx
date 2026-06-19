@@ -28,10 +28,13 @@ import {
   arcTestnet,
   computeEarnedReputation,
   erc20Abi,
+  fetchLeptonState,
   fetchShadowState,
   formatAsset,
   formatUSDC,
   isConfigured,
+  isLeptonConfigured,
+  leptonAddresses,
   pilotAttestorAbi,
   publicClient,
   routerAbi,
@@ -40,6 +43,7 @@ import {
   type AgentSignal,
   type EarnedReputation,
   type IntentLog,
+  type LeptonState,
   type PositionCloseLog,
   type ReceiptLog,
   type ShadowState,
@@ -196,6 +200,9 @@ function App() {
   const [pilotLoading, setPilotLoading] = useState(false);
   const [pilotExecuting, setPilotExecuting] = useState(false);
   const [pilotError, setPilotError] = useState<string | null>(null);
+  const [leptonState, setLeptonState] = useState<LeptonState | null>(null);
+  const [leptonLoading, setLeptonLoading] = useState(false);
+  const [leptonError, setLeptonError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -231,6 +238,24 @@ function App() {
   useEffect(() => {
     refresh();
     const interval = setInterval(refresh, 15_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function refreshLepton() {
+    setLeptonLoading(true);
+    try {
+      setLeptonState(await fetchLeptonState());
+      setLeptonError(null);
+    } catch (error) {
+      setLeptonError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLeptonLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refreshLepton();
+    const interval = setInterval(refreshLepton, 20_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -978,7 +1003,15 @@ function App() {
 
       <BuilderFeesBanner state={state} />
 
+      <LeptonM1Panel state={leptonState} loading={leptonLoading} error={leptonError} compact />
+
       <TechnicalPrimitive state={state} />
+    </>
+  );
+
+  const leptonPage = (
+    <>
+      <LeptonM1Panel state={leptonState} loading={leptonLoading} error={leptonError} />
     </>
   );
 
@@ -1001,6 +1034,9 @@ function App() {
           </NavLink>
           <NavLink to="/receipts" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Receipts
+          </NavLink>
+          <NavLink to="/lepton" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+            Mandates
           </NavLink>
         </div>
         <div className="navActions">
@@ -1026,6 +1062,7 @@ function App() {
         <Route path="/agents" element={agentsPage} />
         <Route path="/follow" element={followPage} />
         <Route path="/receipts" element={receiptsPage} />
+        <Route path="/lepton" element={leptonPage} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
@@ -2773,6 +2810,126 @@ function TechnicalPrimitive({ state }: { state: ShadowState | null }) {
         ))}
       </div>
     </section>
+  );
+}
+
+function LeptonM1Panel({
+  state,
+  loading,
+  error,
+  compact = false,
+}: {
+  state: LeptonState | null;
+  loading: boolean;
+  error: string | null;
+  compact?: boolean;
+}) {
+  const configured = Boolean(isLeptonConfigured && state?.configured);
+  const addressRows = [
+    { label: "MandateRegistry", value: leptonAddresses.mandateRegistry },
+    { label: "MandateAttestor", value: leptonAddresses.mandateAttestor },
+    { label: "BondedEnforcer", value: leptonAddresses.bondedEnforcer },
+    { label: "V4StyleArcAdapter", value: leptonAddresses.v4StyleAdapter },
+    { label: "MandateVaultSink", value: state?.liquiditySink },
+  ];
+  const proofSteps = [
+    "Circle wallet is the scoped capital account",
+    "MandateRegistry checks USDC, target, size, day cap, risk, expiry, and slippage",
+    "MandateAttestor records ALLOW or BLOCK against the action hash",
+    "V4StyleArcAdapter moves USDC only after an ALLOW receipt",
+    "MandateVaultSink records the receipt-linked deposit",
+    "Committed missing receipts can be challenged against the enforcer bond",
+  ];
+  const updated = state ? new Date(state.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
+
+  return (
+    <section className={`leptonPanel${compact ? " leptonPanelCompact" : ""}`} id="lepton-m1">
+      <div className="leptonHeader">
+        <div>
+          <p className="eyebrow">Lepton M1 · protocol mandates</p>
+          <h2>USDC policy enforcement before capital moves.</h2>
+          <p className="leptonLede">
+            The copy-trading router is adapter one. This surface exposes the reusable primitive: mandate, pre-execution
+            receipt, bonded enforcer, then DeFi action.
+          </p>
+        </div>
+        <div className={`leptonStatus ${configured ? "configured" : "pending"}`}>
+          <span className="leptonStatusDot" />
+          {configured ? "live contract reads" : "deploy pending"}
+          {loading && <small>syncing</small>}
+        </div>
+      </div>
+
+      <div className="leptonMetricGrid">
+        <LeptonMetric label="mandates" value={configured ? state!.mandateCount.toString() : "pending"} />
+        <LeptonMetric label="receipts" value={configured ? state!.receiptCount.toString() : "pending"} />
+        <LeptonMetric label="adapter bond" value={configured ? `${formatUSDC(state!.adapterBondUSDC)} USDC` : "pending"} />
+        <LeptonMetric label="minimum bond" value={configured ? `${formatUSDC(state!.minBondUSDC)} USDC` : "pending"} />
+        <LeptonMetric label="allowed USDC" value={configured ? formatUSDC(state!.executedUSDC) : "0"} tone="allow" />
+        <LeptonMetric
+          label="vault recorded"
+          value={configured && state!.vaultDepositedUSDC !== undefined ? formatUSDC(state!.vaultDepositedUSDC) : "pending"}
+          tone="allow"
+        />
+        <LeptonMetric label="blocked USDC" value={configured ? formatUSDC(state!.blockedUSDC) : "0"} tone="block" />
+      </div>
+
+      <div className="leptonGrid">
+        <article className="leptonBox">
+          <div className="leptonBoxHeader">
+            <span>contracts</span>
+            {updated && <small>updated {updated}</small>}
+          </div>
+          <div className="leptonAddressList">
+            {addressRows.map((row) => (
+              <div className="leptonAddressRow" key={row.label}>
+                <span>{row.label}</span>
+                <code>{row.value ? shortAddress(row.value) : "not deployed"}</code>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="leptonBox">
+          <div className="leptonBoxHeader">
+            <span>receipt chain</span>
+            <small>{configured ? `next #${state!.nextReceiptId.toString()}` : "waiting for deploy"}</small>
+          </div>
+          <ol className="leptonProofList">
+            {proofSteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </article>
+      </div>
+
+      {error && <div className="leptonError">Lepton read failed: {error}</div>}
+
+      {!compact && (
+        <div className="leptonBoundaries">
+          <span>v4-style adapter, not a claimed Uniswap hook</span>
+          <span>objective missing-receipt slashing only</span>
+          <span>deterministic policy; no LLM override</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function LeptonMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "allow" | "block";
+}) {
+  return (
+    <article className={`leptonMetric${tone ? ` ${tone}` : ""}`}>
+      <p>{label}</p>
+      <strong>{value}</strong>
+    </article>
   );
 }
 

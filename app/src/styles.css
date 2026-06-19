@@ -113,6 +113,282 @@ html {
   text-transform: none;
 }
 
+.leptonPanel {
+  background:
+    linear-gradient(135deg, rgba(15, 29, 49, 0.94), rgba(11, 23, 40, 0.9)),
+    linear-gradient(90deg, rgba(77, 240, 168, 0.08), rgba(52, 229, 255, 0.08));
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  box-shadow: 0 24px 90px -70px rgba(52, 229, 255, 0.55);
+  margin: 28px 0;
+  padding: 24px;
+}
+
+.leptonPanelCompact {
+  margin-top: 22px;
+}
+
+.leptonHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+}
+
+.leptonHeader h2 {
+  font-size: clamp(28px, 4vw, 48px);
+  letter-spacing: -0.03em;
+  line-height: 0.96;
+  margin: 0;
+  max-width: 760px;
+}
+
+.leptonLede {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 14px 0 0;
+  max-width: 760px;
+}
+
+.leptonStatus {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  gap: 8px;
+  padding: 8px 11px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.leptonStatus small {
+  color: var(--ink-faint);
+  font-size: 10px;
+  text-transform: none;
+}
+
+.leptonStatus.configured {
+  border-color: var(--copy-glow);
+  color: var(--copy);
+}
+
+.leptonStatus.pending {
+  border-color: var(--warn-soft);
+  color: var(--warn);
+}
+
+.leptonStatusDot {
+  background: currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 18px currentColor;
+  display: inline-block;
+  height: 7px;
+  width: 7px;
+}
+
+.leptonMetricGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-top: 22px;
+}
+
+.leptonMetric {
+  background: rgba(7, 17, 31, 0.54);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 96px;
+  padding: 14px;
+}
+
+.leptonMetric p {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  margin: 0 0 14px;
+  text-transform: uppercase;
+}
+
+.leptonMetric strong {
+  color: var(--ink);
+  display: block;
+  font-size: 21px;
+  letter-spacing: 0;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.leptonMetric.allow strong {
+  color: var(--copy);
+}
+
+.leptonMetric.block strong {
+  color: var(--block);
+}
+
+.leptonGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  margin-top: 14px;
+}
+
+.leptonBox {
+  background: rgba(7, 17, 31, 0.42);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.leptonBoxHeader {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+}
+
+.leptonBoxHeader span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.leptonBoxHeader small {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.leptonAddressList {
+  display: grid;
+  gap: 8px;
+}
+
+.leptonAddressRow {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.leptonAddressRow span {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.leptonAddressRow code {
+  background: rgba(184, 211, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 5px 7px;
+}
+
+.leptonProofList {
+  counter-reset: leptonProof;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.leptonProofList li {
+  align-items: flex-start;
+  color: var(--ink-soft);
+  display: grid;
+  font-size: 13px;
+  gap: 10px;
+  grid-template-columns: 24px 1fr;
+  line-height: 1.4;
+}
+
+.leptonProofList li::before {
+  align-items: center;
+  background: var(--signal-soft);
+  border: 1px solid var(--signal-line);
+  border-radius: 50%;
+  color: var(--signal);
+  content: counter(leptonProof);
+  counter-increment: leptonProof;
+  display: inline-flex;
+  font-family: var(--mono);
+  font-size: 10px;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.leptonError {
+  background: var(--block-soft);
+  border: 1px solid var(--block-line);
+  border-radius: 8px;
+  color: var(--block);
+  font-size: 13px;
+  margin-top: 14px;
+  padding: 10px 12px;
+}
+
+.leptonBoundaries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.leptonBoundaries span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 7px 10px;
+}
+
+@media (max-width: 980px) {
+  .leptonHeader {
+    flex-direction: column;
+  }
+
+  .leptonMetricGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .leptonGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .leptonPanel {
+    padding: 18px;
+  }
+
+  .leptonHeader h2 {
+    font-size: 31px;
+  }
+
+  .leptonMetricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .leptonAddressRow {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+}
+
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
