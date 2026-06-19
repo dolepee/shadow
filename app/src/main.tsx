@@ -1014,6 +1014,7 @@ function App() {
   const leptonPage = (
     <>
       <LeptonM1Panel state={leptonState} loading={leptonLoading} error={leptonError} />
+      <CircleStackPanel />
     </>
   );
 
