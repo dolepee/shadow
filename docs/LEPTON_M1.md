@@ -72,6 +72,22 @@ Verified post-smoke state:
 - `V4StyleArcAdapter.blockedUSDC() = 3 USDC`
 - `MandateVaultSink.totalDepositedUSDC() = 1 USDC`
 
+Circle passkey proof:
+
+- Smart account: `0x6994ebdef63aa0e665e3c781ed54e2e181869a7a`
+- Batched sponsored tx: `0x98b8b175d4ec8bf6d457d653383932e69d74300bd0b8a7e324e0cae3ac35a529`
+- Mandate created: `#2`
+- Allowed action: `0.01 USDC`
+- Flow: Circle passkey MSCA approved USDC, created a mandate, and executed the Lepton adapter action in one Circle Gas Station sponsored UserOp.
+
+Verified post-passkey state:
+
+- `MandateAttestor.receiptCount() = 3`
+- `V4StyleArcAdapter.adapterBondUSDC() = 10 USDC`
+- `V4StyleArcAdapter.executedUSDC() = 1.01 USDC`
+- `V4StyleArcAdapter.blockedUSDC() = 3 USDC`
+- `MandateVaultSink.totalDepositedUSDC() = 1.01 USDC`
+
 ## Deploy
 
 ```bash

@@ -2843,6 +2843,12 @@ function LeptonM1Panel({
     "MandateVaultSink records the receipt-linked deposit",
     "Committed missing receipts can be challenged against the enforcer bond",
   ];
+  const circlePasskeyProof = {
+    smartAccount: "0x6994ebdef63aa0e665e3c781ed54e2e181869a7a" as Address,
+    txHash: "0x98b8b175d4ec8bf6d457d653383932e69d74300bd0b8a7e324e0cae3ac35a529" as `0x${string}`,
+    mandateId: "2",
+    amount: "0.01 USDC",
+  };
   const updated = state ? new Date(state.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
 
   return (
@@ -2905,6 +2911,39 @@ function LeptonM1Panel({
           </ol>
         </article>
       </div>
+
+      {!compact && (
+        <article className="leptonPasskeyProof">
+          <div className="leptonBoxHeader">
+            <span>Circle passkey proof</span>
+            <small>sponsored UserOp</small>
+          </div>
+          <div className="leptonProofFacts">
+            <div>
+              <span>Smart account</span>
+              <code title={circlePasskeyProof.smartAccount}>{shortAddress(circlePasskeyProof.smartAccount)}</code>
+            </div>
+            <div>
+              <span>Mandate</span>
+              <strong>#{circlePasskeyProof.mandateId}</strong>
+            </div>
+            <div>
+              <span>Allowed</span>
+              <strong>{circlePasskeyProof.amount}</strong>
+            </div>
+            <div>
+              <span>Proof tx</span>
+              <a href={txUrl(circlePasskeyProof.txHash)} target="_blank" rel="noreferrer">
+                {shortAddress(circlePasskeyProof.txHash)}
+              </a>
+            </div>
+          </div>
+          <p>
+            Circle Gas Station sponsored one passkey-owned account to approve USDC, create a Lepton mandate, and execute
+            the allowed adapter action that raised the receipt count and vault-recorded USDC.
+          </p>
+        </article>
+      )}
 
       {error && <div className="leptonError">Lepton read failed: {error}</div>}
 

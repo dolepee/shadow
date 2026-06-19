@@ -329,6 +329,63 @@ html {
   width: 22px;
 }
 
+.leptonPasskeyProof {
+  background:
+    linear-gradient(135deg, rgba(77, 240, 168, 0.1), rgba(52, 229, 255, 0.06)),
+    rgba(7, 17, 31, 0.46);
+  border: 1px solid var(--copy-glow);
+  border-radius: 10px;
+  margin-top: 14px;
+  padding: 16px;
+}
+
+.leptonPasskeyProof p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 12px 0 0;
+  max-width: 920px;
+}
+
+.leptonProofFacts {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.leptonProofFacts div {
+  background: rgba(7, 17, 31, 0.54);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px;
+}
+
+.leptonProofFacts span {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.leptonProofFacts code,
+.leptonProofFacts strong,
+.leptonProofFacts a {
+  color: var(--copy);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.leptonProofFacts a:hover {
+  color: var(--signal);
+}
+
 .leptonError {
   background: var(--block-soft);
   border: 1px solid var(--block-line);
@@ -367,6 +424,10 @@ html {
   .leptonGrid {
     grid-template-columns: 1fr;
   }
+
+  .leptonProofFacts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -380,6 +441,10 @@ html {
 
   .leptonMetricGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .leptonProofFacts {
+    grid-template-columns: 1fr;
   }
 
   .leptonAddressRow {
