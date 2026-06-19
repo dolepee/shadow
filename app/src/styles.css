@@ -235,7 +235,7 @@ html {
 .leptonGrid {
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 14px;
 }
 
@@ -292,6 +292,47 @@ html {
   font-family: var(--mono);
   font-size: 12px;
   padding: 5px 7px;
+}
+
+.leptonSurfaceList {
+  display: grid;
+  gap: 10px;
+}
+
+.leptonSurfaceRow {
+  background: rgba(184, 211, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr auto;
+  padding: 11px;
+}
+
+.leptonSurfaceRow strong {
+  color: var(--ink);
+  display: block;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.leptonSurfaceRow p {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 5px 0 0;
+}
+
+.leptonSurfaceRow code {
+  align-self: start;
+  background: rgba(77, 240, 168, 0.08);
+  border: 1px solid var(--copy-glow);
+  border-radius: 999px;
+  color: var(--copy);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 5px 7px;
+  white-space: nowrap;
 }
 
 .leptonProofList {
@@ -451,6 +492,10 @@ html {
     align-items: flex-start;
     flex-direction: column;
     gap: 5px;
+  }
+
+  .leptonSurfaceRow {
+    grid-template-columns: 1fr;
   }
 }
 

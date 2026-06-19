@@ -2839,9 +2839,21 @@ function LeptonM1Panel({
     "Circle wallet is the scoped capital account",
     "MandateRegistry checks USDC, target, size, day cap, risk, expiry, and slippage",
     "MandateAttestor records ALLOW or BLOCK against the action hash",
-    "V4StyleArcAdapter moves USDC only after an ALLOW receipt",
+    "V4StyleArcAdapter is swap-only and moves USDC only after an ALLOW receipt",
     "MandateVaultSink records the receipt-linked deposit",
     "Committed missing receipts can be challenged against the enforcer bond",
+  ];
+  const adapterSurfaces = [
+    {
+      name: "Uniswap v4-style swaps",
+      status: configured ? "live proof" : "deploy pending",
+      detail: "Pool-key execution refs bind currency pair, fee tier, tick spacing, hooks, and route salt.",
+    },
+    {
+      name: "Morpho-style vault deposits",
+      status: "tested code",
+      detail: "Deposit-only adapter gates USDC before vault movement through the same bonded enforcer.",
+    },
   ];
   const circlePasskeyProof = {
     smartAccount: "0x6994ebdef63aa0e665e3c781ed54e2e181869a7a" as Address,
@@ -2859,7 +2871,7 @@ function LeptonM1Panel({
           <h2>USDC policy enforcement before capital moves.</h2>
           <p className="leptonLede">
             The copy-trading router is adapter one. This surface exposes the reusable primitive: mandate, pre-execution
-            receipt, bonded enforcer, then DeFi action.
+            receipt, bonded enforcer, then DeFi action across swap and vault-style adapters.
           </p>
         </div>
         <div className={`leptonStatus ${configured ? "configured" : "pending"}`}>
@@ -2910,6 +2922,24 @@ function LeptonM1Panel({
             ))}
           </ol>
         </article>
+
+        <article className="leptonBox">
+          <div className="leptonBoxHeader">
+            <span>protocol adapters</span>
+            <small>one mandate engine</small>
+          </div>
+          <div className="leptonSurfaceList">
+            {adapterSurfaces.map((surface) => (
+              <div className="leptonSurfaceRow" key={surface.name}>
+                <div>
+                  <strong>{surface.name}</strong>
+                  <p>{surface.detail}</p>
+                </div>
+                <code>{surface.status}</code>
+              </div>
+            ))}
+          </div>
+        </article>
       </div>
 
       {!compact && (
@@ -2950,6 +2980,7 @@ function LeptonM1Panel({
       {!compact && (
         <div className="leptonBoundaries">
           <span>v4-style adapter, not a claimed Uniswap hook</span>
+          <span>Morpho-style adapter, not a claimed Morpho partnership</span>
           <span>objective missing-receipt slashing only</span>
           <span>deterministic policy; no LLM override</span>
         </div>

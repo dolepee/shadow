@@ -9,8 +9,9 @@ It is intentionally separate from `MirrorRouter`. Copy-trading remains adapter o
 - `MandateRegistry`: stores a Circle-wallet-scoped USDC mandate with max size, daily cap, risk limit, slippage floor, action type, and target.
 - `MandateAttestor`: records neutral `ALLOW` / `BLOCK` receipts keyed by mandate hash and action hash.
 - `BondedMandateEnforcer`: requires a USDC bond before an enforcer can write receipts or consume mandate spend; committed actions with missing receipts can be challenged and slashed.
-- `V4StyleArcAdapter`: an honestly labeled v4-style Arc adapter that checks a mandate before moving USDC to a liquidity sink.
-- `MandateVaultSink`: a tiny protocol-like vault destination that records receipt-linked USDC deposits after the adapter moves funds.
+- `V4StyleArcAdapter`: an honestly labeled v4-style Arc adapter that is swap-only, checks a mandate before moving USDC to a liquidity sink, and exposes pool-key execution references for future PoolManager/hook integration.
+- `MorphoStyleVaultAdapter`: an honestly labeled Morpho-style deposit adapter that is deposit-only, checks the same mandate engine before moving USDC to a vault sink, and binds execution references to market-like fields.
+- `MandateVaultSink`: a tiny protocol-like vault destination that records receipt-linked USDC deposits after an adapter moves funds. Each protocol adapter should use its own sink.
 - `RiskPolicy.evaluateSnapshot`: pure policy evaluation support reused from the existing copy-trading router.
 
 ## What This Proves
@@ -23,15 +24,26 @@ It is intentionally separate from `MirrorRouter`. Copy-trading remains adapter o
 6. The adapter cannot enforce without a posted USDC bond.
 7. A bonded enforcer that commits to an action and misses the receipt deadline can be slashed objectively.
 8. The existing `MirrorRouter` path still passes its full test suite.
+9. The same mandate engine can gate more than one DeFi adapter surface: swap-style flow for Uniswap v4 readiness and deposit-style flow for Morpho-like allocation.
 
 ## What This Does Not Claim
 
 - This is not a live Uniswap v4 hook on Arc.
+- This is not a live Morpho integration.
 - This is not a claimed protocol partnership.
 - This does not add subjective slashing or human disputes.
 - This does not let an LLM override deterministic policy.
 
 The adapter is named `V4StyleArcAdapter` because Arc has announced Uniswap support, but Uniswap's official v4 deployment list does not currently publish an Arc PoolManager address. When an official Arc PoolManager exists, the adapter can be replaced by a real hook that calls the same mandate engine.
+
+The adapter is named `MorphoStyleVaultAdapter` because a Morpho-like deposit/allocation gate is the realistic first protocol-design-partner shape before Arc has live Uniswap v4 hooks. It is not claiming Morpho partnership or production integration; it proves that the primitive can gate a vault deposit before USDC moves.
+
+## Protocol Adapter Surfaces
+
+| Surface | Action type | Proof status | What is bound into the receipt path |
+| --- | --- | --- | --- |
+| `V4StyleArcAdapter` | `SWAP` | Deployed on Arc testnet and proven through EOA + Circle passkey flows | USDC account, amount, risk, slippage floor, target adapter, and a pool-key-shaped `executionRef` |
+| `MorphoStyleVaultAdapter` | `DEPOSIT` | Implemented and covered by tests; Arc deployment needs a separate vault sink and adapter bond | USDC account, amount, risk, target adapter, market-like parameters, and a vault deposit record |
 
 ## Current Arc Testnet Proof
 
@@ -44,6 +56,8 @@ Deployed June 19, 2026 on Arc Testnet (`5042002`):
 | `BondedMandateEnforcer` | `0x05a11588155c6bde55bb7b3986f200ca556b23cc` |
 | `MandateVaultSink` | `0x2b18c771466f8647df2ef32a459fcc54438b2de7` |
 | `V4StyleArcAdapter` | `0x16ebc65c9f3188734277c9fafd73d9f13b93d868` |
+
+The current live deployment is the v4-style proof. The Morpho-style adapter is implemented and tested in this repo, but should be deployed with its own `MandateVaultSink` and posted adapter bond before it is presented as live on Arc testnet.
 
 Deployment txs:
 
@@ -133,7 +147,7 @@ npm run contracts:build
 npm run contracts:test
 ```
 
-Expected result at introduction: 36 tests pass across `ShadowFlow`, `MandateEnforcer`, and `V4StyleArcAdapter`.
+Expected result after the protocol-adapter expansion: 45 tests pass across `ShadowFlow`, `MandateEnforcer`, `V4StyleArcAdapter`, and `MorphoStyleVaultAdapter`.
 
 ## App Surface
 

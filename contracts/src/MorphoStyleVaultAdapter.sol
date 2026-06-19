@@ -6,27 +6,20 @@ import {IERC20} from "./interfaces/IERC20.sol";
 import {MandateRegistry} from "./MandateRegistry.sol";
 import {RiskPolicy} from "./RiskPolicy.sol";
 
-interface IMandateVaultSink {
+interface IMorphoStyleVaultSink {
     function recordDeposit(address circleAccount, uint256 amountUSDC, bytes32 receiptHash, bytes32 actionHash) external;
 }
 
-contract V4StyleArcAdapter {
-    struct V4PoolKey {
-        address currency0;
-        address currency1;
-        uint24 fee;
-        int24 tickSpacing;
-        address hooks;
-    }
-
+contract MorphoStyleVaultAdapter {
     IERC20 public immutable usdc;
     BondedMandateEnforcer public immutable enforcer;
-    address public immutable liquiditySink;
-    uint256 public executedUSDC;
+    address public immutable vaultSink;
+    bytes32 public immutable marketId;
+    uint256 public depositedUSDC;
     uint256 public blockedUSDC;
 
     event AdapterBondPosted(address indexed funder, uint256 amountUSDC, uint256 adapterBondUSDC);
-    event V4StyleActionChecked(
+    event MorphoStyleDepositChecked(
         bytes32 indexed receiptHash,
         uint256 indexed mandateId,
         address indexed circleAccount,
@@ -34,26 +27,25 @@ contract V4StyleArcAdapter {
         bool allowed,
         RiskPolicy.BlockReason reason,
         uint256 amountUSDC,
-        MandateRegistry.ActionType actionType,
-        uint16 minBpsOut,
+        bytes32 marketId,
         bytes32 executionRef
     );
-    event USDCMovedAfterReceipt(
-        bytes32 indexed receiptHash, address indexed circleAccount, address indexed liquiditySink, uint256 amountUSDC
+    event USDCDepositedAfterReceipt(
+        bytes32 indexed receiptHash, address indexed circleAccount, address indexed vaultSink, uint256 amountUSDC
     );
-    event SinkRecordAttempted(
-        bytes32 indexed receiptHash,
-        address indexed liquiditySink,
-        bool recorded
-    );
+    event VaultRecordAttempted(bytes32 indexed receiptHash, address indexed vaultSink, bool recorded);
 
     error WrongAdapterTarget();
     error UnsupportedActionType();
+    error ZeroMarketId();
+    error MissingExecutionRef();
 
-    constructor(address usdc_, address enforcer_, address liquiditySink_) {
+    constructor(address usdc_, address enforcer_, address vaultSink_, bytes32 marketId_) {
+        if (marketId_ == bytes32(0)) revert ZeroMarketId();
         usdc = IERC20(usdc_);
         enforcer = BondedMandateEnforcer(enforcer_);
-        liquiditySink = liquiditySink_;
+        vaultSink = vaultSink_;
+        marketId = marketId_;
     }
 
     function postBond(uint256 amountUSDC) external {
@@ -71,62 +63,62 @@ contract V4StyleArcAdapter {
     function surfaceHash() public view returns (bytes32) {
         return keccak256(
             abi.encode(
-                "shadow.arc.uniswap-v4-style.adapter.v1",
+                "shadow.arc.morpho-style.vault-adapter.v1",
                 block.chainid,
                 address(this),
                 address(usdc),
-                liquiditySink
+                vaultSink,
+                marketId
             )
         );
     }
 
-    function poolKeyHash(V4PoolKey calldata poolKey) public view returns (bytes32) {
+    function morphoMarketExecutionRef(
+        address loanToken,
+        address collateralToken,
+        address oracle,
+        address irm,
+        uint256 lltv,
+        bytes32 salt
+    ) external view returns (bytes32) {
         return keccak256(
             abi.encode(
-                "shadow.arc.uniswap-v4-style.pool-key.v1",
+                "shadow.arc.morpho-style.market.v1",
                 block.chainid,
                 address(this),
-                poolKey.currency0,
-                poolKey.currency1,
-                poolKey.fee,
-                poolKey.tickSpacing,
-                poolKey.hooks
+                marketId,
+                loanToken,
+                collateralToken,
+                oracle,
+                irm,
+                lltv,
+                salt
             )
         );
     }
 
-    function poolExecutionRef(V4PoolKey calldata poolKey, bytes32 routeSalt) external view returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                "shadow.arc.uniswap-v4-style.execution-ref.v1",
-                surfaceHash(),
-                poolKeyHash(poolKey),
-                routeSalt
-            )
-        );
-    }
-
-    function beforeSwapStyleAction(MandateRegistry.Action calldata action)
+    function depositWithMandate(MandateRegistry.Action calldata action)
         external
         returns (bytes32 receiptHash, bool allowed, RiskPolicy.BlockReason reason)
     {
         if (action.target != address(this)) revert WrongAdapterTarget();
-        if (action.actionType != MandateRegistry.ActionType.SWAP) revert UnsupportedActionType();
+        if (action.actionType != MandateRegistry.ActionType.DEPOSIT) revert UnsupportedActionType();
+        if (action.executionRef == bytes32(0)) revert MissingExecutionRef();
 
         bytes32 actionHash;
         (receiptHash, allowed, reason, actionHash) = _check(action);
 
         if (allowed) {
-            executedUSDC += action.amountUSDC;
-            require(usdc.transferFrom(action.circleAccount, liquiditySink, action.amountUSDC), "USDC_TRANSFER_FAILED");
-            bool recorded = _recordSinkDeposit(action, receiptHash, actionHash);
-            emit SinkRecordAttempted(receiptHash, liquiditySink, recorded);
-            emit USDCMovedAfterReceipt(receiptHash, action.circleAccount, liquiditySink, action.amountUSDC);
+            depositedUSDC += action.amountUSDC;
+            require(usdc.transferFrom(action.circleAccount, vaultSink, action.amountUSDC), "USDC_TRANSFER_FAILED");
+            bool recorded = _recordVaultDeposit(action, receiptHash, actionHash);
+            emit VaultRecordAttempted(receiptHash, vaultSink, recorded);
+            emit USDCDepositedAfterReceipt(receiptHash, action.circleAccount, vaultSink, action.amountUSDC);
         } else {
             blockedUSDC += action.amountUSDC;
         }
 
-        emit V4StyleActionChecked(
+        emit MorphoStyleDepositChecked(
             receiptHash,
             action.mandateId,
             action.circleAccount,
@@ -134,8 +126,7 @@ contract V4StyleArcAdapter {
             allowed,
             reason,
             action.amountUSDC,
-            action.actionType,
-            action.minBpsOut,
+            marketId,
             action.executionRef
         );
     }
@@ -148,12 +139,12 @@ contract V4StyleArcAdapter {
         actionHash = enforcer.registry().hashAction(action);
     }
 
-    function _recordSinkDeposit(MandateRegistry.Action calldata action, bytes32 receiptHash, bytes32 actionHash)
+    function _recordVaultDeposit(MandateRegistry.Action calldata action, bytes32 receiptHash, bytes32 actionHash)
         internal
         returns (bool recorded)
     {
-        if (liquiditySink.code.length == 0) return false;
-        try IMandateVaultSink(liquiditySink).recordDeposit(
+        if (vaultSink.code.length == 0) return false;
+        try IMorphoStyleVaultSink(vaultSink).recordDeposit(
             action.circleAccount,
             action.amountUSDC,
             receiptHash,

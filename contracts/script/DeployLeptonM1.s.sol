@@ -5,11 +5,12 @@ import {BondedMandateEnforcer} from "../src/BondedMandateEnforcer.sol";
 import {MandateAttestor} from "../src/MandateAttestor.sol";
 import {MandateRegistry} from "../src/MandateRegistry.sol";
 import {MandateVaultSink} from "../src/MandateVaultSink.sol";
+import {MorphoStyleVaultAdapter} from "../src/MorphoStyleVaultAdapter.sol";
 import {Script} from "../src/Script.sol";
 import {V4StyleArcAdapter} from "../src/V4StyleArcAdapter.sol";
 
 // Deploys the Lepton M1 mandate-enforcement surface:
-// MandateRegistry -> MandateAttestor -> BondedMandateEnforcer -> MandateVaultSink -> v4-style Arc adapter.
+// MandateRegistry -> MandateAttestor -> BondedMandateEnforcer -> protocol adapters.
 //
 // Required env:
 //   PRIVATE_KEY                  deployer and owner for registry/attestor recorder setup
@@ -28,14 +29,23 @@ contract DeployLeptonM1 is Script {
         MandateAttestor attestor = new MandateAttestor();
         BondedMandateEnforcer enforcer =
             new BondedMandateEnforcer(arcUsdc, address(registry), address(attestor), minBondUSDC);
-        MandateVaultSink vaultSink = new MandateVaultSink(arcUsdc);
-        V4StyleArcAdapter adapter = new V4StyleArcAdapter(arcUsdc, address(enforcer), address(vaultSink));
+        MandateVaultSink v4VaultSink = new MandateVaultSink(arcUsdc);
+        V4StyleArcAdapter v4Adapter = new V4StyleArcAdapter(arcUsdc, address(enforcer), address(v4VaultSink));
+        MandateVaultSink morphoVaultSink = new MandateVaultSink(arcUsdc);
+        MorphoStyleVaultAdapter morphoAdapter = new MorphoStyleVaultAdapter(
+            arcUsdc,
+            address(enforcer),
+            address(morphoVaultSink),
+            keccak256("shadow-lepton-morpho-style-usdc-vault-market")
+        );
 
         registry.setRecorder(address(enforcer), true);
         attestor.setRecorder(address(enforcer), true);
-        vaultSink.setAdapter(address(adapter));
+        v4VaultSink.setAdapter(address(v4Adapter));
+        morphoVaultSink.setAdapter(address(morphoAdapter));
 
-        adapter;
+        v4Adapter;
+        morphoAdapter;
 
         vm.stopBroadcast();
     }
