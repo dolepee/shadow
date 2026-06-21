@@ -33,6 +33,8 @@ const FACILITATOR_KEY = normalizeKey(
 const PROVIDER_URL = clean(env.FLOAT_X402_PROVIDER_URL) || "https://shadow-arc.vercel.app/api/reasoning-x402";
 const BANKR_URL = clean(env.BANKR_LLM_URL) || "https://llm.bankr.bot/v1/chat/completions";
 const BANKR_MODEL = clean(env.BANKR_LLM_MODEL) || "deepseek-v3.2";
+const OPENAI_URL = clean(env.FLOAT_LOOP_OPENAI_URL) || "https://api.openai.com/v1/chat/completions";
+const OPENAI_MODEL = clean(env.FLOAT_LOOP_OPENAI_MODEL || env.OPENAI_MODEL) || "gpt-4o-mini";
 const DRY_RUN = clean(env.FLOAT_LOOP_DRY_RUN) === "1";
 
 if (!RPC) throw new Error("missing ARC_RPC_URL or VITE_ARC_RPC_URL");
@@ -361,8 +363,6 @@ function buildDecisionContext({ history, alphaLine, spendAmount, provider, treas
 }
 
 async function decideFloatAction(context) {
-  const apiKey = clean(env.BANKR_LLM_KEY);
-  if (!apiKey) return fallbackDecision(context, "BANKR_LLM_KEY missing");
   const prompt = [
     "You control Agent Alpha's request, not Shadow's enforcement. Shadow will deterministically allow or block.",
     "Choose one action only: PAY, SKIP, PREMIUM, or REPAY.",
@@ -374,45 +374,86 @@ async function decideFloatAction(context) {
     "",
     `Context: ${JSON.stringify(context)}`,
   ].join("\n");
+  const messages = [
+    {
+      role: "system",
+      content:
+        "You are an autonomous USDC spending agent. You decide whether buying a tiny paid x402 resource is worth it under a committed mandate. You never override policy enforcement.",
+    },
+    { role: "user", content: prompt },
+  ];
+  const failures = [];
+  const bankrKey = clean(env.BANKR_LLM_KEY);
+  if (bankrKey) {
+    const bankr = await callDecisionModel({
+      url: BANKR_URL,
+      model: BANKR_MODEL,
+      messages,
+      headers: { authorization: `Bearer ${bankrKey}`, "x-api-key": bankrKey },
+      label: `bankr:${BANKR_MODEL}`,
+    });
+    if (bankr.ok) return bankr.decision;
+    failures.push(bankr.reason);
+  } else {
+    failures.push("BANKR_LLM_KEY missing");
+  }
+
+  const openaiKey = clean(env.OPENAI_API_KEY);
+  if (openaiKey) {
+    const openai = await callDecisionModel({
+      url: OPENAI_URL,
+      model: OPENAI_MODEL,
+      messages,
+      headers: { authorization: `Bearer ${openaiKey}` },
+      label: `openai:${OPENAI_MODEL}`,
+    });
+    if (openai.ok) return openai.decision;
+    failures.push(openai.reason);
+  } else {
+    failures.push("OPENAI_API_KEY missing");
+  }
+
+  return fallbackDecision(context, failures.join("; "));
+}
+
+async function callDecisionModel({ url, model, messages, headers, label }) {
   try {
-    const response = await fetch(BANKR_URL, {
+    const response = await fetch(url, {
       method: "POST",
       headers: {
-        authorization: `Bearer ${apiKey}`,
-        "x-api-key": apiKey,
+        ...headers,
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: BANKR_MODEL,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an autonomous USDC spending agent. You decide whether buying a tiny paid x402 resource is worth it under a committed mandate. You never override policy enforcement.",
-          },
-          { role: "user", content: prompt },
-        ],
+        model,
+        messages,
         response_format: { type: "json_object" },
         max_tokens: 260,
         temperature: 0.35,
       }),
     });
-    if (!response.ok) return fallbackDecision(context, `bankr http ${response.status}`);
+    if (!response.ok) return { ok: false, reason: `${label} http ${response.status}` };
     const json = await response.json();
     const raw = json.choices?.[0]?.message?.content;
     const parsed = safeParse(raw || "");
-    if (!parsed) return fallbackDecision(context, "non-JSON completion");
+    if (!parsed) return { ok: false, reason: `${label} non-JSON completion` };
     const action = String(parsed.action || "").toUpperCase();
     const allowed = ["PAY", "SKIP", "PREMIUM", "REPAY"];
-    if (!allowed.includes(action)) return fallbackDecision(context, `invalid action ${action || "empty"}`);
+    if (!allowed.includes(action)) return { ok: false, reason: `${label} invalid action ${action || "empty"}` };
     const rationale =
       typeof parsed.rationale === "string" && parsed.rationale.trim()
         ? parsed.rationale.trim().slice(0, 360)
         : `${action} selected from float context.`;
     const regime = typeof parsed.regime === "string" ? parsed.regime.trim().slice(0, 64) : "llm-float";
-    return { action, rationale: `${rationale} Regime: ${regime}.`, model: BANKR_MODEL, fellBack: false };
+    return {
+      ok: true,
+      decision: { action, rationale: `${rationale} Regime: ${regime}.`, model: label, fellBack: false },
+    };
   } catch (error) {
-    return fallbackDecision(context, `bankr error ${(error instanceof Error ? error.message : String(error)).slice(0, 120)}`);
+    return {
+      ok: false,
+      reason: `${label} error ${(error instanceof Error ? error.message : String(error)).slice(0, 120)}`,
+    };
   }
 }
 

@@ -26,6 +26,8 @@ jobs:
       FLOAT_BETA_ADDRESS: ${{ secrets.FLOAT_BETA_ADDRESS }}
       BANKR_LLM_KEY: ${{ secrets.BANKR_LLM_KEY }}
       BANKR_LLM_MODEL: deepseek-v3.2
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      FLOAT_LOOP_OPENAI_MODEL: ${{ secrets.FLOAT_LOOP_OPENAI_MODEL }}
       KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
       KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
     steps:
