@@ -1181,9 +1181,6 @@ function App() {
           <span>Shadow</span>
         </Link>
         <div className="navLinks">
-          <NavLink to="/" end className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
-            Live split
-          </NavLink>
           <NavLink to="/agents" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Agents
           </NavLink>
