@@ -178,6 +178,86 @@ type PilotPlan = {
 
 type PilotRisk = "low" | "balanced" | "high";
 
+type FloatLineState = {
+  wallet: Address;
+  score: number;
+  creditLimitUSDC: string;
+  availableCreditUSDC: string;
+  activeDebtUSDC: string;
+  status: string;
+  lastReview: number;
+  mandateId: string;
+  day: number;
+  spentTodayUSDC: string;
+};
+
+type FloatReceiptState = {
+  receiptId: string;
+  receiptHash: string;
+  receiptType: string;
+  agent: Address;
+  provider: Address;
+  endpointHash: string;
+  amountUSDC: string;
+  amountFormatted: string;
+  creditBeforeUSDC: string;
+  creditAfterUSDC: string;
+  debtBeforeUSDC: string;
+  debtAfterUSDC: string;
+  reason: string;
+  mandateId: string;
+  requestHash: string;
+  prevChecksum: string;
+  checksum: string;
+  transactionHash: `0x${string}`;
+  blockNumber: string;
+  x402?: {
+    receiptId: string;
+    requestHash: string;
+    x402Hash: `0x${string}`;
+    provider: Address;
+    amountUSDC: string;
+    amountFormatted: string;
+    facilitator: Address;
+    bindingTxHash: `0x${string}`;
+    blockNumber: string;
+  };
+};
+
+type FloatState = {
+  configured: boolean;
+  testnet: true;
+  network: "arc-testnet";
+  float?: Address;
+  usdc?: Address;
+  alpha?: Address;
+  beta?: Address;
+  provider?: Address;
+  receiptCount?: string;
+  treasuryBalanceUSDC?: string;
+  totalProviderPaidUSDC?: string;
+  totalDebtOpenedUSDC?: string;
+  totalBlockedUSDC?: string;
+  totalDeniedUSDC?: string;
+  totalRepaidUSDC?: string;
+  lastChecksum?: string;
+  alphaLine?: FloatLineState;
+  betaLine?: FloatLineState;
+  providerMandate?: {
+    endpointHash: string;
+    maxPerRequestUSDC: string;
+    dailyLimitUSDC: string;
+    expiry: number;
+    active: boolean;
+  };
+  receipts?: FloatReceiptState[];
+  latestBlock?: string;
+  fetchedAt?: number;
+  missing?: string[];
+  degraded?: boolean;
+  error?: string;
+};
+
 function App() {
   const [state, setState] = useState<ShadowState | null>(null);
   const [loading, setLoading] = useState(false);
@@ -205,6 +285,9 @@ function App() {
   const [leptonState, setLeptonState] = useState<LeptonState | null>(null);
   const [leptonLoading, setLeptonLoading] = useState(false);
   const [leptonError, setLeptonError] = useState<string | null>(null);
+  const [floatState, setFloatState] = useState<FloatState | null>(null);
+  const [floatLoading, setFloatLoading] = useState(false);
+  const [floatError, setFloatError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -258,6 +341,29 @@ function App() {
   useEffect(() => {
     refreshLepton();
     const interval = setInterval(refreshLepton, 20_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function refreshFloat() {
+    setFloatLoading(true);
+    try {
+      const response = await fetch("/api/float");
+      const data = (await response.json()) as FloatState;
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `Float read failed with ${response.status}`);
+      }
+      setFloatState(data);
+      setFloatError(null);
+    } catch (error) {
+      setFloatError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setFloatLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refreshFloat();
+    const interval = setInterval(refreshFloat, 20_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -1005,6 +1111,8 @@ function App() {
 
       <BuilderFeesBanner state={state} />
 
+      <FloatPanel state={floatState} loading={floatLoading} error={floatError} compact />
+
       <LeptonM1Panel state={leptonState} loading={leptonLoading} error={leptonError} compact />
 
       <TechnicalPrimitive state={state} />
@@ -1014,6 +1122,13 @@ function App() {
   const leptonPage = (
     <>
       <LeptonM1Panel state={leptonState} loading={leptonLoading} error={leptonError} />
+      <CircleStackPanel />
+    </>
+  );
+
+  const floatPage = (
+    <>
+      <FloatPanel state={floatState} loading={floatLoading} error={floatError} />
       <CircleStackPanel />
     </>
   );
@@ -1041,6 +1156,9 @@ function App() {
           <NavLink to="/lepton" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Mandates
           </NavLink>
+          <NavLink to="/float" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+            Float
+          </NavLink>
         </div>
         <div className="navActions">
           <button
@@ -1066,6 +1184,7 @@ function App() {
         <Route path="/follow" element={followPage} />
         <Route path="/receipts" element={receiptsPage} />
         <Route path="/lepton" element={leptonPage} />
+        <Route path="/float" element={floatPage} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
@@ -1089,6 +1208,225 @@ function RouteScroll() {
     }
   }, [pathname, hash]);
   return null;
+}
+
+function FloatPanel({
+  state,
+  loading,
+  error,
+  compact = false,
+}: {
+  state: FloatState | null;
+  loading: boolean;
+  error: string | null;
+  compact?: boolean;
+}) {
+  const configured = Boolean(state?.configured);
+  const alpha = state?.alphaLine;
+  const beta = state?.betaLine;
+  const receipts = state?.receipts || [];
+  const updated =
+    state?.fetchedAt && configured
+      ? new Date(state.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : null;
+  const proofSteps = [
+    "Alpha has verifiable Shadow behavior and receives a tiny USDC float line",
+    "The agent attempts an approved x402 provider spend under its mandate",
+    "Shadow checks provider, endpoint, request size, daily cap, and treasury balance",
+    "A facilitator fronts the real x402 payment, then Shadow reimburses it and opens debt",
+    "An oversized request writes a BLOCK receipt before funds move",
+    "Beta is denied because risky history does not earn spending power",
+  ];
+
+  return (
+    <section className={`floatPanel${compact ? " floatPanelCompact" : ""}`} id="shadow-float">
+      <div className="floatHeader">
+        <div>
+          <p className="eyebrow">Shadow Float · agent spending line</p>
+          <h2>Verified behavior becomes spendable USDC.</h2>
+          <p className="floatLede">
+            Shadow Float lets trusted autonomous agents buy approved x402 resources before their own wallet is funded.
+            Every x402 settlement is bound into a debt receipt, and every overspend or risky agent is blocked before
+            treasury USDC moves.
+          </p>
+        </div>
+        <div className={`floatStatus ${configured ? "configured" : "pending"}`}>
+          <span className="floatStatusDot" />
+          {configured ? "live Float reads" : "deploy pending"}
+          {loading && <small>syncing</small>}
+          {updated && <small>updated {updated}</small>}
+        </div>
+      </div>
+
+      <div className="floatHeroGrid">
+        <article className="floatAgentCard primary">
+          <div className="floatCardHeader">
+            <span>Agent Alpha</span>
+            <code>{state?.alpha ? shortAddress(state.alpha) : "pending"}</code>
+          </div>
+          <h3>{alpha?.status || "ELIGIBLE"}</h3>
+          <div className="floatLineStats">
+            <FloatFact label="credit line" value={formatFloatUSDC(alpha?.creditLimitUSDC)} />
+            <FloatFact label="available" value={formatFloatUSDC(alpha?.availableCreditUSDC)} />
+            <FloatFact label="active debt" value={formatFloatUSDC(alpha?.activeDebtUSDC)} />
+            <FloatFact label="score" value={alpha ? alpha.score.toString() : "9300"} />
+          </div>
+          <p>
+            Alpha can spend only through the approved x402 provider endpoint. A successful call binds the settlement hash,
+            opens debt, and repayment refreshes the available line.
+          </p>
+        </article>
+
+        <article className="floatAgentCard blocked">
+          <div className="floatCardHeader">
+            <span>Agent Beta</span>
+            <code>{state?.beta ? shortAddress(state.beta) : "pending"}</code>
+          </div>
+          <h3>{beta?.status || "DENIED"}</h3>
+          <div className="floatLineStats">
+            <FloatFact label="credit line" value={formatFloatUSDC(beta?.creditLimitUSDC)} />
+            <FloatFact label="available" value={formatFloatUSDC(beta?.availableCreditUSDC)} />
+            <FloatFact label="active debt" value={formatFloatUSDC(beta?.activeDebtUSDC)} />
+            <FloatFact label="score" value={beta ? beta.score.toString() : "2100"} />
+          </div>
+          <p>Beta has block/slash-style history and cannot turn reputation into spendable USDC.</p>
+        </article>
+      </div>
+
+      <div className="floatMetricGrid">
+        <FloatMetric label="receipts" value={state?.receiptCount || "pending"} />
+        <FloatMetric label="treasury" value={formatFloatUSDC(state?.treasuryBalanceUSDC)} />
+        <FloatMetric label="provider paid" value={formatFloatUSDC(state?.totalProviderPaidUSDC)} tone="allow" />
+        <FloatMetric label="debt opened" value={formatFloatUSDC(state?.totalDebtOpenedUSDC)} tone="allow" />
+        <FloatMetric label="repaid" value={formatFloatUSDC(state?.totalRepaidUSDC)} tone="allow" />
+        <FloatMetric label="blocked" value={formatFloatUSDC(state?.totalBlockedUSDC)} tone="block" />
+        <FloatMetric label="denied" value={formatFloatUSDC(state?.totalDeniedUSDC)} tone="block" />
+        <FloatMetric
+          label="receipt chain"
+          value={
+            state?.lastChecksum &&
+            state.lastChecksum !== "0x0000000000000000000000000000000000000000000000000000000000000000"
+              ? "valid"
+              : "pending"
+          }
+        />
+      </div>
+
+      <div className="floatGrid">
+        <article className="floatBox">
+          <div className="floatBoxHeader">
+            <span>approved x402 provider</span>
+            <small>{state?.provider ? shortAddress(state.provider) : "waiting"}</small>
+          </div>
+          <div className="floatProviderFacts">
+            <FloatFact label="endpoint hash" value={shortHash(state?.providerMandate?.endpointHash)} />
+            <FloatFact label="max/request" value={formatFloatUSDC(state?.providerMandate?.maxPerRequestUSDC)} />
+            <FloatFact label="daily cap" value={formatFloatUSDC(state?.providerMandate?.dailyLimitUSDC)} />
+            <FloatFact label="active" value={state?.providerMandate?.active ? "yes" : "pending"} />
+          </div>
+        </article>
+
+        <article className="floatBox">
+          <div className="floatBoxHeader">
+            <span>proof path</span>
+            <small>deterministic policy</small>
+          </div>
+          <ol className="floatProofList">
+            {proofSteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </article>
+      </div>
+
+      {!compact && (
+        <article className="floatReceipts">
+          <div className="floatBoxHeader">
+            <span>latest Float receipts</span>
+            <small>{receipts.length ? `${receipts.length} indexed` : "waiting for proof run"}</small>
+          </div>
+          <div className="floatReceiptList">
+            {receipts.length ? (
+              receipts.slice(0, 10).map((receipt) => (
+                <div
+                  className={`floatReceipt ${
+                    receipt.receiptType.includes("BLOCK") || receipt.receiptType.includes("DENIED") ? "blocked" : "allowed"
+                  }`}
+                  key={`${receipt.receiptId}-${receipt.transactionHash}`}
+                >
+                  <a className="floatReceiptPrimary" href={txUrl(receipt.transactionHash)} target="_blank" rel="noreferrer">
+                    <span>#{receipt.receiptId}</span>
+                    <strong>{receipt.receiptType}</strong>
+                    <code>{formatFloatUSDC(receipt.amountUSDC)} USDC</code>
+                    <small>{receipt.reason}</small>
+                  </a>
+                  {receipt.x402 && receipt.receiptType === "SPEND_ALLOWED" && (
+                    <a className="floatX402Link" href={txUrl(receipt.x402.x402Hash)} target="_blank" rel="noreferrer">
+                      paid via x402 · {shortAddress(receipt.x402.x402Hash)}
+                    </a>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="floatEmpty">Run the Float proof script after deployment to populate live receipts.</div>
+            )}
+          </div>
+        </article>
+      )}
+
+      {error && <div className="leptonError">Float read failed: {error}</div>}
+
+      {!compact && (
+        <div className="floatBoundaries">
+          <span>testnet USDC line, not a lending market</span>
+          <span>agent chooses the spend; Shadow enforces the mandate</span>
+          <span>x402 settlement tx is bound on-chain</span>
+          <span>demo/admin and agent-driven cycles stay labeled separately</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FloatMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "allow" | "block";
+}) {
+  return (
+    <article className={`floatMetric${tone ? ` ${tone}` : ""}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </article>
+  );
+}
+
+function FloatFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="floatFact">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function formatFloatUSDC(value?: string | bigint | null): string {
+  if (value === undefined || value === null || value === "") return "0";
+  try {
+    const raw = typeof value === "bigint" ? value : BigInt(value);
+    return formatUSDC(raw);
+  } catch {
+    return "0";
+  }
+}
+
+function shortHash(value?: string | null): string {
+  if (!value || value.length < 14) return "pending";
+  return `${value.slice(0, 8)}...${value.slice(-6)}`;
 }
 
 function normalizeBytes32(hex: string): Hash {

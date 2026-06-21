@@ -499,6 +499,405 @@ html {
   }
 }
 
+.floatPanel {
+  background:
+    linear-gradient(135deg, rgba(15, 29, 49, 0.95), rgba(7, 17, 31, 0.92)),
+    linear-gradient(90deg, rgba(52, 229, 255, 0.1), rgba(77, 240, 168, 0.08));
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  box-shadow: 0 24px 90px -70px rgba(77, 240, 168, 0.6);
+  margin: 28px 0;
+  padding: 24px;
+}
+
+.floatPanelCompact {
+  margin-top: 22px;
+}
+
+.floatHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+}
+
+.floatHeader h2 {
+  font-size: clamp(30px, 4.4vw, 54px);
+  letter-spacing: -0.03em;
+  line-height: 0.96;
+  margin: 0;
+  max-width: 780px;
+}
+
+.floatLede {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 14px 0 0;
+  max-width: 760px;
+}
+
+.floatStatus {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  gap: 8px;
+  padding: 8px 11px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.floatStatus small {
+  color: var(--ink-faint);
+  font-size: 10px;
+  text-transform: none;
+}
+
+.floatStatus.configured {
+  border-color: var(--copy-glow);
+  color: var(--copy);
+}
+
+.floatStatus.pending {
+  border-color: var(--warn-soft);
+  color: var(--warn);
+}
+
+.floatStatusDot {
+  background: currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 18px currentColor;
+  display: inline-block;
+  height: 7px;
+  width: 7px;
+}
+
+.floatHeroGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  margin-top: 22px;
+}
+
+.floatAgentCard,
+.floatBox,
+.floatReceipts {
+  background: rgba(7, 17, 31, 0.5);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.floatAgentCard.primary {
+  border-color: rgba(77, 240, 168, 0.28);
+}
+
+.floatAgentCard.blocked {
+  border-color: rgba(255, 95, 126, 0.24);
+}
+
+.floatCardHeader,
+.floatBoxHeader {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+}
+
+.floatCardHeader span,
+.floatBoxHeader span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.floatCardHeader code,
+.floatBoxHeader small {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.floatAgentCard h3 {
+  color: var(--copy);
+  font-size: clamp(28px, 3vw, 42px);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin: 0 0 14px;
+}
+
+.floatAgentCard.blocked h3 {
+  color: var(--block);
+}
+
+.floatAgentCard p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
+
+.floatLineStats,
+.floatProviderFacts {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.floatProviderFacts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.floatFact {
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.floatFact span {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+
+.floatFact strong {
+  color: var(--ink);
+  display: block;
+  font-family: var(--mono);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.floatMetricGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.floatMetric {
+  background: rgba(7, 17, 31, 0.54);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 90px;
+  padding: 14px;
+}
+
+.floatMetric span {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+
+.floatMetric strong {
+  color: var(--ink);
+  display: block;
+  font-size: 21px;
+  letter-spacing: 0;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.floatMetric.allow strong {
+  color: var(--copy);
+}
+
+.floatMetric.block strong {
+  color: var(--block);
+}
+
+.floatGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  margin-top: 14px;
+}
+
+.floatProofList {
+  counter-reset: floatProof;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.floatProofList li {
+  align-items: flex-start;
+  color: var(--ink-soft);
+  display: grid;
+  font-size: 13px;
+  gap: 10px;
+  grid-template-columns: 24px 1fr;
+  line-height: 1.4;
+}
+
+.floatProofList li::before {
+  align-items: center;
+  background: var(--copy-soft);
+  border: 1px solid var(--copy-glow);
+  border-radius: 50%;
+  color: var(--copy);
+  content: counter(floatProof);
+  counter-increment: floatProof;
+  display: inline-flex;
+  font-family: var(--mono);
+  font-size: 10px;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.floatReceipts {
+  margin-top: 14px;
+}
+
+.floatReceiptList {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.floatReceipt {
+  align-items: center;
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 52px minmax(0, 1fr) auto auto;
+  padding: 10px;
+  text-decoration: none;
+}
+
+.floatReceiptPrimary {
+  color: inherit;
+  display: contents;
+  text-decoration: none;
+}
+
+.floatX402Link {
+  border-top: 1px solid rgba(184, 211, 255, 0.08);
+  color: var(--copy);
+  font-family: var(--mono);
+  font-size: 11px;
+  grid-column: 1 / -1;
+  padding-top: 8px;
+  text-decoration: none;
+}
+
+.floatX402Link:hover {
+  color: var(--accent);
+}
+
+.floatReceipt.allowed {
+  border-color: rgba(77, 240, 168, 0.22);
+}
+
+.floatReceipt.blocked {
+  border-color: rgba(255, 95, 126, 0.22);
+}
+
+.floatReceipt span,
+.floatReceipt small,
+.floatReceipt code {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.floatReceipt strong {
+  color: var(--ink);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.floatReceipt.allowed strong {
+  color: var(--copy);
+}
+
+.floatReceipt.blocked strong {
+  color: var(--block);
+}
+
+.floatEmpty {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  padding: 16px;
+}
+
+.floatBoundaries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.floatBoundaries span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 7px 10px;
+}
+
+@media (max-width: 980px) {
+  .floatHeader {
+    flex-direction: column;
+  }
+
+  .floatHeroGrid,
+  .floatGrid,
+  .floatReceiptList {
+    grid-template-columns: 1fr;
+  }
+
+  .floatMetricGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .floatPanel {
+    padding: 18px;
+  }
+
+  .floatHeader h2 {
+    font-size: 31px;
+  }
+
+  .floatLineStats,
+  .floatProviderFacts,
+  .floatMetricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .floatReceipt {
+    align-items: flex-start;
+    grid-template-columns: 1fr;
+  }
+}
+
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -586,7 +985,7 @@ button:hover {
 .navLinks {
   align-items: center;
   display: flex;
-  gap: 26px;
+  gap: 20px;
   margin-left: auto;
   margin-right: 20px;
 }
@@ -848,10 +1247,46 @@ button:hover {
   }
 }
 
+@media (max-width: 520px) {
+  .shell {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .nav {
+    align-items: flex-start;
+  }
+
+  .navLinks {
+    flex-wrap: wrap;
+    gap: 12px 18px;
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
+
+  .navLinks .navLink {
+    font-size: 12px;
+  }
+
+  .navActions {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
 .navActions {
   align-items: center;
   display: flex;
   gap: 14px;
+}
+
+@media (max-width: 520px) {
+  .navActions {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 
 .hero {

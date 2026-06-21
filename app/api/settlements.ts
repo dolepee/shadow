@@ -315,7 +315,12 @@ async function assertCopiedMirrorReceipt(
     strict: false,
   });
   const match = logs.find((log) => {
-    const args = log.args;
+    const args = log.args as {
+      intentId?: bigint;
+      follower?: Address;
+      sourceAgent?: Address;
+      status?: number | bigint;
+    };
     return (
       args.intentId?.toString() === target.intentId &&
       args.follower &&
@@ -325,7 +330,8 @@ async function assertCopiedMirrorReceipt(
     );
   });
   if (!match) throw new Error("MirrorReceipt not found in mirrorTx");
-  if (Number(match.args.status ?? 1) !== 0) throw new Error("blocked mirrors are never charged");
+  const matchArgs = match.args as { status?: number | bigint };
+  if (Number(matchArgs.status ?? 1) !== 0) throw new Error("blocked mirrors are never charged");
   return txReceipt.blockNumber.toString();
 }
 
