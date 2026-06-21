@@ -532,6 +532,47 @@ html {
 
 .floatPanelCompact {
   margin-top: 22px;
+  padding: 22px;
+}
+
+.floatPanelCompact .floatHeroShell {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.48fr);
+}
+
+.floatPanelCompact .floatHeroCopy {
+  padding-top: 6px;
+}
+
+.floatPanelCompact .floatHeroCopy h2 {
+  font-size: 44px;
+  line-height: 0.98;
+  max-width: 650px;
+}
+
+.floatPanelCompact .floatLede {
+  font-size: 14px;
+  max-width: 680px;
+}
+
+.floatPanelCompact .floatProofCardMoment strong {
+  font-size: 30px;
+}
+
+.floatPanelCompact .floatHeadlineStat {
+  min-height: 96px;
+  padding: 14px;
+}
+
+.floatPanelCompact .floatHeadlineStat strong {
+  font-size: 34px;
+  margin: 10px 0 7px;
+}
+
+.floatPanelCompact .floatHeroGrid,
+.floatPanelCompact .floatMetricGrid,
+.floatPanelCompact .floatGrid,
+.floatPanelCompact .floatLoopPanel {
+  margin-top: 12px;
 }
 
 .floatHeroShell {
@@ -1278,6 +1319,10 @@ html {
     grid-template-columns: 1fr;
   }
 
+  .floatPanelCompact .floatHeroShell {
+    grid-template-columns: 1fr;
+  }
+
   .floatHeroCopy h2 {
     font-size: 64px;
   }
@@ -1655,7 +1700,7 @@ button:hover {
   border-top: 1px solid var(--border);
   display: grid;
   gap: 1px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 64px 0 0;
   background: var(--border);
 }
@@ -1674,6 +1719,12 @@ button:hover {
 
 .pageNextCard:hover {
   background: var(--bg-2);
+}
+
+.pageNextCardPrimary {
+  background:
+    linear-gradient(180deg, rgba(77, 240, 168, 0.08), rgba(52, 229, 255, 0.04)),
+    var(--bg);
 }
 
 .pageNextEyebrow {
@@ -1709,6 +1760,12 @@ button:hover {
 @media (max-width: 720px) {
   .pageNext {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1080px) and (min-width: 721px) {
+  .pageNext {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -2575,6 +2632,135 @@ h3 {
   line-height: 1.55;
   margin: 0;
   max-width: 760px;
+}
+
+.shadow2Strip {
+  margin: 28px 0 0;
+}
+
+.shadow2StripHeader {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 0.34fr) minmax(0, 0.66fr);
+  margin-bottom: 14px;
+}
+
+.shadow2StripHeader .eyebrow {
+  margin: 0;
+}
+
+.shadow2StripHeader h2 {
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+  margin: 0;
+}
+
+.shadow2StripGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.shadow2ProofCard {
+  background:
+    linear-gradient(180deg, rgba(184, 211, 255, 0.06), rgba(184, 211, 255, 0.02)),
+    rgba(7, 17, 31, 0.64);
+  border: 1px solid rgba(184, 211, 255, 0.13);
+  border-radius: 16px;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  min-height: 265px;
+  padding: 18px;
+  text-decoration: none;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.shadow2ProofCard:hover {
+  border-color: rgba(52, 229, 255, 0.34);
+  transform: translateY(-2px);
+}
+
+.shadow2ProofCard--float {
+  border-color: rgba(77, 240, 168, 0.24);
+}
+
+.shadow2ProofCard--mandate {
+  border-color: rgba(52, 229, 255, 0.22);
+}
+
+.shadow2ProofCard--mirror {
+  border-color: rgba(255, 95, 126, 0.18);
+}
+
+.shadow2ProofLabel,
+.shadow2ProofUnit,
+.shadow2ProofLink {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.shadow2ProofMetric {
+  color: var(--ink);
+  display: block;
+  font-family: var(--mono);
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  margin: 22px 0 6px;
+}
+
+.shadow2ProofCard--float .shadow2ProofMetric {
+  color: var(--copy);
+}
+
+.shadow2ProofCard--mandate .shadow2ProofMetric {
+  color: var(--accent);
+}
+
+.shadow2ProofCard--mirror .shadow2ProofMetric {
+  color: var(--block);
+}
+
+.shadow2ProofCard h3 {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.16;
+  margin: 24px 0 8px;
+}
+
+.shadow2ProofCard p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.52;
+  margin: 0;
+}
+
+.shadow2ProofLink {
+  color: var(--accent);
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+@media (max-width: 880px) {
+  .shadow2StripHeader {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+
+  .shadow2StripGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .shadow2ProofCard {
+    min-height: auto;
+  }
 }
 
 .primitive {

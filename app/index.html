@@ -62,39 +62,37 @@
       </noscript>
       <main data-prerender="shell" style="font-family:'Bricolage Grotesque',system-ui,sans-serif;max-width:860px;margin:48px auto;padding:24px;color:#f3f7ff;background:#07111f;border:1px solid rgba(184,211,255,.14);border-radius:22px">
         <header>
-          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow · policy layer for autonomous trading agents</p>
-          <h1 style="font-size:40px;margin:0 0 12px;line-height:.95;letter-spacing:-.055em">Delegate to agents. Keep policy onchain.</h1>
+          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow 2.0 · float, mandates, receipts</p>
+          <h1 style="font-size:40px;margin:0 0 12px;line-height:.95;letter-spacing:-.055em">Autonomous agents need float, mandates, and receipts.</h1>
           <p style="font-size:17px;line-height:1.55;color:#c0cce0;margin:0 0 18px">
-            Three source agents compete on Arc testnet with ERC 8004-style identity references. Followers define risk policy before USDC moves. The <strong>Pilot</strong> reads live onchain reputation, recommends an allocation, and anchors a SHA 256 decision hash through <code style="font-family:'IBM Plex Mono',monospace;font-size:14px;background:#0f1d31;padding:1px 5px;border-radius:4px">PilotAttestor.attest</code>. The <strong>router</strong> then fans each source intent out to followers and emits a <strong style="color:#4df0a8">copied</strong> or <strong style="color:#ff5f7e">blocked</strong> receipt per follower in the same tx with the exact reason.
+            Shadow Float turns verified agent behavior into a tiny USDC spending line. The agent can buy approved x402 resources before its own wallet is funded; Shadow enforces the mandate, binds the settlement hash onchain, opens debt, and blocks overreach before treasury USDC moves.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:0 0 4px">
-            The binary moment: <strong>one source intent, five followers, three different refusal reasons</strong>, no cascade revert.
-            <a style="color:#34e5ff;text-decoration:none;font-family:'IBM Plex Mono',monospace;font-size:14px" href="https://testnet.arcscan.app/tx/0xfdc46c79e15e8fe05264f664ac4facfe971fa07c67a7a091d0ac24e6313ef739">tx 0xfdc46c…3ef739</a>
+            The current proof surfaces are <strong>Shadow Float</strong>, the <strong>Lepton mandate engine</strong>, and the original mirror adapter. All three resolve into verifiable Arc testnet receipts.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:8px 0 0">
-            Onboard with a passkey, no seed phrase, no gas token. Approve, deposit, follow source in <strong>one batched Circle Gas Station sponsored UserOp</strong>.
-            <a style="color:#34e5ff;text-decoration:none;font-family:'IBM Plex Mono',monospace;font-size:14px" href="https://testnet.arcscan.app/tx/0x6ba9fb6eb5268ad5ca979a3813d5bd4b888d8a06c85609d52e6a71cc2939ffbc">tx 0x6ba9fb…39ffbc</a>
+            The live app shows the x402 settlement proof, the Float debt receipt, the block proof, and the mandate contracts on Arc.
           </p>
         </header>
         <section>
-          <h2 style="font-size:18px;margin:28px 0 8px">Three source agents in the agora</h2>
+          <h2 style="font-size:18px;margin:28px 0 8px">What changed in Shadow 2.0</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#d5e5fb">
-            <li><strong>CatArb</strong> · spot arbitrage on USDC / ARCETH</li>
-            <li><strong>LobsterRisk</strong> · risk managed copy, tighter slippage</li>
-            <li><strong>MomentumOtter</strong> · LLM reasoned momentum, regime read per intent (rationale hashed into the intent)</li>
+            <li><strong>Float</strong> · behavior-backed USDC spending lines for autonomous agents</li>
+            <li><strong>Mandates</strong> · ALLOW/BLOCK enforcement before protocol actions move capital</li>
+            <li><strong>Receipts</strong> · every payment, repayment, block, and copy event is verifiable</li>
           </ul>
-          <p style="font-size:14px;color:#8fb4d9;margin:8px 0 0">Each agent earns trust through onchain receipts. The Watch Signal on <code style="font-family:'IBM Plex Mono',monospace;font-size:13px;background:#0f1d31;padding:1px 5px;border-radius:4px">/agents</code> shows a live Healthy / Watch / Stop badge per agent from copy rate and realized PnL.</p>
+          <p style="font-size:14px;color:#8fb4d9;margin:8px 0 0">The original source agents remain visible as behavior history, not the whole product.</p>
         </section>
         <section>
-          <h2 style="font-size:18px;margin:28px 0 8px">What the router emits per follower</h2>
+          <h2 style="font-size:18px;margin:28px 0 8px">What the app proves</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#d5e5fb">
-            <li>· <strong style="color:#4df0a8">COPIED</strong> with mirrored amount, mirror fee, asset out</li>
-            <li>· <strong style="color:#ff5f7e">BLOCKED</strong> with the exact reason: slippage_too_tight, insufficient_balance, amount_too_high, daily_cap_exceeded, risk_too_high, asset_not_allowed</li>
-            <li>· <strong>PositionClosed</strong> with realized PnL in basis points when followers close</li>
+            <li>· <strong style="color:#4df0a8">SPEND_ALLOWED</strong> with a real x402 settlement bound onchain</li>
+            <li>· <strong style="color:#ff5f7e">SPEND_BLOCKED</strong> before treasury USDC moves</li>
+            <li>· <strong>ALLOW / BLOCK</strong> mandate receipts across swap-style and vault-style adapters</li>
           </ul>
         </section>
         <footer style="margin-top:32px;border-top:1px solid rgba(184,211,255,.14);padding-top:16px;font-size:13px;color:#8fb4d9">
-          Live deployment on Arc testnet · chain id 5042002 · Pilot attests, router refuses · loading interactive surface...
+          Live deployment on Arc testnet · chain id 5042002 · loading interactive Shadow 2.0 surface...
         </footer>
       </main>
     </div>

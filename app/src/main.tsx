@@ -912,34 +912,28 @@ function App() {
           <div className="heroCopy">
             <div className="heroBadge">
               <span className="heroBadgeDot" />
-              live on arc testnet · chain 5042002
+              shadow 2.0 · live on arc testnet
             </div>
-            <h1>Delegate to agents. Keep policy onchain.</h1>
+            <h1>Autonomous agents need float, mandates, and receipts.</h1>
             <p className="lede">
-              Autonomous trading agents publish intents. Shadow checks every follower&apos;s policy before USDC moves. The
-              router{" "}
-              <strong className="lede--block">
-                blocked {blockedReceipts.length} attempts because policy said no
-              </strong>{" "}
-              and executed <strong className="lede--copy">
-                {copiedReceipts.length} that passed
-              </strong>
-              . Every refusal is a receipt, not a failed intent.
+              Shadow 2.0 turns verified agent behavior into spendable USDC float, checks every capital move against a
+              committed mandate, and writes the proof on Arc. A good agent can buy approved x402 resources before its own
+              wallet is funded. An overreach gets <strong className="lede--block">blocked before treasury USDC moves</strong>.
             </p>
             <div className="heroActions">
-              <Link to="/follow" className="heroCtaPrimary">
-                Set your policy
+              <Link to="/float" className="heroCtaPrimary">
+                Open Shadow Float
                 <span className="heroCtaArrow">→</span>
               </Link>
-              <a href="#split" className="heroCtaSecondary">
-                View split receipt
-              </a>
+              <Link to="/lepton" className="heroCtaSecondary">
+                View mandate engine
+              </Link>
             </div>
             <ul className="heroTrust" aria-label="Built on">
               <li><span className="heroTrustDot heroTrustDot--signal" />Arc testnet</li>
-              <li><span className="heroTrustDot heroTrustDot--proof" />USDC escrow</li>
-              <li><span className="heroTrustDot heroTrustDot--proof" />Policy router</li>
-              <li><span className="heroTrustDot heroTrustDot--signal" />On-chain receipts</li>
+              <li><span className="heroTrustDot heroTrustDot--proof" />real USDC</li>
+              <li><span className="heroTrustDot heroTrustDot--proof" />x402 settlement</li>
+              <li><span className="heroTrustDot heroTrustDot--signal" />onchain receipts</li>
             </ul>
           </div>
           <HeroDiagram />
@@ -947,14 +941,21 @@ function App() {
         <HeroMetrics state={state} />
       </section>
 
+      <Shadow2ProofStrip
+        floatState={floatState}
+        leptonState={leptonState}
+        copiedCount={copiedReceipts.length}
+        blockedCount={blockedReceipts.length}
+      />
+
       {spotlight ? (
         <section className="spotlight" id="split">
-          <p className="eyebrow">same intent · two outcomes · live on Arc</p>
-          <h2>One source intent lands. Your policy decides what happens to you.</h2>
+          <p className="eyebrow">adapter one · historical proof · live on Arc</p>
+          <h2>Copy trading was the first adapter. The primitive is policy before capital moves.</h2>
           <p className="spotlightSummary">
             {sourceNameByAddress.get(spotlight.intent.sourceAgent.toLowerCase()) || shortAddress(spotlight.intent.sourceAgent)}{" "}
-            wanted to swap {formatUSDC(spotlight.intent.amountUSDC)} USDC. Two followers were looking. One had room for it,
-            the other&apos;s risk rule said no. Both got an on-chain receipt in the same block.
+            wanted to swap {formatUSDC(spotlight.intent.amountUSDC)} USDC. Two followers were looking. One had room for it;
+            the other&apos;s risk rule said no. That same allow/block pattern now powers Float and protocol mandates.
           </p>
           <div className="spotlightGrid">
             <SpotlightCard
@@ -1002,19 +1003,24 @@ function App() {
       <TractionStrip state={state} />
 
       <section className="pageNext">
-        <Link to="/agents" className="pageNextCard">
-          <span className="pageNextEyebrow">agents</span>
-          <span className="pageNextTitle">See the three source AI agents</span>
+        <Link to="/float" className="pageNextCard pageNextCardPrimary">
+          <span className="pageNextEyebrow">float</span>
+          <span className="pageNextTitle">Behavior-backed USDC spending lines for agents</span>
           <span className="pageNextArrow">→</span>
         </Link>
-        <Link to="/follow" className="pageNextCard">
-          <span className="pageNextEyebrow">follow</span>
-          <span className="pageNextTitle">Pick a preset and start mirroring</span>
+        <Link to="/lepton" className="pageNextCard">
+          <span className="pageNextEyebrow">mandates</span>
+          <span className="pageNextTitle">Protocol-facing enforcement before capital moves</span>
+          <span className="pageNextArrow">→</span>
+        </Link>
+        <Link to="/agents" className="pageNextCard">
+          <span className="pageNextEyebrow">agents</span>
+          <span className="pageNextTitle">Source-agent history that feeds reputation</span>
           <span className="pageNextArrow">→</span>
         </Link>
         <Link to="/receipts" className="pageNextCard">
           <span className="pageNextEyebrow">receipts</span>
-          <span className="pageNextTitle">Watch the live copied vs blocked feed</span>
+          <span className="pageNextTitle">Read the proof rail across every surface</span>
           <span className="pageNextArrow">→</span>
         </Link>
       </section>
@@ -1024,11 +1030,11 @@ function App() {
   const agentsPage = (
     <>
       <section className="pageHead">
-        <p className="pageEyebrow">agents · earned reputation</p>
-        <h1 className="pageTitle">Three source AI agents. Public copy and block history.</h1>
+        <p className="pageEyebrow">agents · behavior history</p>
+        <h1 className="pageTitle">The old source agents now become Shadow&apos;s reputation substrate.</h1>
         <p className="pageLede">
-          Every stat is computed from on-chain receipts on Arc. No off-chain leaderboard, no curated numbers. Pick the one whose
-          discipline matches your risk and follow them with your own policy.
+          Shadow 2.0 does not ask you to trust a profile. It reads behavior: who got copied, who got blocked, who repaid,
+          and which receipts prove the agent deserves a line or a mandate.
         </p>
       </section>
       <EarnedReputationPanel
@@ -1042,10 +1048,11 @@ function App() {
   const followPage = (
     <>
       <section className="pageHead">
-        <p className="pageEyebrow">follow · onboarding</p>
-        <h1 className="pageTitle">Set your policy. Deposit USDC. Mirror an agent.</h1>
+        <p className="pageEyebrow">follow · adapter one</p>
+        <h1 className="pageTitle">The mirroring surface remains as proof of policy enforcement.</h1>
         <p className="pageLede">
-          Pick a preset for slippage, daily cap, and risk tolerance. Shadow enforces every rule on-chain through the router.
+          This was Shadow&apos;s first working adapter: a follower sets size, slippage, daily cap, and risk limits; the router
+          either executes or writes the refusal. Float and mandates reuse the same discipline.
         </p>
       </section>
       <FollowFlow
@@ -1106,12 +1113,14 @@ function App() {
   const receiptsPage = (
     <>
       <section className="pageHead">
-        <p className="pageEyebrow">receipts · live on Arc</p>
-        <h1 className="pageTitle">Every intent settles into a receipt.</h1>
+        <p className="pageEyebrow">receipts · Shadow proof rail</p>
+        <h1 className="pageTitle">Float, mandates, and mirror actions all resolve into receipts.</h1>
         <p className="pageLede">
-          Copied or blocked, per follower, in the same block. Every entry below is one event you can verify on Arc testnet.
+          Read this page as the audit layer. Spend allowed, x402 bound, repayment, blocked overreach, copied intent, refused
+          mirror, and mandate proof all point back to Arc testnet events.
         </p>
       </section>
+      <FloatPanel state={floatState} loading={floatLoading} error={floatError} compact />
       {state && (
         <LiveFeed
           receipts={feedReceipts}
@@ -1150,8 +1159,6 @@ function App() {
       </section>
 
       <BuilderFeesBanner state={state} />
-
-      <FloatPanel state={floatState} loading={floatLoading} error={floatError} compact />
 
       <LeptonM1Panel state={leptonState} loading={leptonLoading} error={leptonError} compact />
 
@@ -3031,11 +3038,11 @@ function ageLabel(seconds: number): string {
 function SplitMomentFallback() {
   return (
     <section className="spotlight spotlight--fallback" id="split">
-      <p className="eyebrow">same intent · two outcomes</p>
-      <h2>One source intent lands. Your policy decides what happens to you.</h2>
+      <p className="eyebrow">adapter one · same intent · two outcomes</p>
+      <h2>One source intent lands. Policy decides whether capital moves.</h2>
       <p className="spotlightSummary">
         A source agent on Arc just published a 0.02 USDC intent. Two followers were watching with different rules.
-        One had room. One didn&apos;t. Here&apos;s exactly what happens.
+        One had room. One didn&apos;t. This is the original receipt pattern now extended into Float and protocol mandates.
       </p>
       <div className="spotlightGrid">
         <article className="spotlightCard copied spotlightCard--demo">
@@ -3091,9 +3098,73 @@ function SplitMomentFallback() {
         </article>
       </div>
       <p className="spotlightFootnote">
-        Live receipts populate this card once the next cron fires (every 10 minutes). The block reason on real receipts is whatever
-        rule your policy hit first.
+        Live receipts populate this card once the next cron fires. The block reason on real receipts is whichever rule your
+        policy hit first.
       </p>
+    </section>
+  );
+}
+
+function Shadow2ProofStrip({
+  floatState,
+  leptonState,
+  copiedCount,
+  blockedCount,
+}: {
+  floatState: FloatState | null;
+  leptonState: LeptonState | null;
+  copiedCount: number;
+  blockedCount: number;
+}) {
+  const agentLoop = floatState?.sourceBreakdown?.agentLoop;
+  const cards = [
+    {
+      label: "Shadow Float",
+      metric: `${agentLoop?.cycles || 0}`,
+      unit: "agent-loop cycles",
+      title: "Behavior becomes spending power",
+      body: "A verified agent receives a tiny USDC line, buys approved x402 resources, opens debt, and gets blocked when it overreaches.",
+      to: "/float",
+      tone: "float",
+    },
+    {
+      label: "Mandate Engine",
+      metric: leptonState?.receiptCount?.toString() || "0",
+      unit: "mandate receipts",
+      title: "Capital moves only after policy clears",
+      body: "The same engine gates swap-style and vault-style actions with ALLOW/BLOCK receipts and bonded enforcement.",
+      to: "/lepton",
+      tone: "mandate",
+    },
+    {
+      label: "Mirror Adapter",
+      metric: `${copiedCount}/${blockedCount}`,
+      unit: "copied / blocked",
+      title: "The first production-style proof",
+      body: "Copy trading stays visible as historical demand proof: one source intent, per-user policy, no cascade revert.",
+      to: "/receipts",
+      tone: "mirror",
+    },
+  ];
+
+  return (
+    <section className="shadow2Strip" aria-label="Shadow 2.0 proof surfaces">
+      <div className="shadow2StripHeader">
+        <p className="eyebrow">Shadow 2.0 proof map</p>
+        <h2>One enforcement primitive. Three live surfaces.</h2>
+      </div>
+      <div className="shadow2StripGrid">
+        {cards.map((card) => (
+          <Link className={`shadow2ProofCard shadow2ProofCard--${card.tone}`} to={card.to} key={card.label}>
+            <span className="shadow2ProofLabel">{card.label}</span>
+            <strong className="shadow2ProofMetric">{card.metric}</strong>
+            <span className="shadow2ProofUnit">{card.unit}</span>
+            <h3>{card.title}</h3>
+            <p>{card.body}</p>
+            <span className="shadow2ProofLink">open proof →</span>
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }
@@ -3114,22 +3185,22 @@ function HeroDiagram() {
       <div className="heroLedgerHeader">
         <span className="heroLedgerHeaderTitle">
           <span className="heroLedgerHeaderDot" />
-          Same intent · two outcomes
+          Shadow Float · live path
         </span>
         <span className="heroLedgerLive">
           <span className="heroLedgerLiveDot" />
-          Arc · block 8 411 902
+          Arc · x402 bound
         </span>
       </div>
 
       <div className="heroLedgerIntent">
-        <span className="heroLedgerIntentLabel">Agent intent</span>
+        <span className="heroLedgerIntentLabel">Agent request</span>
         <div className="heroLedgerIntentBody">
-          <span className="agentTag">CatArb</span>
-          <span className="heroLedgerIntentVerb">swap</span>
-          <span className="heroLedgerIntentNumber">0.02&nbsp;USDC</span>
+          <span className="agentTag">Alpha</span>
+          <span className="heroLedgerIntentVerb">buy</span>
+          <span className="heroLedgerIntentNumber">x402 data</span>
           <span className="heroLedgerIntentArrow">→</span>
-          <span className="heroLedgerIntentNumber">0.0185&nbsp;ARCETH</span>
+          <span className="heroLedgerIntentNumber">0.001&nbsp;USDC</span>
         </div>
       </div>
 
@@ -3138,15 +3209,15 @@ function HeroDiagram() {
           <div className="heroLedgerCellHead">
             <span className="heroLedgerCellStatus">
               <span className="heroLedgerCellDot" />
-              COPIED
+              PAID
             </span>
-            <span className="heroLedgerCellAddr">0x7A3F…3AcD</span>
+            <span className="heroLedgerCellAddr">x402 provider</span>
           </div>
-          <div className="heroLedgerCellMain">+0.0185</div>
-          <div className="heroLedgerCellUnit">ARCETH credited to follower</div>
+          <div className="heroLedgerCellMain">+0.001</div>
+          <div className="heroLedgerCellUnit">USDC settled to provider</div>
           <div className="heroLedgerCellMeta">
-            <span className="heroLedgerCellMetaLabel">policy</span>
-            <span className="heroLedgerCellMetaValue">within cap · slippage 32&nbsp;bps · mirror fee 0.10%</span>
+            <span className="heroLedgerCellMetaLabel">receipt</span>
+            <span className="heroLedgerCellMetaValue">x402 hash bound · debt opened · mandate still valid</span>
           </div>
         </div>
         <div className="heroLedgerCell blocked">
@@ -3155,20 +3226,20 @@ function HeroDiagram() {
               <span className="heroLedgerCellDot" />
               BLOCKED
             </span>
-            <span className="heroLedgerCellAddr">0x495c…8695</span>
+            <span className="heroLedgerCellAddr">premium request</span>
           </div>
           <div className="heroLedgerCellMain">0.00</div>
-          <div className="heroLedgerCellUnit">USDC copied · blocked before spend</div>
+          <div className="heroLedgerCellUnit">USDC moved from treasury</div>
           <div className="heroLedgerCellMeta">
             <span className="heroLedgerCellMetaLabel">policy rule</span>
-            <span className="heroLedgerCellMetaValue">amount&nbsp;&gt;&nbsp;cap · 0.02&nbsp;USDC exceeds 0.01 cap</span>
+            <span className="heroLedgerCellMetaValue">amount&nbsp;&gt;&nbsp;line · blocked before spend</span>
           </div>
         </div>
       </div>
 
       <div className="heroLedgerProof">
-        <span className="heroLedgerProofLabel">receipt</span>
-        <span className="heroLedgerProofHash">0xfdc4…3ef7</span>
+        <span className="heroLedgerProofLabel">Float receipt</span>
+        <span className="heroLedgerProofHash">x402 + debt + block</span>
         <span className="heroLedgerProofSep" />
         <span className="heroLedgerProofChain">chain&nbsp;5042002</span>
         <span className="heroLedgerProofVerify">verified onchain</span>
@@ -3182,16 +3253,17 @@ function SiteFooter() {
     {
       title: "Product",
       links: [
-        { label: "Onboarding", href: "/follow#circle-stack" },
-        { label: "Live receipts", href: "/receipts#live-feed" },
-        { label: "AI pilot", href: "/follow#pilot" },
+        { label: "Shadow Float", href: "/float" },
+        { label: "Mandate engine", href: "/lepton" },
+        { label: "Receipt rail", href: "/receipts#float-receipts" },
       ],
     },
     {
-      title: "Traders",
+      title: "Proof",
       links: [
-        { label: "Earned reputation", href: "/agents#sources" },
-        { label: "Mirror fees", href: "/agents#sources" },
+        { label: "Agent behavior", href: "/agents#sources" },
+        { label: "Mirror adapter", href: "/follow" },
+        { label: "Circle stack", href: "/float#circle-stack" },
       ],
     },
     {
@@ -3213,7 +3285,7 @@ function SiteFooter() {
             <span>Shadow</span>
           </Link>
           <p className="siteFooterTagline">
-            Mirror the best AI source agents on Arc. Every copy and every refusal is an onchain receipt.
+            Behavior-backed USDC float, mandate enforcement, and receipt proof for autonomous agents on Arc.
           </p>
           <div className="siteFooterBadge">
             <span className="heroBadgeDot" />
@@ -3243,8 +3315,8 @@ function SiteFooter() {
         </div>
       </div>
       <div className="siteFooterBottom">
-        <span>Built for Canteen × Circle Agora Agents · 2026</span>
-        <span>Shadow · policy-controlled mirroring</span>
+        <span>Built for Canteen × Circle Lepton · 2026</span>
+        <span>Shadow · float, mandates, receipts</span>
       </div>
     </footer>
   );
@@ -3396,11 +3468,11 @@ function TechnicalPrimitive({ state }: { state: ShadowState | null }) {
     <section className="primitive" id="technical">
       <header className="primitiveHeader">
         <p className="eyebrow">why Shadow</p>
-        <h2>The novelty is onchain, not in the UI chrome.</h2>
+        <h2>The novelty is the reusable receipt engine, not the adapter.</h2>
         <p className="primitiveLede">
-          Shadow is a router that turns a single AI agent intent into per follower outcomes, all settled in one Arc testnet
-          transaction with canonical receipts. The four primitives below are the load bearing pieces, every other surface in
-          this dashboard is a view over them.
+          The original router turns one AI intent into per-follower outcomes, but Shadow 2.0 carries the same pattern into
+          float, x402 spend control, and protocol mandates. Every surface below is useful because it creates verifiable
+          behavior that later capital can trust.
         </p>
       </header>
       <div className="primitiveGrid">
@@ -3481,10 +3553,11 @@ function LeptonM1Panel({
       <div className="leptonHeader">
         <div>
           <p className="eyebrow">Lepton M1 · protocol mandates</p>
-          <h2>USDC policy enforcement before capital moves.</h2>
+          <h2>The mandate engine behind Shadow 2.0.</h2>
           <p className="leptonLede">
-            The copy-trading router is adapter one. This surface exposes the reusable primitive: mandate, pre-execution
-            receipt, bonded enforcer, then DeFi action across swap and vault-style adapters.
+            Shadow started with copy-trading, but the reusable primitive is broader: register a mandate, evaluate the
+            action before USDC moves, write an ALLOW or BLOCK receipt, and keep the enforcer accountable across swap and
+            vault-style adapters.
           </p>
         </div>
         <div className={`leptonStatus ${configured ? "configured" : "pending"}`}>
