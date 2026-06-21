@@ -224,6 +224,40 @@ type FloatReceiptState = {
   };
 };
 
+type FloatSourceSummary = {
+  cycles?: number;
+  paidCount?: number;
+  blockedCount?: number;
+  deniedCount?: number;
+  repaidCount?: number;
+  skipCount?: number;
+  errorCount?: number;
+  fallbacks?: number;
+  providerPaidUSDC?: string;
+  debtOpenedUSDC?: string;
+  blockedUSDC?: string;
+  deniedUSDC?: string;
+  repaidUSDC?: string;
+};
+
+type FloatLoopRun = {
+  id?: string;
+  source?: "agent-loop";
+  action?: string;
+  outcome?: string;
+  at?: string;
+  amountUSDC?: string;
+  x402Hash?: `0x${string}`;
+  bindTxHash?: `0x${string}`;
+  repayTxHash?: `0x${string}`;
+  txHash?: `0x${string}`;
+  requestHash?: string;
+  reason?: string;
+  rationale?: string;
+  model?: string;
+  fellBack?: boolean;
+};
+
 type FloatState = {
   configured: boolean;
   testnet: true;
@@ -250,6 +284,12 @@ type FloatState = {
     expiry: number;
     active: boolean;
   };
+  sourceBreakdown?: {
+    agentLoop?: FloatSourceSummary;
+    demoAdmin?: FloatSourceSummary;
+    external?: FloatSourceSummary;
+  };
+  loopRuns?: FloatLoopRun[];
   receipts?: FloatReceiptState[];
   latestBlock?: string;
   fetchedAt?: number;
@@ -1312,6 +1352,8 @@ function FloatPanel({
         />
       </div>
 
+      <FloatLoopPanel state={state} compact={compact} />
+
       <div className="floatGrid">
         <article className="floatBox">
           <div className="floatBoxHeader">
@@ -1385,6 +1427,94 @@ function FloatPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact: boolean }) {
+  const summary = state?.sourceBreakdown?.agentLoop;
+  const runs = state?.loopRuns || [];
+  const latest = runs[0];
+  const hasRuns = Boolean(summary?.cycles);
+
+  return (
+    <article className="floatLoopPanel">
+      <div className="floatBoxHeader">
+        <span>autonomous float loop</span>
+        <small>{hasRuns ? `${summary?.cycles || 0} labeled cycles` : "waiting for first cron"}</small>
+      </div>
+      <div className="floatLoopStats">
+        <FloatFact label="agent-loop paid" value={`${summary?.paidCount || 0}`} />
+        <FloatFact label="blocked" value={`${summary?.blockedCount || 0}`} />
+        <FloatFact label="denied" value={`${summary?.deniedCount || 0}`} />
+        <FloatFact label="repaid" value={`${summary?.repaidCount || 0}`} />
+        <FloatFact label="skipped" value={`${summary?.skipCount || 0}`} />
+        <FloatFact label="fallbacks" value={`${summary?.fallbacks || 0}`} />
+      </div>
+      <div className="floatLoopSplit">
+        <div>
+          <span>agent-loop x402 settled</span>
+          <strong>{formatFloatUSDC(summary?.providerPaidUSDC)}</strong>
+        </div>
+        <div>
+          <span>demo/admin x402 settled</span>
+          <strong>{formatFloatUSDC(state?.sourceBreakdown?.demoAdmin?.providerPaidUSDC)}</strong>
+        </div>
+        <div>
+          <span>external agents</span>
+          <strong>{state?.sourceBreakdown?.external?.cycles || 0}</strong>
+        </div>
+      </div>
+      {latest ? (
+        <div className={`floatLoopLatest ${latest.outcome?.includes("BLOCK") || latest.outcome === "DENIED" ? "blocked" : ""}`}>
+          <div>
+            <span>{latest.action || "UNKNOWN"}</span>
+            <strong>{latest.outcome || "pending"}</strong>
+            <small>
+              {latest.model || "model unknown"}
+              {latest.fellBack ? " · fallback" : ""}
+            </small>
+          </div>
+          <p>{latest.rationale || "No rationale recorded."}</p>
+          <div className="floatLoopLinks">
+            {latest.x402Hash && (
+              <a href={txUrl(latest.x402Hash)} target="_blank" rel="noreferrer">
+                x402 {shortAddress(latest.x402Hash)}
+              </a>
+            )}
+            {latest.bindTxHash && (
+              <a href={txUrl(latest.bindTxHash)} target="_blank" rel="noreferrer">
+                bind {shortAddress(latest.bindTxHash)}
+              </a>
+            )}
+            {latest.repayTxHash && (
+              <a href={txUrl(latest.repayTxHash)} target="_blank" rel="noreferrer">
+                repay {shortAddress(latest.repayTxHash)}
+              </a>
+            )}
+            {latest.txHash && (
+              <a href={txUrl(latest.txHash)} target="_blank" rel="noreferrer">
+                receipt {shortAddress(latest.txHash)}
+              </a>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="floatLoopEmpty">
+          The x402-bound proof is live. The autonomous cron has not written its first labeled loop run yet.
+        </div>
+      )}
+      {!compact && hasRuns && (
+        <div className="floatLoopRunList">
+          {runs.slice(0, 5).map((run, index) => (
+            <div className="floatLoopRun" key={`${run.id || index}-${run.outcome || "run"}`}>
+              <span>{run.action || "UNKNOWN"}</span>
+              <strong>{run.outcome || "pending"}</strong>
+              <small>{run.at ? new Date(run.at).toLocaleString() : "time pending"}</small>
+            </div>
+          ))}
+        </div>
+      )}
+    </article>
   );
 }
 

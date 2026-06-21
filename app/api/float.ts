@@ -36,6 +36,23 @@ type FloatConfig = {
   startBlock: bigint;
 };
 
+type FloatLoopRun = {
+  source?: string;
+  action?: string;
+  outcome?: string;
+  at?: string;
+  amountUSDC?: string;
+  x402Hash?: string;
+  bindTxHash?: string;
+  repayTxHash?: string;
+  txHash?: string;
+  requestHash?: string;
+  reason?: string;
+  rationale?: string;
+  model?: string;
+  fellBack?: boolean;
+};
+
 const floatAbi = parseAbi([
   "function receiptCount() view returns (uint256)",
   "function treasuryBalanceUSDC() view returns (uint256)",
@@ -129,6 +146,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       betaLine,
       providerMandate,
       latestBlock,
+      loopRuns,
     ] = await Promise.all([
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "receiptCount" }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "treasuryBalanceUSDC" }),
@@ -142,7 +160,16 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "lines", args: [cfg.beta] }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "providerMandates", args: [cfg.provider] }),
       client.getBlockNumber(),
+      readFloatLoopRuns(),
     ]);
+    const sourceBreakdown = summarizeSources(
+      loopRuns,
+      totalProviderPaidUSDC,
+      totalDebtOpenedUSDC,
+      totalBlockedUSDC,
+      totalDeniedUSDC,
+      totalRepaidUSDC,
+    );
 
     const fromBlock = cfg.startBlock > 0n ? cfg.startBlock : latestBlock > LOG_LOOKBACK ? latestBlock - LOG_LOOKBACK : 0n;
     const [logs, x402Logs] = await Promise.all([
@@ -200,6 +227,8 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       alphaLine: serializeLine(alphaLine),
       betaLine: serializeLine(betaLine),
       providerMandate: serializeProvider(providerMandate),
+      sourceBreakdown,
+      loopRuns: loopRuns.slice(-12).reverse(),
       receipts: logs
         .slice()
         .sort((a, b) => Number(b.args.receiptId! - a.args.receiptId!))
@@ -261,6 +290,149 @@ function serializeProvider(provider: readonly unknown[]) {
     expiry: Number(provider[3]),
     active: Boolean(provider[4]),
   };
+}
+
+function summarizeSources(
+  loopRuns: FloatLoopRun[],
+  totalProviderPaidUSDC: bigint,
+  totalDebtOpenedUSDC: bigint,
+  totalBlockedUSDC: bigint,
+  totalDeniedUSDC: bigint,
+  totalRepaidUSDC: bigint,
+) {
+  const agentLoop = loopRuns.reduce(
+    (acc, run) => {
+      const amount = toBigInt(run.amountUSDC);
+      acc.cycles += 1;
+      if (run.fellBack) acc.fallbacks += 1;
+      if (run.outcome === "PAID_BOUND") {
+        acc.paidCount += 1;
+        acc.providerPaidUSDC += amount;
+        acc.debtOpenedUSDC += amount;
+      } else if (run.outcome === "PREMIUM_BLOCKED" || run.outcome === "GATE_BLOCKED") {
+        acc.blockedCount += 1;
+        acc.blockedUSDC += amount;
+      } else if (run.outcome === "DENIED") {
+        acc.deniedCount += 1;
+        acc.deniedUSDC += amount;
+      } else if (run.outcome === "REPAID") {
+        acc.repaidCount += 1;
+        acc.repaidUSDC += amount;
+      } else if (run.outcome === "SKIPPED_BY_AGENT" || run.outcome === "SKIPPED_LOW_FUNDS") {
+        acc.skipCount += 1;
+      } else if (run.outcome === "ERROR") {
+        acc.errorCount += 1;
+      }
+      return acc;
+    },
+    {
+      cycles: 0,
+      paidCount: 0,
+      blockedCount: 0,
+      deniedCount: 0,
+      repaidCount: 0,
+      skipCount: 0,
+      errorCount: 0,
+      fallbacks: 0,
+      providerPaidUSDC: 0n,
+      debtOpenedUSDC: 0n,
+      blockedUSDC: 0n,
+      deniedUSDC: 0n,
+      repaidUSDC: 0n,
+    },
+  );
+  const demoAdmin = {
+    providerPaidUSDC: clampSub(totalProviderPaidUSDC, agentLoop.providerPaidUSDC),
+    debtOpenedUSDC: clampSub(totalDebtOpenedUSDC, agentLoop.debtOpenedUSDC),
+    blockedUSDC: clampSub(totalBlockedUSDC, agentLoop.blockedUSDC),
+    deniedUSDC: clampSub(totalDeniedUSDC, agentLoop.deniedUSDC),
+    repaidUSDC: clampSub(totalRepaidUSDC, agentLoop.repaidUSDC),
+  };
+  return {
+    agentLoop: serializeSourceSummary(agentLoop),
+    demoAdmin: {
+      providerPaidUSDC: demoAdmin.providerPaidUSDC.toString(),
+      debtOpenedUSDC: demoAdmin.debtOpenedUSDC.toString(),
+      blockedUSDC: demoAdmin.blockedUSDC.toString(),
+      deniedUSDC: demoAdmin.deniedUSDC.toString(),
+      repaidUSDC: demoAdmin.repaidUSDC.toString(),
+    },
+    external: {
+      cycles: 0,
+      providerPaidUSDC: "0",
+      debtOpenedUSDC: "0",
+      blockedUSDC: "0",
+      deniedUSDC: "0",
+      repaidUSDC: "0",
+    },
+  };
+}
+
+function serializeSourceSummary(summary: {
+  cycles: number;
+  paidCount: number;
+  blockedCount: number;
+  deniedCount: number;
+  repaidCount: number;
+  skipCount: number;
+  errorCount: number;
+  fallbacks: number;
+  providerPaidUSDC: bigint;
+  debtOpenedUSDC: bigint;
+  blockedUSDC: bigint;
+  deniedUSDC: bigint;
+  repaidUSDC: bigint;
+}) {
+  return {
+    cycles: summary.cycles,
+    paidCount: summary.paidCount,
+    blockedCount: summary.blockedCount,
+    deniedCount: summary.deniedCount,
+    repaidCount: summary.repaidCount,
+    skipCount: summary.skipCount,
+    errorCount: summary.errorCount,
+    fallbacks: summary.fallbacks,
+    providerPaidUSDC: summary.providerPaidUSDC.toString(),
+    debtOpenedUSDC: summary.debtOpenedUSDC.toString(),
+    blockedUSDC: summary.blockedUSDC.toString(),
+    deniedUSDC: summary.deniedUSDC.toString(),
+    repaidUSDC: summary.repaidUSDC.toString(),
+  };
+}
+
+async function readFloatLoopRuns(): Promise<FloatLoopRun[]> {
+  const url = cleanEnv(process.env.KV_REST_API_URL);
+  const token = cleanEnv(process.env.KV_REST_API_TOKEN);
+  if (!url || !token) return [];
+  try {
+    const response = await fetch(`${url.replace(/\/$/, "")}/get/${encodeURIComponent("float:loop:runs")}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return [];
+    const json = (await response.json()) as { result?: string | null };
+    if (!json.result) return [];
+    const parsed = JSON.parse(json.result) as unknown;
+    return Array.isArray(parsed) ? parsed.filter(isLoopRun) : [];
+  } catch {
+    return [];
+  }
+}
+
+function isLoopRun(value: unknown): value is FloatLoopRun {
+  return Boolean(value && typeof value === "object" && (value as FloatLoopRun).source === "agent-loop");
+}
+
+function toBigInt(value: string | undefined): bigint {
+  if (!value) return 0n;
+  try {
+    return BigInt(value);
+  } catch {
+    return 0n;
+  }
+}
+
+function clampSub(a: bigint, b: bigint): bigint {
+  return a > b ? a - b : 0n;
 }
 
 function floatConfigFromEnv(): FloatConfig | null {

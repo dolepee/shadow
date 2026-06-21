@@ -1,0 +1,41 @@
+name: float-loop
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: float-loop
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      ARC_RPC_URL: ${{ secrets.ARC_RPC_URL }}
+      ARC_USDC: ${{ secrets.ARC_USDC }}
+      SHADOW_FLOAT: ${{ secrets.SHADOW_FLOAT }}
+      SHADOW_FLOAT_START_BLOCK: ${{ secrets.SHADOW_FLOAT_START_BLOCK }}
+      FLOAT_FACILITATOR_PRIVATE_KEY: ${{ secrets.FLOAT_FACILITATOR_PRIVATE_KEY }}
+      FLOAT_X402_PROVIDER_URL: ${{ secrets.FLOAT_X402_PROVIDER_URL }}
+      FLOAT_ALPHA_ADDRESS: ${{ secrets.FLOAT_ALPHA_ADDRESS }}
+      FLOAT_BETA_ADDRESS: ${{ secrets.FLOAT_BETA_ADDRESS }}
+      BANKR_LLM_KEY: ${{ secrets.BANKR_LLM_KEY }}
+      BANKR_LLM_MODEL: deepseek-v3.2
+      KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+      KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: install app deps
+        working-directory: app
+        run: pnpm install --no-frozen-lockfile --ignore-workspace
+      - name: run autonomous float cycle
+        run: npm run float:loop

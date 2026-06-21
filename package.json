@@ -20,6 +20,7 @@
     "verify:slippage": "pnpm --dir agent verify-slippage",
     "float:proof": "node app/scripts/float-proof.mjs",
     "float:x402-proof": "node app/scripts/float-x402-proof.mjs",
+    "float:loop": "node app/scripts/float-loop.mjs",
     "extract:addresses": "node scripts/extract-addresses.mjs"
   }
 }
