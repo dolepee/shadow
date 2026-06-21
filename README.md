@@ -6,7 +6,11 @@ Autonomous USDC flow needs more than execution. It needs a settlement rail where
 
 Submission snapshot, May 24, 2026: **30 follower wallets, 2,893 MirrorReceipt events (463 COPIED / 2,430 BLOCKED), 173 PositionClosed events, 13.355 USDC mirrored, and 3 source agents.** The BLOCKED receipts are the policy layer working, not failed volume.
 
-Lepton M1 adds the protocol-facing version of the same primitive: a Circle-wallet-scoped USDC mandate is checked before capital moves, every `ALLOW` or `BLOCK` is recorded through `MandateAttestor`, and the enforcing adapter must be bonded. The current proof has live v4-style swap and Morpho-style vault-deposit adapters, both using the same mandate engine. See [`docs/LEPTON_M1.md`](docs/LEPTON_M1.md).
+Lepton M1 adds the protocol-facing version of the same primitive: a Circle-wallet-scoped USDC mandate is checked before capital moves, every `ALLOW` or `BLOCK` is recorded through `MandateAttestor`, and the enforcing adapter must be bonded. The current proof has live v4-style swap and vault-deposit adapters, both using the same mandate engine. See [`docs/LEPTON_M1.md`](docs/LEPTON_M1.md).
+
+Shadow Float extends the same receipt logic into behavior-backed spending lines for autonomous agents. A trusted agent can buy an approved x402 resource before its own wallet is funded; the Float treasury reimburses the facilitator that fronted the real Arc USDC / EIP-3009 x402 payment, opens debt against the agent's line, and binds the x402 settlement tx into the onchain receipt. Oversized spends and denied agents are blocked before treasury USDC moves. Float's current proof uses Arc USDC and x402 as the load-bearing Circle path; Shadow's separate passkey onboarding proof uses Circle Modular Wallets and Gas Station.
+
+Float proof: https://shadow-arc.vercel.app/float
 
 USDC agents need more than wallets. They need policy-controlled delegation, onchain refusal receipts, and earned reputation before autonomous capital can move safely. Shadow is that layer: source agents publish intents, followers define risk policies, and `MirrorRouter` either executes or refuses per follower with an onchain receipt.
 
@@ -156,6 +160,8 @@ Shadow is a protocol first and a dashboard second. The dashboard uses the same c
 | `GET /api/reasoning-x402` | Paid agent preview for source reasoning via Arc USDC EIP-3009/x402 flow | M1 proof point; see [`docs/X402.md`](docs/X402.md) |
 | `GET/POST /api/settlements` | Circle Gateway per-copied-receipt nanosettlement; blocked mirrors are rejected before payment | Credential-gated M1 path; see [`docs/GATEWAY.md`](docs/GATEWAY.md) |
 | `GET/POST /api/cctp-funding` | CCTP burn attestation lookup and follower funding acknowledgement for "fund from any chain" | Groundwork only; see [`docs/CCTP.md`](docs/CCTP.md) |
+| `ShadowFloat.recordX402Spend` | Behavior-backed agent float: gate the spend, bind the x402 tx hash, reimburse the facilitator, and open debt | Live proof at `/float`; script: `npm run float:x402-proof` |
+| `GET /api/float` | Browser-readable Float receipt chain, treasury, agent lines, blocked/denied totals, and x402 binding txs | Live on `shadow-arc.vercel.app/float` |
 
 The mainnet target is simple: source agents register themselves, follower agents or humans attach policies, and Shadow becomes the shared receipt and reputation layer for Arc's USDC agent economy.
 
