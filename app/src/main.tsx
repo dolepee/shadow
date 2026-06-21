@@ -1207,8 +1207,8 @@ function App() {
             <span className="navWalletDot" />
             {account ? shortAddress(account) : "Wallet"}
           </button>
-          <Link to="/follow" className="navCta">
-            Start following
+          <Link to="/float" className="navCta">
+            Float proof
           </Link>
         </div>
       </nav>
@@ -1262,38 +1262,140 @@ function FloatPanel({
   const alpha = state?.alphaLine;
   const beta = state?.betaLine;
   const receipts = state?.receipts || [];
+  const agentLoop = state?.sourceBreakdown?.agentLoop;
+  const external = state?.sourceBreakdown?.external;
+  const runs = state?.loopRuns || [];
+  const latestPaidRun = runs.find((run) => run.x402Hash || run.bindTxHash);
+  const latestGuardRun = runs.find(
+    (run) => run.outcome?.includes("BLOCK") || run.outcome?.includes("DENIED") || run.action === "PREMIUM",
+  );
+  const latestPaidReceipt =
+    receipts.find((receipt) => receipt.x402) || receipts.find((receipt) => receipt.receiptType === "SPEND_ALLOWED");
+  const latestGuardReceipt = receipts.find(
+    (receipt) => receipt.receiptType.includes("BLOCK") || receipt.receiptType.includes("DENIED"),
+  );
   const updated =
     state?.fetchedAt && configured
       ? new Date(state.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       : null;
   const proofSteps = [
-    "Alpha has verifiable Shadow behavior and receives a tiny USDC float line",
-    "The agent attempts an approved x402 provider spend under its mandate",
-    "Shadow checks provider, endpoint, request size, daily cap, and treasury balance",
-    "A facilitator fronts the real x402 payment, then Shadow reimburses it and opens debt",
-    "An oversized request writes a BLOCK receipt before funds move",
-    "Beta is denied because risky history does not earn spending power",
+    {
+      label: "1",
+      title: "Earn",
+      detail: "Alpha has verified Shadow receipts and receives a revocable 1 USDC spending line.",
+    },
+    {
+      label: "2",
+      title: "Pay",
+      detail: "The agent buys an approved x402 resource before its own wallet is funded.",
+    },
+    {
+      label: "3",
+      title: "Bind",
+      detail: "The x402 settlement hash is bound into the Float receipt and debt opens.",
+    },
+    {
+      label: "4",
+      title: "Block",
+      detail: "Oversized or risky spends are refused before treasury USDC moves.",
+    },
   ];
+  const primaryProofHash = latestPaidRun?.x402Hash || latestPaidReceipt?.x402?.x402Hash;
+  const bindProofHash = latestPaidRun?.bindTxHash || latestPaidReceipt?.x402?.bindingTxHash || latestPaidReceipt?.transactionHash;
+  const guardProofHash = latestGuardRun?.txHash || latestGuardReceipt?.transactionHash;
 
   return (
-    <section className={`floatPanel${compact ? " floatPanelCompact" : ""}`} id="shadow-float">
-      <div className="floatHeader">
-        <div>
-          <p className="eyebrow">Shadow Float · agent spending line</p>
-          <h2>Verified behavior becomes spendable USDC.</h2>
+    <section className={`floatPanel floatPanelV2${compact ? " floatPanelCompact" : ""}`} id="shadow-float">
+      <div className="floatHeroShell">
+        <div className="floatHeroCopy">
+          <p className="eyebrow">Shadow 2.0 · behavior-backed float</p>
+          <h2>Agents can spend before they are funded. Shadow decides how far.</h2>
           <p className="floatLede">
-            Shadow Float lets trusted autonomous agents buy approved x402 resources before their own wallet is funded.
-            Every x402 settlement is bound into a debt receipt, and every overspend or risky agent is blocked before
-            treasury USDC moves.
+            Shadow Float turns verifiable onchain behavior into a tiny USDC spending line for autonomous agents. The agent
+            chooses what to buy; Shadow enforces the mandate, pays approved x402 providers, opens debt, and blocks
+            overreach before capital moves.
           </p>
+          <div className="floatHeroActions">
+            {primaryProofHash ? (
+              <a className="floatPrimaryAction" href={txUrl(primaryProofHash as `0x${string}`)} target="_blank" rel="noreferrer">
+                Open latest x402 proof
+              </a>
+            ) : (
+              <a className="floatPrimaryAction" href="#float-receipts">
+                Open receipt rail
+              </a>
+            )}
+            <a className="floatSecondaryAction" href="#float-loop">
+              Watch autonomous loop
+            </a>
+          </div>
         </div>
+        <aside className="floatProofCard" aria-label="Shadow Float live proof">
+          <div className="floatProofCardHeader">
+            <span>live proof</span>
+            <strong>{configured ? `${state?.receiptCount || "0"} receipts` : "syncing"}</strong>
+          </div>
+          <div className="floatProofCardMoment">
+            <span>good agent</span>
+            <strong>pays x402</strong>
+            <small>{primaryProofHash ? shortAddress(primaryProofHash) : "waiting for settlement"}</small>
+          </div>
+          <div className="floatProofCardMoment blocked">
+            <span>overreach</span>
+            <strong>blocked first</strong>
+            <small>{guardProofHash ? shortAddress(guardProofHash) : "no treasury spend"}</small>
+          </div>
+          <div className="floatProofCardFooter">
+            <span>treasury {formatFloatUSDC(state?.treasuryBalanceUSDC)} USDC</span>
+            <span>chain 5042002</span>
+          </div>
+        </aside>
+      </div>
+
+      <div className="floatStatusRow">
         <div className={`floatStatus ${configured ? "configured" : "pending"}`}>
           <span className="floatStatusDot" />
           {configured ? "live Float reads" : "deploy pending"}
           {loading && <small>syncing</small>}
           {updated && <small>updated {updated}</small>}
         </div>
+        <span>real Arc USDC</span>
+        <span>x402 settlement bound onchain</span>
+        <span>demo/admin, agent-loop, and external counters stay separate</span>
       </div>
+
+      <div className="floatHeadlineStats">
+        <FloatHeadlineStat
+          label="agent-loop cycles"
+          value={`${agentLoop?.cycles || 0}`}
+          detail={`${agentLoop?.paidCount || 0} paid · ${agentLoop?.skipCount || 0} skipped`}
+        />
+        <FloatHeadlineStat
+          label="x402 settled by loop"
+          value={formatFloatUSDC(agentLoop?.providerPaidUSDC)}
+          detail="real provider payments"
+          tone="allow"
+        />
+        <FloatHeadlineStat
+          label="blocked by mandate"
+          value={formatFloatUSDC(agentLoop?.blockedUSDC)}
+          detail="before funds moved"
+          tone="block"
+        />
+        <FloatHeadlineStat label="external agents" value={`${external?.cycles || 0}`} detail="kept separate from demo" />
+      </div>
+
+      {!compact && (
+        <div className="floatProofRail" aria-label="Shadow Float proof path">
+          {proofSteps.map((step) => (
+            <div className="floatProofStep" key={step.title}>
+              <span>{step.label}</span>
+              <strong>{step.title}</strong>
+              <p>{step.detail}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="floatHeroGrid">
         <article className="floatAgentCard primary">
@@ -1367,19 +1469,36 @@ function FloatPanel({
 
         <article className="floatBox">
           <div className="floatBoxHeader">
-            <span>proof path</span>
+            <span>proof links</span>
             <small>deterministic policy</small>
           </div>
-          <ol className="floatProofList">
-            {proofSteps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
+          <div className="floatProofLinks">
+            {primaryProofHash && (
+              <a href={txUrl(primaryProofHash as `0x${string}`)} target="_blank" rel="noreferrer">
+                x402 settlement <strong>{shortAddress(primaryProofHash)}</strong>
+              </a>
+            )}
+            {bindProofHash && (
+              <a href={txUrl(bindProofHash as `0x${string}`)} target="_blank" rel="noreferrer">
+                Float bind <strong>{shortAddress(bindProofHash)}</strong>
+              </a>
+            )}
+            {guardProofHash && (
+              <a href={txUrl(guardProofHash as `0x${string}`)} target="_blank" rel="noreferrer">
+                block proof <strong>{shortAddress(guardProofHash)}</strong>
+              </a>
+            )}
+            {state?.float && (
+              <a href={`https://testnet.arcscan.app/address/${state.float}`} target="_blank" rel="noreferrer">
+                ShadowFloat <strong>{shortAddress(state.float)}</strong>
+              </a>
+            )}
+          </div>
         </article>
       </div>
 
       {!compact && (
-        <article className="floatReceipts">
+        <article className="floatReceipts" id="float-receipts">
           <div className="floatBoxHeader">
             <span>latest Float receipts</span>
             <small>{receipts.length ? `${receipts.length} indexed` : "waiting for proof run"}</small>
@@ -1434,7 +1553,7 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
   const hasRuns = Boolean(summary?.cycles);
 
   return (
-    <article className="floatLoopPanel">
+    <article className="floatLoopPanel" id="float-loop">
       <div className="floatBoxHeader">
         <span>autonomous float loop</span>
         <small>{hasRuns ? `${summary?.cycles || 0} labeled cycles` : "waiting for first cron"}</small>
@@ -1511,6 +1630,26 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
           ))}
         </div>
       )}
+    </article>
+  );
+}
+
+function FloatHeadlineStat({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  tone?: "allow" | "block";
+}) {
+  return (
+    <article className={`floatHeadlineStat${tone ? ` ${tone}` : ""}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
     </article>
   );
 }

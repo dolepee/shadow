@@ -501,17 +501,262 @@ html {
 
 .floatPanel {
   background:
-    linear-gradient(135deg, rgba(15, 29, 49, 0.95), rgba(7, 17, 31, 0.92)),
-    linear-gradient(90deg, rgba(52, 229, 255, 0.1), rgba(77, 240, 168, 0.08));
-  border: 1px solid var(--border-strong);
-  border-radius: 14px;
-  box-shadow: 0 24px 90px -70px rgba(77, 240, 168, 0.6);
+    linear-gradient(135deg, rgba(13, 27, 46, 0.96), rgba(6, 12, 23, 0.94)),
+    linear-gradient(90deg, rgba(52, 229, 255, 0.12), rgba(77, 240, 168, 0.08) 48%, rgba(255, 95, 126, 0.055));
+  border: 1px solid rgba(184, 211, 255, 0.16);
+  border-radius: 22px;
+  box-shadow:
+    0 28px 100px -78px rgba(52, 229, 255, 0.74),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset;
   margin: 28px 0;
-  padding: 24px;
+  overflow: hidden;
+  padding: 28px;
+  position: relative;
+}
+
+.floatPanel::before {
+  background: linear-gradient(90deg, rgba(52, 229, 255, 0.95), rgba(77, 240, 168, 0.76), rgba(255, 95, 126, 0.64));
+  content: "";
+  height: 2px;
+  left: 28px;
+  position: absolute;
+  right: 28px;
+  top: 0;
+}
+
+.floatPanelV2 {
+  background:
+    linear-gradient(115deg, rgba(8, 21, 36, 0.98), rgba(6, 11, 21, 0.96) 58%, rgba(10, 23, 37, 0.98)),
+    repeating-linear-gradient(90deg, rgba(184, 211, 255, 0.045) 0, rgba(184, 211, 255, 0.045) 1px, transparent 1px, transparent 86px);
 }
 
 .floatPanelCompact {
   margin-top: 22px;
+}
+
+.floatHeroShell {
+  align-items: stretch;
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+}
+
+.floatHeroCopy {
+  min-width: 0;
+  padding: 18px 0 4px;
+}
+
+.floatHeroCopy .eyebrow {
+  color: var(--copy);
+}
+
+.floatHeroCopy h2 {
+  color: var(--ink);
+  font-size: 76px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 0.9;
+  margin: 0;
+  max-width: 920px;
+}
+
+.floatHeroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.floatPrimaryAction,
+.floatSecondaryAction {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 43px;
+  padding: 0 18px;
+  text-decoration: none;
+}
+
+.floatPrimaryAction {
+  background: linear-gradient(135deg, var(--accent), var(--copy));
+  color: #04101b;
+}
+
+.floatSecondaryAction {
+  border: 1px solid rgba(184, 211, 255, 0.2);
+  color: var(--ink);
+}
+
+.floatProofCard {
+  background:
+    linear-gradient(180deg, rgba(16, 33, 54, 0.88), rgba(7, 17, 31, 0.78)),
+    rgba(7, 17, 31, 0.72);
+  border: 1px solid rgba(77, 240, 168, 0.24);
+  border-radius: 18px;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.floatProofCardHeader,
+.floatProofCardFooter {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.floatProofCardHeader span,
+.floatProofCardFooter span,
+.floatProofCardMoment span,
+.floatProofCardMoment small {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.floatProofCardHeader strong {
+  color: var(--copy);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.floatProofCardMoment {
+  background: rgba(77, 240, 168, 0.075);
+  border: 1px solid rgba(77, 240, 168, 0.2);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.floatProofCardMoment.blocked {
+  background: rgba(255, 95, 126, 0.07);
+  border-color: rgba(255, 95, 126, 0.24);
+}
+
+.floatProofCardMoment strong {
+  color: var(--copy);
+  display: block;
+  font-size: 40px;
+  letter-spacing: 0;
+  line-height: 0.95;
+  margin: 8px 0;
+}
+
+.floatProofCardMoment.blocked strong {
+  color: var(--block);
+}
+
+.floatProofCardFooter {
+  border-top: 1px solid rgba(184, 211, 255, 0.1);
+  padding-top: 12px;
+}
+
+.floatStatusRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.floatStatusRow > span {
+  border: 1px solid rgba(184, 211, 255, 0.13);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 8px 10px;
+  text-transform: uppercase;
+}
+
+.floatHeadlineStats {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(184, 211, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(184, 211, 255, 0.1);
+}
+
+.floatHeadlineStat {
+  background: rgba(8, 18, 31, 0.78);
+  min-height: 122px;
+  padding: 18px;
+}
+
+.floatHeadlineStat span,
+.floatHeadlineStat small {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.floatHeadlineStat strong {
+  color: var(--ink);
+  display: block;
+  font-size: 46px;
+  line-height: 0.95;
+  margin: 16px 0 10px;
+}
+
+.floatHeadlineStat.allow strong {
+  color: var(--copy);
+}
+
+.floatHeadlineStat.block strong {
+  color: var(--block);
+}
+
+.floatProofRail {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.floatProofStep {
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid rgba(184, 211, 255, 0.12);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.floatProofStep span {
+  align-items: center;
+  background: rgba(52, 229, 255, 0.11);
+  border: 1px solid rgba(52, 229, 255, 0.25);
+  border-radius: 50%;
+  color: var(--accent);
+  display: inline-flex;
+  font-family: var(--mono);
+  font-size: 11px;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.floatProofStep strong {
+  color: var(--ink);
+  display: block;
+  font-size: 16px;
+  margin-top: 12px;
+}
+
+.floatProofStep p {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin: 7px 0 0;
 }
 
 .floatHeader {
@@ -581,7 +826,7 @@ html {
   display: grid;
   gap: 14px;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  margin-top: 22px;
+  margin-top: 18px;
 }
 
 .floatAgentCard,
@@ -900,6 +1145,37 @@ html {
   width: 22px;
 }
 
+.floatProofLinks {
+  display: grid;
+  gap: 8px;
+}
+
+.floatProofLinks a {
+  align-items: center;
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid rgba(184, 211, 255, 0.12);
+  border-radius: 10px;
+  color: var(--ink-soft);
+  display: flex;
+  font-size: 13px;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.floatProofLinks a:hover {
+  border-color: rgba(52, 229, 255, 0.28);
+  color: var(--ink);
+}
+
+.floatProofLinks strong {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-left: 10px;
+}
+
 .floatReceipts {
   margin-top: 14px;
 }
@@ -998,6 +1274,19 @@ html {
 }
 
 @media (max-width: 980px) {
+  .floatHeroShell {
+    grid-template-columns: 1fr;
+  }
+
+  .floatHeroCopy h2 {
+    font-size: 64px;
+  }
+
+  .floatHeadlineStats,
+  .floatProofRail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .floatHeader {
     flex-direction: column;
   }
@@ -1020,7 +1309,61 @@ html {
 
 @media (max-width: 620px) {
   .floatPanel {
+    border-radius: 18px;
     padding: 18px;
+  }
+
+  .floatPanel::before {
+    left: 18px;
+    right: 18px;
+  }
+
+  .floatHeroCopy {
+    padding-top: 8px;
+  }
+
+  .floatHeroCopy h2 {
+    font-size: 42px;
+    line-height: 0.94;
+  }
+
+  .floatProofCardMoment strong {
+    font-size: 32px;
+  }
+
+  .floatHeadlineStat strong {
+    font-size: 38px;
+  }
+
+  .floatHeroActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .floatPrimaryAction,
+  .floatSecondaryAction {
+    width: 100%;
+  }
+
+  .floatStatusRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .floatStatusRow > span,
+  .floatStatus {
+    justify-content: center;
+    width: 100%;
+    white-space: normal;
+  }
+
+  .floatHeadlineStats,
+  .floatProofRail {
+    grid-template-columns: 1fr;
+  }
+
+  .floatHeadlineStat {
+    min-height: auto;
   }
 
   .floatHeader h2 {
