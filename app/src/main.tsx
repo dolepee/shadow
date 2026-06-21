@@ -3117,10 +3117,11 @@ function Shadow2ProofStrip({
   blockedCount: number;
 }) {
   const agentLoop = floatState?.sourceBreakdown?.agentLoop;
+  const mirrorLoaded = copiedCount + blockedCount > 0;
   const cards = [
     {
       label: "Shadow Float",
-      metric: `${agentLoop?.cycles || 0}`,
+      metric: agentLoop?.cycles !== undefined ? `${agentLoop.cycles}` : "syncing",
       unit: "agent-loop cycles",
       title: "Behavior becomes spending power",
       body: "A verified agent receives a tiny USDC line, buys approved x402 resources, opens debt, and gets blocked when it overreaches.",
@@ -3129,7 +3130,7 @@ function Shadow2ProofStrip({
     },
     {
       label: "Mandate Engine",
-      metric: leptonState?.receiptCount?.toString() || "0",
+      metric: leptonState?.receiptCount !== undefined ? leptonState.receiptCount.toString() : "syncing",
       unit: "mandate receipts",
       title: "Capital moves only after policy clears",
       body: "The same engine gates swap-style and vault-style actions with ALLOW/BLOCK receipts and bonded enforcement.",
@@ -3138,7 +3139,7 @@ function Shadow2ProofStrip({
     },
     {
       label: "Mirror Adapter",
-      metric: `${copiedCount}/${blockedCount}`,
+      metric: mirrorLoaded ? `${copiedCount}/${blockedCount}` : "syncing",
       unit: "copied / blocked",
       title: "The first production-style proof",
       body: "Copy trading stays visible as historical demand proof: one source intent, per-user policy, no cascade revert.",
