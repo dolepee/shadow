@@ -1,41 +1,62 @@
 # Use Shadow Float as an external agent
 
-Shadow Float gives an autonomous agent a behavior-backed USDC spending line on Arc. Your agent spends credit it never pre-funded: the Float treasury fronts the USDC to the provider, debt opens on your line, and you repay whenever you like. Verified onchain behavior earns and keeps the line.
+Shadow Float gives an autonomous agent a behavior-backed USDC spending line on Arc. Your agent spends credit it never pre-funded: Shadow fronts the USDC to the x402 provider, debt opens on your line, and you repay whenever you like. Verified onchain behavior earns and keeps the line.
 
-This guide is for builders whose agent already has a line. You will push the spend yourself, so onchain the transaction `from` is your wallet, not Shadow. Anyone can verify that.
+This guide is for builders whose agent already has a line. You authorize the spend with your own key, so the action is provably yours, even though Shadow fronts the money and submits the settlement.
 
-## What you need
+## Primary path: signed x402 spend
 
-- The agent wallet you registered (the address whose line is live). The spend must be sent from this exact wallet.
-- A little Arc testnet native gas to send one transaction. You do NOT need any USDC: the treasury fronts the spend. If your wallet has no gas, ping qdee for a dust top-up.
-- Node and `viem` (already a dependency of this repo).
+This is the real product. Your agent signs a spend intent, Shadow fronts the x402 payment, and your signed intent is bound to the onchain receipt so anyone can verify the spend came from you.
 
-## Run it
+You need: your registered agent wallet's key, and nothing else. No gas, no USDC, no transaction from you.
+
+1. Sign the intent locally:
 
 ```bash
 BUILDER_PRIVATE_KEY=0xyourkey \
 RATIONALE="one true sentence: what your agent actually uses the paid call for" \
+node app/scripts/float-builder-sign.mjs
+```
+
+It prints a JSON `{ intent, signature, digest }`. No transaction is sent and no funds move. Your key never leaves your machine.
+
+2. Send that JSON to qdee. Shadow then:
+   - verifies the signature recovers to your agent wallet,
+   - fronts the x402 payment to the provider,
+   - records the spend with `requestHash` set to the exact EIP-712 digest you signed.
+
+3. Verify it yourself or hand the link to anyone:
+
+```
+https://shadow-arc.vercel.app/api/float-verify?hash=<requestHash>
+```
+
+It returns your intent and signature, recovers the signer, and confirms `signerMatchesAgent` and `digestMatchesRequestHash`. Both true means you authorized that exact spend.
+
+4. Cite the receipt in your own Lepton update. Your agent ran on a Shadow Float line, here is the verifiable spend.
+
+## Fallback: push the spend yourself
+
+If you would rather be the literal onchain sender instead of signing, call the contract directly. This needs a little Arc gas and is a direct treasury-fronted spend, not x402-bound.
+
+```bash
+BUILDER_PRIVATE_KEY=0xyourkey \
+RATIONALE="one true sentence" \
 node app/scripts/float-builder-spend.mjs
 ```
 
-Your private key stays on your machine and is never shared. The script:
+Your wallet calls `requestSpend`, the treasury fronts the USDC, debt opens, and the tx `from` is you.
 
-1. Builds a `requestHash` that commits to your `RATIONALE` (the preimage is printed so anyone can re-hash and confirm your real reason).
-2. Previews the spend so a bad setup fails before any transaction.
-3. Sends `requestSpend` from your wallet. The treasury pays the provider, debt opens on your line.
-4. Prints your transaction hash, the arcscan link, the `requestHash`, and the preimage.
+## Repay (optional, either path)
 
-## What you get
+Close the borrow-spend-repay loop from your own wallet:
 
-- An onchain spend whose sender is your wallet, on your Float line. Real third-party usage, not a demo.
-- A receipt and a re-hashable rationale you can point to.
-- A row as an external agent on the public board at https://shadow-arc.vercel.app/float
+```bash
+BUILDER_PRIVATE_KEY=0xyourkey node app/scripts/float-builder-repay.mjs
+```
 
-## After
-
-- Cite your transaction in your own Lepton update: your agent ran on a Shadow Float line, here is the receipt. That cross mention is the part that helps both of us.
-- Close the loop: repay your line from your own wallet to complete the borrow, spend, repay cycle. Run `BUILDER_PRIVATE_KEY=0x... node app/scripts/float-builder-repay.mjs`. It repays your current debt; you need that small amount in testnet USDC plus a little gas (ping qdee if you need either). Your wallet signs it, so the repayment is verifiably yours too.
+You need the small debt amount in testnet USDC plus a little gas (ping qdee if you need either).
 
 ## Why this shape
 
-`requestSpend` is the path your own wallet is authorized to call, so you are the verifiable sender. It is a direct treasury-fronted Float spend, which is the credit mechanic, not the x402 HTTP binding (that path is operator-only by design). The x402 settlement mechanism is proven separately by Shadow's own lab agent. Here, you are proving the thing that matters most: a real external agent using a Float line, pushed by its own key.
+The signed x402 path is the actual Float product: an agent spends before it is funded, Shadow fronts via x402, and the agent's signed intent proves authorship. Shadow submits the transaction (that is what a facilitator does), and the binding is honest because `requestHash` is the digest you signed, so anyone recovers your signature and confirms it. The fallback `requestSpend` path trades x402 for being the literal sender, which is simpler but routes around the product.
