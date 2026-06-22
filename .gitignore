@@ -31,3 +31,6 @@ judge-prep.*
 opencode.json
 app/.gitignore
 .vercel
+
+# Local-only external builder manifest (real builder handles + rationales).
+app/scripts/external-agents.json

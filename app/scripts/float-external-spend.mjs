@@ -31,6 +31,7 @@ const PROVIDER_URL = clean(env.FLOAT_X402_PROVIDER_URL) || "https://shadow-arc.v
 const endpointLabel = clean(env.FLOAT_X402_ENDPOINT_LABEL) || PROVIDER_URL;
 const endpointHash = keccak256(stringToBytes(endpointLabel));
 const maxRuns = Number(clean(env.FLOAT_LOOP_MAX_RUNS) || "120");
+const EXTERNAL_AGENTS_FILE = clean(env.FLOAT_EXTERNAL_AGENTS_FILE) || "/home/qdee/shadow/app/scripts/external-agents.json";
 
 if (!RPC) throw new Error("missing ARC_RPC_URL or VITE_ARC_RPC_URL");
 if (!FLOAT || !isAddress(FLOAT)) throw new Error("missing SHADOW_FLOAT or VITE_SHADOW_FLOAT");
@@ -47,6 +48,18 @@ const agents = process.argv
 
 if (!agents.length) {
   throw new Error("usage: node app/scripts/float-external-spend.mjs 0xAgent [0xAgent...]");
+}
+
+// Honesty gate: every external spend must carry the builder's own real reason,
+// loaded from the manifest. No canned rationale, no placeholder, no spend.
+const manifest = loadExternalManifest();
+for (const agent of agents) {
+  const entry = manifest.get(agent.toLowerCase());
+  if (!entry || !entry.rationale || /^REPLACE/i.test(entry.rationale)) {
+    throw new Error(
+      `no real rationale for ${agent} in ${EXTERNAL_AGENTS_FILE}. Add the builder's own one-line reason (builder + rationale) before running; canned or placeholder rationales are rejected.`,
+    );
+  }
 }
 
 const facilitator = privateKeyToAccount(FACILITATOR_KEY);
@@ -99,15 +112,16 @@ const runs = [];
 for (const agent of agents) {
   const before = await readFloat("lines", [agent]);
   const lineBefore = lineSummary(before);
-  const rationale =
-    "External Lepton builder wallet uses a behavior-backed Shadow Float line to buy the approved x402 provider without prefunding its own wallet.";
+  const entry = manifest.get(agent.toLowerCase());
+  const rationale = entry.rationale;
+  const builder = entry.builder || "external-builder";
   const { requestHash, preimage } = buildRequestCommitment({
     agent,
     action: "EXTERNAL_PAY",
     provider,
     amountAtomic: amount,
     rationale,
-    model: "external-builder-onboarding",
+    model: builder,
     fellBack: false,
   });
 
@@ -125,7 +139,8 @@ for (const agent of agents) {
         requestHash,
         rationale,
         rationalePreimage: preimage,
-        model: "external-builder-onboarding",
+        model: builder,
+        builder,
         fellBack: false,
         lineBefore,
       }),
@@ -147,7 +162,8 @@ for (const agent of agents) {
       requestHash,
       rationale,
       rationalePreimage: preimage,
-      model: "external-builder-onboarding",
+      model: builder,
+      builder,
       fellBack: false,
       providerResponse: x402.providerResponse,
       lineBefore,
@@ -427,6 +443,24 @@ function clean(value) {
 function normalizeKey(value) {
   if (!value) return null;
   return value.startsWith("0x") ? value : `0x${value}`;
+}
+
+function loadExternalManifest() {
+  if (!existsSync(EXTERNAL_AGENTS_FILE)) {
+    throw new Error(
+      `external agents manifest not found at ${EXTERNAL_AGENTS_FILE}. Create it: { "0xAgent": { "builder": "@handle", "rationale": "one true sentence" } }`,
+    );
+  }
+  const raw = JSON.parse(readFileSync(EXTERNAL_AGENTS_FILE, "utf8"));
+  const map = new Map();
+  for (const [address, value] of Object.entries(raw)) {
+    if (!isAddress(address)) continue;
+    map.set(address.toLowerCase(), {
+      builder: typeof value?.builder === "string" ? value.builder.trim() : "",
+      rationale: typeof value?.rationale === "string" ? value.rationale.trim() : "",
+    });
+  }
+  return map;
 }
 
 function sanitizeError(error) {
