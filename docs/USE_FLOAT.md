@@ -34,7 +34,7 @@ Your private key stays on your machine and is never shared. The script:
 ## After
 
 - Cite your transaction in your own Lepton update: your agent ran on a Shadow Float line, here is the receipt. That cross mention is the part that helps both of us.
-- Optional: repay your line from your wallet whenever you want. `repay(agent, amountUSDC, requestHash)` is open to anyone, so it is one more transaction straight from you, with your signature on it.
+- Close the loop: repay your line from your own wallet to complete the borrow, spend, repay cycle. Run `BUILDER_PRIVATE_KEY=0x... node app/scripts/float-builder-repay.mjs`. It repays your current debt; you need that small amount in testnet USDC plus a little gas (ping qdee if you need either). Your wallet signs it, so the repayment is verifiably yours too.
 
 ## Why this shape
 
