@@ -81,13 +81,13 @@ export default async function handler(req: Req, res: Res) {
   }
 }
 
-function labelFor(address: string): "lab" | "external" | "demo" {
+function labelFor(address: string): "lab" | "invited" | "demo" {
   const a = address.toLowerCase();
   const lab = parseSet(process.env.FLOAT_LAB_AGENTS, [DEFAULT_ALPHA]);
   const demo = parseSet(process.env.FLOAT_DEMO_AGENTS, [DEFAULT_BETA]);
   if (lab.has(a)) return "lab";
   if (demo.has(a)) return "demo";
-  return "external";
+  return "invited";
 }
 
 function parseSet(raw: string | undefined, fallback: string[]): Set<string> {

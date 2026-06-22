@@ -844,7 +844,7 @@ html {
   background: linear-gradient(90deg, rgba(77, 240, 168, 0.1), rgba(184, 211, 255, 0.04));
 }
 
-.floatStandingRow.external {
+.floatStandingRow.invited {
   background: linear-gradient(90deg, rgba(50, 215, 255, 0.1), rgba(184, 211, 255, 0.04));
 }
 

@@ -16,7 +16,7 @@ export const config = { maxDuration: 20 };
 const ARC_CHAIN_ID = 5_042_002;
 const DEFAULT_USDC = "0x3600000000000000000000000000000000000000";
 const LOG_LOOKBACK = BigInt(process.env.FLOAT_LOG_LOOKBACK || "250000");
-const DEFAULT_EXTERNAL_AGENTS = [
+const DEFAULT_INVITED_AGENTS = [
   "0xC45d7072A811754EfC67E332C9137cC7CBfFa274",
   "0xD3eed2f7dcED5fbc96Fb1a0FC058C540D50b4f80",
   "0x13585c6004fbA9D7D49219a6435B68348fD30770",
@@ -41,7 +41,7 @@ type FloatConfig = {
   alpha: Address;
   beta: Address;
   provider: Address;
-  externalAgents: Address[];
+  invitedAgents: Address[];
   startBlock: bigint;
 };
 
@@ -307,8 +307,8 @@ function serializeProvider(provider: readonly unknown[]) {
 
 // Standing board: turn Float from a demo into a queryable layer. Derives the
 // set of agents that have a line (the seeded pair plus anyone seen in receipts),
-// reads each line, and labels it Lab / External / Demo so the mix is honest at a
-// glance. Pure reads, no contract change.
+// reads each line, and labels it Lab / Invited / Demo so the mix is honest at a
+// glance. Signed usage is counted separately in sourceBreakdown.externalSigned.
 async function buildStandingBoard(
   client: PublicClient,
   cfg: FloatConfig,
@@ -320,7 +320,7 @@ async function buildStandingBoard(
   };
   add(cfg.alpha);
   add(cfg.beta);
-  for (const agent of cfg.externalAgents) add(agent);
+  for (const agent of cfg.invitedAgents) add(agent);
   for (const log of logs) add(log.args.agent as string | undefined);
   const agents = [...seen.values()].slice(0, 40);
 
@@ -365,14 +365,14 @@ async function buildStandingBoard(
       acc[row.label] += 1;
       return acc;
     },
-    { lab: 0, external: 0, demo: 0 },
+    { lab: 0, invited: 0, demo: 0 },
   );
 
   return {
     generatedAt: Date.now(),
     legend: {
       lab: "Lab agents (Shadow-operated)",
-      external: "External agents (other builders)",
+      invited: "Invited builder wallets with a Float line",
       demo: "Demo / admin",
     },
     counts,
@@ -380,11 +380,11 @@ async function buildStandingBoard(
   };
 }
 
-function agentLabel(address: string, cfg: FloatConfig): "lab" | "external" | "demo" {
+function agentLabel(address: string, cfg: FloatConfig): "lab" | "invited" | "demo" {
   const a = address.toLowerCase();
   if (labelSet(process.env.FLOAT_LAB_AGENTS, cfg.alpha).has(a)) return "lab";
   if (labelSet(process.env.FLOAT_DEMO_AGENTS, cfg.beta).has(a)) return "demo";
-  return "external";
+  return "invited";
 }
 
 function labelSet(raw: string | undefined, fallback: string): Set<string> {
@@ -412,12 +412,15 @@ function summarizeSources(
   totalRepaidUSDC: bigint,
 ) {
   const agentLoop = summarizeRunSet(runs.filter((run) => run.source === "agent-loop"));
-  const external = summarizeRunSet(runs.filter((run) => run.source === "external"));
-  const knownProviderPaidUSDC = agentLoop.providerPaidUSDC + external.providerPaidUSDC;
-  const knownDebtOpenedUSDC = agentLoop.debtOpenedUSDC + external.debtOpenedUSDC;
-  const knownBlockedUSDC = agentLoop.blockedUSDC + external.blockedUSDC;
-  const knownDeniedUSDC = agentLoop.deniedUSDC + external.deniedUSDC;
-  const knownRepaidUSDC = agentLoop.repaidUSDC + external.repaidUSDC;
+  const externalSigned = summarizeRunSet(runs.filter((run) => run.source === "external-signed"));
+  const assisted = summarizeRunSet(runs.filter((run) => run.source === "operator-assisted" || run.source === "external"));
+  const knownProviderPaidUSDC =
+    agentLoop.providerPaidUSDC + externalSigned.providerPaidUSDC + assisted.providerPaidUSDC;
+  const knownDebtOpenedUSDC =
+    agentLoop.debtOpenedUSDC + externalSigned.debtOpenedUSDC + assisted.debtOpenedUSDC;
+  const knownBlockedUSDC = agentLoop.blockedUSDC + externalSigned.blockedUSDC + assisted.blockedUSDC;
+  const knownDeniedUSDC = agentLoop.deniedUSDC + externalSigned.deniedUSDC + assisted.deniedUSDC;
+  const knownRepaidUSDC = agentLoop.repaidUSDC + externalSigned.repaidUSDC + assisted.repaidUSDC;
   const demoAdmin = {
     providerPaidUSDC: clampSub(totalProviderPaidUSDC, knownProviderPaidUSDC),
     debtOpenedUSDC: clampSub(totalDebtOpenedUSDC, knownDebtOpenedUSDC),
@@ -427,6 +430,8 @@ function summarizeSources(
   };
   return {
     agentLoop: serializeSourceSummary(agentLoop),
+    externalSigned: serializeSourceSummary(externalSigned),
+    assisted: serializeSourceSummary(assisted),
     demoAdmin: {
       providerPaidUSDC: demoAdmin.providerPaidUSDC.toString(),
       debtOpenedUSDC: demoAdmin.debtOpenedUSDC.toString(),
@@ -434,7 +439,6 @@ function summarizeSources(
       deniedUSDC: demoAdmin.deniedUSDC.toString(),
       repaidUSDC: demoAdmin.repaidUSDC.toString(),
     },
-    external: serializeSourceSummary(external),
   };
 }
 
@@ -541,7 +545,12 @@ async function readFloatLoopRuns(): Promise<FloatLoopRun[]> {
 function isFloatRun(value: unknown): value is FloatLoopRun {
   if (!value || typeof value !== "object") return false;
   const source = (value as FloatLoopRun).source;
-  return source === "agent-loop" || source === "external";
+  return (
+    source === "agent-loop" ||
+    source === "external-signed" ||
+    source === "operator-assisted" ||
+    source === "external"
+  );
 }
 
 function toBigInt(value: string | undefined): bigint {
@@ -575,9 +584,12 @@ function floatConfigFromEnv(): FloatConfig | null {
     alpha: getAddress(alphaRaw),
     beta: getAddress(betaRaw),
     provider: getAddress(providerRaw),
-    externalAgents: parseAddressList(
-      process.env.FLOAT_EXTERNAL_AGENTS || process.env.VITE_FLOAT_EXTERNAL_AGENTS,
-      DEFAULT_EXTERNAL_AGENTS,
+    invitedAgents: parseAddressList(
+      process.env.FLOAT_INVITED_AGENTS ||
+        process.env.VITE_FLOAT_INVITED_AGENTS ||
+        process.env.FLOAT_EXTERNAL_AGENTS ||
+        process.env.VITE_FLOAT_EXTERNAL_AGENTS,
+      DEFAULT_INVITED_AGENTS,
     ),
     startBlock: BigInt(cleanEnv(process.env.SHADOW_FLOAT_START_BLOCK || process.env.VITE_SHADOW_FLOAT_START_BLOCK) || "0"),
   };

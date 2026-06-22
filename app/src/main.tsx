@@ -242,7 +242,7 @@ type FloatSourceSummary = {
 
 type FloatLoopRun = {
   id?: string;
-  source?: "agent-loop";
+  source?: "agent-loop" | "external-signed" | "operator-assisted" | "external";
   action?: string;
   outcome?: string;
   at?: string;
@@ -260,7 +260,7 @@ type FloatLoopRun = {
 
 type FloatStandingAgent = {
   agent: Address;
-  label: "lab" | "external" | "demo";
+  label: "lab" | "invited" | "demo";
   score: number;
   status: string;
   creditLimitUSDC: string;
@@ -274,7 +274,7 @@ type FloatStandingBoard = {
   legend?: Record<string, string>;
   counts?: {
     lab?: number;
-    external?: number;
+    invited?: number;
     demo?: number;
   };
   agents?: FloatStandingAgent[];
@@ -309,7 +309,8 @@ type FloatState = {
   sourceBreakdown?: {
     agentLoop?: FloatSourceSummary;
     demoAdmin?: FloatSourceSummary;
-    external?: FloatSourceSummary;
+    externalSigned?: FloatSourceSummary;
+    assisted?: FloatSourceSummary;
   };
   standingBoard?: FloatStandingBoard;
   loopRuns?: FloatLoopRun[];
@@ -1292,7 +1293,8 @@ function FloatPanel({
   const beta = state?.betaLine;
   const receipts = state?.receipts || [];
   const agentLoop = state?.sourceBreakdown?.agentLoop;
-  const external = state?.sourceBreakdown?.external;
+  const externalSigned = state?.sourceBreakdown?.externalSigned;
+  const assisted = state?.sourceBreakdown?.assisted;
   const standingBoard = state?.standingBoard;
   const runs = state?.loopRuns || [];
   const latestPaidRun = runs.find((run) => run.x402Hash || run.bindTxHash);
@@ -1391,7 +1393,7 @@ function FloatPanel({
         </div>
         <span>real Arc USDC</span>
         <span>x402 settlement bound onchain</span>
-        <span>demo/admin, agent-loop, and external counters stay separate</span>
+        <span>lab, signed external, and assisted onboarding stay separate</span>
       </div>
 
       <div className="floatHeadlineStats">
@@ -1413,9 +1415,14 @@ function FloatPanel({
           tone="block"
         />
         <FloatHeadlineStat
-          label="external x402 cycles"
-          value={`${external?.cycles || 0}`}
-          detail={`${formatFloatUSDC(external?.providerPaidUSDC)} settled`}
+          label="external signed x402"
+          value={`${externalSigned?.cycles || 0}`}
+          detail={`${formatFloatUSDC(externalSigned?.providerPaidUSDC)} settled`}
+        />
+        <FloatHeadlineStat
+          label="assisted onboarding"
+          value={`${assisted?.cycles || 0}`}
+          detail="operator-run, not external usage"
         />
       </div>
 
@@ -1575,7 +1582,7 @@ function FloatPanel({
           <span>testnet USDC line, not a lending market</span>
           <span>agent chooses the spend; Shadow enforces the mandate</span>
           <span>x402 settlement tx is bound on-chain</span>
-          <span>demo/admin and agent-driven cycles stay labeled separately</span>
+          <span>signed external and assisted onboarding stay labeled separately</span>
         </div>
       )}
     </section>
@@ -1603,7 +1610,7 @@ function FloatStandingBoardPanel({
       <div className="floatBoxHeader">
         <span>agent standing board</span>
         <small>
-          {counts.external || 0} external · {counts.lab || 0} lab · {counts.demo || 0} demo
+          {counts.invited || 0} invited · {counts.lab || 0} lab · {counts.demo || 0} demo
         </small>
       </div>
       <div className="floatStandingIntro">
@@ -1652,11 +1659,11 @@ function FloatStandingBoardPanel({
         ) : (
           <div className="floatStandingEmpty">Standing rows appear after the Float contract read returns agent lines.</div>
         )}
-        {!compact && !counts.external && (
+        {!compact && !counts.invited && (
           <div className="floatStandingExternalSlot">
-            <span>external slot</span>
-            <strong>waiting for first builder agent</strong>
-            <small>When another Lepton agent takes a line, it appears here without mixing into lab/demo volume.</small>
+            <span>invited slot</span>
+            <strong>waiting for first builder line</strong>
+            <small>Signed usage is counted separately only after a builder authorizes an x402 intent.</small>
           </div>
         )}
         {!compact && beta && !agents.some((agent) => agent.agent.toLowerCase() === beta.toLowerCase()) && (
@@ -1708,8 +1715,12 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
           <strong>{formatFloatUSDC(state?.sourceBreakdown?.demoAdmin?.providerPaidUSDC)}</strong>
         </div>
         <div>
-          <span>external x402 settled</span>
-          <strong>{formatFloatUSDC(state?.sourceBreakdown?.external?.providerPaidUSDC)}</strong>
+          <span>signed external x402</span>
+          <strong>{formatFloatUSDC(state?.sourceBreakdown?.externalSigned?.providerPaidUSDC)}</strong>
+        </div>
+        <div>
+          <span>assisted onboarding</span>
+          <strong>{formatFloatUSDC(state?.sourceBreakdown?.assisted?.providerPaidUSDC)}</strong>
         </div>
       </div>
       {latest ? (
