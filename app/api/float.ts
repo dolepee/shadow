@@ -63,7 +63,10 @@ type FloatLoopRun = {
 };
 
 type FloatReadClient = {
-  readContract: (...args: Parameters<ReturnType<typeof createPublicClient>["readContract"]>) => ReturnType<ReturnType<typeof createPublicClient>["readContract"]>;
+  // Keep this helper boundary loose: viem's generic PublicClient type is very
+  // deep and Vercel's serverless type pass can fail on it. The function only
+  // calls the typed `lines(address)` view below.
+  readContract: (args: any) => Promise<any>;
 };
 
 const floatAbi = parseAbi([
