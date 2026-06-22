@@ -1914,10 +1914,10 @@ button:hover {
 }
 
 .heroGrid {
-  align-items: center;
+  align-items: start;
   display: grid;
-  gap: 42px;
-  grid-template-columns: minmax(0, 1fr) minmax(400px, 0.92fr);
+  gap: 52px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 0.78fr);
   position: relative;
 }
 
@@ -1930,11 +1930,27 @@ button:hover {
   .heroLedger {
     margin-top: 0;
   }
+
+  .hero h1 {
+    font-size: 54px;
+    max-width: 680px;
+  }
 }
 
 .heroCopy {
   display: flex;
   flex-direction: column;
+}
+
+.hero h1 {
+  font-size: 70px;
+  line-height: 0.94;
+  max-width: 700px;
+}
+
+.hero .lede {
+  line-height: 1.48;
+  max-width: 570px;
 }
 
 .heroBadge {
@@ -2182,9 +2198,9 @@ button:hover {
     padding: 44px 18px 24px;
   }
   .hero h1 {
-    font-size: clamp(30px, 7.5vw, 40px);
-    letter-spacing: -0.03em;
-    line-height: 1.06;
+    font-size: 40px;
+    letter-spacing: -0.045em;
+    line-height: 1.02;
   }
   .heroGrid {
     gap: 36px;
@@ -2233,7 +2249,7 @@ button:hover {
 
 @media (max-width: 480px) {
   .hero h1 {
-    font-size: clamp(28px, 8vw, 34px);
+    font-size: 34px;
   }
   .heroBackdropGlow--graphite {
     height: 360px;
@@ -6131,7 +6147,7 @@ code {
     0 0 0 1px rgba(52, 229, 255, 0.04);
   display: flex;
   flex-direction: column;
-  margin-top: 92px;
+  margin-top: 46px;
   overflow: hidden;
   position: relative;
 }

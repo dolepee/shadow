@@ -914,11 +914,10 @@ function App() {
               <span className="heroBadgeDot" />
               shadow 2.0 · live on arc testnet
             </div>
-            <h1>Autonomous agents need float, mandates, and receipts.</h1>
+            <h1>Float for agents. Mandates for capital. Receipts for proof.</h1>
             <p className="lede">
-              Shadow 2.0 turns verified agent behavior into spendable USDC float, checks every capital move against a
-              committed mandate, and writes the proof on Arc. A good agent can buy approved x402 resources before its own
-              wallet is funded. An overreach gets <strong className="lede--block">blocked before treasury USDC moves</strong>.
+              Shadow 2.0 lets trusted agents buy approved x402 resources before their own wallet is funded, while mandates
+              block overreach before treasury USDC moves. Every approval, refusal, and repayment becomes an Arc receipt.
             </p>
             <div className="heroActions">
               <Link to="/float" className="heroCtaPrimary">
