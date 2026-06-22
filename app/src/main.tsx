@@ -260,7 +260,7 @@ type FloatLoopRun = {
 
 type FloatStandingAgent = {
   agent: Address;
-  label: "lab" | "invited" | "demo";
+  label: "lab" | "invited" | "self-test" | "demo";
   score: number;
   status: string;
   creditLimitUSDC: string;
@@ -275,6 +275,7 @@ type FloatStandingBoard = {
   counts?: {
     lab?: number;
     invited?: number;
+    "self-test"?: number;
     demo?: number;
   };
   agents?: FloatStandingAgent[];
@@ -1610,7 +1611,7 @@ function FloatStandingBoardPanel({
       <div className="floatBoxHeader">
         <span>agent standing board</span>
         <small>
-          {counts.invited || 0} invited · {counts.lab || 0} lab · {counts.demo || 0} demo
+          {counts.invited || 0} invited · {counts["self-test"] || 0} self-test · {counts.lab || 0} lab · {counts.demo || 0} demo
         </small>
       </div>
       <div className="floatStandingIntro">

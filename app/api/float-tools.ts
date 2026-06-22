@@ -17,6 +17,10 @@ const ARC_CHAIN_ID = 5_042_002;
 const ZERO = "0x0000000000000000000000000000000000000000";
 const DEFAULT_ALPHA = "0xa100000000000000000000000000000000000001";
 const DEFAULT_BETA = "0xbe7a000000000000000000000000000000000002";
+const DEFAULT_SELF_TEST_AGENTS = [
+  "0x0C63826eE08aF1f144ec5D84B6c56fe393fE19F5",
+  "0xD3eed2f7dcED5fbc96Fb1a0FC058C540D50b4f80",
+] as const;
 const STATUSES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID"];
 
 const floatAbi = parseAbi([
@@ -263,12 +267,14 @@ async function readLoopRuns(): Promise<LoopRun[]> {
   }
 }
 
-function labelFor(address: string): "lab" | "invited" | "demo" {
+function labelFor(address: string): "lab" | "invited" | "self-test" | "demo" {
   const a = address.toLowerCase();
   const lab = parseSet(process.env.FLOAT_LAB_AGENTS, [DEFAULT_ALPHA]);
   const demo = parseSet(process.env.FLOAT_DEMO_AGENTS, [DEFAULT_BETA]);
+  const selfTest = parseSet(process.env.FLOAT_SELF_TEST_AGENTS || process.env.VITE_FLOAT_SELF_TEST_AGENTS, [...DEFAULT_SELF_TEST_AGENTS]);
   if (lab.has(a)) return "lab";
   if (demo.has(a)) return "demo";
+  if (selfTest.has(a)) return "self-test";
   return "invited";
 }
 

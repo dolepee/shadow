@@ -17,10 +17,13 @@ const DEFAULT_USDC = "0x3600000000000000000000000000000000000000";
 const LOG_LOOKBACK = BigInt(process.env.FLOAT_LOG_LOOKBACK || "250000");
 const DEFAULT_INVITED_AGENTS = [
   "0xC45d7072A811754EfC67E332C9137cC7CBfFa274",
-  "0xD3eed2f7dcED5fbc96Fb1a0FC058C540D50b4f80",
   "0x13585c6004fbA9D7D49219a6435B68348fD30770",
   "0xa539a18b55e5e3b98892c724f8f75914c0b69942",
+  "0x7891d0B43F067f1bA52B21682847Bb63985862Cc",
+] as const;
+const DEFAULT_SELF_TEST_AGENTS = [
   "0x0C63826eE08aF1f144ec5D84B6c56fe393fE19F5",
+  "0xD3eed2f7dcED5fbc96Fb1a0FC058C540D50b4f80",
 ] as const;
 
 type VercelLikeRequest = {
@@ -41,6 +44,7 @@ type FloatConfig = {
   beta: Address;
   provider: Address;
   invitedAgents: Address[];
+  selfTestAgents: Address[];
   startBlock: bigint;
 };
 
@@ -313,7 +317,7 @@ function serializeProvider(provider: readonly unknown[]) {
 
 // Standing board: turn Float from a demo into a queryable layer. Derives the
 // set of agents that have a line (the seeded pair plus anyone seen in receipts),
-// reads each line, and labels it Lab / Invited / Demo so the mix is honest at a
+// reads each line, and labels it Lab / Invited / Self-test / Demo so the mix is honest at a
 // glance. Signed usage is counted separately in sourceBreakdown.externalSigned.
 async function buildStandingBoard(
   client: FloatReadClient,
@@ -327,6 +331,7 @@ async function buildStandingBoard(
   add(cfg.alpha);
   add(cfg.beta);
   for (const agent of cfg.invitedAgents) add(agent);
+  for (const agent of cfg.selfTestAgents) add(agent);
   for (const log of logs) add(log.args.agent as string | undefined);
   const agents = [...seen.values()].slice(0, 40);
 
@@ -371,7 +376,7 @@ async function buildStandingBoard(
       acc[row.label] += 1;
       return acc;
     },
-    { lab: 0, invited: 0, demo: 0 },
+    { lab: 0, invited: 0, "self-test": 0, demo: 0 },
   );
 
   return {
@@ -379,6 +384,7 @@ async function buildStandingBoard(
     legend: {
       lab: "Lab agents (Shadow-operated)",
       invited: "Invited builder wallets with a Float line",
+      "self-test": "Self-test / reassigned wallets, not counted as external usage",
       demo: "Demo / admin",
     },
     counts,
@@ -386,10 +392,11 @@ async function buildStandingBoard(
   };
 }
 
-function agentLabel(address: string, cfg: FloatConfig): "lab" | "invited" | "demo" {
+function agentLabel(address: string, cfg: FloatConfig): "lab" | "invited" | "self-test" | "demo" {
   const a = address.toLowerCase();
   if (labelSet(process.env.FLOAT_LAB_AGENTS, cfg.alpha).has(a)) return "lab";
   if (labelSet(process.env.FLOAT_DEMO_AGENTS, cfg.beta).has(a)) return "demo";
+  if (cfg.selfTestAgents.some((agent) => agent.toLowerCase() === a)) return "self-test";
   return "invited";
 }
 
@@ -596,6 +603,10 @@ function floatConfigFromEnv(): FloatConfig | null {
         process.env.FLOAT_EXTERNAL_AGENTS ||
         process.env.VITE_FLOAT_EXTERNAL_AGENTS,
       DEFAULT_INVITED_AGENTS,
+    ),
+    selfTestAgents: parseAddressList(
+      process.env.FLOAT_SELF_TEST_AGENTS || process.env.VITE_FLOAT_SELF_TEST_AGENTS,
+      DEFAULT_SELF_TEST_AGENTS,
     ),
     startBlock: BigInt(cleanEnv(process.env.SHADOW_FLOAT_START_BLOCK || process.env.VITE_SHADOW_FLOAT_START_BLOCK) || "0"),
   };
