@@ -258,6 +258,28 @@ type FloatLoopRun = {
   fellBack?: boolean;
 };
 
+type FloatStandingAgent = {
+  agent: Address;
+  label: "lab" | "external" | "demo";
+  score: number;
+  status: string;
+  creditLimitUSDC: string;
+  availableCreditUSDC: string;
+  activeDebtUSDC: string;
+  lastReview: number;
+};
+
+type FloatStandingBoard = {
+  generatedAt?: number;
+  legend?: Record<string, string>;
+  counts?: {
+    lab?: number;
+    external?: number;
+    demo?: number;
+  };
+  agents?: FloatStandingAgent[];
+};
+
 type FloatState = {
   configured: boolean;
   testnet: true;
@@ -289,6 +311,7 @@ type FloatState = {
     demoAdmin?: FloatSourceSummary;
     external?: FloatSourceSummary;
   };
+  standingBoard?: FloatStandingBoard;
   loopRuns?: FloatLoopRun[];
   receipts?: FloatReceiptState[];
   latestBlock?: string;
@@ -1270,6 +1293,7 @@ function FloatPanel({
   const receipts = state?.receipts || [];
   const agentLoop = state?.sourceBreakdown?.agentLoop;
   const external = state?.sourceBreakdown?.external;
+  const standingBoard = state?.standingBoard;
   const runs = state?.loopRuns || [];
   const latestPaidRun = runs.find((run) => run.x402Hash || run.bindTxHash);
   const latestGuardRun = runs.find(
@@ -1390,6 +1414,8 @@ function FloatPanel({
         />
         <FloatHeadlineStat label="external agents" value={`${external?.cycles || 0}`} detail="kept separate from demo" />
       </div>
+
+      <FloatStandingBoardPanel board={standingBoard} alpha={state?.alpha} beta={state?.beta} compact={compact} />
 
       {!compact && (
         <div className="floatProofRail" aria-label="Shadow Float proof path">
@@ -1549,6 +1575,102 @@ function FloatPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function FloatStandingBoardPanel({
+  board,
+  alpha,
+  beta,
+  compact,
+}: {
+  board?: FloatStandingBoard;
+  alpha?: Address;
+  beta?: Address;
+  compact: boolean;
+}) {
+  const agents = board?.agents || [];
+  const visibleAgents = compact ? agents.slice(0, 3) : agents.slice(0, 8);
+  const counts = board?.counts || {};
+  const alphaApi = alpha ? `/api/float-agent?address=${alpha}` : "/api/float";
+
+  return (
+    <article className="floatStandingBoard" aria-label="Shadow Float agent standing board">
+      <div className="floatBoxHeader">
+        <span>agent standing board</span>
+        <small>
+          {counts.external || 0} external · {counts.lab || 0} lab · {counts.demo || 0} demo
+        </small>
+      </div>
+      <div className="floatStandingIntro">
+        <div>
+          <strong>Behavior becomes queryable credit.</strong>
+          <p>Other agents can read standing before asking Shadow to front USDC for an x402 call.</p>
+        </div>
+        <a href={alphaApi} target="_blank" rel="noreferrer">
+          Standing API
+        </a>
+      </div>
+      <div className="floatStandingRows">
+        {visibleAgents.length ? (
+          visibleAgents.map((agent, index) => (
+            <a
+              className={`floatStandingRow ${agent.label}`}
+              href={`/api/float-agent?address=${agent.agent}`}
+              key={agent.agent}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span className="floatStandingRank">#{index + 1}</span>
+              <span className="floatStandingIdentity">
+                <strong>{shortAddress(agent.agent)}</strong>
+                <small>{agent.label}</small>
+              </span>
+              <span className="floatStandingStatus">{agent.status}</span>
+              <span className="floatStandingMetric">
+                <small>score</small>
+                <strong>{agent.score}</strong>
+              </span>
+              <span className="floatStandingMetric">
+                <small>line</small>
+                <strong>{formatFloatUSDC(agent.creditLimitUSDC)}</strong>
+              </span>
+              <span className="floatStandingMetric">
+                <small>available</small>
+                <strong>{formatFloatUSDC(agent.availableCreditUSDC)}</strong>
+              </span>
+              <span className="floatStandingMetric">
+                <small>debt</small>
+                <strong>{formatFloatUSDC(agent.activeDebtUSDC)}</strong>
+              </span>
+            </a>
+          ))
+        ) : (
+          <div className="floatStandingEmpty">Standing rows appear after the Float contract read returns agent lines.</div>
+        )}
+        {!compact && !counts.external && (
+          <div className="floatStandingExternalSlot">
+            <span>external slot</span>
+            <strong>waiting for first builder agent</strong>
+            <small>When another Lepton agent takes a line, it appears here without mixing into lab/demo volume.</small>
+          </div>
+        )}
+        {!compact && beta && !agents.some((agent) => agent.agent.toLowerCase() === beta.toLowerCase()) && (
+          <a className="floatStandingRow demo" href={`/api/float-agent?address=${beta}`} target="_blank" rel="noreferrer">
+            <span className="floatStandingRank">demo</span>
+            <span className="floatStandingIdentity">
+              <strong>{shortAddress(beta)}</strong>
+              <small>demo</small>
+            </span>
+            <span className="floatStandingStatus">queryable</span>
+            <span className="floatStandingMetric">
+              <small>API</small>
+              <strong>open</strong>
+            </span>
+          </a>
+        )}
+      </div>
+    </article>
   );
 }
 

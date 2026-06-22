@@ -578,6 +578,7 @@ html {
 .floatPanelCompact .floatHeroGrid,
 .floatPanelCompact .floatMetricGrid,
 .floatPanelCompact .floatGrid,
+.floatPanelCompact .floatStandingBoard,
 .floatPanelCompact .floatLoopPanel {
   margin-top: 12px;
 }
@@ -763,6 +764,152 @@ html {
 
 .floatHeadlineStat.block strong {
   color: var(--block);
+}
+
+.floatStandingBoard {
+  background:
+    linear-gradient(135deg, rgba(50, 215, 255, 0.075), rgba(77, 240, 168, 0.04)),
+    rgba(7, 17, 31, 0.58);
+  border: 1px solid rgba(50, 215, 255, 0.18);
+  border-radius: 16px;
+  margin-top: 14px;
+  padding: 14px;
+}
+
+.floatStandingIntro {
+  align-items: center;
+  border-top: 1px solid rgba(184, 211, 255, 0.1);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.floatStandingIntro strong {
+  color: var(--ink);
+  display: block;
+  font-size: 17px;
+  letter-spacing: 0;
+}
+
+.floatStandingIntro p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+.floatStandingIntro a {
+  align-items: center;
+  border: 1px solid rgba(50, 215, 255, 0.25);
+  border-radius: 999px;
+  color: var(--accent);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  min-height: 36px;
+  padding: 0 12px;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.floatStandingRows {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.floatStandingRow {
+  align-items: center;
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid rgba(184, 211, 255, 0.12);
+  border-radius: 12px;
+  color: var(--ink);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 42px minmax(140px, 1.2fr) minmax(88px, 0.8fr) repeat(4, minmax(74px, 0.7fr));
+  min-height: 68px;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.floatStandingRow:hover {
+  border-color: rgba(50, 215, 255, 0.34);
+}
+
+.floatStandingRow.lab {
+  background: linear-gradient(90deg, rgba(77, 240, 168, 0.1), rgba(184, 211, 255, 0.04));
+}
+
+.floatStandingRow.external {
+  background: linear-gradient(90deg, rgba(50, 215, 255, 0.1), rgba(184, 211, 255, 0.04));
+}
+
+.floatStandingRow.demo {
+  background: linear-gradient(90deg, rgba(255, 95, 126, 0.07), rgba(184, 211, 255, 0.04));
+}
+
+.floatStandingRank,
+.floatStandingStatus {
+  border: 1px solid rgba(184, 211, 255, 0.14);
+  border-radius: 999px;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 800;
+  justify-self: start;
+  padding: 6px 8px;
+  text-transform: uppercase;
+}
+
+.floatStandingIdentity strong,
+.floatStandingMetric strong {
+  color: var(--ink);
+  display: block;
+  font-family: var(--mono);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.floatStandingIdentity small,
+.floatStandingMetric small,
+.floatStandingExternalSlot span,
+.floatStandingExternalSlot small {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.floatStandingIdentity small {
+  margin-top: 4px;
+}
+
+.floatStandingMetric strong {
+  color: var(--copy);
+  margin-top: 5px;
+}
+
+.floatStandingExternalSlot,
+.floatStandingEmpty {
+  background: rgba(7, 17, 31, 0.56);
+  border: 1px dashed rgba(50, 215, 255, 0.25);
+  border-radius: 12px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  padding: 12px;
+}
+
+.floatStandingExternalSlot strong {
+  color: var(--ink);
+  display: block;
+  font-size: 16px;
+  margin: 5px 0;
 }
 
 .floatProofRail {
@@ -1358,6 +1505,14 @@ html {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .floatStandingRow {
+    grid-template-columns: 40px minmax(130px, 1fr) minmax(84px, auto) repeat(2, minmax(74px, 0.7fr));
+  }
+
+  .floatStandingMetric:nth-last-child(-n + 2) {
+    display: none;
+  }
+
   .floatMetricGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1411,6 +1566,35 @@ html {
     justify-content: center;
     width: 100%;
     white-space: normal;
+  }
+
+  .floatStandingIntro {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .floatStandingIntro a {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .floatStandingRow {
+    align-items: flex-start;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .floatStandingRank,
+  .floatStandingStatus {
+    justify-self: start;
+  }
+
+  .floatStandingIdentity,
+  .floatStandingMetric {
+    min-width: 0;
+  }
+
+  .floatStandingMetric:nth-last-child(-n + 2) {
+    display: block;
   }
 
   .floatHeadlineStats,
