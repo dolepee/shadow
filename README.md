@@ -162,8 +162,9 @@ Shadow is a protocol first and a dashboard second. The dashboard uses the same c
 | `GET/POST /api/cctp-funding` | CCTP burn attestation lookup and follower funding acknowledgement for "fund from any chain" | Groundwork only; see [`docs/CCTP.md`](docs/CCTP.md) |
 | `ShadowFloat.recordX402Spend` | Behavior-backed agent float: gate the spend, bind the x402 tx hash, reimburse the facilitator, and open debt | Live proof at `/float`; script: `npm run float:x402-proof` |
 | `GET /api/float` | Browser-readable Float receipt chain, treasury, agent lines, blocked/denied totals, x402 binding txs, and the `standingBoard` | Live on `shadow-arc.vercel.app/float` |
-| `GET /api/float-agent?address=0x…` | Composable standing read for any agent: credit limit, available, active debt, status, behavior score, and Lab/External/Demo label | Live; the read other agents and protocols call |
-| `GET /api/float-rationale?hash=0x…` | Publishes the rationale preimage for a receipt's `requestHash` so anyone re-hashes it to confirm the agent's on-chain reasoning | Live; `requestHash = keccak256(preimage)` |
+| `GET /api/float-tools?action=agent&address=0x…` | Composable standing read for any agent: credit limit, available, active debt, status, behavior score, and Lab/Invited/Demo label | Live; the read other agents and protocols call |
+| `GET /api/float-tools?action=rationale&hash=0x…` | Publishes the rationale preimage for a receipt's `requestHash` so anyone re-hashes it to confirm the agent's on-chain reasoning | Live; `requestHash = keccak256(preimage)` |
+| `GET /api/float-tools?action=verify&hash=0x…` | Verifies an external builder's signed Float x402 intent against the onchain request hash | Live; signed external usage only |
 
 The mainnet target is simple: source agents register themselves, follower agents or humans attach policies, and Shadow becomes the shared receipt and reputation layer for Arc's USDC agent economy.
 
@@ -173,13 +174,13 @@ Float is a credit layer other agents plug into. Read any agent's standing over R
 
 ```bash
 # One agent's standing
-curl "https://shadow-arc.vercel.app/api/float-agent?address=0xYOURAGENT"
+curl "https://shadow-arc.vercel.app/api/float-tools?action=agent&address=0xYOURAGENT"
 
 # The whole standing board, labeled Lab / External / Demo
 curl "https://shadow-arc.vercel.app/api/float" | jq .standingBoard
 
 # Verify the reasoning behind a receipt: re-hash the published preimage to its requestHash
-curl "https://shadow-arc.vercel.app/api/float-rationale?hash=0xREQUESTHASH"
+curl "https://shadow-arc.vercel.app/api/float-tools?action=rationale&hash=0xREQUESTHASH"
 ```
 
 ```ts

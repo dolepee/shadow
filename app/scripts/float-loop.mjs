@@ -734,7 +734,7 @@ function hash(value) {
 
 // Re-hashable rationale: the on-chain requestHash commits to the agent's
 // reasoning, not just a label. The preimage is published (via /api/float and
-// /api/float-rationale) so anyone re-hashes it to confirm the commitment. The
+// /api/float-tools?action=rationale) so anyone re-hashes it to confirm the commitment. The
 // salt keeps each cycle's requestHash unique for the DUPLICATE_REQUEST guard.
 function buildRequestCommitment({ agent, action, provider, amountAtomic, rationale, model, fellBack, label }) {
   const preimage = JSON.stringify({

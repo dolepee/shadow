@@ -154,7 +154,7 @@ await persistRun(run);
 console.log("\ndone. The builder's signed intent was fronted and bound on-chain.");
 console.log(`x402 settlement ${x402.txHash}`);
 console.log(`bind tx         ${bindTxHash}`);
-console.log(`verify          https://shadow-arc.vercel.app/api/float-verify?hash=${requestHash}`);
+console.log(`verify          https://shadow-arc.vercel.app/api/float-tools?action=verify&hash=${requestHash}`);
 console.log(JSON.stringify(run, null, 2));
 
 async function recordX402Spend(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_) {

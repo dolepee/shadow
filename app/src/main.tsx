@@ -1603,7 +1603,7 @@ function FloatStandingBoardPanel({
   const agents = board?.agents || [];
   const visibleAgents = compact ? agents.slice(0, 3) : agents.slice(0, 8);
   const counts = board?.counts || {};
-  const alphaApi = alpha ? `/api/float-agent?address=${alpha}` : "/api/float";
+  const alphaApi = alpha ? `/api/float-tools?action=agent&address=${alpha}` : "/api/float";
 
   return (
     <article className="floatStandingBoard" aria-label="Shadow Float agent standing board">
@@ -1627,7 +1627,7 @@ function FloatStandingBoardPanel({
           visibleAgents.map((agent, index) => (
             <a
               className={`floatStandingRow ${agent.label}`}
-              href={`/api/float-agent?address=${agent.agent}`}
+              href={`/api/float-tools?action=agent&address=${agent.agent}`}
               key={agent.agent}
               target="_blank"
               rel="noreferrer"
@@ -1667,7 +1667,7 @@ function FloatStandingBoardPanel({
           </div>
         )}
         {!compact && beta && !agents.some((agent) => agent.agent.toLowerCase() === beta.toLowerCase()) && (
-          <a className="floatStandingRow demo" href={`/api/float-agent?address=${beta}`} target="_blank" rel="noreferrer">
+          <a className="floatStandingRow demo" href={`/api/float-tools?action=agent&address=${beta}`} target="_blank" rel="noreferrer">
             <span className="floatStandingRank">demo</span>
             <span className="floatStandingIdentity">
               <strong>{shortAddress(beta)}</strong>
