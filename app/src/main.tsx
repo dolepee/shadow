@@ -1030,10 +1030,10 @@ function App() {
     <>
       <section className="pageHead">
         <p className="pageEyebrow">agents · behavior history</p>
-        <h1 className="pageTitle">The old source agents now become Shadow&apos;s reputation substrate.</h1>
+        <h1 className="pageTitle">Agent behavior is the reputation layer.</h1>
         <p className="pageLede">
-          Shadow 2.0 does not ask you to trust a profile. It reads behavior: who got copied, who got blocked, who repaid,
-          and which receipts prove the agent deserves a line or a mandate.
+          Shadow 2.0 does not trust a profile badge. It reads receipts: who got copied, who got blocked, who repaid, and
+          which behavior earns an agent a float line or a stricter mandate.
         </p>
       </section>
       <EarnedReputationPanel
@@ -1048,10 +1048,10 @@ function App() {
     <>
       <section className="pageHead">
         <p className="pageEyebrow">follow · adapter one</p>
-        <h1 className="pageTitle">The mirroring surface remains as proof of policy enforcement.</h1>
+        <h1 className="pageTitle">The mirror adapter proves policy enforcement.</h1>
         <p className="pageLede">
-          This was Shadow&apos;s first working adapter: a follower sets size, slippage, daily cap, and risk limits; the router
-          either executes or writes the refusal. Float and mandates reuse the same discipline.
+          This is Shadow&apos;s first working adapter: a follower sets size, slippage, daily cap, and risk limits; the router
+          either executes or records the refusal. Float and protocol mandates reuse the same enforcement discipline.
         </p>
       </section>
       <FollowFlow
@@ -1113,10 +1113,10 @@ function App() {
     <>
       <section className="pageHead">
         <p className="pageEyebrow">receipts · Shadow proof rail</p>
-        <h1 className="pageTitle">Float, mandates, and mirror actions all resolve into receipts.</h1>
+        <h1 className="pageTitle">One proof rail for float, mandates, and mirror actions.</h1>
         <p className="pageLede">
-          Read this page as the audit layer. Spend allowed, x402 bound, repayment, blocked overreach, copied intent, refused
-          mirror, and mandate proof all point back to Arc testnet events.
+          Read this page as the audit layer. Allowed spends, x402 hashes, repayments, blocked overreach, copied intents,
+          refused mirrors, and mandate proofs all point back to Arc testnet events.
         </p>
       </section>
       <FloatPanel state={floatState} loading={floatLoading} error={floatError} compact />
@@ -3553,11 +3553,10 @@ function LeptonM1Panel({
       <div className="leptonHeader">
         <div>
           <p className="eyebrow">Lepton M1 · protocol mandates</p>
-          <h2>The mandate engine behind Shadow 2.0.</h2>
+          <h2>Mandates decide before USDC moves.</h2>
           <p className="leptonLede">
-            Shadow started with copy-trading, but the reusable primitive is broader: register a mandate, evaluate the
-            action before USDC moves, write an ALLOW or BLOCK receipt, and keep the enforcer accountable across swap and
-            vault-style adapters.
+            The reusable primitive is simple: register a mandate, evaluate the action before USDC moves, write an ALLOW or
+            BLOCK receipt, and keep the enforcer accountable across swap and vault-style adapters.
           </p>
         </div>
         <div className={`leptonStatus ${configured ? "configured" : "pending"}`}>
@@ -3827,9 +3826,18 @@ function SignalStrip({ rows }: { rows: EarnedReputation[] }) {
 function EarnedReputationPanel({ rows, onFollow }: { rows: EarnedReputation[]; onFollow?: (addr: Address) => void }) {
   if (rows.length === 0) {
     return (
-      <section className="reputationPanel">
-        <Header eyebrow="meet the agents" title="AI source agents you can follow" />
-        <p className="reputationEmpty">No agents registered yet.</p>
+      <section className="reputationPanel reputationPanelEmpty">
+        <Header eyebrow="meet the agents" title="Source agents appear when the registry syncs." />
+        <p className="reputationCaption">
+          Shadow keeps this page useful even before live source rows arrive: the reputation model is receipt-first, not
+          profile-first.
+        </p>
+        <div className="emptyProofGrid" aria-label="Reputation inputs">
+          <span>copied intents</span>
+          <span>blocked attempts</span>
+          <span>repayments</span>
+          <span>x402-bound receipts</span>
+        </div>
       </section>
     );
   }
