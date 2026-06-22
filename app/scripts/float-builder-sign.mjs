@@ -10,6 +10,7 @@ import { privateKeyToAccount } from "viem/accounts";
 // came from you. Run on YOUR machine; your key never leaves it.
 //
 //   BUILDER_PRIVATE_KEY=0x... \
+//   EXPECTED_AGENT=0x... \
 //   RATIONALE="one true sentence: what your agent uses the paid call for" \
 //   node app/scripts/float-builder-sign.mjs
 
@@ -21,6 +22,7 @@ const AMOUNT = BigInt(clean(process.env.FLOAT_SPEND_ATOMIC) || "10000"); // 0.01
 const TTL_SECONDS = BigInt(clean(process.env.FLOAT_INTENT_TTL) || `${7 * 24 * 3600}`);
 
 const KEY = normalizeKey(clean(process.env.BUILDER_PRIVATE_KEY));
+const EXPECTED_AGENT = clean(process.env.EXPECTED_AGENT);
 const REASON = clean(process.env.RATIONALE) || "";
 if (!KEY) throw new Error("set BUILDER_PRIVATE_KEY to your registered agent wallet's key (it stays on your machine)");
 if (!REASON) {
@@ -29,6 +31,9 @@ if (!REASON) {
 
 const account = privateKeyToAccount(KEY);
 const agent = account.address;
+if (EXPECTED_AGENT && getAddress(EXPECTED_AGENT) !== agent) {
+  throw new Error(`BUILDER_PRIVATE_KEY resolves to ${agent}, but qdee registered ${getAddress(EXPECTED_AGENT)}. Use the key for the registered agent wallet or ask qdee to register a different address.`);
+}
 
 const domain = { name: "ShadowFloat", version: "1", chainId: CHAIN_ID, verifyingContract: FLOAT };
 const types = {
