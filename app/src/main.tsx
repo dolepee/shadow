@@ -1316,10 +1316,10 @@ function FloatPanel({
       <div className="floatHeroShell">
         <div className="floatHeroCopy">
           <p className="eyebrow">Shadow 2.0 · behavior-backed float</p>
-          <h2>Agents can spend before they are funded. Shadow decides how far.</h2>
+          <h2>Verified behavior becomes spendable USDC.</h2>
           <p className="floatLede">
-            Shadow Float turns verifiable onchain behavior into a tiny USDC spending line for autonomous agents. The agent
-            chooses what to buy; Shadow enforces the mandate, pays approved x402 providers, opens debt, and blocks
+            Shadow Float gives autonomous agents a tiny revocable spending line backed by verified onchain behavior. The
+            agent chooses what to buy; Shadow enforces the mandate, pays approved x402 providers, opens debt, and blocks
             overreach before capital moves.
           </p>
           <div className="floatHeroActions">
