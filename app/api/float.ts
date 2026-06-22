@@ -8,7 +8,6 @@ import {
   parseAbi,
   parseAbiItem,
   type Address,
-  type PublicClient,
 } from "viem";
 
 export const config = { maxDuration: 20 };
@@ -61,6 +60,10 @@ type FloatLoopRun = {
   rationalePreimage?: string;
   model?: string;
   fellBack?: boolean;
+};
+
+type FloatReadClient = {
+  readContract: (...args: Parameters<ReturnType<typeof createPublicClient>["readContract"]>) => ReturnType<ReturnType<typeof createPublicClient>["readContract"]>;
 };
 
 const floatAbi = parseAbi([
@@ -310,7 +313,7 @@ function serializeProvider(provider: readonly unknown[]) {
 // reads each line, and labels it Lab / Invited / Demo so the mix is honest at a
 // glance. Signed usage is counted separately in sourceBreakdown.externalSigned.
 async function buildStandingBoard(
-  client: PublicClient,
+  client: FloatReadClient,
   cfg: FloatConfig,
   logs: Array<{ args: Record<string, unknown> }>,
 ) {
