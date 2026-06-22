@@ -8,6 +8,7 @@ import {
   parseAbi,
   parseAbiItem,
   type Address,
+  type PublicClient,
 } from "viem";
 
 export const config = { maxDuration: 20 };
@@ -49,6 +50,7 @@ type FloatLoopRun = {
   requestHash?: string;
   reason?: string;
   rationale?: string;
+  rationalePreimage?: string;
   model?: string;
   fellBack?: boolean;
 };
@@ -207,6 +209,8 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       ]),
     );
 
+    const standingBoard = await buildStandingBoard(client, cfg, logs as Array<{ args: Record<string, unknown> }>);
+
     res.status(200).json({
       configured: true,
       testnet: true,
@@ -227,6 +231,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       alphaLine: serializeLine(alphaLine),
       betaLine: serializeLine(betaLine),
       providerMandate: serializeProvider(providerMandate),
+      standingBoard,
       sourceBreakdown,
       loopRuns: loopRuns.slice(-12).reverse(),
       receipts: logs
@@ -290,6 +295,103 @@ function serializeProvider(provider: readonly unknown[]) {
     expiry: Number(provider[3]),
     active: Boolean(provider[4]),
   };
+}
+
+// Standing board: turn Float from a demo into a queryable layer. Derives the
+// set of agents that have a line (the seeded pair plus anyone seen in receipts),
+// reads each line, and labels it Lab / External / Demo so the mix is honest at a
+// glance. Pure reads, no contract change.
+async function buildStandingBoard(
+  client: PublicClient,
+  cfg: FloatConfig,
+  logs: Array<{ args: Record<string, unknown> }>,
+) {
+  const seen = new Map<string, Address>();
+  const add = (value?: string) => {
+    if (value && isAddress(value)) seen.set(value.toLowerCase(), getAddress(value));
+  };
+  add(cfg.alpha);
+  add(cfg.beta);
+  for (const log of logs) add(log.args.agent as string | undefined);
+  const agents = [...seen.values()].slice(0, 40);
+
+  const rows = (
+    await Promise.all(
+      agents.map(async (agent) => {
+        try {
+          const line = await client.readContract({
+            address: cfg.float,
+            abi: floatAbi,
+            functionName: "lines",
+            args: [agent],
+          });
+          return { agent, line: serializeLine(line as readonly unknown[]) };
+        } catch {
+          return null;
+        }
+      }),
+    )
+  )
+    .filter((row): row is { agent: Address; line: ReturnType<typeof serializeLine> } => Boolean(row))
+    .filter((row) => String(row.line.wallet).toLowerCase() !== "0x0000000000000000000000000000000000000000")
+    .map((row) => ({
+      agent: row.agent,
+      label: agentLabel(row.agent, cfg),
+      score: row.line.score,
+      status: row.line.status,
+      creditLimitUSDC: row.line.creditLimitUSDC,
+      availableCreditUSDC: row.line.availableCreditUSDC,
+      activeDebtUSDC: row.line.activeDebtUSDC,
+      lastReview: row.line.lastReview,
+    }))
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        cmpBig(b.creditLimitUSDC, a.creditLimitUSDC) ||
+        cmpBig(a.activeDebtUSDC, b.activeDebtUSDC),
+    );
+
+  const counts = rows.reduce(
+    (acc, row) => {
+      acc[row.label] += 1;
+      return acc;
+    },
+    { lab: 0, external: 0, demo: 0 },
+  );
+
+  return {
+    generatedAt: Date.now(),
+    legend: {
+      lab: "Lab agents (Shadow-operated)",
+      external: "External agents (other builders)",
+      demo: "Demo / admin",
+    },
+    counts,
+    agents: rows,
+  };
+}
+
+function agentLabel(address: string, cfg: FloatConfig): "lab" | "external" | "demo" {
+  const a = address.toLowerCase();
+  if (labelSet(process.env.FLOAT_LAB_AGENTS, cfg.alpha).has(a)) return "lab";
+  if (labelSet(process.env.FLOAT_DEMO_AGENTS, cfg.beta).has(a)) return "demo";
+  return "external";
+}
+
+function labelSet(raw: string | undefined, fallback: string): Set<string> {
+  const cleaned = cleanEnv(raw);
+  const list = cleaned ? cleaned.split(",") : [fallback];
+  return new Set(list.map((s) => s.trim().toLowerCase()).filter(Boolean));
+}
+
+function cmpBig(a: string, b: string): number {
+  try {
+    const A = BigInt(a);
+    const B = BigInt(b);
+    return A > B ? 1 : A < B ? -1 : 0;
+  } catch {
+    return 0;
+  }
 }
 
 function summarizeSources(

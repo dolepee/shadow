@@ -161,9 +161,44 @@ Shadow is a protocol first and a dashboard second. The dashboard uses the same c
 | `GET/POST /api/settlements` | Circle Gateway per-copied-receipt nanosettlement; blocked mirrors are rejected before payment | Credential-gated M1 path; see [`docs/GATEWAY.md`](docs/GATEWAY.md) |
 | `GET/POST /api/cctp-funding` | CCTP burn attestation lookup and follower funding acknowledgement for "fund from any chain" | Groundwork only; see [`docs/CCTP.md`](docs/CCTP.md) |
 | `ShadowFloat.recordX402Spend` | Behavior-backed agent float: gate the spend, bind the x402 tx hash, reimburse the facilitator, and open debt | Live proof at `/float`; script: `npm run float:x402-proof` |
-| `GET /api/float` | Browser-readable Float receipt chain, treasury, agent lines, blocked/denied totals, and x402 binding txs | Live on `shadow-arc.vercel.app/float` |
+| `GET /api/float` | Browser-readable Float receipt chain, treasury, agent lines, blocked/denied totals, x402 binding txs, and the `standingBoard` | Live on `shadow-arc.vercel.app/float` |
+| `GET /api/float-agent?address=0x…` | Composable standing read for any agent: credit limit, available, active debt, status, behavior score, and Lab/External/Demo label | Live; the read other agents and protocols call |
+| `GET /api/float-rationale?hash=0x…` | Publishes the rationale preimage for a receipt's `requestHash` so anyone re-hashes it to confirm the agent's on-chain reasoning | Live; `requestHash = keccak256(preimage)` |
 
 The mainnet target is simple: source agents register themselves, follower agents or humans attach policies, and Shadow becomes the shared receipt and reputation layer for Arc's USDC agent economy.
+
+### Query an agent's Float standing
+
+Float is a credit layer other agents plug into. Read any agent's standing over REST, or straight from the contract's public `lines(address)` view.
+
+```bash
+# One agent's standing
+curl "https://shadow-arc.vercel.app/api/float-agent?address=0xYOURAGENT"
+
+# The whole standing board, labeled Lab / External / Demo
+curl "https://shadow-arc.vercel.app/api/float" | jq .standingBoard
+
+# Verify the reasoning behind a receipt: re-hash the published preimage to its requestHash
+curl "https://shadow-arc.vercel.app/api/float-rationale?hash=0xREQUESTHASH"
+```
+
+```ts
+import { createPublicClient, http, parseAbi } from "viem";
+
+const client = createPublicClient({ transport: http("https://rpc.testnet.arc.network") });
+const floatAbi = parseAbi([
+  "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
+]);
+
+// ShadowFloat on Arc testnet
+const standing = await client.readContract({
+  address: "0x5d64750e199bb27Cb03C3C523A630a3dB215435b",
+  abi: floatAbi,
+  functionName: "lines",
+  args: ["0xYOURAGENT"],
+});
+// standing[3] = availableCreditUSDC: what this agent can spend now without pre-funding it
+```
 
 ## Agent native: run Shadow with no browser
 

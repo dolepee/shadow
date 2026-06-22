@@ -225,7 +225,16 @@ async function runCycle() {
 }
 
 async function handlePay({ decision, provider, amount }) {
-  const requestHash = hash(`agent-loop:alpha:pay:${salt}`);
+  const { requestHash, preimage } = buildRequestCommitment({
+    agent: alpha,
+    action: "PAY",
+    provider,
+    amountAtomic: amount,
+    rationale: decision.rationale,
+    model: decision.model,
+    fellBack: decision.fellBack,
+    label: "alpha-loop-pay",
+  });
   const [allowed, reasonRaw] = await readFloat("previewSpend", [alpha, provider, endpointHash, amount, requestHash]);
   const reason = reasonName(reasonRaw);
   if (!allowed) {
@@ -236,6 +245,7 @@ async function handlePay({ decision, provider, amount }) {
       provider,
       amountUSDC: amount.toString(),
       requestHash,
+      rationalePreimage: preimage,
       txHash,
       reason,
       rationale: decision.rationale,
@@ -249,6 +259,7 @@ async function handlePay({ decision, provider, amount }) {
       provider,
       amountUSDC: amount.toString(),
       requestHash,
+      rationalePreimage: preimage,
       reason,
       rationale: decision.rationale,
       model: decision.model,
@@ -262,6 +273,7 @@ async function handlePay({ decision, provider, amount }) {
     provider,
     amountUSDC: amount.toString(),
     requestHash,
+    rationalePreimage: preimage,
     x402Hash: x402.txHash,
     bindTxHash,
     providerResponse: summarizeProviderResponse(x402.body),
@@ -283,7 +295,16 @@ async function handleRepay({ decision, spendAmount, provider, alphaLine }) {
     });
   }
   const amount = debt < spendAmount ? debt : spendAmount;
-  const requestHash = hash(`agent-loop:alpha:repay:${salt}`);
+  const { requestHash, preimage } = buildRequestCommitment({
+    agent: alpha,
+    action: "REPAY",
+    provider,
+    amountAtomic: amount,
+    rationale: decision.rationale,
+    model: decision.model,
+    fellBack: decision.fellBack,
+    label: "alpha-loop-repay",
+  });
   if (!DRY_RUN) {
     await send("Approve Float repayment", USDC, erc20Abi, "approve", [FLOAT, amount]);
   }
@@ -292,6 +313,7 @@ async function handleRepay({ decision, spendAmount, provider, alphaLine }) {
     provider,
     amountUSDC: amount.toString(),
     requestHash,
+    rationalePreimage: preimage,
     repayTxHash,
     rationale: decision.rationale,
     model: decision.model,
@@ -300,7 +322,16 @@ async function handleRepay({ decision, spendAmount, provider, alphaLine }) {
 }
 
 async function handleBlockedSpend({ action, outcome, agent, provider, amount, rationale, model, fellBack, requestLabel }) {
-  const requestHash = hash(`agent-loop:${requestLabel}:${salt}`);
+  const { requestHash, preimage } = buildRequestCommitment({
+    agent,
+    action,
+    provider,
+    amountAtomic: amount,
+    rationale,
+    model,
+    fellBack,
+    label: requestLabel,
+  });
   const [allowed, reasonRaw] = await readFloat("previewSpend", [agent, provider, endpointHash, amount, requestHash]);
   const reason = reasonName(reasonRaw);
   if (allowed) {
@@ -308,6 +339,7 @@ async function handleBlockedSpend({ action, outcome, agent, provider, amount, ra
       provider,
       amountUSDC: amount.toString(),
       requestHash,
+      rationalePreimage: preimage,
       reason,
       rationale: `${rationale} The gate unexpectedly allowed this request, so the loop did not pay or bind x402.`,
       model,
@@ -321,6 +353,7 @@ async function handleBlockedSpend({ action, outcome, agent, provider, amount, ra
     provider,
     amountUSDC: amount.toString(),
     requestHash,
+    rationalePreimage: preimage,
     txHash,
     reason,
     rationale,
@@ -697,6 +730,27 @@ function reasonName(value) {
 
 function hash(value) {
   return keccak256(stringToBytes(value));
+}
+
+// Re-hashable rationale: the on-chain requestHash commits to the agent's
+// reasoning, not just a label. The preimage is published (via /api/float and
+// /api/float-rationale) so anyone re-hashes it to confirm the commitment. The
+// salt keeps each cycle's requestHash unique for the DUPLICATE_REQUEST guard.
+function buildRequestCommitment({ agent, action, provider, amountAtomic, rationale, model, fellBack, label }) {
+  const preimage = JSON.stringify({
+    v: 1,
+    domain: "shadow-float:request",
+    label,
+    agent,
+    action,
+    provider,
+    amountUSDC: amountAtomic.toString(),
+    rationale: rationale || "",
+    model: model || "",
+    fellBack: Boolean(fellBack),
+    salt,
+  });
+  return { requestHash: keccak256(stringToBytes(preimage)), preimage };
 }
 
 function zeroHash() {
