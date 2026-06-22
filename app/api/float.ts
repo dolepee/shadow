@@ -16,6 +16,12 @@ export const config = { maxDuration: 20 };
 const ARC_CHAIN_ID = 5_042_002;
 const DEFAULT_USDC = "0x3600000000000000000000000000000000000000";
 const LOG_LOOKBACK = BigInt(process.env.FLOAT_LOG_LOOKBACK || "250000");
+const DEFAULT_EXTERNAL_AGENTS = [
+  "0xC45d7072A811754EfC67E332C9137cC7CBfFa274",
+  "0xD3eed2f7dcED5fbc96Fb1a0FC058C540D50b4f80",
+  "0x13585c6004fbA9D7D49219a6435B68348fD30770",
+  "0xa539a18b55e5e3b98892c724f8f75914c0b69942",
+] as const;
 
 type VercelLikeRequest = {
   method?: string;
@@ -34,6 +40,7 @@ type FloatConfig = {
   alpha: Address;
   beta: Address;
   provider: Address;
+  externalAgents: Address[];
   startBlock: bigint;
 };
 
@@ -312,6 +319,7 @@ async function buildStandingBoard(
   };
   add(cfg.alpha);
   add(cfg.beta);
+  for (const agent of cfg.externalAgents) add(agent);
   for (const log of logs) add(log.args.agent as string | undefined);
   const agents = [...seen.values()].slice(0, 40);
 
@@ -555,8 +563,24 @@ function floatConfigFromEnv(): FloatConfig | null {
     alpha: getAddress(alphaRaw),
     beta: getAddress(betaRaw),
     provider: getAddress(providerRaw),
+    externalAgents: parseAddressList(
+      process.env.FLOAT_EXTERNAL_AGENTS || process.env.VITE_FLOAT_EXTERNAL_AGENTS,
+      DEFAULT_EXTERNAL_AGENTS,
+    ),
     startBlock: BigInt(cleanEnv(process.env.SHADOW_FLOAT_START_BLOCK || process.env.VITE_SHADOW_FLOAT_START_BLOCK) || "0"),
   };
+}
+
+function parseAddressList(raw: string | undefined, fallback: readonly string[] = []): Address[] {
+  const values = cleanEnv(raw)?.split(/[,\s]+/) || [...fallback];
+  const seen = new Map<string, Address>();
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!isAddress(trimmed)) continue;
+    const address = getAddress(trimmed);
+    seen.set(address.toLowerCase(), address);
+  }
+  return [...seen.values()];
 }
 
 function missingEnv(): string[] {
