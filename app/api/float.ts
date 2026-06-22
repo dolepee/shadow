@@ -403,14 +403,42 @@ function cmpBig(a: string, b: string): number {
 }
 
 function summarizeSources(
-  loopRuns: FloatLoopRun[],
+  runs: FloatLoopRun[],
   totalProviderPaidUSDC: bigint,
   totalDebtOpenedUSDC: bigint,
   totalBlockedUSDC: bigint,
   totalDeniedUSDC: bigint,
   totalRepaidUSDC: bigint,
 ) {
-  const agentLoop = loopRuns.reduce(
+  const agentLoop = summarizeRunSet(runs.filter((run) => run.source === "agent-loop"));
+  const external = summarizeRunSet(runs.filter((run) => run.source === "external"));
+  const knownProviderPaidUSDC = agentLoop.providerPaidUSDC + external.providerPaidUSDC;
+  const knownDebtOpenedUSDC = agentLoop.debtOpenedUSDC + external.debtOpenedUSDC;
+  const knownBlockedUSDC = agentLoop.blockedUSDC + external.blockedUSDC;
+  const knownDeniedUSDC = agentLoop.deniedUSDC + external.deniedUSDC;
+  const knownRepaidUSDC = agentLoop.repaidUSDC + external.repaidUSDC;
+  const demoAdmin = {
+    providerPaidUSDC: clampSub(totalProviderPaidUSDC, knownProviderPaidUSDC),
+    debtOpenedUSDC: clampSub(totalDebtOpenedUSDC, knownDebtOpenedUSDC),
+    blockedUSDC: clampSub(totalBlockedUSDC, knownBlockedUSDC),
+    deniedUSDC: clampSub(totalDeniedUSDC, knownDeniedUSDC),
+    repaidUSDC: clampSub(totalRepaidUSDC, knownRepaidUSDC),
+  };
+  return {
+    agentLoop: serializeSourceSummary(agentLoop),
+    demoAdmin: {
+      providerPaidUSDC: demoAdmin.providerPaidUSDC.toString(),
+      debtOpenedUSDC: demoAdmin.debtOpenedUSDC.toString(),
+      blockedUSDC: demoAdmin.blockedUSDC.toString(),
+      deniedUSDC: demoAdmin.deniedUSDC.toString(),
+      repaidUSDC: demoAdmin.repaidUSDC.toString(),
+    },
+    external: serializeSourceSummary(external),
+  };
+}
+
+function summarizeRunSet(runs: FloatLoopRun[]) {
+  return runs.reduce(
     (acc, run) => {
       const amount = toBigInt(run.amountUSDC);
       acc.cycles += 1;
@@ -435,50 +463,29 @@ function summarizeSources(
       }
       return acc;
     },
-    {
-      cycles: 0,
-      paidCount: 0,
-      blockedCount: 0,
-      deniedCount: 0,
-      repaidCount: 0,
-      skipCount: 0,
-      errorCount: 0,
-      fallbacks: 0,
-      providerPaidUSDC: 0n,
-      debtOpenedUSDC: 0n,
-      blockedUSDC: 0n,
-      deniedUSDC: 0n,
-      repaidUSDC: 0n,
-    },
+    emptySourceSummary(),
   );
-  const demoAdmin = {
-    providerPaidUSDC: clampSub(totalProviderPaidUSDC, agentLoop.providerPaidUSDC),
-    debtOpenedUSDC: clampSub(totalDebtOpenedUSDC, agentLoop.debtOpenedUSDC),
-    blockedUSDC: clampSub(totalBlockedUSDC, agentLoop.blockedUSDC),
-    deniedUSDC: clampSub(totalDeniedUSDC, agentLoop.deniedUSDC),
-    repaidUSDC: clampSub(totalRepaidUSDC, agentLoop.repaidUSDC),
-  };
+}
+
+function emptySourceSummary(): SourceSummaryAcc {
   return {
-    agentLoop: serializeSourceSummary(agentLoop),
-    demoAdmin: {
-      providerPaidUSDC: demoAdmin.providerPaidUSDC.toString(),
-      debtOpenedUSDC: demoAdmin.debtOpenedUSDC.toString(),
-      blockedUSDC: demoAdmin.blockedUSDC.toString(),
-      deniedUSDC: demoAdmin.deniedUSDC.toString(),
-      repaidUSDC: demoAdmin.repaidUSDC.toString(),
-    },
-    external: {
-      cycles: 0,
-      providerPaidUSDC: "0",
-      debtOpenedUSDC: "0",
-      blockedUSDC: "0",
-      deniedUSDC: "0",
-      repaidUSDC: "0",
-    },
+    cycles: 0,
+    paidCount: 0,
+    blockedCount: 0,
+    deniedCount: 0,
+    repaidCount: 0,
+    skipCount: 0,
+    errorCount: 0,
+    fallbacks: 0,
+    providerPaidUSDC: 0n,
+    debtOpenedUSDC: 0n,
+    blockedUSDC: 0n,
+    deniedUSDC: 0n,
+    repaidUSDC: 0n,
   };
 }
 
-function serializeSourceSummary(summary: {
+type SourceSummaryAcc = {
   cycles: number;
   paidCount: number;
   blockedCount: number;
@@ -492,7 +499,9 @@ function serializeSourceSummary(summary: {
   blockedUSDC: bigint;
   deniedUSDC: bigint;
   repaidUSDC: bigint;
-}) {
+};
+
+function serializeSourceSummary(summary: SourceSummaryAcc) {
   return {
     cycles: summary.cycles,
     paidCount: summary.paidCount,
@@ -522,14 +531,16 @@ async function readFloatLoopRuns(): Promise<FloatLoopRun[]> {
     const json = (await response.json()) as { result?: string | null };
     if (!json.result) return [];
     const parsed = JSON.parse(json.result) as unknown;
-    return Array.isArray(parsed) ? parsed.filter(isLoopRun) : [];
+    return Array.isArray(parsed) ? parsed.filter(isFloatRun) : [];
   } catch {
     return [];
   }
 }
 
-function isLoopRun(value: unknown): value is FloatLoopRun {
-  return Boolean(value && typeof value === "object" && (value as FloatLoopRun).source === "agent-loop");
+function isFloatRun(value: unknown): value is FloatLoopRun {
+  if (!value || typeof value !== "object") return false;
+  const source = (value as FloatLoopRun).source;
+  return source === "agent-loop" || source === "external";
 }
 
 function toBigInt(value: string | undefined): bigint {

@@ -1412,7 +1412,11 @@ function FloatPanel({
           detail="before funds moved"
           tone="block"
         />
-        <FloatHeadlineStat label="external agents" value={`${external?.cycles || 0}`} detail="kept separate from demo" />
+        <FloatHeadlineStat
+          label="external x402 cycles"
+          value={`${external?.cycles || 0}`}
+          detail={`${formatFloatUSDC(external?.providerPaidUSDC)} settled`}
+        />
       </div>
 
       <FloatStandingBoardPanel board={standingBoard} alpha={state?.alpha} beta={state?.beta} compact={compact} />
@@ -1704,8 +1708,8 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
           <strong>{formatFloatUSDC(state?.sourceBreakdown?.demoAdmin?.providerPaidUSDC)}</strong>
         </div>
         <div>
-          <span>external agents</span>
-          <strong>{state?.sourceBreakdown?.external?.cycles || 0}</strong>
+          <span>external x402 settled</span>
+          <strong>{formatFloatUSDC(state?.sourceBreakdown?.external?.providerPaidUSDC)}</strong>
         </div>
       </div>
       {latest ? (
