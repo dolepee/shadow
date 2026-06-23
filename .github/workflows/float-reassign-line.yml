@@ -1,0 +1,39 @@
+name: float-reassign-line
+
+on:
+  workflow_dispatch:
+    inputs:
+      revoke_agents:
+        description: "Space-separated stale Arc testnet agent wallets to revoke"
+        required: false
+        type: string
+      grant_agents:
+        description: "Space-separated replacement Arc testnet agent wallets to grant"
+        required: false
+        type: string
+
+jobs:
+  reassign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ARC_RPC_URL: ${{ secrets.ARC_RPC_URL }}
+      ARC_USDC: ${{ secrets.ARC_USDC }}
+      SHADOW_FLOAT: "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057"
+      PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      FLOAT_AUTO_FUND: "1"
+      REVOKE_AGENTS: ${{ inputs.revoke_agents }}
+      GRANT_AGENTS: ${{ inputs.grant_agents }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: install app deps
+        working-directory: app
+        run: pnpm install --no-frozen-lockfile --ignore-workspace
+      - name: reassign invited Float line
+        run: node app/scripts/float-reassign-line.mjs
