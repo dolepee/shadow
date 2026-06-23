@@ -543,6 +543,7 @@ async function buildStandingBoard(
   )
     .filter((row): row is { agent: Address; line: ReturnType<typeof serializeLine> } => Boolean(row))
     .filter((row) => String(row.line.wallet).toLowerCase() !== "0x0000000000000000000000000000000000000000")
+    .filter((row) => row.line.status !== "REVOKED")
     .map((row) => ({
       agent: row.agent,
       label: agentLabel(row.agent, cfg),
