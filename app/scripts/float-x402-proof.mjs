@@ -39,11 +39,14 @@ const alpha = getAddress(clean(env.FLOAT_ALPHA_ADDRESS) || "0xa10000000000000000
 const beta = getAddress(clean(env.FLOAT_BETA_ADDRESS) || "0xbe7a000000000000000000000000000000000002");
 const endpointLabel = clean(env.FLOAT_X402_ENDPOINT_LABEL) || PROVIDER_URL;
 const endpointHash = keccak256(stringToBytes(endpointLabel));
-const lineAmount = parseUnits(clean(env.FLOAT_LINE_USDC) || "1", 6);
 const overspendAmount = parseUnits(clean(env.FLOAT_OVERSPEND_USDC) || "5", 6);
 const treasuryFund = parseUnits(clean(env.FLOAT_TREASURY_FUND_USDC) || "1.25", 6);
 const maxPerRequest = parseUnits(clean(env.FLOAT_MAX_PER_REQUEST_USDC) || "1", 6);
 const dailyLimit = parseUnits(clean(env.FLOAT_DAILY_LIMIT_USDC) || "2", 6);
+const proofFeeBps = Number(clean(env.FLOAT_FEE_BPS) || "100");
+if (!Number.isInteger(proofFeeBps) || proofFeeBps < 0 || proofFeeBps > 1000) {
+  throw new Error("FLOAT_FEE_BPS must be an integer between 0 and 1000");
+}
 const now = Math.floor(Date.now() / 1000);
 const salt = `${now}-${Math.random().toString(16).slice(2)}`;
 
@@ -64,8 +67,10 @@ const usdcEip3009Abi = parseAbi([
 
 const floatAbi = parseAbi([
   "function fund(uint256 amountUSDC)",
+  "function setFeeBps(uint16 newFeeBps)",
   "function setProviderMandate(address provider, bytes32 endpointHash, uint256 maxPerRequestUSDC, uint256 dailyLimitUSDC, uint64 expiry, bool active)",
   "function grantFloat(address agent, address wallet, uint256 creditLimitUSDC, uint16 score, bytes32 mandateId) returns (bytes32)",
+  "function grantFloatFromScore(address agent, address wallet, uint8 label, uint16 paidBound, uint16 signedExternalPaid, uint16 repaid, uint16 blocked, uint16 denied, uint16 errorCount, bytes32 mandateId, uint64 expiry) returns (bytes32)",
   "function denyAgent(address agent, address wallet, uint16 score, bytes32 mandateId, bytes32 requestHash) returns (bytes32)",
   "function previewSpend(address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, bytes32 requestHash) view returns (bool allowed, uint8 reason)",
   "function recordX402Spend(address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, bytes32 requestHash, bytes32 x402Hash, address facilitator) returns (bytes32 receiptHash, bool allowed, uint8 reason)",
@@ -77,6 +82,7 @@ const floatAbi = parseAbi([
   "function totalBlockedUSDC() view returns (uint256)",
   "function totalDeniedUSDC() view returns (uint256)",
   "function totalRepaidUSDC() view returns (uint256)",
+  "function totalFeesAccruedUSDC() view returns (uint256)",
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
 ]);
 
@@ -96,6 +102,10 @@ if (requirement.asset && getAddress(requirement.asset) !== getAddress(USDC)) {
 }
 console.log(`provider    ${provider}`);
 console.log(`x402 amount ${formatUnits(spendAmount, 6)} USDC`);
+const feeAmount = (spendAmount * BigInt(proofFeeBps)) / 10_000n;
+const repayAmount = spendAmount + feeAmount;
+console.log(`fee bps     ${proofFeeBps}`);
+console.log(`debt amount ${formatUnits(repayAmount, 6)} USDC`);
 
 const facilitatorUsdc = await publicClient.readContract({
   address: USDC,
@@ -108,8 +118,14 @@ if (facilitatorUsdc < treasuryFund + spendAmount) {
   throw new Error(`facilitator needs ${formatUnits(treasuryFund + spendAmount, 6)} USDC for treasury fund + x402 payment`);
 }
 
-await send("approve treasury + repay allowance", USDC, erc20Abi, "approve", [FLOAT, treasuryFund + spendAmount]);
-await send("fund Float treasury", FLOAT, floatAbi, "fund", [treasuryFund]);
+await send("approve treasury + repay allowance", USDC, erc20Abi, "approve", [FLOAT, treasuryFund + repayAmount]);
+const currentTreasury = await readFloat("treasuryBalanceUSDC", []);
+if (currentTreasury < treasuryFund) {
+  await send("fund Float treasury", FLOAT, floatAbi, "fund", [treasuryFund - currentTreasury]);
+} else {
+  console.log(`fund Float treasury\n  skipped, treasury already has ${formatUnits(currentTreasury, 6)} USDC`);
+}
+await send("set Float fee bps", FLOAT, floatAbi, "setFeeBps", [proofFeeBps]);
 await send("set approved x402 provider", FLOAT, floatAbi, "setProviderMandate", [
   provider,
   endpointHash,
@@ -118,12 +134,18 @@ await send("set approved x402 provider", FLOAT, floatAbi, "setProviderMandate", 
   BigInt(now + 7 * 24 * 60 * 60),
   true,
 ]);
-await send("grant Alpha 1 USDC float", FLOAT, floatAbi, "grantFloat", [
+await send("grant Alpha deterministic Float line", FLOAT, floatAbi, "grantFloatFromScore", [
   alpha,
   alpha,
-  lineAmount,
-  9300,
+  2,
+  1,
+  1,
+  0,
+  0,
+  0,
+  0,
   keccak256(stringToBytes("shadow-float-alpha-good-history")),
+  BigInt(now + 7 * 24 * 60 * 60),
 ]);
 await send("deny Beta float", FLOAT, floatAbi, "denyAgent", [
   beta,
@@ -160,7 +182,7 @@ await gateThenBlock({
 
 await send("Alpha repays x402 float debt", FLOAT, floatAbi, "repay", [
   alpha,
-  spendAmount,
+  repayAmount,
   hash(`alpha-x402-repay-${salt}`),
 ]);
 
@@ -172,6 +194,7 @@ const [
   blocked,
   denied,
   repaid,
+  feesAccrued,
   alphaLine,
   betaLine,
 ] = await Promise.all([
@@ -182,6 +205,7 @@ const [
   readFloat("totalBlockedUSDC", []),
   readFloat("totalDeniedUSDC", []),
   readFloat("totalRepaidUSDC", []),
+  readFloat("totalFeesAccruedUSDC", []),
   readFloat("lines", [alpha]),
   readFloat("lines", [beta]),
 ]);
@@ -197,6 +221,7 @@ console.log(
       blockedUSDC: formatUnits(blocked, 6),
       deniedUSDC: formatUnits(denied, 6),
       repaidUSDC: formatUnits(repaid, 6),
+      feesAccruedUSDC: formatUnits(feesAccrued, 6),
       alpha: lineSummary(alphaLine),
       beta: lineSummary(betaLine),
     },

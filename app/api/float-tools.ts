@@ -22,7 +22,7 @@ const DEFAULT_SELF_TEST_AGENTS = [
   "0xD3eed2f7dcED5fbc96Fb1a0FC058C540D50b4f80",
   "0xa539a18b55e5e3b98892c724f8f75914c0b69942",
 ] as const;
-const STATUSES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID"];
+const STATUSES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"];
 
 const floatAbi = parseAbi([
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
@@ -33,6 +33,8 @@ type Res = { setHeader(n: string, v: string | number): void; status(c: number): 
 
 type LoopRun = {
   source?: string;
+  float?: string;
+  agent?: string;
   requestHash?: string;
   rationalePreimage?: string;
   rationale?: string;
@@ -40,6 +42,8 @@ type LoopRun = {
   outcome?: string;
   model?: string;
   at?: string;
+  amountUSDC?: string;
+  txHash?: string;
   signature?: string;
   intent?: SignedIntent;
   x402Hash?: string;
@@ -83,13 +87,15 @@ export default async function handler(req: Req, res: Res) {
   if (action === "agent") return handleAgent(req, res);
   if (action === "rationale") return handleRationale(req, res);
   if (action === "verify") return handleVerify(req, res);
+  if (action === "score") return handleScore(req, res);
 
   res.status(400).json({
-    error: "pass ?action=agent|rationale|verify",
+    error: "pass ?action=agent|rationale|verify|score",
     examples: [
       "/api/float-tools?action=agent&address=0x...",
       "/api/float-tools?action=rationale&hash=0x...",
       "/api/float-tools?action=verify&hash=0x...",
+      "/api/float-tools?action=score&address=0x...",
     ],
   });
 }
@@ -155,13 +161,14 @@ async function handleRationale(req: Req, res: Res) {
     return;
   }
 
-  const runs = await readLoopRuns();
+  const floatRaw = clean(process.env.SHADOW_FLOAT || process.env.VITE_SHADOW_FLOAT);
+  const runs = filterRunsForFloat(await readLoopRuns(), floatRaw);
   const match = runs.find((r) => (r.requestHash || "").toLowerCase() === hash.toLowerCase());
   if (!match || !match.rationalePreimage) {
     res.status(200).json({
       found: false,
       requestHash: hash,
-      note: "No published rationale preimage for this requestHash. Admin/demo actions and receipts predating re-hashable rationale will not have one.",
+      note: "No published rationale preimage for this requestHash on the current Float deployment. Admin/demo actions and receipts predating re-hashable rationale will not have one.",
       fetchedAt: Date.now(),
     });
     return;
@@ -193,13 +200,14 @@ async function handleVerify(req: Req, res: Res) {
     return;
   }
 
-  const runs = await readLoopRuns();
+  const floatRaw = clean(process.env.SHADOW_FLOAT || process.env.VITE_SHADOW_FLOAT);
+  const runs = filterRunsForFloat(await readLoopRuns(), floatRaw);
   const match = runs.find((r) => r.source === "external-signed" && (r.requestHash || "").toLowerCase() === hash.toLowerCase());
   if (!match || !match.intent || !match.signature) {
     res.status(200).json({
       found: false,
       requestHash: hash,
-      note: "No signed external intent for this requestHash. Lab-loop and requestSpend receipts are not signed-intent spends.",
+      note: "No signed external intent for this requestHash on the current Float deployment. Lab-loop and requestSpend receipts are not signed-intent spends.",
       fetchedAt: Date.now(),
     });
     return;
@@ -250,6 +258,88 @@ async function handleVerify(req: Req, res: Res) {
   }
 }
 
+async function handleScore(req: Req, res: Res) {
+  const address = readParam(req, "address");
+  if (!address || !isAddress(address)) {
+    res.status(400).json({ error: "pass ?action=score&address=0x... (the agent address whose deterministic Float score you want)" });
+    return;
+  }
+
+  const floatRaw = clean(process.env.SHADOW_FLOAT || process.env.VITE_SHADOW_FLOAT);
+  if (!floatRaw || !isAddress(floatRaw)) {
+    res.status(200).json({ configured: false, testnet: true, network: "arc-testnet" });
+    return;
+  }
+  const rpcUrl = clean(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
+  const agent = getAddress(address);
+
+  try {
+    const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) });
+    const line = await client.readContract({
+      address: getAddress(floatRaw),
+      abi: floatAbi,
+      functionName: "lines",
+      args: [agent],
+    });
+    const runs = filterRunsForFloat(await readLoopRuns(), floatRaw);
+    const label = labelFor(agent);
+    const evidence = scoreEvidence(agent, runs);
+    const score = deterministicScore(label, evidence);
+    const recommendedLimitUSDC = recommendedLimitForScore(score);
+    const currentLine = serializeLine(line);
+
+    res.status(200).json({
+      configured: true,
+      testnet: true,
+      network: "arc-testnet",
+      float: getAddress(floatRaw),
+      agent,
+      label,
+      formulaVersion: "shadow-float-score-v0",
+      formula: {
+        base: {
+          lab: 8500,
+          invited: 7500,
+          selfTest: 6500,
+          demo: 5000,
+        },
+        adjustments: {
+          paidBound: "+150 each, max 5",
+          signedExternalPaidBound: "+350 each, max 3",
+          repaid: "+400 each, max 3",
+          blocked: "-250 each, max 5",
+          denied: "-900 each, max 3",
+          error: "-300 each, max 3",
+        },
+        lineBandsAtomicUSDC: [
+          { scoreGte: 9000, limit: "1000000" },
+          { scoreGte: 8000, limit: "50000" },
+          { scoreGte: 7500, limit: "25000" },
+          { scoreGte: 0, limit: "0" },
+        ],
+      },
+      evidence,
+      computed: {
+        score,
+        recommendedLimitUSDC,
+        recommendedLimitFormatted: formatAtomicUSDC(recommendedLimitUSDC),
+      },
+      currentLine,
+      supportCheck: {
+        currentScore: currentLine.score,
+        currentCreditLimitUSDC: currentLine.creditLimitUSDC,
+        scoreSupported: currentLine.score <= score,
+        limitSupported: BigInt(currentLine.creditLimitUSDC) <= BigInt(recommendedLimitUSDC),
+      },
+      note: "This v0 verifier is deterministic and public. The contract exposes the same formula through deterministicScore/recommendedLimitUSDC and can grant with grantFloatFromScore once reviewed evidence counts are submitted.",
+      fetchedAt: Date.now(),
+    });
+  } catch (error) {
+    res.setHeader("Cache-Control", "no-store");
+    res.status(503).json({ configured: true, degraded: true, error: sanitize(error) });
+  }
+}
+
 async function readLoopRuns(): Promise<LoopRun[]> {
   const url = clean(process.env.KV_REST_API_URL);
   const token = clean(process.env.KV_REST_API_TOKEN);
@@ -277,6 +367,79 @@ function labelFor(address: string): "lab" | "invited" | "self-test" | "demo" {
   if (demo.has(a)) return "demo";
   if (selfTest.has(a)) return "self-test";
   return "invited";
+}
+
+function scoreEvidence(agent: string, runs: LoopRun[]) {
+  const a = agent.toLowerCase();
+  const matching = runs.filter((run) => runAgent(run) === a);
+  const paidBound = matching.filter((run) => run.outcome === "PAID_BOUND").length;
+  const signedExternalPaidBound = matching.filter(
+    (run) => run.source === "external-signed" && run.outcome === "PAID_BOUND" && Boolean(run.signature && run.intent && run.x402Hash && run.bindTxHash),
+  ).length;
+  const repaid = matching.filter((run) => run.outcome === "REPAID").length;
+  const blocked = matching.filter((run) => run.outcome === "PREMIUM_BLOCKED" || run.outcome === "GATE_BLOCKED").length;
+  const denied = matching.filter((run) => run.outcome === "DENIED").length;
+  const error = matching.filter((run) => run.outcome === "ERROR").length;
+  return {
+    runs: matching.length,
+    paidBound,
+    signedExternalPaidBound,
+    repaid,
+    blocked,
+    denied,
+    error,
+    requestHashes: matching.map((run) => run.requestHash).filter(Boolean).slice(-8),
+  };
+}
+
+function runAgent(run: LoopRun): string | null {
+  const agent = run.agent || run.intent?.agent;
+  return agent && isAddress(agent) ? getAddress(agent).toLowerCase() : null;
+}
+
+function filterRunsForFloat(runs: LoopRun[], floatRaw: string | undefined): LoopRun[] {
+  if (!floatRaw || !isAddress(floatRaw)) return [];
+  const current = getAddress(floatRaw);
+  return runs.filter((run) => Boolean(run.float && isAddress(run.float) && getAddress(run.float) === current));
+}
+
+function deterministicScore(label: "lab" | "invited" | "self-test" | "demo", evidence: ReturnType<typeof scoreEvidence>) {
+  const base = label === "lab" ? 8500 : label === "invited" ? 7500 : label === "self-test" ? 6500 : 5000;
+  const raw =
+    base +
+    Math.min(evidence.paidBound, 5) * 150 +
+    Math.min(evidence.signedExternalPaidBound, 3) * 350 +
+    Math.min(evidence.repaid, 3) * 400 -
+    Math.min(evidence.blocked, 5) * 250 -
+    Math.min(evidence.denied, 3) * 900 -
+    Math.min(evidence.error, 3) * 300;
+  return Math.max(0, Math.min(10000, raw));
+}
+
+function recommendedLimitForScore(score: number): string {
+  if (score >= 9000) return "1000000";
+  if (score >= 8000) return "50000";
+  if (score >= 7500) return "25000";
+  return "0";
+}
+
+function serializeLine(line: readonly unknown[]) {
+  return {
+    wallet: line[0],
+    score: Number(line[1]),
+    creditLimitUSDC: (line[2] as bigint).toString(),
+    availableCreditUSDC: (line[3] as bigint).toString(),
+    activeDebtUSDC: (line[4] as bigint).toString(),
+    status: STATUSES[Number(line[5])] || `STATUS_${line[5]}`,
+    lastReview: Number(line[6]),
+  };
+}
+
+function formatAtomicUSDC(value: string) {
+  const atomic = BigInt(value);
+  const whole = atomic / 1_000_000n;
+  const frac = (atomic % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : whole.toString();
 }
 
 function parseSet(raw: string | undefined, fallback: string[]): Set<string> {

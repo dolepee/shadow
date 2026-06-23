@@ -1,18 +1,50 @@
 # Shadow
 
-**Shadow is the settlement and accountability layer for agentic copy-capital on Arc.**
+**Shadow Float gives operator-reviewed, behavior-backed USDC spending lines to autonomous agents on Arc.**
 
-Autonomous USDC flow needs more than execution. It needs a settlement rail where source agents can earn capital, follower agents can enforce policy, and every copy or refusal leaves a receipt. Shadow makes that rail forkable on Arc: no-cascade execution, USDC-native settlement, and accountability before execution.
+An agent can buy an approved x402 resource before its own wallet is funded. Shadow fronts real Arc USDC from the Float treasury, binds the x402 settlement transaction into an onchain receipt, opens debt against the agent's line, blocks overreach before treasury USDC moves, and lets repayment restore capacity.
 
-Submission snapshot, May 24, 2026: **30 follower wallets, 2,893 MirrorReceipt events (463 COPIED / 2,430 BLOCKED), 173 PositionClosed events, 13.355 USDC mirrored, and 3 source agents.** The BLOCKED receipts are the policy layer working, not failed volume.
+Live proof: https://shadow-arc.vercel.app/float
 
-Lepton M1 adds the protocol-facing version of the same primitive: a Circle-wallet-scoped USDC mandate is checked before capital moves, every `ALLOW` or `BLOCK` is recorded through `MandateAttestor`, and the enforcing adapter must be bonded. The current proof has live v4-style swap and vault-deposit adapters, both using the same mandate engine. See [`docs/LEPTON_M1.md`](docs/LEPTON_M1.md).
+Current Float proof snapshot, June 23, 2026:
 
-Shadow Float extends the same receipt logic into behavior-backed spending lines for autonomous agents. A trusted agent can buy an approved x402 resource before its own wallet is funded; the Float treasury reimburses the facilitator that fronted the real Arc USDC / EIP-3009 x402 payment, opens debt against the agent's line, and binds the x402 settlement tx into the onchain receipt. Oversized spends and denied agents are blocked before treasury USDC moves. Float's current proof uses Arc USDC and x402 as the load-bearing Circle path; Shadow's separate passkey onboarding proof uses Circle Modular Wallets and Gas Station.
+| Metric | Live value |
+| --- | ---: |
+| Float contract | `0xe926A9b44250a0aB12156988beAf90f5e9ac7d3D` |
+| Float receipts | 9 |
+| Treasury balance | 0.10001 USDC |
+| Provider paid through Float | 0.001 USDC |
+| Debt opened | 0.00101 USDC |
+| Fees accrued | 0.00001 USDC |
+| Repaid | 0.00101 USDC |
+| Overspend blocked | 5 USDC |
+| Denied spend attempts | 0.001 USDC |
+| Current-contract external-signed x402 intents | pending new builder signatures |
 
-Float proof: https://shadow-arc.vercel.app/float
+What is proven now:
 
-USDC agents need more than wallets. They need policy-controlled delegation, onchain refusal receipts, and earned reputation before autonomous capital can move safely. Shadow is that layer: source agents publish intents, followers define risk policies, and `MirrorRouter` either executes or refuses per follower with an onchain receipt.
+- A Float line can be granted from reviewed onchain behavior.
+- A deterministic v0 score/limit formula now exists in `ShadowFloat.deterministicScore`, `recommendedLimitUSDC`, and `grantFloatFromScore`.
+- A signed agent intent can trigger a treasury-funded x402 payment.
+- `recordX402Spend` binds the x402 settlement hash to the onchain request hash.
+- Debt and available capacity update onchain.
+- Oversized spends and denied agents produce receipts without moving treasury USDC.
+- Repayment restores capacity.
+- Optional line expiry, default marking, reserve-safe treasury withdrawals, and fee-accrued debt are covered in the contract test suite.
+
+What is not claimed yet:
+
+- The score formula is deterministic v0 and available in contract/API, but current Lepton lines still use operator-reviewed evidence counts rather than a permissionless scoring indexer.
+- The Float contract binds x402 payment evidence; it does not independently verify subjective service quality.
+- Invited builder signatures are external usage tests, not partnerships.
+
+Shadow's earlier copy-capital system is the foundation: it proved policy-controlled USDC movement, no-cascade execution, and onchain refusal receipts. Submission snapshot, May 24, 2026: **30 follower wallets, 2,893 MirrorReceipt events (463 COPIED / 2,430 BLOCKED), 173 PositionClosed events, 13.355 USDC mirrored, and 3 source agents.** The BLOCKED receipts are the policy layer working, not failed volume.
+
+Lepton M1 adds the protocol-facing mandate engine underneath Float: a Circle-wallet-scoped USDC mandate is checked before capital moves, every `ALLOW` or `BLOCK` is recorded through `MandateAttestor`, and the enforcing adapter must be bonded. The current proof has live v4-style swap and vault-deposit adapters, both using the same mandate engine. See [`docs/LEPTON_M1.md`](docs/LEPTON_M1.md).
+
+Float uses Arc USDC and x402 as the load-bearing Circle path. Shadow's separate passkey onboarding proof uses Circle Modular Wallets and Gas Station.
+
+USDC agents need more than wallets. They need policy-controlled spending, onchain refusal receipts, and earned standing before autonomous capital can move safely. Shadow is that layer: source agents publish intents, followers define risk policies, and `MirrorRouter` either executes or refuses per follower with an onchain receipt.
 
 Three source agents (CatArb, LobsterRisk, MomentumOtter) compete on Arc Testnet. Each publishes intents every 10 minutes. Followers stake one or many through their own onchain policy. `MirrorRouter` evaluates the policy per follower at the receipt event and emits **COPIED** or **BLOCKED** with the exact reason in a single transaction. The **Pilot** reads live source reputation, recommends an allocation, and anchors its plan onchain through `PilotAttestor`. The **Watch Signal** on `/agents` scores each source live as Healthy / Watch / Stop from receipts and realized PnL, so trust can be earned and lost without anyone editing a leaderboard.
 
@@ -51,13 +83,13 @@ cd shadow
 pnpm --dir app install --frozen-lockfile
 pnpm --dir agent install --frozen-lockfile
 npm run contracts:test
+npm run contracts:build
 npm run app:typecheck
 npm run app:build
 npm run agent:typecheck
-npm run verify:slippage
 ```
 
-`verify:slippage` uses the configured Arc testnet deployment and should publish one CatArb intent that produces two outcomes from follower policy alone: one strict follower blocks and one lenient follower copies. The app can be reviewed without private keys at https://shadow-arc.vercel.app.
+The app and Float proof can be reviewed without private keys at https://shadow-arc.vercel.app. `npm run verify:slippage` is an optional live-write verifier that requires `ARC_RPC_URL` plus the deployment/operator environment; it publishes one CatArb intent that produces two outcomes from follower policy alone.
 
 ## What makes this an Agora
 
@@ -162,9 +194,11 @@ Shadow is a protocol first and a dashboard second. The dashboard uses the same c
 | `GET/POST /api/cctp-funding` | CCTP burn attestation lookup and follower funding acknowledgement for "fund from any chain" | Groundwork only; see [`docs/CCTP.md`](docs/CCTP.md) |
 | `ShadowFloat.recordX402Spend` | Behavior-backed agent float: gate the spend, bind the x402 tx hash, reimburse the facilitator, and open debt | Live proof at `/float`; script: `npm run float:x402-proof` |
 | `GET /api/float` | Browser-readable Float receipt chain, treasury, agent lines, blocked/denied totals, x402 binding txs, and the `standingBoard` | Live on `shadow-arc.vercel.app/float` |
-| `GET /api/float-tools?action=agent&address=0x…` | Composable standing read for any agent: credit limit, available, active debt, status, behavior score, and Lab/Invited/Demo label | Live; the read other agents and protocols call |
+| `GET /api/float-tools?action=agent&address=0x…` | Composable standing read for any agent: credit limit, available, active debt, status, behavior score, and Lab/Invited/Self-test/Demo label | Live; the read other agents and protocols call |
 | `GET /api/float-tools?action=rationale&hash=0x…` | Publishes the rationale preimage for a receipt's `requestHash` so anyone re-hashes it to confirm the agent's on-chain reasoning | Live; `requestHash = keccak256(preimage)` |
 | `GET /api/float-tools?action=verify&hash=0x…` | Verifies an external builder's signed Float x402 intent against the onchain request hash | Live; signed external usage only |
+| `GET /api/float-tools?action=score&address=0x…` | Deterministic v0 underwriting verifier: recomputes suggested score and line from public Float evidence | Live; mirrors the contract formula |
+| `ShadowFloat.deterministicScore` / `grantFloatFromScore` | Onchain v0 formula and deterministic line grant once evidence counts are submitted | Contract path for reviewed evidence-backed lines |
 
 The mainnet target is simple: source agents register themselves, follower agents or humans attach policies, and Shadow becomes the shared receipt and reputation layer for Arc's USDC agent economy.
 
@@ -176,11 +210,14 @@ Float is a credit layer other agents plug into. Read any agent's standing over R
 # One agent's standing
 curl "https://shadow-arc.vercel.app/api/float-tools?action=agent&address=0xYOURAGENT"
 
-# The whole standing board, labeled Lab / External / Demo
+# The whole standing board, labeled Lab / Invited / Self-test / Demo
 curl "https://shadow-arc.vercel.app/api/float" | jq .standingBoard
 
 # Verify the reasoning behind a receipt: re-hash the published preimage to its requestHash
 curl "https://shadow-arc.vercel.app/api/float-tools?action=rationale&hash=0xREQUESTHASH"
+
+# Recompute the deterministic v0 Float score for an agent
+curl "https://shadow-arc.vercel.app/api/float-tools?action=score&address=0xYOURAGENT"
 ```
 
 ```ts
@@ -193,7 +230,7 @@ const floatAbi = parseAbi([
 
 // ShadowFloat on Arc testnet
 const standing = await client.readContract({
-  address: "0x5d64750e199bb27Cb03C3C523A630a3dB215435b",
+  address: "0xe926A9b44250a0aB12156988beAf90f5e9ac7d3D",
   abi: floatAbi,
   functionName: "lines",
   args: ["0xYOURAGENT"],

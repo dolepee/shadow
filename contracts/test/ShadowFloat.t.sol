@@ -106,6 +106,71 @@ contract ShadowFloatTest {
         require(activeDebtUSDC == 0, "debt");
         require(status == ShadowFloat.AgentStatus.ELIGIBLE, "status");
         require(mandateId == ALPHA_MANDATE, "mandate");
+        require(shadowFloat.totalAvailableCreditUSDC() == 1 * USDC, "reserved available");
+    }
+
+    function testCannotGrantMoreAvailableCreditThanTreasuryCanFund() public {
+        bool reverted = false;
+        try shadowFloat.grantFloat(address(outsider), address(outsider), 11 * USDC, 8000, keccak256("oversized-line")) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+
+        require(reverted, "grant should preserve treasury solvency");
+        (address wallet,,,,,,,,,) = shadowFloat.lines(address(outsider));
+        require(wallet == address(0), "line reverted");
+    }
+
+    function testDeterministicScoreGrantSetsRecommendedLineAndExpiry() public {
+        uint64 expiry = uint64(block.timestamp + 1 days);
+        shadowFloat.grantFloatFromScore(
+            address(outsider),
+            address(outsider),
+            2,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            keccak256("invited-score-line"),
+            expiry
+        );
+
+        (,, uint256 creditLimitUSDC, uint256 availableCreditUSDC,,, uint64 lastReview,,,) =
+            shadowFloat.lines(address(outsider));
+        require(shadowFloat.deterministicScore(2, 0, 1, 0, 0, 0, 0) == 7850, "score formula");
+        require(shadowFloat.recommendedLimitUSDC(7850) == 25_000, "limit formula");
+        require(creditLimitUSDC == 25_000, "deterministic limit");
+        require(availableCreditUSDC == 25_000, "deterministic available");
+        require(lastReview > 0, "reviewed");
+        require(shadowFloat.lineExpiries(address(outsider)) == expiry, "expiry");
+
+        (bool allowed, ShadowFloat.BlockReason reason) =
+            shadowFloat.previewSpend(address(outsider), provider, ENDPOINT, 10_000, keccak256("invited-preview"));
+        require(allowed, "allowed before expiry");
+        require(reason == ShadowFloat.BlockReason.NONE, "no reason");
+
+        vm.warp(block.timestamp + 2 days);
+        (allowed, reason) =
+            shadowFloat.previewSpend(address(outsider), provider, ENDPOINT, 10_000, keccak256("invited-preview-expired"));
+        require(!allowed, "blocked after expiry");
+        require(reason == ShadowFloat.BlockReason.EXPIRED, "line expired");
+    }
+
+    function testWithdrawCannotBreakAvailableCreditReserve() public {
+        bool reverted = false;
+        try shadowFloat.withdraw(address(outsider), 9 * USDC + 1) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+
+        require(reverted, "withdraw should preserve line reserve");
+        require(usdc.balanceOf(address(shadowFloat)) == 10 * USDC, "treasury unchanged");
+        shadowFloat.withdraw(address(outsider), 9 * USDC);
+        require(usdc.balanceOf(address(shadowFloat)) == 1 * USDC, "reserve remains");
     }
 
     function testApprovedSpendPaysProviderAndOpensDebt() public {
@@ -135,6 +200,37 @@ contract ShadowFloatTest {
         require(creditLimitUSDC == 1 * USDC, "limit unchanged");
         require(availableCreditUSDC == 900_000, "available reduced");
         require(activeDebtUSDC == 100_000, "debt opened");
+        require(shadowFloat.totalAvailableCreditUSDC() == 900_000, "reserved available reduced");
+    }
+
+    function testFeeAccruesIntoDebtWithoutChangingProviderPayment() public {
+        shadowFloat.setFeeBps(100);
+        uint256 providerBefore = usdc.balanceOf(provider);
+        uint256 treasuryBefore = usdc.balanceOf(address(shadowFloat));
+
+        (bytes32 receiptHash, bool allowed, ShadowFloat.BlockReason reason) = alpha.requestSpend(
+            shadowFloat,
+            address(alpha),
+            provider,
+            ENDPOINT,
+            100_000,
+            keccak256("alpha-fee-backed-spend")
+        );
+
+        require(receiptHash != bytes32(0), "receipt");
+        require(allowed, "allowed");
+        require(reason == ShadowFloat.BlockReason.NONE, "reason");
+        require(usdc.balanceOf(provider) == providerBefore + 100_000, "provider paid action amount");
+        require(usdc.balanceOf(address(shadowFloat)) == treasuryBefore - 100_000, "treasury fronts action amount");
+        require(shadowFloat.totalProviderPaidUSDC() == 100_000, "paid total");
+        require(shadowFloat.totalFeesAccruedUSDC() == 1_000, "fee accrued");
+        require(shadowFloat.totalDebtOpenedUSDC() == 101_000, "debt includes fee");
+        require(shadowFloat.receiptCount() == 6, "grant+deny+allow+paid+fee+debt receipts");
+
+        (,,, uint256 availableCreditUSDC, uint256 activeDebtUSDC,,,,,) = shadowFloat.lines(address(alpha));
+        require(availableCreditUSDC == 899_000, "available reduced by amount plus fee");
+        require(activeDebtUSDC == 101_000, "debt includes fee");
+        require(shadowFloat.totalAvailableCreditUSDC() == 899_000, "reserve tracks available");
     }
 
     function testRecordX402SpendBindsSettlementAndReimbursesFacilitator() public {
@@ -170,6 +266,7 @@ contract ShadowFloatTest {
         require(creditLimitUSDC == 1 * USDC, "limit unchanged");
         require(availableCreditUSDC == 900_000, "available reduced");
         require(activeDebtUSDC == 100_000, "debt opened");
+        require(shadowFloat.totalAvailableCreditUSDC() == 900_000, "reserved available reduced");
     }
 
     function testRecordX402SpendOversizedBlocksWithoutReimbursement() public {
@@ -283,6 +380,39 @@ contract ShadowFloatTest {
         require(shadowFloat.receiptCount() == 3, "single block receipt");
     }
 
+    function testBlockedRequestHashCannotSpamReceipts() public {
+        bytes32 requestHash = keccak256("alpha-oversize-no-spam");
+        (bytes32 firstReceipt, bool allowed, ShadowFloat.BlockReason reason) =
+            alpha.requestSpend(shadowFloat, address(alpha), provider, ENDPOINT, 5 * USDC, requestHash);
+        require(!allowed, "first blocked");
+        require(reason == ShadowFloat.BlockReason.AMOUNT_TOO_HIGH, "first reason");
+        uint256 countAfterFirst = shadowFloat.receiptCount();
+
+        (bytes32 secondReceipt, bool allowedAgain, ShadowFloat.BlockReason reasonAgain) =
+            alpha.requestSpend(shadowFloat, address(alpha), provider, ENDPOINT, 5 * USDC, requestHash);
+        require(!allowedAgain, "second blocked");
+        require(reasonAgain == ShadowFloat.BlockReason.DUPLICATE_REQUEST, "duplicate reason");
+        require(secondReceipt == firstReceipt, "returns original receipt");
+        require(shadowFloat.receiptCount() == countAfterFirst, "no duplicate receipt written");
+    }
+
+    function testSpendRequiresNonzeroRequestHash() public {
+        uint256 countBefore = shadowFloat.receiptCount();
+        bool reverted = false;
+        try alpha.requestSpend(shadowFloat, address(alpha), provider, ENDPOINT, 10_000, bytes32(0)) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "zero hash rejected before receipt");
+        require(shadowFloat.receiptCount() == countBefore, "zero hash cannot write receipts");
+
+        (bool allowed, ShadowFloat.BlockReason reason) =
+            shadowFloat.previewSpend(address(alpha), provider, ENDPOINT, 10_000, bytes32(0));
+        require(!allowed, "zero hash preview blocked");
+        require(reason == ShadowFloat.BlockReason.MISSING_REQUEST_HASH, "preview reason");
+    }
+
     function testDeniedAgentCannotSpend() public {
         uint256 providerBefore = usdc.balanceOf(provider);
 
@@ -346,6 +476,60 @@ contract ShadowFloatTest {
         require(activeDebtUSDC == 0, "debt cleared");
         require(status == ShadowFloat.AgentStatus.REPAID, "status repaid");
         require(shadowFloat.totalRepaidUSDC() == 250_000, "repaid total");
+        require(shadowFloat.totalAvailableCreditUSDC() == 1 * USDC, "reserved available restored");
+    }
+
+    function testDefaultedAgentCannotSpendAndRepayDoesNotRestoreCapacity() public {
+        alpha.requestSpend(shadowFloat, address(alpha), provider, ENDPOINT, 100_000, keccak256("alpha-spend-before-default"));
+
+        shadowFloat.markDefault(address(alpha), keccak256("alpha-default"));
+        (,,, uint256 availableCreditUSDC, uint256 activeDebtUSDC, ShadowFloat.AgentStatus status,,,,) =
+            shadowFloat.lines(address(alpha));
+        require(availableCreditUSDC == 0, "default removes capacity");
+        require(activeDebtUSDC == 100_000, "default keeps debt");
+        require(status == ShadowFloat.AgentStatus.DEFAULTED, "default status");
+        require(shadowFloat.totalDefaultedUSDC() == 100_000, "default total");
+        require(shadowFloat.defaultedDebtUSDC(address(alpha)) == 100_000, "agent default total");
+
+        (, bool allowed, ShadowFloat.BlockReason reason) = alpha.requestSpend(
+            shadowFloat,
+            address(alpha),
+            provider,
+            ENDPOINT,
+            10_000,
+            keccak256("defaulted-agent-spend")
+        );
+        require(!allowed, "defaulted blocked");
+        require(reason == ShadowFloat.BlockReason.DEFAULTED, "defaulted reason");
+
+        alpha.repay(shadowFloat, address(alpha), 50_000, keccak256("default-partial-repay"));
+        (,,, availableCreditUSDC, activeDebtUSDC, status,,,,) = shadowFloat.lines(address(alpha));
+        require(availableCreditUSDC == 0, "partial default repay does not restore capacity");
+        require(activeDebtUSDC == 50_000, "partial default debt");
+        require(status == ShadowFloat.AgentStatus.DEFAULTED, "still defaulted");
+
+        alpha.repay(shadowFloat, address(alpha), 50_000, keccak256("default-final-repay"));
+        (,,, availableCreditUSDC, activeDebtUSDC, status,,,,) = shadowFloat.lines(address(alpha));
+        require(availableCreditUSDC == 0, "final default repay still no capacity");
+        require(activeDebtUSDC == 0, "default debt cleared");
+        require(status == ShadowFloat.AgentStatus.REPAID, "repaid after default cure");
+    }
+
+    function testNewDrawMovesRepaidLineBackToActiveDebtStatus() public {
+        alpha.requestSpend(shadowFloat, address(alpha), provider, ENDPOINT, 100_000, keccak256("alpha-spend-before-redraw"));
+        alpha.repay(shadowFloat, address(alpha), 100_000, keccak256("alpha-repay-before-redraw"));
+
+        (,,,,, ShadowFloat.AgentStatus repaidStatus,,,,) = shadowFloat.lines(address(alpha));
+        require(repaidStatus == ShadowFloat.AgentStatus.REPAID, "should be repaid before redraw");
+
+        alpha.requestSpend(shadowFloat, address(alpha), provider, ENDPOINT, 100_000, keccak256("alpha-redraw-after-repay"));
+
+        (,,, uint256 availableCreditUSDC, uint256 activeDebtUSDC, ShadowFloat.AgentStatus status,,,,) =
+            shadowFloat.lines(address(alpha));
+        require(availableCreditUSDC == 900_000, "available reduced again");
+        require(activeDebtUSDC == 100_000, "debt active again");
+        require(status == ShadowFloat.AgentStatus.LIMITED, "status active debt");
+        require(shadowFloat.totalAvailableCreditUSDC() == 900_000, "reserved available active again");
     }
 
     function testDailyLimitBlocksAfterAllowedSpend() public {
@@ -417,11 +601,13 @@ contract ShadowFloatTest {
         (,, uint256 creditLimitUSDC, uint256 availableCreditUSDC,,,,,,) = shadowFloat.lines(address(alpha));
         require(creditLimitUSDC == 500_000, "reduced limit");
         require(availableCreditUSDC == 500_000, "reduced available");
+        require(shadowFloat.totalAvailableCreditUSDC() == 500_000, "reserved reduced");
 
         shadowFloat.revoke(address(alpha), keccak256("alpha-revoke"));
         ShadowFloat.AgentStatus status;
         (,,, availableCreditUSDC,, status,,,,) = shadowFloat.lines(address(alpha));
         require(availableCreditUSDC == 0, "revoked available");
         require(status == ShadowFloat.AgentStatus.REVOKED, "revoked status");
+        require(shadowFloat.totalAvailableCreditUSDC() == 0, "reserve released");
     }
 }

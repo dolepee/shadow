@@ -20,7 +20,7 @@ import { privateKeyToAccount } from "viem/accounts";
 
 const RPC = clean(process.env.ARC_RPC_URL) || "https://rpc.testnet.arc.network";
 const CHAIN_ID = 5_042_002;
-const FLOAT = getAddress(clean(process.env.SHADOW_FLOAT) || "0x5d64750e199bb27Cb03C3C523A630a3dB215435b");
+const FLOAT = getAddress(clean(process.env.SHADOW_FLOAT) || "0xe926A9b44250a0aB12156988beAf90f5e9ac7d3D");
 const USDC = getAddress(clean(process.env.ARC_USDC) || "0x3600000000000000000000000000000000000000");
 
 const KEY = normalizeKey(clean(process.env.BUILDER_PRIVATE_KEY));

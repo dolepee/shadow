@@ -26,7 +26,7 @@ import { privateKeyToAccount } from "viem/accounts";
 
 const RPC = clean(process.env.ARC_RPC_URL) || "https://rpc.testnet.arc.network";
 const CHAIN_ID = 5_042_002;
-const FLOAT = getAddress(clean(process.env.SHADOW_FLOAT) || "0x5d64750e199bb27Cb03C3C523A630a3dB215435b");
+const FLOAT = getAddress(clean(process.env.SHADOW_FLOAT) || "0xe926A9b44250a0aB12156988beAf90f5e9ac7d3D");
 const PROVIDER = getAddress(clean(process.env.FLOAT_PROVIDER) || "0x8ddf06fE8985988d3e0883F945E891BD57084937");
 const ENDPOINT_HASH = clean(process.env.FLOAT_ENDPOINT_HASH) || "0x54f180bcd31ab4c3401b23bc78cb3eeb89f85d42a3b43e3d06a692b91d941160";
 const AMOUNT = BigInt(clean(process.env.FLOAT_SPEND_ATOMIC) || "10000"); // 0.01 USDC (6 decimals)

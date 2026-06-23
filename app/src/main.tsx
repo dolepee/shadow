@@ -297,6 +297,9 @@ type FloatState = {
   totalBlockedUSDC?: string;
   totalDeniedUSDC?: string;
   totalRepaidUSDC?: string;
+  totalFeesAccruedUSDC?: string;
+  totalDefaultedUSDC?: string;
+  feeBps?: number;
   lastChecksum?: string;
   alphaLine?: FloatLineState;
   betaLine?: FloatLineState;
@@ -1481,9 +1484,11 @@ function FloatPanel({
         <FloatMetric label="treasury" value={formatFloatUSDC(state?.treasuryBalanceUSDC)} />
         <FloatMetric label="provider paid" value={formatFloatUSDC(state?.totalProviderPaidUSDC)} tone="allow" />
         <FloatMetric label="debt opened" value={formatFloatUSDC(state?.totalDebtOpenedUSDC)} tone="allow" />
+        <FloatMetric label="fees accrued" value={formatFloatUSDC(state?.totalFeesAccruedUSDC)} tone="allow" />
         <FloatMetric label="repaid" value={formatFloatUSDC(state?.totalRepaidUSDC)} tone="allow" />
         <FloatMetric label="blocked" value={formatFloatUSDC(state?.totalBlockedUSDC)} tone="block" />
         <FloatMetric label="denied" value={formatFloatUSDC(state?.totalDeniedUSDC)} tone="block" />
+        <FloatMetric label="defaulted" value={formatFloatUSDC(state?.totalDefaultedUSDC)} tone="block" />
         <FloatMetric
           label="receipt chain"
           value={

@@ -7,6 +7,7 @@ import {
   isAddress,
   parseAbi,
   parseAbiItem,
+  decodeEventLog,
   type Address,
 } from "viem";
 
@@ -15,6 +16,7 @@ export const config = { maxDuration: 20 };
 const ARC_CHAIN_ID = 5_042_002;
 const DEFAULT_USDC = "0x3600000000000000000000000000000000000000";
 const LOG_LOOKBACK = BigInt(process.env.FLOAT_LOG_LOOKBACK || "250000");
+const LOG_CHUNK_SIZE = BigInt(process.env.FLOAT_LOG_CHUNK_SIZE || "9000");
 const DEFAULT_INVITED_AGENTS = [
   "0xC45d7072A811754EfC67E332C9137cC7CBfFa274",
   "0x13585c6004fbA9D7D49219a6435B68348fD30770",
@@ -52,6 +54,7 @@ type FloatConfig = {
 
 type FloatLoopRun = {
   source?: string;
+  float?: string;
   action?: string;
   outcome?: string;
   at?: string;
@@ -83,6 +86,9 @@ const floatAbi = parseAbi([
   "function totalBlockedUSDC() view returns (uint256)",
   "function totalDeniedUSDC() view returns (uint256)",
   "function totalRepaidUSDC() view returns (uint256)",
+  "function totalFeesAccruedUSDC() view returns (uint256)",
+  "function totalDefaultedUSDC() view returns (uint256)",
+  "function feeBps() view returns (uint16)",
   "function lastChecksum() view returns (bytes32)",
   "function providerMandates(address provider) view returns (bytes32 endpointHash, uint256 maxPerRequestUSDC, uint256 dailyLimitUSDC, uint64 expiry, bool active)",
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
@@ -107,9 +113,11 @@ const RECEIPT_TYPES = [
   "LIMIT_REDUCED",
   "LIMIT_REVOKED",
   "CREDIT_DENIED",
+  "FEE_ACCRUED",
+  "DEFAULTED",
 ];
 
-const STATUSES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID"];
+const STATUSES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"];
 
 const REASONS = [
   "NONE",
@@ -125,8 +133,10 @@ const REASONS = [
   "INSUFFICIENT_TREASURY",
   "DUPLICATE_REQUEST",
   "ZERO_AMOUNT",
+  "MISSING_REQUEST_HASH",
   "NO_DEBT",
   "REPAY_TOO_HIGH",
+  "DEFAULTED",
 ];
 
 export default async function handler(req: VercelLikeRequest, res: VercelLikeResponse) {
@@ -163,12 +173,15 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       totalBlockedUSDC,
       totalDeniedUSDC,
       totalRepaidUSDC,
+      totalFeesAccruedUSDC,
+      totalDefaultedUSDC,
+      feeBps,
       lastChecksum,
       alphaLine,
       betaLine,
       providerMandate,
       latestBlock,
-      loopRuns,
+      allLoopRuns,
     ] = await Promise.all([
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "receiptCount" }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "treasuryBalanceUSDC" }),
@@ -177,6 +190,9 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "totalBlockedUSDC" }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "totalDeniedUSDC" }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "totalRepaidUSDC" }),
+      client.readContract({ address: cfg.float, abi: floatAbi, functionName: "totalFeesAccruedUSDC" }),
+      client.readContract({ address: cfg.float, abi: floatAbi, functionName: "totalDefaultedUSDC" }),
+      client.readContract({ address: cfg.float, abi: floatAbi, functionName: "feeBps" }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "lastChecksum" }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "lines", args: [cfg.alpha] }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "lines", args: [cfg.beta] }),
@@ -184,6 +200,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       client.getBlockNumber(),
       readFloatLoopRuns(),
     ]);
+    const loopRuns = allLoopRuns.filter((run) => runMatchesFloat(run, cfg.float));
     const sourceBreakdown = summarizeSources(
       loopRuns,
       totalProviderPaidUSDC,
@@ -194,24 +211,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
     );
 
     const fromBlock = cfg.startBlock > 0n ? cfg.startBlock : latestBlock > LOG_LOOKBACK ? latestBlock - LOG_LOOKBACK : 0n;
-    const [logs, x402Logs] = await Promise.all([
-      client
-        .getLogs({
-          address: cfg.float,
-          event: floatReceiptEvent,
-          fromBlock,
-          toBlock: latestBlock,
-        })
-        .catch(() => []),
-      client
-        .getLogs({
-          address: cfg.float,
-          event: x402PaymentBoundEvent,
-          fromBlock,
-          toBlock: latestBlock,
-        })
-        .catch(() => []),
-    ]);
+    const { receiptLogs: logs, x402Logs, warnings: logWarnings } = await readFloatLogs(client, cfg.float, fromBlock, latestBlock);
     const x402ByRequest = new Map(
       x402Logs.map((log) => [
         log.args.requestHash,
@@ -247,12 +247,22 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       totalBlockedUSDC: totalBlockedUSDC.toString(),
       totalDeniedUSDC: totalDeniedUSDC.toString(),
       totalRepaidUSDC: totalRepaidUSDC.toString(),
+      totalFeesAccruedUSDC: totalFeesAccruedUSDC.toString(),
+      totalDefaultedUSDC: totalDefaultedUSDC.toString(),
+      feeBps: Number(feeBps),
       lastChecksum,
       alphaLine: serializeLine(alphaLine),
       betaLine: serializeLine(betaLine),
       providerMandate: serializeProvider(providerMandate),
       standingBoard,
       sourceBreakdown,
+      logFetch: {
+        fromBlock: fromBlock.toString(),
+        toBlock: latestBlock.toString(),
+        chunkSize: LOG_CHUNK_SIZE.toString(),
+        complete: logWarnings.length === 0,
+        warnings: logWarnings,
+      },
       loopRuns: loopRuns.slice(-12).reverse(),
       receipts: logs
         .slice()
@@ -289,6 +299,44 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
   } catch (error) {
     res.setHeader("Cache-Control", "no-store");
     res.status(503).json({ configured: true, degraded: true, error: sanitizeError(error) });
+  }
+}
+
+async function readFloatLogs(client: any, address: Address, fromBlock: bigint, toBlock: bigint) {
+  const receiptLogs: Array<any> = [];
+  const x402Logs: Array<any> = [];
+  const warnings: string[] = [];
+  if (toBlock < fromBlock) return { receiptLogs, x402Logs, warnings };
+
+  for (let start = fromBlock; start <= toBlock; start += LOG_CHUNK_SIZE) {
+    const end = start + LOG_CHUNK_SIZE - 1n > toBlock ? toBlock : start + LOG_CHUNK_SIZE - 1n;
+    try {
+      const rawLogs = await client.getLogs({ address, fromBlock: start, toBlock: end });
+      for (const log of rawLogs) {
+        const receipt = decodeLog(floatReceiptEvent, log);
+        if (receipt) {
+          receiptLogs.push({ ...log, args: receipt.args });
+          continue;
+        }
+        const x402 = decodeLog(x402PaymentBoundEvent, log);
+        if (x402) x402Logs.push({ ...log, args: x402.args });
+      }
+    } catch (error) {
+      warnings.push(`logs ${start.toString()}-${end.toString()}: ${sanitizeError(error)}`);
+    }
+  }
+
+  if (warnings.length > 0 && receiptLogs.length === 0 && x402Logs.length === 0) {
+    throw new Error(`Float log fetch failed across ${warnings.length} chunks: ${warnings[0]}`);
+  }
+  return { receiptLogs, x402Logs, warnings };
+}
+
+function decodeLog(event: typeof floatReceiptEvent | typeof x402PaymentBoundEvent, log: any) {
+  try {
+    return decodeEventLog({ abi: [event], data: log.data, topics: log.topics });
+  } catch {
+    return null;
   }
 }
 
@@ -566,6 +614,10 @@ function isFloatRun(value: unknown): value is FloatLoopRun {
     source === "operator-assisted" ||
     source === "external"
   );
+}
+
+function runMatchesFloat(run: FloatLoopRun, currentFloat: Address): boolean {
+  return Boolean(run.float && isAddress(run.float) && getAddress(run.float) === currentFloat);
 }
 
 function toBigInt(value: string | undefined): bigint {
