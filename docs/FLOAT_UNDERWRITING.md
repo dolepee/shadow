@@ -2,9 +2,9 @@
 
 Shadow Float currently uses **operator-reviewed behavior-backed lines** plus a deterministic v0 score formula exposed in both the contract and the public API.
 
-That means a line is granted only after public onchain behavior is reviewed. The contract exposes `deterministicScore(...)`, `recommendedLimitUSDC(score)`, and `grantFloatFromScore(...)`; the API at `GET /api/float-tools?action=score&address=0x...` recomputes the same suggested score and line from public Float evidence.
+That means a line is granted only after public onchain behavior is reviewed. The contract exposes `deterministicScore(...)`, `recommendedLimitUSDC(score)`, and `grantFloatFromScore(...)`; the API at `GET /api/float-tools?action=score&address=0x...` recomputes the same suggested score and line from the current Float evidence window.
 
-The remaining trust assumption is the evidence window: in the Lepton version, an operator submits the evidence counts to `grantFloatFromScore`. A reviewer can recompute those counts from receipts and compare the contract's score/limit with the API result.
+The remaining trust assumption is the evidence window: in the Lepton version, an operator reviews and submits the evidence counts to `grantFloatFromScore`. A reviewer can recompute those counts from receipts, KV-published loop metadata, and signed-intent verifier links, then compare the contract's score/limit with the API result. This is a deterministic v0 formula over operator-reviewed evidence, not permissionless autonomous underwriting.
 
 ## Current Inputs
 
@@ -19,6 +19,20 @@ For Lepton, v0 scoring inputs are:
 - execution errors.
 
 The contract records the resulting `score`, `creditLimitUSDC`, `availableCreditUSDC`, `activeDebtUSDC`, and `status` in `lines(address)`.
+
+## Evidence Sources
+
+| Input | Source | Trust label |
+| --- | --- | --- |
+| line label | configured lab / invited / self-test / demo address sets | operator-reviewed |
+| paid-bound runs | `float:loop:runs` metadata plus matching Float receipts | KV-derived + onchain receipts |
+| signed external paid runs | signed-intent metadata plus `GET /api/float-tools?action=verify&hash=...` | externally signed + onchain verified |
+| repayments | Float receipts and line state | onchain-derived |
+| blocked overreach | Float receipts with `SPEND_BLOCKED` / `AMOUNT_TOO_HIGH` | onchain-derived |
+| denied attempts | Float receipts with `CREDIT_DENIED` | onchain-derived |
+| current line | `ShadowFloat.lines(address)` | onchain-derived |
+
+The score endpoint returns `evidenceSources`, `currentLine`, `computed`, `supportCheck`, and `trustAssumption` so the limitation is visible in the same API response as the score.
 
 ## Deterministic v0 Formula
 

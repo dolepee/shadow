@@ -1,25 +1,31 @@
 # Shadow
 
-**Shadow Float gives operator-reviewed, behavior-backed USDC spending lines to autonomous agents on Arc.**
+**Shadow Float lets an autonomous agent buy an x402 service before its own wallet is funded.**
 
-An agent can buy an approved x402 resource before its own wallet is funded. Shadow fronts real Arc USDC from the Float treasury, verifies the x402 USDC settlement in the operator script, binds that settlement hash into an onchain receipt, opens debt against the agent's line, blocks overreach before treasury USDC moves, and lets repayment restore capacity.
+Shadow fronts real Arc USDC from the Float treasury, verifies the x402 USDC settlement in the operator script, binds that settlement hash into an onchain receipt, opens debt against the agent's spending line, blocks unsafe spends before treasury funds move, and lets repayment restore capacity.
 
 Live proof: https://shadow-arc.vercel.app/float
 
-Current Float proof snapshot, June 23, 2026:
+## Live Float Proof
 
-| Metric | Live value |
-| --- | ---: |
+| Surface | What to check |
+| --- | --- |
 | Float contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
-| Float receipts | 9 |
-| Treasury balance | 0.10001 USDC |
-| Provider paid through Float | 0.001 USDC |
-| Debt opened, provider spend + fee | 0.00101 USDC |
-| Fees accrued | 0.00001 USDC |
-| Repaid | 0.00101 USDC |
-| Overspend blocked | 5 USDC |
-| Denied spend attempts | 0.001 USDC |
-| Current-contract external-signed x402 intents | pending new builder signatures |
+| Live state API | `GET https://shadow-arc.vercel.app/api/float` |
+| Live proof page | https://shadow-arc.vercel.app/float |
+| No-secret verifier | `npm run float:verify-live` |
+| Signed intent verifier | `GET /api/float-tools?action=verify&hash=0x...` |
+
+The live API exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The verifier command independently checks the live contract, receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys.
+
+## Economic Loop
+
+1. An agent has a behavior-backed spending line but does not need to pre-fund the x402 call.
+2. The x402 provider requires USDC.
+3. Shadow's facilitator fronts the provider payment in Arc USDC.
+4. `ShadowFloat.recordX402Spend` binds the x402 settlement hash onchain and opens debt against the agent.
+5. Repayment reduces debt and restores available capacity.
+6. Oversized or denied spends emit receipts without moving treasury funds.
 
 What is proven now:
 
@@ -31,6 +37,7 @@ What is proven now:
 - Oversized spends and denied agents produce receipts without moving treasury USDC.
 - Repayment restores capacity.
 - Optional line expiry, default marking, reserve-safe treasury withdrawals, and fee-accrued debt are covered in the contract test suite.
+- The live verifier can be run without secrets: `npm run float:verify-live`.
 
 What is not claimed yet:
 
@@ -38,6 +45,8 @@ What is not claimed yet:
 - The Float contract binds operator-verified x402 payment evidence; the EVM contract cannot independently inspect a prior HTTP/x402 transaction or subjective service quality.
 - Operators are trusted owner-approved executors: they front the x402 payment, verify the USDC transfer offchain, and then bind the settlement hash onchain.
 - Invited builder signatures are external usage tests, not partnerships.
+
+## Prior Shadow Foundation
 
 Shadow's earlier copy-capital system is the foundation: it proved policy-controlled USDC movement, no-cascade execution, and onchain refusal receipts. Submission snapshot, May 24, 2026: **30 follower wallets, 2,893 MirrorReceipt events (463 COPIED / 2,430 BLOCKED), 173 PositionClosed events, 13.355 USDC mirrored, and 3 source agents.** The BLOCKED receipts are the policy layer working, not failed volume.
 
@@ -88,9 +97,10 @@ npm run contracts:build
 npm run app:typecheck
 npm run app:build
 npm run agent:typecheck
+npm run float:verify-live
 ```
 
-The app and Float proof can be reviewed without private keys at https://shadow-arc.vercel.app. `npm run verify:slippage` is an optional live-write verifier that requires `ARC_RPC_URL` plus the deployment/operator environment; it publishes one CatArb intent that produces two outcomes from follower policy alone.
+The app and Float proof can be reviewed without private keys at https://shadow-arc.vercel.app. `npm run float:verify-live` is read-only and uses the public Arc RPC by default. `npm run verify:slippage` is an optional live-write verifier for the older copy-capital rail and requires `ARC_RPC_URL` plus the deployment/operator environment.
 
 ## What makes this an Agora
 

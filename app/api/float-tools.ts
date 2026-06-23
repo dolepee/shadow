@@ -415,6 +415,16 @@ async function handleScore(req: Req, res: Res) {
         ],
       },
       evidence,
+      evidenceSources: {
+        lineLabel: "operator-configured label set for lab, invited, self-test, and demo addresses",
+        paidBound: "KV-published Float loop metadata filtered to the current Float contract",
+        signedExternalPaidBound:
+          "KV-published signed-intent metadata plus onchain verification through ?action=verify for each requestHash",
+        repaid: "KV-published repay metadata and onchain line state; receipt logs are the canonical final check",
+        blocked: "KV-published blocked-run metadata and FloatReceipt logs",
+        denied: "KV-published denied-run metadata and FloatReceipt logs",
+        currentLine: "ShadowFloat.lines(address) on Arc testnet",
+      },
       computed: {
         score,
         recommendedLimitUSDC,
@@ -426,8 +436,13 @@ async function handleScore(req: Req, res: Res) {
         currentCreditLimitUSDC: currentLine.creditLimitUSDC,
         scoreSupported: currentLine.score <= score,
         limitSupported: BigInt(currentLine.creditLimitUSDC) <= BigInt(recommendedLimitUSDC),
+        currentLineSupportedByComputedV0:
+          currentLine.score <= score && BigInt(currentLine.creditLimitUSDC) <= BigInt(recommendedLimitUSDC),
       },
-      note: "This v0 verifier is deterministic and public. The contract exposes the same formula through deterministicScore/recommendedLimitUSDC and can grant with grantFloatFromScore once reviewed evidence counts are submitted.",
+      trustAssumption:
+        "Deterministic v0 formula, operator-reviewed evidence window. Current Lepton lines are not permissionlessly auto-updated yet.",
+      note:
+        "This v0 verifier is deterministic and public. The contract exposes the same formula through deterministicScore/recommendedLimitUSDC and can grant with grantFloatFromScore once reviewed evidence counts are submitted.",
       fetchedAt: Date.now(),
     });
   } catch (error) {

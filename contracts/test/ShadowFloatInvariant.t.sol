@@ -5,6 +5,10 @@ import {MockAsset} from "../src/MockAsset.sol";
 import {ShadowFloat} from "../src/ShadowFloat.sol";
 import {IERC20} from "../src/interfaces/IERC20.sol";
 
+interface Vm {
+    function prank(address) external;
+}
+
 contract FloatInvariantActor {
     function approveToken(address token, address spender, uint256 amount) external {
         IERC20(token).approve(spender, amount);
@@ -30,6 +34,8 @@ contract FloatInvariantActor {
 }
 
 contract ShadowFloatHandler {
+    Vm constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+    address constant OWNER = address(0xA11CE);
     uint256 constant USDC = 1e6;
 
     MockAsset public usdc;
@@ -69,6 +75,7 @@ contract ShadowFloatHandler {
         shadowFloat.grantFloat(agentAddress(0), agentAddress(0), 10 * USDC, 9_300, keccak256("agent-0-line"));
         shadowFloat.grantFloat(agentAddress(1), agentAddress(1), 5 * USDC, 8_100, keccak256("agent-1-line"));
         shadowFloat.denyAgent(agentAddress(2), agentAddress(2), 2_100, keccak256("agent-2-denied"), nextHash("seed-deny"));
+        shadowFloat.transferOwnership(OWNER);
     }
 
     function agentCount() external view returns (uint256) {
@@ -88,12 +95,14 @@ contract ShadowFloatHandler {
     }
 
     function setFeeBps(uint16 rawBps) external {
+        vm.prank(OWNER);
         shadowFloat.setFeeBps(rawBps % 1001);
     }
 
     function setProvider(uint8 providerSeed, uint8 endpointSeed, uint32 maxSeed, uint32 dailySeed, bool active) external {
         uint256 maxPerRequest = 1 + (uint256(maxSeed) % (10 * USDC));
         uint256 dailyLimit = maxPerRequest + (uint256(dailySeed) % (30 * USDC));
+        vm.prank(OWNER);
         shadowFloat.setProviderMandate(
             providers[providerSeed % providers.length],
             endpoints[endpointSeed % endpoints.length],
@@ -112,6 +121,7 @@ contract ShadowFloatHandler {
 
     function withdraw(uint32 amountSeed) external {
         uint256 amount = 1 + (uint256(amountSeed) % (50 * USDC));
+        vm.prank(OWNER);
         try shadowFloat.withdraw(address(this), amount) {} catch {}
     }
 
@@ -128,6 +138,7 @@ contract ShadowFloatHandler {
     ) external {
         address agent = agentAddress(agentSeed);
         uint64 expiry = expiring ? uint64(block.timestamp + 1 days) : 0;
+        vm.prank(OWNER);
         try shadowFloat.grantFloatFromScore(
             agent,
             agent,
@@ -145,24 +156,29 @@ contract ShadowFloatHandler {
 
     function deny(uint8 agentSeed) external {
         address agent = agentAddress(agentSeed);
+        vm.prank(OWNER);
         try shadowFloat.denyAgent(agent, agent, 2_000, keccak256(abi.encode("deny", agent)), nextHash("deny")) {} catch {}
     }
 
     function reduce(uint8 agentSeed, uint32 newLimitSeed) external {
         address agent = agentAddress(agentSeed);
         uint256 newLimit = uint256(newLimitSeed) % (10 * USDC);
+        vm.prank(OWNER);
         try shadowFloat.reduceLimit(agent, newLimit, nextHash("reduce")) {} catch {}
     }
 
     function revoke(uint8 agentSeed) external {
+        vm.prank(OWNER);
         try shadowFloat.revoke(agentAddress(agentSeed), nextHash("revoke")) {} catch {}
     }
 
     function setLineExpiry(uint8 agentSeed, uint32 secondsFromNow) external {
+        vm.prank(OWNER);
         try shadowFloat.setLineExpiry(agentAddress(agentSeed), uint64(block.timestamp + (uint256(secondsFromNow) % 30 days))) {} catch {}
     }
 
     function markDefault(uint8 agentSeed) external {
+        vm.prank(OWNER);
         try shadowFloat.markDefault(agentAddress(agentSeed), nextHash("default")) {} catch {}
     }
 
@@ -221,26 +237,39 @@ contract ShadowFloatInvariantTest {
 
     function testFuzz_randomFloatOperationSequence(uint256 seed) public {
         for (uint256 i = 0; i < 80; i++) {
-            uint256 entropy = uint256(keccak256(abi.encode(seed, i)));
-            uint8 a = uint8(entropy);
-            uint8 b = uint8(entropy >> 8);
-            uint8 c = uint8(entropy >> 16);
-            uint32 d = uint32(entropy >> 24);
-            uint16 e = uint16(entropy >> 56);
+            bytes32 entropy = keccak256(abi.encode(seed, i));
+            uint256 entropyWord = uint256(entropy);
+            uint8 a = uint8(entropy[0]);
+            uint8 b = uint8(entropy[1]);
+            uint8 c = uint8(entropy[2]);
+            uint32 d = _u32(entropy, 3);
+            uint16 e = _u16(entropy, 7);
 
-            uint256 action = entropy % 12;
+            uint256 action = entropyWord % 12;
             if (action == 0) handler.setFeeBps(e);
-            else if (action == 1) handler.setProvider(a, b, d, uint32(entropy >> 88), entropy & 1 == 0);
+            else if (action == 1) handler.setProvider(a, b, d, _u32(entropy, 11), entropyWord & 1 == 0);
             else if (action == 2) handler.fund(d);
             else if (action == 3) handler.withdraw(d);
-            else if (action == 4) handler.grantFromScore(a, b, e, uint16(entropy >> 72), uint16(entropy >> 88), uint16(entropy >> 104), uint16(entropy >> 120), uint16(entropy >> 136), entropy & 2 == 0);
+            else if (action == 4) {
+                handler.grantFromScore(
+                    a,
+                    b,
+                    e,
+                    _u16(entropy, 9),
+                    _u16(entropy, 11),
+                    _u16(entropy, 13),
+                    _u16(entropy, 15),
+                    _u16(entropy, 17),
+                    entropyWord & 2 == 0
+                );
+            }
             else if (action == 5) handler.deny(a);
             else if (action == 6) handler.reduce(a, d);
             else if (action == 7) handler.revoke(a);
             else if (action == 8) handler.setLineExpiry(a, d);
             else if (action == 9) handler.markDefault(a);
             else if (action == 10) handler.requestSpend(a, b, c, d);
-            else handler.recordX402Spend(a, b, c, d, entropy & 4 == 0);
+            else handler.recordX402Spend(a, b, c, d, entropyWord & 4 == 0);
 
             assertTreasuryAlwaysBacksAvailableCredit();
             assertTotalAvailableCreditMatchesLines();
@@ -248,6 +277,15 @@ contract ShadowFloatInvariantTest {
             assertGlobalAccountingIsMonotoneSane();
             assertUsedRequestHashesHaveReceipts();
         }
+    }
+
+    function _u16(bytes32 entropy, uint256 offset) private pure returns (uint16) {
+        return (uint16(uint8(entropy[offset])) << 8) | uint16(uint8(entropy[offset + 1]));
+    }
+
+    function _u32(bytes32 entropy, uint256 offset) private pure returns (uint32) {
+        return (uint32(uint8(entropy[offset])) << 24) | (uint32(uint8(entropy[offset + 1])) << 16)
+            | (uint32(uint8(entropy[offset + 2])) << 8) | uint32(uint8(entropy[offset + 3]));
     }
 
     function invariant_treasuryAlwaysBacksAvailableCredit() public view {

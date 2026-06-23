@@ -88,11 +88,13 @@ const floatAbi = parseAbi([
   "function totalRepaidUSDC() view returns (uint256)",
   "function totalFeesAccruedUSDC() view returns (uint256)",
   "function totalDefaultedUSDC() view returns (uint256)",
+  "function totalAvailableCreditUSDC() view returns (uint256)",
   "function feeBps() view returns (uint16)",
   "function lastChecksum() view returns (bytes32)",
   "function providerMandates(address provider) view returns (bytes32 endpointHash, uint256 maxPerRequestUSDC, uint256 dailyLimitUSDC, uint64 expiry, bool active)",
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
 ]);
+const erc20Abi = parseAbi(["function balanceOf(address account) view returns (uint256)"]);
 
 const floatReceiptEvent = parseAbiItem(
   "event FloatReceipt(uint256 indexed receiptId, bytes32 indexed receiptHash, uint8 indexed receiptType, address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, uint256 creditBeforeUSDC, uint256 creditAfterUSDC, uint256 debtBeforeUSDC, uint256 debtAfterUSDC, uint8 reason, bytes32 mandateId, bytes32 requestHash, bytes32 prevChecksum, bytes32 checksum)",
@@ -175,6 +177,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       totalRepaidUSDC,
       totalFeesAccruedUSDC,
       totalDefaultedUSDC,
+      totalAvailableCreditUSDC,
       feeBps,
       lastChecksum,
       alphaLine,
@@ -192,6 +195,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "totalRepaidUSDC" }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "totalFeesAccruedUSDC" }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "totalDefaultedUSDC" }),
+      client.readContract({ address: cfg.float, abi: floatAbi, functionName: "totalAvailableCreditUSDC" }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "feeBps" }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "lastChecksum" }),
       client.readContract({ address: cfg.float, abi: floatAbi, functionName: "lines", args: [cfg.alpha] }),
@@ -230,6 +234,60 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
     );
 
     const standingBoard = await buildStandingBoard(client, cfg, logs as Array<{ args: Record<string, unknown> }>);
+    const indexedReceipts = logs
+      .slice()
+      .sort((a, b) => Number(b.args.receiptId! - a.args.receiptId!))
+      .map((log) => {
+        const x402 = x402ByRequest.get(log.args.requestHash);
+        const receiptType = RECEIPT_TYPES[Number(log.args.receiptType)] || `TYPE_${log.args.receiptType}`;
+        const amountUSDC = BigInt(log.args.amountUSDC!);
+        const debtBefore = BigInt(log.args.debtBeforeUSDC!);
+        const debtAfter = BigInt(log.args.debtAfterUSDC!);
+        const debtDelta = debtAfter > debtBefore ? debtAfter - debtBefore : 0n;
+        const feeUSDC = receiptType === "DEBT_OPENED" && debtDelta > amountUSDC ? debtDelta - amountUSDC : 0n;
+        return {
+          receiptId: log.args.receiptId!.toString(),
+          receiptHash: log.args.receiptHash,
+          receiptType,
+          agent: log.args.agent,
+          provider: log.args.provider,
+          endpointHash: log.args.endpointHash,
+          amountUSDC: amountUSDC.toString(),
+          amountFormatted: formatUnits(amountUSDC, 6),
+          providerAmountUSDC: amountUSDC.toString(),
+          feeUSDC: feeUSDC.toString(),
+          debtOpenedUSDC: debtDelta.toString(),
+          debtDeltaUSDC: debtDelta.toString(),
+          creditBeforeUSDC: log.args.creditBeforeUSDC!.toString(),
+          creditAfterUSDC: log.args.creditAfterUSDC!.toString(),
+          debtBeforeUSDC: debtBefore.toString(),
+          debtAfterUSDC: debtAfter.toString(),
+          reason: REASONS[Number(log.args.reason)] || `REASON_${log.args.reason}`,
+          mandateId: log.args.mandateId,
+          requestHash: log.args.requestHash,
+          prevChecksum: log.args.prevChecksum,
+          checksum: log.args.checksum,
+          transactionHash: log.transactionHash,
+          blockNumber: log.blockNumber.toString(),
+          x402,
+        };
+      });
+    const receipts = indexedReceipts.slice(0, 30);
+    const proofPointers = buildProofPointers(indexedReceipts, loopRuns);
+    const alphaWalletBalanceUSDC = await safeBalanceOf(client, cfg.usdc, cfg.alpha);
+    const walletProof = buildWalletProof(indexedReceipts, alphaLine, alphaWalletBalanceUSDC);
+    const proofChecks = buildProofChecks({
+      cfg,
+      receiptCount,
+      receipts: indexedReceipts,
+      logWarnings,
+      treasuryBalanceUSDC,
+      totalAvailableCreditUSDC,
+      totalDebtOpenedUSDC,
+      totalRepaidUSDC,
+      standingBoard,
+      sourceBreakdown,
+    });
 
     res.status(200).json({
       configured: true,
@@ -249,6 +307,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       totalRepaidUSDC: totalRepaidUSDC.toString(),
       totalFeesAccruedUSDC: totalFeesAccruedUSDC.toString(),
       totalDefaultedUSDC: totalDefaultedUSDC.toString(),
+      totalAvailableCreditUSDC: totalAvailableCreditUSDC.toString(),
       feeBps: Number(feeBps),
       lastChecksum,
       alphaLine: serializeLine(alphaLine),
@@ -256,6 +315,9 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       providerMandate: serializeProvider(providerMandate),
       standingBoard,
       sourceBreakdown,
+      proofChecks,
+      proofPointers,
+      walletProof,
       logFetch: {
         fromBlock: fromBlock.toString(),
         toBlock: latestBlock.toString(),
@@ -264,35 +326,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
         warnings: logWarnings,
       },
       loopRuns: loopRuns.slice(-12).reverse(),
-      receipts: logs
-        .slice()
-        .sort((a, b) => Number(b.args.receiptId! - a.args.receiptId!))
-        .slice(0, 30)
-        .map((log) => {
-          const x402 = x402ByRequest.get(log.args.requestHash);
-          return {
-            receiptId: log.args.receiptId!.toString(),
-            receiptHash: log.args.receiptHash,
-            receiptType: RECEIPT_TYPES[Number(log.args.receiptType)] || `TYPE_${log.args.receiptType}`,
-            agent: log.args.agent,
-            provider: log.args.provider,
-            endpointHash: log.args.endpointHash,
-            amountUSDC: log.args.amountUSDC!.toString(),
-            amountFormatted: formatUnits(log.args.amountUSDC!, 6),
-            creditBeforeUSDC: log.args.creditBeforeUSDC!.toString(),
-            creditAfterUSDC: log.args.creditAfterUSDC!.toString(),
-            debtBeforeUSDC: log.args.debtBeforeUSDC!.toString(),
-            debtAfterUSDC: log.args.debtAfterUSDC!.toString(),
-            reason: REASONS[Number(log.args.reason)] || `REASON_${log.args.reason}`,
-            mandateId: log.args.mandateId,
-            requestHash: log.args.requestHash,
-            prevChecksum: log.args.prevChecksum,
-            checksum: log.args.checksum,
-            transactionHash: log.transactionHash,
-            blockNumber: log.blockNumber.toString(),
-            x402,
-          };
-        }),
+      receipts,
       latestBlock: latestBlock.toString(),
       fetchedAt: Date.now(),
     });
@@ -300,6 +334,111 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
     res.setHeader("Cache-Control", "no-store");
     res.status(503).json({ configured: true, degraded: true, error: sanitizeError(error) });
   }
+}
+
+function buildProofPointers(receipts: Array<any>, runs: FloatLoopRun[]) {
+  const x402BoundReceipt = receipts.find((receipt) => receipt.x402) || null;
+  const debtReceipt = x402BoundReceipt
+    ? receipts.find((receipt) => receipt.receiptType === "DEBT_OPENED" && receipt.requestHash === x402BoundReceipt.requestHash)
+    : receipts.find((receipt) => receipt.receiptType === "DEBT_OPENED");
+  const latestExternal = runs
+    .slice()
+    .reverse()
+    .find((run) => run.source === "external-signed" && run.requestHash);
+  return {
+    x402BoundReceipt,
+    providerPaidReceipt: x402BoundReceipt
+      ? receipts.find((receipt) => receipt.receiptType === "PROVIDER_PAID" && receipt.requestHash === x402BoundReceipt.requestHash) || null
+      : receipts.find((receipt) => receipt.receiptType === "PROVIDER_PAID") || null,
+    debtReceipt: debtReceipt || null,
+    repaymentReceipt: receipts.find((receipt) => receipt.receiptType === "REPAID") || null,
+    overspendReceipt:
+      receipts.find((receipt) => receipt.receiptType === "SPEND_BLOCKED" && receipt.reason === "AMOUNT_TOO_HIGH") || null,
+    denialReceipt: receipts.find((receipt) => receipt.receiptType === "CREDIT_DENIED") || null,
+    grantReceipt: receipts.find((receipt) => receipt.receiptType === "FLOAT_GRANTED") || null,
+    latestExternalVerify:
+      latestExternal?.requestHash && latestExternal.source === "external-signed"
+        ? {
+            requestHash: latestExternal.requestHash,
+            verifyUrl: `/api/float-tools?action=verify&hash=${latestExternal.requestHash}`,
+          }
+        : null,
+  };
+}
+
+async function safeBalanceOf(client: FloatReadClient, token: Address, account: Address): Promise<bigint> {
+  try {
+    return BigInt(
+      await client.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [account],
+      }),
+    );
+  } catch {
+    return 0n;
+  }
+}
+
+function buildWalletProof(receipts: Array<any>, alphaLine: readonly unknown[], alphaWalletBalanceUSDC: bigint) {
+  const latestX402Receipt = receipts.find((receipt) => receipt.x402);
+  const debtReceipt = latestX402Receipt
+    ? receipts.find((receipt) => receipt.receiptType === "DEBT_OPENED" && receipt.requestHash === latestX402Receipt.requestHash)
+    : receipts.find((receipt) => receipt.receiptType === "DEBT_OPENED");
+  const required = BigInt(latestX402Receipt?.x402?.amountUSDC || latestX402Receipt?.amountUSDC || "0");
+  const available = alphaLine?.[3] ? BigInt(alphaLine[3] as bigint) : 0n;
+  const debtAssigned = BigInt(debtReceipt?.debtOpenedUSDC || debtReceipt?.debtDeltaUSDC || "0");
+  const shortfall = required > alphaWalletBalanceUSDC ? required - alphaWalletBalanceUSDC : 0n;
+  return {
+    agent: alphaLine?.[0],
+    balanceSnapshot: "current",
+    historicalBeforeBalanceAvailable: false,
+    note:
+      "The contract did not store the agent wallet's historical pre-spend USDC balance. This panel shows current wallet balance plus the x402/debt receipts so the proof is not presented as a fake before-balance snapshot.",
+    agentWalletUSDC: alphaWalletBalanceUSDC.toString(),
+    requiredX402AmountUSDC: required.toString(),
+    walletShortfallUSDC: shortfall.toString(),
+    floatAvailableCapacityUSDC: available.toString(),
+    facilitatorPaidUSDC: required.toString(),
+    debtAssignedUSDC: debtAssigned.toString(),
+    requestHash: latestX402Receipt?.requestHash || null,
+    x402Hash: latestX402Receipt?.x402?.x402Hash || null,
+    bindTxHash: latestX402Receipt?.x402?.bindingTxHash || latestX402Receipt?.transactionHash || null,
+  };
+}
+
+function buildProofChecks(input: {
+  cfg: FloatConfig;
+  receiptCount: bigint;
+  receipts: Array<any>;
+  logWarnings: string[];
+  treasuryBalanceUSDC: bigint;
+  totalAvailableCreditUSDC: bigint;
+  totalDebtOpenedUSDC: bigint;
+  totalRepaidUSDC: bigint;
+  standingBoard: Awaited<ReturnType<typeof buildStandingBoard>>;
+  sourceBreakdown: ReturnType<typeof summarizeSources>;
+}) {
+  const has = (type: string, reason?: string) =>
+    input.receipts.some((receipt) => receipt.receiptType === type && (!reason || receipt.reason === reason));
+  const activeDebt = input.standingBoard.agents.reduce((sum, agent) => sum + toBigInt(agent.activeDebtUSDC), 0n);
+  const expectedActiveDebt = clampSub(input.totalDebtOpenedUSDC, input.totalRepaidUSDC);
+  return {
+    contractMatchesReadme: input.cfg.float.toLowerCase() === "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057",
+    logFetchComplete: input.logWarnings.length === 0,
+    indexedReceiptCountMatchesChain: BigInt(input.receipts.length) === input.receiptCount,
+    treasuryBacksAvailableCapacity: input.treasuryBalanceUSDC >= input.totalAvailableCreditUSDC,
+    hasX402BoundSpend: input.receipts.some((receipt) => Boolean(receipt.x402)),
+    hasDebtOpened: has("DEBT_OPENED"),
+    hasRepayment: has("REPAID"),
+    hasOverspendBlock: has("SPEND_BLOCKED", "AMOUNT_TOO_HIGH"),
+    hasRiskyDenial: has("CREDIT_DENIED", "CREDIT_DENIED"),
+    externalSignedCurrentContract: Number(input.sourceBreakdown.externalSigned.cycles) > 0,
+    activeDebtReconciles: activeDebt === expectedActiveDebt,
+    feeMechanicsVisible: input.receipts.some((receipt) => receipt.receiptType === "DEBT_OPENED" && BigInt(receipt.feeUSDC || "0") > 0n),
+    trustBoundary: "operators are owner-approved executors; current scoring evidence is operator-reviewed, not permissionlessly auto-updated",
+  };
 }
 
 async function readFloatLogs(client: any, address: Address, fromBlock: bigint, toBlock: bigint) {

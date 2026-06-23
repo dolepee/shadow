@@ -22,6 +22,7 @@
     "float:proof": "node app/scripts/float-proof.mjs",
     "float:x402-proof": "node app/scripts/float-x402-proof.mjs",
     "float:external-spend": "node app/scripts/float-external-spend.mjs",
+    "float:verify-live": "node app/scripts/float-verify-live.mjs",
     "float:loop": "node app/scripts/float-loop.mjs",
     "extract:addresses": "node scripts/extract-addresses.mjs"
   }

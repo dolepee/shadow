@@ -924,6 +924,230 @@ html {
   margin-top: 18px;
 }
 
+.floatWalletProof,
+.floatRunway,
+.floatProofChecks,
+.floatJudgePath {
+  background:
+    linear-gradient(135deg, rgba(77, 240, 168, 0.055), rgba(52, 229, 255, 0.025)),
+    rgba(7, 17, 31, 0.58);
+  border: 1px solid rgba(184, 211, 255, 0.13);
+  border-radius: 14px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035) inset;
+  margin-top: 14px;
+  padding: 16px;
+}
+
+.floatWalletProof {
+  border-color: rgba(52, 229, 255, 0.22);
+}
+
+.floatWalletProofCopy {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  max-width: 980px;
+}
+
+.floatWalletProofCopy strong {
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.floatWalletProofCopy p,
+.floatProofChecks p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.floatWalletProofGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.floatWalletProofLinks,
+.floatJudgeLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.floatWalletProofLinks a,
+.floatRunwayVerify,
+.floatJudgeLinks a {
+  border: 1px solid rgba(52, 229, 255, 0.22);
+  border-radius: 999px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 7px 10px;
+  text-decoration: none;
+}
+
+.floatRunwayRows {
+  display: grid;
+  gap: 8px;
+}
+
+.floatRunwayRow {
+  align-items: center;
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--ink);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 34px 74px minmax(0, 1fr) minmax(112px, 0.35fr) minmax(86px, auto);
+  min-height: 64px;
+  padding: 10px;
+  text-decoration: none;
+}
+
+.floatRunwayRow:hover {
+  border-color: rgba(52, 229, 255, 0.28);
+}
+
+.floatRunwayRow.proven,
+.floatRunwayRow.live {
+  border-color: rgba(77, 240, 168, 0.22);
+}
+
+.floatRunwayRow.pending {
+  border-color: rgba(255, 209, 102, 0.22);
+}
+
+.floatRunwayIndex,
+.floatRunwayStatus {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 24px;
+  text-transform: uppercase;
+}
+
+.floatRunwayIndex {
+  background: rgba(52, 229, 255, 0.1);
+  border: 1px solid rgba(52, 229, 255, 0.24);
+  color: var(--accent);
+  width: 24px;
+}
+
+.floatRunwayStatus {
+  background: rgba(77, 240, 168, 0.1);
+  border: 1px solid rgba(77, 240, 168, 0.24);
+  color: var(--copy);
+  padding: 0 8px;
+}
+
+.floatRunwayRow.pending .floatRunwayStatus {
+  background: rgba(255, 209, 102, 0.1);
+  border-color: rgba(255, 209, 102, 0.24);
+  color: var(--warn);
+}
+
+.floatRunwayMain {
+  min-width: 0;
+}
+
+.floatRunwayMain strong {
+  color: var(--ink);
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.floatRunwayMain small {
+  color: var(--ink-soft);
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.floatRunwayRow code,
+.floatRunwayAmount {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.floatRunwayAmount {
+  color: var(--ink);
+  justify-self: end;
+}
+
+.floatRunwayVerify {
+  display: inline-flex;
+  margin-top: 12px;
+}
+
+.floatProofCheckGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.floatProofCheck {
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--ink);
+  min-height: 78px;
+  padding: 10px;
+  text-decoration: none;
+}
+
+.floatProofCheck.pass {
+  border-color: rgba(77, 240, 168, 0.22);
+}
+
+.floatProofCheck.pending {
+  border-color: rgba(255, 209, 102, 0.22);
+}
+
+.floatProofCheck span {
+  color: var(--copy);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.floatProofCheck.pending span {
+  color: var(--warn);
+}
+
+.floatProofCheck strong {
+  color: var(--ink);
+  display: block;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.floatJudgePath code {
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+  padding: 10px;
+}
+
 .floatProofStep {
   background: rgba(184, 211, 255, 0.045);
   border: 1px solid rgba(184, 211, 255, 0.12);
@@ -1419,6 +1643,22 @@ html {
   text-decoration: none;
 }
 
+.floatReceiptDetails {
+  border-top: 1px solid rgba(184, 211, 255, 0.08);
+  display: grid;
+  gap: 7px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding-top: 8px;
+}
+
+.floatReceiptDetails small {
+  background: rgba(7, 17, 31, 0.42);
+  border: 1px solid rgba(184, 211, 255, 0.08);
+  border-radius: 6px;
+  padding: 6px;
+}
+
 .floatX402Link:hover {
   color: var(--accent);
 }
@@ -1491,8 +1731,23 @@ html {
   }
 
   .floatHeadlineStats,
-  .floatProofRail {
+  .floatProofRail,
+  .floatProofCheckGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .floatWalletProofGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .floatRunwayRow {
+    grid-template-columns: 32px 74px minmax(0, 1fr);
+  }
+
+  .floatRunwayRow code,
+  .floatRunwayAmount {
+    grid-column: 3;
+    justify-self: start;
   }
 
   .floatHeader {
@@ -1603,7 +1858,8 @@ html {
   }
 
   .floatHeadlineStats,
-  .floatProofRail {
+  .floatProofRail,
+  .floatProofCheckGrid {
     grid-template-columns: 1fr;
   }
 
@@ -1617,15 +1873,33 @@ html {
 
   .floatLineStats,
   .floatProviderFacts,
+  .floatWalletProofGrid,
   .floatMetricGrid,
   .floatLoopStats,
   .floatLoopSplit {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .floatRunwayRow {
+    align-items: flex-start;
+    grid-template-columns: 28px 1fr;
+  }
+
+  .floatRunwayStatus,
+  .floatRunwayMain,
+  .floatRunwayRow code,
+  .floatRunwayAmount {
+    grid-column: 2;
+    justify-self: start;
+  }
+
   .floatReceipt {
     align-items: flex-start;
     grid-template-columns: 1fr;
+  }
+
+  .floatReceiptDetails {
+    grid-template-columns: 1fr 1fr;
   }
 
   .floatLoopRun {

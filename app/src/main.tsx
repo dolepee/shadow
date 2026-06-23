@@ -200,6 +200,10 @@ type FloatReceiptState = {
   endpointHash: string;
   amountUSDC: string;
   amountFormatted: string;
+  providerAmountUSDC?: string;
+  feeUSDC?: string;
+  debtOpenedUSDC?: string;
+  debtDeltaUSDC?: string;
   creditBeforeUSDC: string;
   creditAfterUSDC: string;
   debtBeforeUSDC: string;
@@ -299,6 +303,7 @@ type FloatState = {
   totalRepaidUSDC?: string;
   totalFeesAccruedUSDC?: string;
   totalDefaultedUSDC?: string;
+  totalAvailableCreditUSDC?: string;
   feeBps?: number;
   lastChecksum?: string;
   alphaLine?: FloatLineState;
@@ -315,6 +320,32 @@ type FloatState = {
     demoAdmin?: FloatSourceSummary;
     externalSigned?: FloatSourceSummary;
     assisted?: FloatSourceSummary;
+  };
+  proofChecks?: Record<string, boolean | string>;
+  proofPointers?: {
+    x402BoundReceipt?: FloatReceiptState | null;
+    providerPaidReceipt?: FloatReceiptState | null;
+    debtReceipt?: FloatReceiptState | null;
+    repaymentReceipt?: FloatReceiptState | null;
+    overspendReceipt?: FloatReceiptState | null;
+    denialReceipt?: FloatReceiptState | null;
+    grantReceipt?: FloatReceiptState | null;
+    latestExternalVerify?: { requestHash: string; verifyUrl: string } | null;
+  };
+  walletProof?: {
+    agent?: Address;
+    balanceSnapshot?: "current" | "historical";
+    historicalBeforeBalanceAvailable?: boolean;
+    note?: string;
+    agentWalletUSDC?: string;
+    requiredX402AmountUSDC?: string;
+    walletShortfallUSDC?: string;
+    floatAvailableCapacityUSDC?: string;
+    facilitatorPaidUSDC?: string;
+    debtAssignedUSDC?: string;
+    requestHash?: string | null;
+    x402Hash?: `0x${string}` | null;
+    bindTxHash?: `0x${string}` | null;
   };
   standingBoard?: FloatStandingBoard;
   loopRuns?: FloatLoopRun[];
@@ -1296,6 +1327,7 @@ function FloatPanel({
   const alpha = state?.alphaLine;
   const beta = state?.betaLine;
   const receipts = state?.receipts || [];
+  const pointers = state?.proofPointers;
   const agentLoop = state?.sourceBreakdown?.agentLoop;
   const externalSigned = state?.sourceBreakdown?.externalSigned;
   const assisted = state?.sourceBreakdown?.assisted;
@@ -1305,11 +1337,12 @@ function FloatPanel({
   const latestGuardRun = runs.find(
     (run) => run.outcome?.includes("BLOCK") || run.outcome?.includes("DENIED") || run.action === "PREMIUM",
   );
+  const latestExternalRun = runs.find((run) => run.source === "external-signed" && run.requestHash);
   const latestPaidReceipt =
-    receipts.find((receipt) => receipt.x402) || receipts.find((receipt) => receipt.receiptType === "SPEND_ALLOWED");
+    pointers?.x402BoundReceipt || receipts.find((receipt) => receipt.x402) || receipts.find((receipt) => receipt.receiptType === "SPEND_ALLOWED");
   const latestGuardReceipt = receipts.find(
     (receipt) => receipt.receiptType.includes("BLOCK") || receipt.receiptType.includes("DENIED"),
-  );
+  ) || pointers?.overspendReceipt || pointers?.denialReceipt;
   const updated =
     state?.fetchedAt && configured
       ? new Date(state.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -1399,6 +1432,9 @@ function FloatPanel({
         <span>x402 settlement bound onchain</span>
         <span>lab, signed external, and assisted onboarding stay separate</span>
       </div>
+
+      {!compact && <FloatWalletProof state={state} />}
+      {!compact && <FloatProofRunway state={state} />}
 
       <div className="floatHeadlineStats">
         <FloatHeadlineStat
@@ -1500,6 +1536,8 @@ function FloatPanel({
         />
       </div>
 
+      {!compact && <FloatProofChecksPanel state={state} />}
+
       <FloatLoopPanel state={state} compact={compact} />
 
       <div className="floatGrid">
@@ -1537,6 +1575,11 @@ function FloatPanel({
                 block proof <strong>{shortAddress(guardProofHash)}</strong>
               </a>
             )}
+            {latestExternalRun?.requestHash && (
+              <a href={`/api/float-tools?action=verify&hash=${latestExternalRun.requestHash}`} target="_blank" rel="noreferrer">
+                signed external verify <strong>{shortHash(latestExternalRun.requestHash)}</strong>
+              </a>
+            )}
             {state?.float && (
               <a href={`https://testnet.arcscan.app/address/${state.float}`} target="_blank" rel="noreferrer">
                 ShadowFloat <strong>{shortAddress(state.float)}</strong>
@@ -1564,9 +1607,15 @@ function FloatPanel({
                   <a className="floatReceiptPrimary" href={txUrl(receipt.transactionHash)} target="_blank" rel="noreferrer">
                     <span>#{receipt.receiptId}</span>
                     <strong>{receipt.receiptType}</strong>
-                    <code>{formatFloatUSDC(receipt.amountUSDC)} USDC</code>
+                    <code>{receipt.receiptType === "DEBT_OPENED" ? `${formatFloatUSDC(receipt.debtOpenedUSDC)} debt` : `${formatFloatUSDC(receipt.amountUSDC)} USDC`}</code>
                     <small>{receipt.reason}</small>
                   </a>
+                  <div className="floatReceiptDetails">
+                    <small>provider {formatFloatUSDC(receipt.providerAmountUSDC || receipt.amountUSDC)}</small>
+                    <small>fee {formatFloatUSDC(receipt.feeUSDC)}</small>
+                    <small>debt opened {formatFloatUSDC(receipt.debtOpenedUSDC)}</small>
+                    <small>debt after {formatFloatUSDC(receipt.debtAfterUSDC)}</small>
+                  </div>
                   {receipt.x402 && receipt.receiptType === "SPEND_ALLOWED" && (
                     <a className="floatX402Link" href={txUrl(receipt.x402.x402Hash)} target="_blank" rel="noreferrer">
                       paid via x402 · {shortAddress(receipt.x402.x402Hash)}
@@ -1584,6 +1633,10 @@ function FloatPanel({
       {error && <div className="leptonError">Float read failed: {error}</div>}
 
       {!compact && (
+        <FloatJudgePath state={state} />
+      )}
+
+      {!compact && (
         <div className="floatBoundaries">
           <span>testnet USDC line, not a lending market</span>
           <span>agent chooses the spend; Shadow enforces the mandate</span>
@@ -1592,6 +1645,233 @@ function FloatPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function FloatWalletProof({ state }: { state: FloatState | null }) {
+  const proof = state?.walletProof;
+  const exactHistory = Boolean(proof?.historicalBeforeBalanceAvailable);
+  return (
+    <article className="floatWalletProof" aria-label="Agent wallet shortfall proof">
+      <div className="floatBoxHeader">
+        <span>insufficient-wallet proof</span>
+        <small>{exactHistory ? "historical snapshot" : "current balance + receipts"}</small>
+      </div>
+      <div className="floatWalletProofCopy">
+        <strong>The agent does not need to pre-fund the x402 spend.</strong>
+        <p>
+          Shadow fronts the provider payment from the Float path, then assigns debt to the agent&apos;s line. Historical
+          pre-spend wallet balance is not stored by the contract, so the page shows current wallet balance and the live
+          x402/debt receipts instead of inventing a before snapshot.
+        </p>
+      </div>
+      <div className="floatWalletProofGrid">
+        <FloatFact label="agent wallet USDC" value={formatFloatUSDC(proof?.agentWalletUSDC)} />
+        <FloatFact label="x402 required" value={formatFloatUSDC(proof?.requiredX402AmountUSDC)} />
+        <FloatFact label="current shortfall" value={formatFloatUSDC(proof?.walletShortfallUSDC)} />
+        <FloatFact label="Float capacity" value={formatFloatUSDC(proof?.floatAvailableCapacityUSDC)} />
+        <FloatFact label="facilitator paid" value={formatFloatUSDC(proof?.facilitatorPaidUSDC)} />
+        <FloatFact label="debt assigned" value={formatFloatUSDC(proof?.debtAssignedUSDC)} />
+      </div>
+      <div className="floatWalletProofLinks">
+        {proof?.x402Hash && (
+          <a href={txUrl(proof.x402Hash)} target="_blank" rel="noreferrer">
+            x402 settlement {shortAddress(proof.x402Hash)}
+          </a>
+        )}
+        {proof?.bindTxHash && (
+          <a href={txUrl(proof.bindTxHash)} target="_blank" rel="noreferrer">
+            Float bind {shortAddress(proof.bindTxHash)}
+          </a>
+        )}
+        <a href="/api/float" target="_blank" rel="noreferrer">
+          live Float API
+        </a>
+      </div>
+    </article>
+  );
+}
+
+function FloatProofRunway({ state }: { state: FloatState | null }) {
+  const receipts = state?.receipts || [];
+  const pointers = state?.proofPointers;
+  const latestExternalRun = (state?.loopRuns || []).find((run) => run.source === "external-signed" && run.requestHash);
+  const x402Receipt = pointers?.x402BoundReceipt || receipts.find((receipt) => receipt.x402);
+  const grantReceipt = pointers?.grantReceipt || receipts.find((receipt) => receipt.receiptType === "FLOAT_GRANTED");
+  const providerPaidReceipt = pointers?.providerPaidReceipt || (x402Receipt?.requestHash
+    ? receipts.find((receipt) => receipt.receiptType === "PROVIDER_PAID" && receipt.requestHash === x402Receipt.requestHash)
+    : receipts.find((receipt) => receipt.receiptType === "PROVIDER_PAID"));
+  const debtReceipt = pointers?.debtReceipt || (x402Receipt?.requestHash
+    ? receipts.find((receipt) => receipt.receiptType === "DEBT_OPENED" && receipt.requestHash === x402Receipt.requestHash)
+    : receipts.find((receipt) => receipt.receiptType === "DEBT_OPENED"));
+  const repayReceipt = pointers?.repaymentReceipt || receipts.find((receipt) => receipt.receiptType === "REPAID");
+  const overspendReceipt = pointers?.overspendReceipt || receipts.find((receipt) => receipt.receiptType === "SPEND_BLOCKED" && receipt.reason === "AMOUNT_TOO_HIGH");
+  const denialReceipt = pointers?.denialReceipt || receipts.find((receipt) => receipt.receiptType === "CREDIT_DENIED");
+  const walletProof = state?.walletProof;
+  const rows = [
+    {
+      title: "Agent wallet insufficient",
+      status: walletProof ? "live" : "pending",
+      amount: formatFloatUSDC(walletProof?.walletShortfallUSDC),
+      receipt: "BALANCE_CHECK",
+      href: "/api/float",
+      meaning: "Current wallet balance is shown separately from Float capacity; no fake historical balance is claimed.",
+    },
+    {
+      title: "Behavior-backed line granted",
+      status: grantReceipt ? "proven" : "pending",
+      amount: formatFloatUSDC(grantReceipt?.amountUSDC || state?.alphaLine?.creditLimitUSDC),
+      receipt: "FLOAT_GRANTED",
+      href: grantReceipt?.transactionHash ? txUrl(grantReceipt.transactionHash) : "/api/float",
+      meaning: "The line exists onchain and is operator-reviewed from observed behavior.",
+    },
+    {
+      title: "x402 payment required",
+      status: state?.providerMandate?.active ? "live" : "pending",
+      amount: formatFloatUSDC(walletProof?.requiredX402AmountUSDC),
+      receipt: "HTTP_402",
+      href: "/api/reasoning-x402",
+      meaning: "The provider endpoint demands USDC before returning the paid resource.",
+    },
+    {
+      title: "Shadow pays provider",
+      status: providerPaidReceipt || x402Receipt ? "proven" : "pending",
+      amount: formatFloatUSDC(providerPaidReceipt?.amountUSDC || x402Receipt?.x402?.amountUSDC),
+      receipt: "PROVIDER_PAID",
+      href: x402Receipt?.x402?.x402Hash ? txUrl(x402Receipt.x402.x402Hash) : providerPaidReceipt?.transactionHash ? txUrl(providerPaidReceipt.transactionHash) : "/api/float",
+      meaning: "The facilitator fronts real Arc USDC to the x402 provider.",
+    },
+    {
+      title: "Float binds settlement",
+      status: x402Receipt?.x402 ? "proven" : "pending",
+      amount: formatFloatUSDC(x402Receipt?.x402?.amountUSDC),
+      receipt: "X402PaymentBound",
+      href: x402Receipt?.x402?.bindingTxHash ? txUrl(x402Receipt.x402.bindingTxHash) : "/api/float",
+      meaning: "The x402 settlement hash is bound to the Float request hash onchain.",
+    },
+    {
+      title: "Debt opens",
+      status: debtReceipt ? "proven" : "pending",
+      amount: formatFloatUSDC(debtReceipt?.debtOpenedUSDC),
+      receipt: "DEBT_OPENED",
+      href: debtReceipt?.transactionHash ? txUrl(debtReceipt.transactionHash) : "/api/float",
+      meaning: "Debt includes provider amount plus the testnet fee, so accounting is explicit.",
+    },
+    {
+      title: "Repayment restores capacity",
+      status: repayReceipt ? "proven" : "pending",
+      amount: formatFloatUSDC(repayReceipt?.amountUSDC),
+      receipt: "REPAID",
+      href: repayReceipt?.transactionHash ? txUrl(repayReceipt.transactionHash) : "/api/float",
+      meaning: "Repayment reduces debt and reopens available capacity.",
+    },
+    {
+      title: "Overspend blocked",
+      status: overspendReceipt ? "proven" : "pending",
+      amount: formatFloatUSDC(overspendReceipt?.amountUSDC),
+      receipt: "SPEND_BLOCKED",
+      href: overspendReceipt?.transactionHash ? txUrl(overspendReceipt.transactionHash) : "/api/float",
+      meaning: "A request above the line is refused before provider or treasury funds move.",
+    },
+    {
+      title: "Risky agent denied",
+      status: denialReceipt ? "proven" : "pending",
+      amount: formatFloatUSDC(denialReceipt?.amountUSDC),
+      receipt: "CREDIT_DENIED",
+      href: denialReceipt?.transactionHash ? txUrl(denialReceipt.transactionHash) : "/api/float",
+      meaning: "A denied line cannot turn into spendable USDC.",
+    },
+  ];
+
+  return (
+    <article className="floatRunway" aria-label="Float proof runway">
+      <div className="floatBoxHeader">
+        <span>Float proof runway</span>
+        <small>the loop in 10 seconds</small>
+      </div>
+      <div className="floatRunwayRows">
+        {rows.map((row, index) => (
+          <a className={`floatRunwayRow ${row.status}`} href={row.href} target="_blank" rel="noreferrer" key={row.title}>
+            <span className="floatRunwayIndex">{index + 1}</span>
+            <span className="floatRunwayStatus">{row.status}</span>
+            <span className="floatRunwayMain">
+              <strong>{row.title}</strong>
+              <small>{row.meaning}</small>
+            </span>
+            <code>{row.receipt}</code>
+            <span className="floatRunwayAmount">{row.amount} USDC</span>
+          </a>
+        ))}
+      </div>
+      {latestExternalRun?.requestHash && (
+        <a className="floatRunwayVerify" href={`/api/float-tools?action=verify&hash=${latestExternalRun.requestHash}`} target="_blank" rel="noreferrer">
+          Verify signed external intent {shortHash(latestExternalRun.requestHash)}
+        </a>
+      )}
+    </article>
+  );
+}
+
+function FloatProofChecksPanel({ state }: { state: FloatState | null }) {
+  const checks = state?.proofChecks || {};
+  const entries = Object.entries(checks).filter(([, value]) => typeof value === "boolean") as Array<[string, boolean]>;
+  const trustBoundary = typeof checks.trustBoundary === "string" ? checks.trustBoundary : null;
+  return (
+    <article className="floatProofChecks" aria-label="Float proof checks">
+      <div className="floatBoxHeader">
+        <span>API proof checks</span>
+        <small>{entries.filter(([, ok]) => ok).length}/{entries.length || 0} passing</small>
+      </div>
+      <div className="floatProofCheckGrid">
+        {entries.map(([key, ok]) => (
+          <a className={`floatProofCheck ${ok ? "pass" : "pending"}`} href="/api/float" target="_blank" rel="noreferrer" key={key}>
+            <span>{ok ? "PASS" : "PENDING"}</span>
+            <strong>{humanizeFloatKey(key)}</strong>
+          </a>
+        ))}
+      </div>
+      {trustBoundary && <p>{trustBoundary}</p>}
+    </article>
+  );
+}
+
+function FloatJudgePath({ state }: { state: FloatState | null }) {
+  const receipts = state?.receipts || [];
+  const pointers = state?.proofPointers;
+  const x402Receipt = pointers?.x402BoundReceipt || receipts.find((receipt) => receipt.x402);
+  const debtReceipt = pointers?.debtReceipt || (x402Receipt?.requestHash
+    ? receipts.find((receipt) => receipt.receiptType === "DEBT_OPENED" && receipt.requestHash === x402Receipt.requestHash)
+    : receipts.find((receipt) => receipt.receiptType === "DEBT_OPENED"));
+  const repayReceipt = pointers?.repaymentReceipt || receipts.find((receipt) => receipt.receiptType === "REPAID");
+  const overspendReceipt = pointers?.overspendReceipt || receipts.find((receipt) => receipt.receiptType === "SPEND_BLOCKED" && receipt.reason === "AMOUNT_TOO_HIGH");
+  const denialReceipt = pointers?.denialReceipt || receipts.find((receipt) => receipt.receiptType === "CREDIT_DENIED");
+  const latestExternalRun = (state?.loopRuns || []).find((run) => run.source === "external-signed" && run.requestHash);
+  const links = [
+    { label: "Open live proof", href: "/api/float" },
+    { label: "Check reserve", href: "/api/float" },
+    x402Receipt?.x402?.x402Hash ? { label: "Check x402 settlement", href: txUrl(x402Receipt.x402.x402Hash) } : null,
+    x402Receipt?.x402?.bindingTxHash ? { label: "Check x402 bind", href: txUrl(x402Receipt.x402.bindingTxHash) } : null,
+    debtReceipt?.transactionHash ? { label: "Check debt", href: txUrl(debtReceipt.transactionHash) } : null,
+    repayReceipt?.transactionHash ? { label: "Check repayment", href: txUrl(repayReceipt.transactionHash) } : null,
+    overspendReceipt?.transactionHash ? { label: "Check overspend block", href: txUrl(overspendReceipt.transactionHash) } : null,
+    denialReceipt?.transactionHash ? { label: "Check denial", href: txUrl(denialReceipt.transactionHash) } : null,
+    latestExternalRun?.requestHash ? { label: "Check signed external", href: `/api/float-tools?action=verify&hash=${latestExternalRun.requestHash}` } : null,
+  ].filter((link): link is { label: string; href: string } => Boolean(link));
+  return (
+    <article className="floatJudgePath" aria-label="Judge verification path">
+      <div className="floatBoxHeader">
+        <span>judge path</span>
+        <small>one-click checks plus command</small>
+      </div>
+      <div className="floatJudgeLinks">
+        {links.map((link) => (
+          <a href={link.href} target="_blank" rel="noreferrer" key={link.label}>
+            {link.label}
+          </a>
+        ))}
+      </div>
+      <code>npm run float:verify-live</code>
+    </article>
   );
 }
 
@@ -1842,6 +2122,14 @@ function formatFloatUSDC(value?: string | bigint | null): string {
 function shortHash(value?: string | null): string {
   if (!value || value.length < 14) return "pending";
   return `${value.slice(0, 8)}...${value.slice(-6)}`;
+}
+
+function humanizeFloatKey(value: string): string {
+  return value
+    .replace(/([A-Z])/g, " $1")
+    .replace(/_/g, " ")
+    .replace(/^./, (char) => char.toUpperCase())
+    .trim();
 }
 
 function normalizeBytes32(hex: string): Hash {
