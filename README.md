@@ -36,6 +36,7 @@ What is not claimed yet:
 
 - The score formula is deterministic v0 and available in contract/API, but current Lepton lines still use operator-reviewed evidence counts rather than a permissionless scoring indexer.
 - The Float contract binds operator-verified x402 payment evidence; the EVM contract cannot independently inspect a prior HTTP/x402 transaction or subjective service quality.
+- Operators are trusted owner-approved executors: they front the x402 payment, verify the USDC transfer offchain, and then bind the settlement hash onchain.
 - Invited builder signatures are external usage tests, not partnerships.
 
 Shadow's earlier copy-capital system is the foundation: it proved policy-controlled USDC movement, no-cascade execution, and onchain refusal receipts. Submission snapshot, May 24, 2026: **30 follower wallets, 2,893 MirrorReceipt events (463 COPIED / 2,430 BLOCKED), 173 PositionClosed events, 13.355 USDC mirrored, and 3 source agents.** The BLOCKED receipts are the policy layer working, not failed volume.
