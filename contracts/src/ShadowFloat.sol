@@ -168,6 +168,7 @@ contract ShadowFloat {
     error RepayTooHigh();
     error MissingX402Payment();
     error MissingRequestHash();
+    error DuplicateRequest();
     error InsolventTreasury();
     error FeeTooHigh();
     error AlreadyDefaulted();
@@ -359,6 +360,7 @@ contract ShadowFloat {
     ) internal returns (bytes32 receiptHash) {
         if (agent == address(0) || wallet == address(0)) revert ZeroAddress();
         AgentLine storage line = lines[agent];
+        if (line.status == AgentStatus.DEFAULTED) revert AlreadyDefaulted();
         uint256 creditBefore = line.availableCreditUSDC;
         uint256 debtBefore = line.activeDebtUSDC;
         line.wallet = wallet;
@@ -395,6 +397,7 @@ contract ShadowFloat {
     {
         if (agent == address(0) || wallet == address(0)) revert ZeroAddress();
         AgentLine storage line = lines[agent];
+        if (line.status == AgentStatus.DEFAULTED) revert AlreadyDefaulted();
         uint256 creditBefore = line.availableCreditUSDC;
         uint256 debtBefore = line.activeDebtUSDC;
         line.wallet = wallet;
@@ -422,6 +425,7 @@ contract ShadowFloat {
 
     function reduceLimit(address agent, uint256 newLimitUSDC, bytes32 requestHash) external onlyOwner returns (bytes32) {
         AgentLine storage line = lines[agent];
+        if (line.status == AgentStatus.DEFAULTED) revert AlreadyDefaulted();
         if (newLimitUSDC > line.creditLimitUSDC) revert LimitIncreaseNotAllowed();
         uint256 creditBefore = line.availableCreditUSDC;
         uint256 debtBefore = line.activeDebtUSDC;
@@ -447,6 +451,7 @@ contract ShadowFloat {
 
     function revoke(address agent, bytes32 requestHash) external onlyOwner returns (bytes32) {
         AgentLine storage line = lines[agent];
+        if (line.status == AgentStatus.DEFAULTED) revert AlreadyDefaulted();
         uint256 creditBefore = line.availableCreditUSDC;
         uint256 debtBefore = line.activeDebtUSDC;
         line.creditLimitUSDC = 0;
@@ -531,14 +536,13 @@ contract ShadowFloat {
         (allowed, reason) = _evaluateSpend(line, agent, provider, endpointHash, amountUSDC, requestHash);
 
         if (!allowed) {
-            if (reason == BlockReason.DUPLICATE_REQUEST && requestHash != bytes32(0)) {
-                return (receiptByRequestHash[requestHash], false, reason);
-            }
+            if (reason == BlockReason.DUPLICATE_REQUEST && requestHash != bytes32(0)) revert DuplicateRequest();
             receiptHash = _recordBlockedSpend(ctx, reason);
             return (receiptHash, false, reason);
         }
         if (x402Hash == bytes32(0)) revert MissingX402Payment();
         if (facilitator == address(0)) revert ZeroAddress();
+        if (facilitator != msg.sender) revert NotAuthorized();
 
         receiptHash = _executeAllowedX402Spend(line, ctx, x402Hash, facilitator);
         return (receiptHash, true, BlockReason.NONE);

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import {
   createPublicClient,
   createWalletClient,
+  decodeEventLog,
   defineChain,
   erc20Abi,
   formatUnits,
@@ -10,6 +11,7 @@ import {
   isAddress,
   keccak256,
   parseAbi,
+  parseAbiItem,
   parseUnits,
   stringToBytes,
 } from "viem";
@@ -25,6 +27,7 @@ const CHAIN_ID = 5_042_002;
 const RPC = clean(env.ARC_RPC_URL || env.VITE_ARC_RPC_URL);
 const FLOAT = clean(env.SHADOW_FLOAT || env.VITE_SHADOW_FLOAT);
 const USDC = clean(env.ARC_USDC || env.VITE_ARC_USDC || "0x3600000000000000000000000000000000000000");
+const ADMIN_KEY = normalizeKey(clean(env.FLOAT_ADMIN_PRIVATE_KEY || env.PRIVATE_KEY));
 const FACILITATOR_KEY = normalizeKey(
   clean(env.FLOAT_FACILITATOR_PRIVATE_KEY || env.CAT_AGENT_PRIVATE_KEY || env.PRIVATE_KEY),
 );
@@ -32,8 +35,10 @@ const PROVIDER_URL = clean(env.FLOAT_X402_PROVIDER_URL) || "https://shadow-arc.v
 
 if (!RPC) throw new Error("missing ARC_RPC_URL or VITE_ARC_RPC_URL");
 if (!FLOAT) throw new Error("missing SHADOW_FLOAT or VITE_SHADOW_FLOAT");
+if (!ADMIN_KEY) throw new Error("missing FLOAT_ADMIN_PRIVATE_KEY or PRIVATE_KEY");
 if (!FACILITATOR_KEY) throw new Error("missing FLOAT_FACILITATOR_PRIVATE_KEY or CAT_AGENT_PRIVATE_KEY");
 
+const admin = privateKeyToAccount(ADMIN_KEY);
 const facilitator = privateKeyToAccount(FACILITATOR_KEY);
 const alpha = getAddress(clean(env.FLOAT_ALPHA_ADDRESS) || "0xa100000000000000000000000000000000000001");
 const beta = getAddress(clean(env.FLOAT_BETA_ADDRESS) || "0xbe7a000000000000000000000000000000000002");
@@ -58,15 +63,21 @@ const chain = defineChain({
 });
 
 const publicClient = createPublicClient({ chain, transport: http(RPC) });
-const wallet = createWalletClient({ account: facilitator, chain, transport: http(RPC) });
+const adminWallet = createWalletClient({ account: admin, chain, transport: http(RPC) });
+const facilitatorWallet = createWalletClient({ account: facilitator, chain, transport: http(RPC) });
 
 const usdcEip3009Abi = parseAbi([
   "function authorizationState(address authorizer, bytes32 nonce) view returns (bool)",
   "function transferWithAuthorization(address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)",
 ]);
+const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
+const x402PaymentBoundEvent = parseAbiItem(
+  "event X402PaymentBound(uint256 indexed receiptId, bytes32 indexed requestHash, bytes32 x402Hash, address indexed provider, uint256 amountUSDC, address facilitator)",
+);
 
 const floatAbi = parseAbi([
   "function fund(uint256 amountUSDC)",
+  "function setOperator(address operator, bool allowed)",
   "function setFeeBps(uint16 newFeeBps)",
   "function setProviderMandate(address provider, bytes32 endpointHash, uint256 maxPerRequestUSDC, uint256 dailyLimitUSDC, uint64 expiry, bool active)",
   "function grantFloat(address agent, address wallet, uint256 creditLimitUSDC, uint16 score, bytes32 mandateId) returns (bytes32)",
@@ -84,9 +95,11 @@ const floatAbi = parseAbi([
   "function totalRepaidUSDC() view returns (uint256)",
   "function totalFeesAccruedUSDC() view returns (uint256)",
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
+  "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
 ]);
 
 console.log("Shadow Float x402 proof runner");
+console.log(`admin       ${admin.address}`);
 console.log(`facilitator ${facilitator.address}`);
 console.log(`float       ${FLOAT}`);
 console.log(`usdc        ${USDC}`);
@@ -107,15 +120,25 @@ const repayAmount = spendAmount + feeAmount;
 console.log(`fee bps     ${proofFeeBps}`);
 console.log(`debt amount ${formatUnits(repayAmount, 6)} USDC`);
 
+const adminUsdc = await publicClient.readContract({
+  address: USDC,
+  abi: erc20Abi,
+  functionName: "balanceOf",
+  args: [admin.address],
+});
 const facilitatorUsdc = await publicClient.readContract({
   address: USDC,
   abi: erc20Abi,
   functionName: "balanceOf",
   args: [facilitator.address],
 });
+console.log(`admin USDC       ${formatUnits(adminUsdc, 6)}`);
 console.log(`facilitator USDC ${formatUnits(facilitatorUsdc, 6)}`);
-if (facilitatorUsdc < treasuryFund + spendAmount) {
-  throw new Error(`facilitator needs ${formatUnits(treasuryFund + spendAmount, 6)} USDC for treasury fund + x402 payment`);
+if (adminUsdc < treasuryFund + repayAmount) {
+  throw new Error(`admin needs ${formatUnits(treasuryFund + repayAmount, 6)} USDC for treasury fund + repay`);
+}
+if (facilitatorUsdc < spendAmount) {
+  throw new Error(`facilitator needs ${formatUnits(spendAmount, 6)} USDC for x402 payment`);
 }
 
 await send("approve treasury + repay allowance", USDC, erc20Abi, "approve", [FLOAT, treasuryFund + repayAmount]);
@@ -125,6 +148,7 @@ if (currentTreasury < treasuryFund) {
 } else {
   console.log(`fund Float treasury\n  skipped, treasury already has ${formatUnits(currentTreasury, 6)} USDC`);
 }
+await send("authorize facilitator as Float operator", FLOAT, floatAbi, "setOperator", [facilitator.address, true]);
 await send("set Float fee bps", FLOAT, floatAbi, "setFeeBps", [proofFeeBps]);
 await send("set approved x402 provider", FLOAT, floatAbi, "setProviderMandate", [
   provider,
@@ -252,15 +276,24 @@ async function gateThenBlock({ label, agent, provider, amount, requestHash }) {
 }
 
 async function recordX402Spend(label, agent, provider, amount, requestHash, x402Hash) {
-  return send(label, FLOAT, floatAbi, "recordX402Spend", [
-    agent,
-    provider,
-    endpointHash,
-    amount,
-    requestHash,
-    x402Hash,
-    facilitator.address,
-  ]);
+  if (x402Hash !== zeroHash()) {
+    const already = await readFloat("receiptByRequestHash", [requestHash]);
+    if (already && already !== zeroHash()) throw new Error(`${label}: request already consumed before bind (${already})`);
+  }
+  const txHash = await send(
+    label,
+    FLOAT,
+    floatAbi,
+    "recordX402Spend",
+    [agent, provider, endpointHash, amount, requestHash, x402Hash, facilitator.address],
+    facilitatorWallet,
+    facilitator,
+  );
+  if (x402Hash !== zeroHash()) {
+    const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
+    assertX402BoundReceipt(receipt, { requestHash, x402Hash, provider, amount });
+  }
+  return txHash;
 }
 
 async function payProviderX402(url, payTo, amount) {
@@ -316,8 +349,55 @@ async function payProviderX402(url, payTo, amount) {
   if (!settled.txHash || !/^0x[a-fA-F0-9]{64}$/.test(settled.txHash)) {
     throw new Error(`invalid x402 settlement hash: ${settled.txHash}`);
   }
+  await assertX402SettlementTx(settled.txHash, { from: facilitator.address, to: payTo, amount });
   console.log(`  x402 tx ${settled.txHash}`);
   return settled.txHash;
+}
+
+async function assertX402SettlementTx(txHash, expected) {
+  const [tx, receipt] = await Promise.all([
+    publicClient.getTransaction({ hash: txHash }),
+    publicClient.getTransactionReceipt({ hash: txHash }),
+  ]);
+  if (receipt.status !== "success") throw new Error(`x402 settlement tx failed: ${txHash}`);
+  if (!tx.to || getAddress(tx.to) !== getAddress(USDC)) throw new Error(`x402 settlement tx did not call USDC: ${txHash}`);
+  const matched = receipt.logs.some((log) => {
+    if (getAddress(log.address) !== getAddress(USDC)) return false;
+    const decoded = decodeLog(transferEvent, log);
+    return Boolean(
+      decoded &&
+        getAddress(decoded.args.from) === facilitator.address &&
+        getAddress(decoded.args.to) === getAddress(expected.to) &&
+        decoded.args.value === expected.amount,
+    );
+  });
+  if (!matched) {
+    throw new Error(`x402 settlement tx did not transfer ${expected.amount} USDC from ${expected.from} to ${expected.to}: ${txHash}`);
+  }
+}
+
+function assertX402BoundReceipt(receipt, expected) {
+  const matched = receipt.logs.some((log) => {
+    if (getAddress(log.address) !== getAddress(FLOAT)) return false;
+    const decoded = decodeLog(x402PaymentBoundEvent, log);
+    return Boolean(
+      decoded &&
+        decoded.args.requestHash?.toLowerCase() === expected.requestHash.toLowerCase() &&
+        decoded.args.x402Hash?.toLowerCase() === expected.x402Hash.toLowerCase() &&
+        getAddress(decoded.args.provider) === getAddress(expected.provider) &&
+        decoded.args.amountUSDC === expected.amount &&
+        getAddress(decoded.args.facilitator) === facilitator.address,
+    );
+  });
+  if (!matched) throw new Error(`bind tx did not emit expected X402PaymentBound event: ${receipt.transactionHash}`);
+}
+
+function decodeLog(event, log) {
+  try {
+    return decodeEventLog({ abi: [event], data: log.data, topics: log.topics });
+  } catch {
+    return null;
+  }
 }
 
 async function fetchX402Requirement(url) {
@@ -334,9 +414,9 @@ async function fetchX402Requirement(url) {
   return requirement;
 }
 
-async function send(label, address, abi, functionName, args) {
+async function send(label, address, abi, functionName, args, walletClient = adminWallet, account = admin) {
   console.log(`\n${label}`);
-  const hash = await wallet.writeContract({ address, abi, functionName, args, account: facilitator, chain });
+  const hash = await walletClient.writeContract({ address, abi, functionName, args, account, chain });
   console.log(`  tx ${hash}`);
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") throw new Error(`${label} reverted: ${hash}`);

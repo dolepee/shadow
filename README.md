@@ -2,7 +2,7 @@
 
 **Shadow Float gives operator-reviewed, behavior-backed USDC spending lines to autonomous agents on Arc.**
 
-An agent can buy an approved x402 resource before its own wallet is funded. Shadow fronts real Arc USDC from the Float treasury, binds the x402 settlement transaction into an onchain receipt, opens debt against the agent's line, blocks overreach before treasury USDC moves, and lets repayment restore capacity.
+An agent can buy an approved x402 resource before its own wallet is funded. Shadow fronts real Arc USDC from the Float treasury, verifies the x402 USDC settlement in the operator script, binds that settlement hash into an onchain receipt, opens debt against the agent's line, blocks overreach before treasury USDC moves, and lets repayment restore capacity.
 
 Live proof: https://shadow-arc.vercel.app/float
 
@@ -10,11 +10,11 @@ Current Float proof snapshot, June 23, 2026:
 
 | Metric | Live value |
 | --- | ---: |
-| Float contract | `0xe926A9b44250a0aB12156988beAf90f5e9ac7d3D` |
+| Float contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
 | Float receipts | 9 |
 | Treasury balance | 0.10001 USDC |
 | Provider paid through Float | 0.001 USDC |
-| Debt opened | 0.00101 USDC |
+| Debt opened, provider spend + fee | 0.00101 USDC |
 | Fees accrued | 0.00001 USDC |
 | Repaid | 0.00101 USDC |
 | Overspend blocked | 5 USDC |
@@ -26,7 +26,7 @@ What is proven now:
 - A Float line can be granted from reviewed onchain behavior.
 - A deterministic v0 score/limit formula now exists in `ShadowFloat.deterministicScore`, `recommendedLimitUSDC`, and `grantFloatFromScore`.
 - A signed agent intent can trigger a treasury-funded x402 payment.
-- `recordX402Spend` binds the x402 settlement hash to the onchain request hash.
+- The operator script verifies the x402 USDC transfer before `recordX402Spend` binds the settlement hash to the onchain request hash.
 - Debt and available capacity update onchain.
 - Oversized spends and denied agents produce receipts without moving treasury USDC.
 - Repayment restores capacity.
@@ -35,7 +35,7 @@ What is proven now:
 What is not claimed yet:
 
 - The score formula is deterministic v0 and available in contract/API, but current Lepton lines still use operator-reviewed evidence counts rather than a permissionless scoring indexer.
-- The Float contract binds x402 payment evidence; it does not independently verify subjective service quality.
+- The Float contract binds operator-verified x402 payment evidence; the EVM contract cannot independently inspect a prior HTTP/x402 transaction or subjective service quality.
 - Invited builder signatures are external usage tests, not partnerships.
 
 Shadow's earlier copy-capital system is the foundation: it proved policy-controlled USDC movement, no-cascade execution, and onchain refusal receipts. Submission snapshot, May 24, 2026: **30 follower wallets, 2,893 MirrorReceipt events (463 COPIED / 2,430 BLOCKED), 173 PositionClosed events, 13.355 USDC mirrored, and 3 source agents.** The BLOCKED receipts are the policy layer working, not failed volume.
@@ -194,9 +194,9 @@ Shadow is a protocol first and a dashboard second. The dashboard uses the same c
 | `GET/POST /api/cctp-funding` | CCTP burn attestation lookup and follower funding acknowledgement for "fund from any chain" | Groundwork only; see [`docs/CCTP.md`](docs/CCTP.md) |
 | `ShadowFloat.recordX402Spend` | Behavior-backed agent float: gate the spend, bind the x402 tx hash, reimburse the facilitator, and open debt | Live proof at `/float`; script: `npm run float:x402-proof` |
 | `GET /api/float` | Browser-readable Float receipt chain, treasury, agent lines, blocked/denied totals, x402 binding txs, and the `standingBoard` | Live on `shadow-arc.vercel.app/float` |
-| `GET /api/float-tools?action=agent&address=0x…` | Composable standing read for any agent: credit limit, available, active debt, status, behavior score, and Lab/Invited/Self-test/Demo label | Live; the read other agents and protocols call |
+| `GET /api/float-tools?action=agent&address=0x…` | Composable standing read for any agent: line limit, available capacity, active debt, status, behavior score, and Lab/Invited/Self-test/Demo label | Live; the read other agents and protocols call |
 | `GET /api/float-tools?action=rationale&hash=0x…` | Publishes the rationale preimage for a receipt's `requestHash` so anyone re-hashes it to confirm the agent's on-chain reasoning | Live; `requestHash = keccak256(preimage)` |
-| `GET /api/float-tools?action=verify&hash=0x…` | Verifies an external builder's signed Float x402 intent against the onchain request hash | Live; signed external usage only |
+| `GET /api/float-tools?action=verify&hash=0x…` | Verifies an external builder's signed Float x402 intent against current-contract onchain receipt state and the matching `X402PaymentBound` bind tx | Live; signed external usage only |
 | `GET /api/float-tools?action=score&address=0x…` | Deterministic v0 underwriting verifier: recomputes suggested score and line from public Float evidence | Live; mirrors the contract formula |
 | `ShadowFloat.deterministicScore` / `grantFloatFromScore` | Onchain v0 formula and deterministic line grant once evidence counts are submitted | Contract path for reviewed evidence-backed lines |
 
@@ -204,7 +204,7 @@ The mainnet target is simple: source agents register themselves, follower agents
 
 ### Query an agent's Float standing
 
-Float is a credit layer other agents plug into. Read any agent's standing over REST, or straight from the contract's public `lines(address)` view.
+Float is a spending-line layer other agents plug into. Read any agent's standing over REST, or straight from the contract's public `lines(address)` view.
 
 ```bash
 # One agent's standing
@@ -230,7 +230,7 @@ const floatAbi = parseAbi([
 
 // ShadowFloat on Arc testnet
 const standing = await client.readContract({
-  address: "0xe926A9b44250a0aB12156988beAf90f5e9ac7d3D",
+  address: "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057",
   abi: floatAbi,
   functionName: "lines",
   args: ["0xYOURAGENT"],

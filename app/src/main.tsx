@@ -1452,7 +1452,7 @@ function FloatPanel({
           </div>
           <h3>{alpha?.status || "ELIGIBLE"}</h3>
           <div className="floatLineStats">
-            <FloatFact label="credit line" value={formatFloatUSDC(alpha?.creditLimitUSDC)} />
+            <FloatFact label="line limit" value={formatFloatUSDC(alpha?.creditLimitUSDC)} />
             <FloatFact label="available" value={formatFloatUSDC(alpha?.availableCreditUSDC)} />
             <FloatFact label="active debt" value={formatFloatUSDC(alpha?.activeDebtUSDC)} />
             <FloatFact label="score" value={alpha ? alpha.score.toString() : "9300"} />
@@ -1470,7 +1470,7 @@ function FloatPanel({
           </div>
           <h3>{beta?.status || "DENIED"}</h3>
           <div className="floatLineStats">
-            <FloatFact label="credit line" value={formatFloatUSDC(beta?.creditLimitUSDC)} />
+            <FloatFact label="line limit" value={formatFloatUSDC(beta?.creditLimitUSDC)} />
             <FloatFact label="available" value={formatFloatUSDC(beta?.availableCreditUSDC)} />
             <FloatFact label="active debt" value={formatFloatUSDC(beta?.activeDebtUSDC)} />
             <FloatFact label="score" value={beta ? beta.score.toString() : "2100"} />
@@ -1483,7 +1483,7 @@ function FloatPanel({
         <FloatMetric label="receipts" value={state?.receiptCount || "pending"} />
         <FloatMetric label="treasury" value={formatFloatUSDC(state?.treasuryBalanceUSDC)} />
         <FloatMetric label="provider paid" value={formatFloatUSDC(state?.totalProviderPaidUSDC)} tone="allow" />
-        <FloatMetric label="debt opened" value={formatFloatUSDC(state?.totalDebtOpenedUSDC)} tone="allow" />
+        <FloatMetric label="debt + fee" value={formatFloatUSDC(state?.totalDebtOpenedUSDC)} tone="allow" />
         <FloatMetric label="fees accrued" value={formatFloatUSDC(state?.totalFeesAccruedUSDC)} tone="allow" />
         <FloatMetric label="repaid" value={formatFloatUSDC(state?.totalRepaidUSDC)} tone="allow" />
         <FloatMetric label="blocked" value={formatFloatUSDC(state?.totalBlockedUSDC)} tone="block" />
@@ -1621,7 +1621,7 @@ function FloatStandingBoardPanel({
       </div>
       <div className="floatStandingIntro">
         <div>
-          <strong>Behavior becomes queryable credit.</strong>
+          <strong>Behavior becomes queryable capacity.</strong>
           <p>Other agents can read standing before asking Shadow to front USDC for an x402 call.</p>
         </div>
         <a href={alphaApi} target="_blank" rel="noreferrer">

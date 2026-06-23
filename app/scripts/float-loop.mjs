@@ -402,7 +402,7 @@ async function decideFloatAction(context) {
     "PAY buys the standard x402 resource if useful.",
     "SKIP means the resource is not worth paying for this cycle.",
     "PREMIUM means you want a larger pull because the signal may be valuable; Shadow is expected to block it if it exceeds mandate.",
-    "REPAY refreshes the credit line when debt is building.",
+    "REPAY refreshes available capacity when debt is building.",
     "Reply with one JSON object only: {\"action\":\"PAY|SKIP|PREMIUM|REPAY\",\"rationale\":\"one sentence\",\"regime\":\"short-label\"}.",
     "",
     `Context: ${JSON.stringify(context)}`,

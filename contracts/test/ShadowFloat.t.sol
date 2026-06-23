@@ -234,7 +234,7 @@ contract ShadowFloatTest {
     }
 
     function testRecordX402SpendBindsSettlementAndReimbursesFacilitator() public {
-        address facilitator = address(treasuryFunder);
+        address facilitator = address(this);
         bytes32 requestHash = keccak256("alpha-x402-bound-allow");
         bytes32 x402Hash = keccak256("real-x402-settlement-tx");
         uint256 providerBefore = usdc.balanceOf(provider);
@@ -321,21 +321,25 @@ contract ShadowFloatTest {
             100_000,
             requestHash,
             keccak256("settlement-one"),
-            address(treasuryFunder)
+            address(this)
         );
 
-        (, bool allowed, ShadowFloat.BlockReason reason) = shadowFloat.recordX402Spend(
+        bool reverted = false;
+        try shadowFloat.recordX402Spend(
             address(alpha),
             provider,
             ENDPOINT,
             100_000,
             requestHash,
             keccak256("settlement-two"),
-            address(treasuryFunder)
-        );
+            address(this)
+        ) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
 
-        require(!allowed, "duplicate blocked");
-        require(reason == ShadowFloat.BlockReason.DUPLICATE_REQUEST, "duplicate reason");
+        require(reverted, "duplicate x402 bind should revert");
         require(shadowFloat.totalProviderPaidUSDC() == 100_000, "paid once");
     }
 
@@ -348,7 +352,7 @@ contract ShadowFloatTest {
             100_000,
             keccak256("alpha-x402-zero-hash"),
             bytes32(0),
-            address(treasuryFunder)
+            address(this)
         ) {
             reverted = false;
         } catch {
@@ -356,6 +360,26 @@ contract ShadowFloatTest {
         }
 
         require(reverted, "allowed x402 spend should require settlement hash");
+        require(shadowFloat.totalProviderPaidUSDC() == 0, "not reimbursed");
+    }
+
+    function testRecordX402SpendReimbursesOnlySubmittingOperator() public {
+        bool reverted = false;
+        try shadowFloat.recordX402Spend(
+            address(alpha),
+            provider,
+            ENDPOINT,
+            100_000,
+            keccak256("alpha-x402-wrong-facilitator"),
+            keccak256("settlement-wrong-facilitator"),
+            address(treasuryFunder)
+        ) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+
+        require(reverted, "facilitator must submit bind");
         require(shadowFloat.totalProviderPaidUSDC() == 0, "not reimbursed");
     }
 
@@ -513,6 +537,50 @@ contract ShadowFloatTest {
         require(availableCreditUSDC == 0, "final default repay still no capacity");
         require(activeDebtUSDC == 0, "default debt cleared");
         require(status == ShadowFloat.AgentStatus.REPAID, "repaid after default cure");
+    }
+
+    function testDefaultedLineCannotBeReclassifiedBeforeRepayment() public {
+        alpha.requestSpend(shadowFloat, address(alpha), provider, ENDPOINT, 100_000, keccak256("alpha-spend-before-default-lock"));
+        shadowFloat.markDefault(address(alpha), keccak256("alpha-default-lock"));
+
+        bool reverted = false;
+        try shadowFloat.denyAgent(address(alpha), address(alpha), 2_000, ALPHA_MANDATE, keccak256("deny-defaulted")) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "deny cannot reclassify defaulted debt");
+
+        reverted = false;
+        try shadowFloat.revoke(address(alpha), keccak256("revoke-defaulted")) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "revoke cannot reclassify defaulted debt");
+
+        reverted = false;
+        try shadowFloat.reduceLimit(address(alpha), 0, keccak256("reduce-defaulted")) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "reduce cannot reclassify defaulted debt");
+
+        reverted = false;
+        try shadowFloat.grantFloat(address(alpha), address(alpha), 1 * USDC, 9_300, ALPHA_MANDATE) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+        require(reverted, "grant cannot reclassify defaulted debt");
+
+        (,,, uint256 availableCreditUSDC, uint256 activeDebtUSDC, ShadowFloat.AgentStatus status,,,,) =
+            shadowFloat.lines(address(alpha));
+        require(availableCreditUSDC == 0, "default capacity remains zero");
+        require(activeDebtUSDC == 100_000, "default debt remains");
+        require(status == ShadowFloat.AgentStatus.DEFAULTED, "status remains defaulted");
+        require(shadowFloat.totalDefaultedUSDC() == 100_000, "default counted once");
     }
 
     function testNewDrawMovesRepaidLineBackToActiveDebtStatus() public {

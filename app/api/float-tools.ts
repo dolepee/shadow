@@ -1,5 +1,6 @@
 import {
   createPublicClient,
+  decodeEventLog,
   defineChain,
   getAddress,
   hashTypedData,
@@ -7,6 +8,7 @@ import {
   isAddress,
   keccak256,
   parseAbi,
+  parseAbiItem,
   recoverTypedDataAddress,
   stringToBytes,
 } from "viem";
@@ -26,7 +28,11 @@ const STATUSES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID
 
 const floatAbi = parseAbi([
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
+  "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
 ]);
+const x402PaymentBoundEvent = parseAbiItem(
+  "event X402PaymentBound(uint256 indexed receiptId, bytes32 indexed requestHash, bytes32 x402Hash, address indexed provider, uint256 amountUSDC, address facilitator)",
+);
 
 type Req = { method?: string; url?: string; query?: Record<string, string | string[] | undefined> };
 type Res = { setHeader(n: string, v: string | number): void; status(c: number): Res; json(b: unknown): void };
@@ -201,6 +207,10 @@ async function handleVerify(req: Req, res: Res) {
   }
 
   const floatRaw = clean(process.env.SHADOW_FLOAT || process.env.VITE_SHADOW_FLOAT);
+  if (!floatRaw || !isAddress(floatRaw)) {
+    res.status(200).json({ configured: false, testnet: true, network: "arc-testnet" });
+    return;
+  }
   const runs = filterRunsForFloat(await readLoopRuns(), floatRaw);
   const match = runs.find((r) => r.source === "external-signed" && (r.requestHash || "").toLowerCase() === hash.toLowerCase());
   if (!match || !match.intent || !match.signature) {
@@ -239,22 +249,108 @@ async function handleVerify(req: Req, res: Res) {
       signature: match.signature as `0x${string}`,
     });
     const digest = hashTypedData({ domain, types: intentTypes, primaryType: "FloatSpendIntent", message });
+    const signerMatchesAgent = getAddress(recovered) === getAddress(intent.agent);
+    const digestMatchesRequestHash = digest.toLowerCase() === hash.toLowerCase();
+    const rpcUrl = clean(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
+    const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) });
+    const onchain = await verifyOnchainExternalProof(client, {
+      float: getAddress(floatRaw),
+      requestHash: hash,
+      bindTxHash: match.bindTxHash,
+      x402Hash: match.x402Hash,
+      provider: getAddress(intent.provider),
+      amountUSDC: BigInt(intent.amountUSDC),
+    });
+    if (!signerMatchesAgent || !digestMatchesRequestHash || !onchain.ok) {
+      res.status(200).json({
+        found: false,
+        metadataFound: true,
+        requestHash: hash,
+        recoveredSigner: recovered,
+        agent: getAddress(intent.agent),
+        signerMatchesAgent,
+        digestMatchesRequestHash,
+        onchainVerified: false,
+        onchain,
+        note: "A signed metadata record exists, but the current Float deployment did not verify the full on-chain bind proof.",
+        fetchedAt: Date.now(),
+      });
+      return;
+    }
     res.status(200).json({
       found: true,
       requestHash: hash,
       recoveredSigner: recovered,
       agent: getAddress(intent.agent),
-      signerMatchesAgent: getAddress(recovered) === getAddress(intent.agent),
-      digestMatchesRequestHash: digest.toLowerCase() === hash.toLowerCase(),
+      signerMatchesAgent,
+      digestMatchesRequestHash,
+      onchainVerified: true,
+      receiptHash: onchain.receiptHash,
       intent,
       signature: match.signature,
       x402Hash: match.x402Hash,
       bindTxHash: match.bindTxHash,
-      note: "Recompute: hashTypedData(intent) must equal requestHash, and recoverTypedDataAddress(intent, signature) must equal agent. Both true means the builder authorized this exact spend.",
+      note: "Recompute: hashTypedData(intent) must equal requestHash, recoverTypedDataAddress(intent, signature) must equal agent, receiptByRequestHash must be nonzero, and bindTxHash must emit the matching X402PaymentBound event.",
       fetchedAt: Date.now(),
     });
   } catch (error) {
     res.status(200).json({ found: true, requestHash: hash, error: String((error as Error)?.message || error).slice(0, 200) });
+  }
+}
+
+async function verifyOnchainExternalProof(
+  client: ReturnType<typeof createPublicClient>,
+  expected: {
+    float: `0x${string}`;
+    requestHash: `0x${string}`;
+    bindTxHash?: string;
+    x402Hash?: string;
+    provider: string;
+    amountUSDC: bigint;
+  },
+) {
+  try {
+    const receiptHash = await client.readContract({
+      address: expected.float,
+      abi: floatAbi,
+      functionName: "receiptByRequestHash",
+      args: [expected.requestHash],
+    });
+    if (!receiptHash || receiptHash === "0x0000000000000000000000000000000000000000000000000000000000000000") {
+      return { ok: false, reason: "receiptByRequestHash is empty" };
+    }
+    if (!expected.bindTxHash || !/^0x[0-9a-fA-F]{64}$/.test(expected.bindTxHash)) {
+      return { ok: false, receiptHash, reason: "missing valid bindTxHash" };
+    }
+    if (!expected.x402Hash || !/^0x[0-9a-fA-F]{64}$/.test(expected.x402Hash)) {
+      return { ok: false, receiptHash, reason: "missing valid x402Hash" };
+    }
+    const bindReceipt = await client.getTransactionReceipt({ hash: expected.bindTxHash as `0x${string}` });
+    if (bindReceipt.status !== "success") return { ok: false, receiptHash, reason: "bind transaction failed" };
+    const matched = bindReceipt.logs.some((log) => {
+      if (getAddress(log.address) !== expected.float) return false;
+      const decoded = decodeLog(x402PaymentBoundEvent, log);
+      return Boolean(
+        decoded &&
+          decoded.args.requestHash?.toLowerCase() === expected.requestHash.toLowerCase() &&
+          decoded.args.x402Hash?.toLowerCase() === expected.x402Hash!.toLowerCase() &&
+          getAddress(decoded.args.provider) === getAddress(expected.provider) &&
+          decoded.args.amountUSDC === expected.amountUSDC,
+      );
+    });
+    return matched
+      ? { ok: true, receiptHash, bindTxHash: expected.bindTxHash }
+      : { ok: false, receiptHash, reason: "bind transaction missing matching X402PaymentBound event" };
+  } catch (error) {
+    return { ok: false, reason: sanitize(error) };
+  }
+}
+
+function decodeLog(event: typeof x402PaymentBoundEvent, log: { data: `0x${string}`; topics: readonly `0x${string}`[] }) {
+  try {
+    return decodeEventLog({ abi: [event], data: log.data, topics: log.topics as any });
+  } catch {
+    return null;
   }
 }
 

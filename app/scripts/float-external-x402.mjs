@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import {
   createPublicClient,
   createWalletClient,
+  decodeEventLog,
   defineChain,
   erc20Abi,
   formatUnits,
@@ -10,6 +11,7 @@ import {
   http,
   isAddress,
   parseAbi,
+  parseAbiItem,
   recoverTypedDataAddress,
 } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
@@ -33,7 +35,7 @@ const env = {
 
 const CHAIN_ID = 5_042_002;
 const RPC = clean(env.ARC_RPC_URL || env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
-const FLOAT = getAddress(clean(env.SHADOW_FLOAT || env.VITE_SHADOW_FLOAT) || "0xe926A9b44250a0aB12156988beAf90f5e9ac7d3D");
+const FLOAT = getAddress(clean(env.SHADOW_FLOAT || env.VITE_SHADOW_FLOAT) || "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
 const USDC = getAddress(clean(env.ARC_USDC || env.VITE_ARC_USDC) || "0x3600000000000000000000000000000000000000");
 const FACILITATOR_KEY = normalizeKey(clean(env.FLOAT_FACILITATOR_PRIVATE_KEY || env.CAT_AGENT_PRIVATE_KEY || env.PRIVATE_KEY));
 const PROVIDER_URL = clean(env.FLOAT_X402_PROVIDER_URL) || "https://shadow-arc.vercel.app/api/reasoning-x402";
@@ -63,6 +65,10 @@ const floatAbi = parseAbi([
   "function recordX402Spend(address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, bytes32 requestHash, bytes32 x402Hash, address facilitator) returns (bytes32 receiptHash, bool allowed, uint8 reason)",
   "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
 ]);
+const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
+const x402PaymentBoundEvent = parseAbiItem(
+  "event X402PaymentBound(uint256 indexed receiptId, bytes32 indexed requestHash, bytes32 x402Hash, address indexed provider, uint256 amountUSDC, address facilitator)",
+);
 
 // 1. Rebuild the exact typed data and verify the builder's signature.
 const agent = getAddress(intent.agent);
@@ -159,6 +165,10 @@ console.log(JSON.stringify(run, null, 2));
 
 async function recordX402Spend(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_) {
   console.log("binding recordX402Spend...");
+  const duplicateCheck = await readFloat("receiptByRequestHash", [requestHash_]);
+  if (duplicateCheck && duplicateCheck !== zeroHash()) {
+    throw new Error(`intent was consumed before bind; refusing to persist x402 as bound (receipt ${duplicateCheck})`);
+  }
   const txHash = await wallet.writeContract({
     address: FLOAT,
     abi: floatAbi,
@@ -169,6 +179,11 @@ async function recordX402Spend(agent_, provider_, endpointHash_, amount_, reques
   });
   const rcpt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 60_000 });
   if (rcpt.status !== "success") throw new Error(`recordX402Spend reverted: ${txHash}`);
+  assertX402BoundReceipt(rcpt, { requestHash: requestHash_, x402Hash: x402Hash_, provider: provider_, amount: amount_ });
+  const boundReceipt = await readFloat("receiptByRequestHash", [requestHash_]);
+  if (!boundReceipt || boundReceipt === zeroHash()) {
+    throw new Error(`recordX402Spend succeeded but receiptByRequestHash stayed empty: ${txHash}`);
+  }
   return txHash;
 }
 
@@ -219,8 +234,55 @@ async function payProviderX402(url, payTo, value) {
   if (!paymentResponse) throw new Error("x402 provider did not return X-PAYMENT-RESPONSE");
   const settled = JSON.parse(Buffer.from(paymentResponse, "base64url").toString("utf8"));
   if (!settled.txHash || !/^0x[a-fA-F0-9]{64}$/.test(settled.txHash)) throw new Error(`invalid x402 settlement hash: ${settled.txHash}`);
+  await assertX402SettlementTx(settled.txHash, { from: facilitator.address, to: payTo, amount: value });
   console.log(`x402 tx ${settled.txHash}`);
   return { txHash: settled.txHash };
+}
+
+async function assertX402SettlementTx(txHash, expected) {
+  const [tx, receipt] = await Promise.all([
+    publicClient.getTransaction({ hash: txHash }),
+    publicClient.getTransactionReceipt({ hash: txHash }),
+  ]);
+  if (receipt.status !== "success") throw new Error(`x402 settlement tx failed: ${txHash}`);
+  if (!tx.to || getAddress(tx.to) !== USDC) throw new Error(`x402 settlement tx did not call USDC: ${txHash}`);
+  const matched = receipt.logs.some((log) => {
+    if (getAddress(log.address) !== USDC) return false;
+    const decoded = decodeLog(transferEvent, log);
+    return Boolean(
+      decoded &&
+        getAddress(decoded.args.from) === getAddress(expected.from) &&
+        getAddress(decoded.args.to) === getAddress(expected.to) &&
+        decoded.args.value === expected.amount,
+    );
+  });
+  if (!matched) {
+    throw new Error(`x402 settlement tx did not transfer ${expected.amount} USDC from ${expected.from} to ${expected.to}: ${txHash}`);
+  }
+}
+
+function assertX402BoundReceipt(receipt, expected) {
+  const matched = receipt.logs.some((log) => {
+    if (getAddress(log.address) !== FLOAT) return false;
+    const decoded = decodeLog(x402PaymentBoundEvent, log);
+    return Boolean(
+      decoded &&
+        decoded.args.requestHash?.toLowerCase() === expected.requestHash.toLowerCase() &&
+        decoded.args.x402Hash?.toLowerCase() === expected.x402Hash.toLowerCase() &&
+        getAddress(decoded.args.provider) === getAddress(expected.provider) &&
+        decoded.args.amountUSDC === expected.amount &&
+        getAddress(decoded.args.facilitator) === facilitator.address,
+    );
+  });
+  if (!matched) throw new Error(`bind tx did not emit expected X402PaymentBound event: ${receipt.transactionHash}`);
+}
+
+function decodeLog(event, log) {
+  try {
+    return decodeEventLog({ abi: [event], data: log.data, topics: log.topics });
+  } catch {
+    return null;
+  }
 }
 
 async function fetchX402Requirement(url) {
