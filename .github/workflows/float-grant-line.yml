@@ -17,6 +17,7 @@ jobs:
       ARC_USDC: ${{ secrets.ARC_USDC }}
       SHADOW_FLOAT: "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057"
       PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      FLOAT_AUTO_FUND: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -3,6 +3,7 @@ import {
   createPublicClient,
   createWalletClient,
   defineChain,
+  erc20Abi,
   formatUnits,
   getAddress,
   http,
@@ -28,9 +29,11 @@ const ZERO = "0x0000000000000000000000000000000000000000";
 const CHAIN_ID = 5_042_002;
 const RPC = clean(env.ARC_RPC_URL || env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
 const FLOAT = getAddress(clean(env.SHADOW_FLOAT || env.VITE_SHADOW_FLOAT) || "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
+const USDC = getAddress(clean(env.ARC_USDC || env.VITE_ARC_USDC) || "0x3600000000000000000000000000000000000000");
 const OWNER_KEY = normalizeKey(clean(env.FLOAT_ADMIN_PRIVATE_KEY || env.PRIVATE_KEY || env.FLOAT_OWNER_PRIVATE_KEY));
 const LIMIT = BigInt(clean(env.FLOAT_EXTERNAL_LIMIT_ATOMIC) || "50000"); // 0.05 USDC
 const SCORE = Number(clean(env.FLOAT_EXTERNAL_SCORE) || "8000");
+const AUTO_FUND = clean(env.FLOAT_AUTO_FUND) === "1";
 
 if (!OWNER_KEY) throw new Error("missing FLOAT_ADMIN_PRIVATE_KEY or PRIVATE_KEY (the ShadowFloat owner)");
 
@@ -56,6 +59,8 @@ const wallet = createWalletClient({ account, chain, transport: http(RPC) });
 
 const abi = parseAbi([
   "function owner() view returns (address)",
+  "function fund(uint256 amountUSDC)",
+  "function totalAvailableCreditUSDC() view returns (uint256)",
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
   "function grantFloat(address agent, address wallet, uint256 creditLimitUSDC, uint16 score, bytes32 mandateId) returns (bytes32)",
 ]);
@@ -67,12 +72,62 @@ if (getAddress(owner) !== getAddress(account.address)) {
   throw new Error(`your key is not the owner, cannot grant. owner=${owner}`);
 }
 
+const planned = [];
 for (const agent of agents) {
   const line = await publicClient.readContract({ address: FLOAT, abi, functionName: "lines", args: [agent] });
   if (String(line[0]).toLowerCase() !== ZERO) {
     console.log(`skip ${agent}: already has a line (limit ${formatUnits(line[2], 6)} USDC, status ${line[5]})`);
     continue;
   }
+  planned.push(agent);
+}
+
+if (planned.length && AUTO_FUND) {
+  const [balance, totalAvailable] = await Promise.all([
+    publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [FLOAT] }),
+    publicClient.readContract({ address: FLOAT, abi, functionName: "totalAvailableCreditUSDC" }),
+  ]);
+  const requiredNewReserve = LIMIT * BigInt(planned.length);
+  const freeReserve = balance > totalAvailable ? balance - totalAvailable : 0n;
+  if (freeReserve < requiredNewReserve) {
+    const shortfall = requiredNewReserve - freeReserve;
+    const ownerBalance = await publicClient.readContract({
+      address: USDC,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [account.address],
+    });
+    if (ownerBalance < shortfall) {
+      throw new Error(`owner needs ${formatUnits(shortfall, 6)} USDC to reserve new lines, has ${formatUnits(ownerBalance, 6)}`);
+    }
+    console.log(`funding Float treasury reserve shortfall ${formatUnits(shortfall, 6)} USDC...`);
+    const approveTx = await wallet.writeContract({
+      address: USDC,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [FLOAT, shortfall],
+      account,
+      chain,
+    });
+    const approveRcpt = await publicClient.waitForTransactionReceipt({ hash: approveTx });
+    if (approveRcpt.status !== "success") throw new Error(`USDC approve reverted: ${approveTx}`);
+    const fundTx = await wallet.writeContract({
+      address: FLOAT,
+      abi,
+      functionName: "fund",
+      args: [shortfall],
+      account,
+      chain,
+    });
+    const fundRcpt = await publicClient.waitForTransactionReceipt({ hash: fundTx });
+    if (fundRcpt.status !== "success") throw new Error(`Float fund reverted: ${fundTx}`);
+    console.log(`funded Float treasury tx ${fundTx}`);
+  } else {
+    console.log(`treasury has enough free reserve (${formatUnits(freeReserve, 6)} USDC)`);
+  }
+}
+
+for (const agent of planned) {
   const mandateId = keccak256(stringToBytes(`shadow-float-external-${agent.toLowerCase()}`));
   console.log(`granting ${agent} a ${formatUnits(LIMIT, 6)} USDC line...`);
   const tx = await wallet.writeContract({
