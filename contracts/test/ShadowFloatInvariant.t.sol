@@ -235,6 +235,11 @@ contract ShadowFloatInvariantTest {
         usdc = handler.usdc();
     }
 
+    function targetContracts() public view returns (address[] memory targets) {
+        targets = new address[](1);
+        targets[0] = address(handler);
+    }
+
     function testFuzz_randomFloatOperationSequence(uint256 seed) public {
         for (uint256 i = 0; i < 80; i++) {
             bytes32 entropy = keccak256(abi.encode(seed, i));
