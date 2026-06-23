@@ -28,11 +28,11 @@ const ZERO = "0x0000000000000000000000000000000000000000";
 const CHAIN_ID = 5_042_002;
 const RPC = clean(env.ARC_RPC_URL || env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
 const FLOAT = getAddress(clean(env.SHADOW_FLOAT || env.VITE_SHADOW_FLOAT) || "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
-const OWNER_KEY = normalizeKey(clean(env.FLOAT_FACILITATOR_PRIVATE_KEY || env.CAT_AGENT_PRIVATE_KEY || env.PRIVATE_KEY));
+const OWNER_KEY = normalizeKey(clean(env.FLOAT_ADMIN_PRIVATE_KEY || env.PRIVATE_KEY || env.FLOAT_OWNER_PRIVATE_KEY));
 const LIMIT = BigInt(clean(env.FLOAT_EXTERNAL_LIMIT_ATOMIC) || "50000"); // 0.05 USDC
 const SCORE = Number(clean(env.FLOAT_EXTERNAL_SCORE) || "8000");
 
-if (!OWNER_KEY) throw new Error("missing FLOAT_FACILITATOR_PRIVATE_KEY (the ShadowFloat owner)");
+if (!OWNER_KEY) throw new Error("missing FLOAT_ADMIN_PRIVATE_KEY or PRIVATE_KEY (the ShadowFloat owner)");
 
 const agents = process.argv
   .slice(2)
