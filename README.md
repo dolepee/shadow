@@ -46,6 +46,14 @@ What is not claimed yet:
 - Operators are trusted owner-approved executors: they front the x402 payment, verify the USDC transfer offchain, and then bind the settlement hash onchain.
 - Invited builder signatures are external usage tests, not partnerships.
 
+## Circle Integration
+
+| Tier | Role |
+| --- | --- |
+| Load-bearing in Float today | Float settles on Arc USDC over x402 using EIP-3009 authorization. Every current Float draw uses this path. |
+| Next milestone | Circle Gateway-batched x402. Two independent Arc projects we tested, Obol and Archer, exposed Gateway-batched requirements, so Float's next interop step is bridging the current EIP-3009 path into Gateway-batched settlement. |
+| Proven onboarding capability | Shadow has demonstrated Circle Modular Wallets and Gas Station for passkey-based, gas-sponsored onboarding. This can onboard Float agents, but it is not core to the current Float draw. |
+
 ## Prior Shadow Foundation
 
 Built on Shadow's proven receipt-and-policy primitive: the earlier copy-capital system settled **2,893 onchain receipts across 30 follower wallets**. Float is the focused product.
@@ -187,7 +195,6 @@ Shadow is a protocol first and a dashboard second. The dashboard uses the same c
 | `GET /api/reasoning` | Latest source reasoning packet joined to receipt UI labels | Live on `shadow-arc.vercel.app` |
 | `GET /api/reasoning-x402` | Paid agent preview for source reasoning via Arc USDC EIP-3009/x402 flow | M1 proof point; see [`docs/X402.md`](docs/X402.md) |
 | `GET/POST /api/settlements` | Circle Gateway per-copied-receipt nanosettlement; blocked mirrors are rejected before payment | Credential-gated M1 path; see [`docs/GATEWAY.md`](docs/GATEWAY.md) |
-| `GET/POST /api/cctp-funding` | CCTP burn attestation lookup and follower funding acknowledgement for "fund from any chain" | Groundwork only; see [`docs/CCTP.md`](docs/CCTP.md) |
 | `ShadowFloat.recordX402Spend` | Behavior-backed agent float: gate the spend, bind the x402 tx hash, reimburse the facilitator, and open debt | Live proof at `/float`; script: `npm run float:x402-proof` |
 | `GET /api/float` | Browser-readable Float receipt chain, treasury, agent lines, blocked/denied totals, x402 binding txs, and the `standingBoard` | Live on `shadow-arc.vercel.app/float` |
 | `GET /api/float-tools?action=agent&address=0x…` | Composable standing read for any agent: line limit, available capacity, active debt, status, behavior score, and Lab/Invited/Self-test/Demo label | Live; the read other agents and protocols call |

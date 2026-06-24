@@ -6451,6 +6451,45 @@ code {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
+.circleTierCard {
+  background: linear-gradient(180deg, rgba(12, 25, 42, 0.92), rgba(7, 17, 31, 0.96));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 156px;
+  padding: 18px;
+}
+
+.circleTierCard.primary {
+  border-color: rgba(77, 240, 168, 0.32);
+  box-shadow: inset 0 1px 0 rgba(77, 240, 168, 0.16);
+}
+
+.circleTierCard span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.circleTierCard strong {
+  color: var(--ink);
+  font-size: 18px;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.circleTierCard p {
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 0;
+}
+
 .circleStackGridSolo {
   grid-template-columns: minmax(0, 720px);
   justify-content: center;

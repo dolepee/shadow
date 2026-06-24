@@ -4336,15 +4336,30 @@ function CircleStackPanel() {
     <section id="circle-stack" className="circleStackPanel">
       <Header
         eyebrow="circle stack on arc"
-        title="Passkey-controlled USDC actions, sponsored by Circle Gas Station"
+        title="Circle is tiered by its real role in Float"
       />
       <p className="circleStackCaption">
-        The card below uses <code>@circle-fin/modular-wallets-core</code> to mint a passkey
-        owned smart account and then run sponsored USDC actions on Arc. It can onboard as
-        a Shadow follower, or use the new Lepton mandate engine to create a
-        Circle-wallet-scoped mandate and execute an allowed adapter action in one batched
-        UserOp. Circle Gas Station pays the gas; the wallet stays self-custodial.
+        Float&apos;s core draw path uses Arc USDC, x402, and EIP-3009 today. Gateway-batched x402 is the next interop
+        milestone because Obol and Archer both surfaced that requirement in external testing. Circle Modular Wallets and
+        Gas Station are proven onboarding capability, not the current Float draw path.
       </p>
+      <div className="circleStackGrid">
+        <article className="circleTierCard primary">
+          <span>load-bearing now</span>
+          <strong>Arc USDC · x402 · EIP-3009</strong>
+          <p>Every current Float draw settles on Arc USDC over x402 using EIP-3009 authorization.</p>
+        </article>
+        <article className="circleTierCard">
+          <span>next milestone</span>
+          <strong>Gateway-batched x402</strong>
+          <p>Two independent Arc projects we tested, Obol and Archer, exposed Gateway-batched requirements.</p>
+        </article>
+        <article className="circleTierCard">
+          <span>onboarding capability</span>
+          <strong>Modular Wallets · Gas Station</strong>
+          <p>Shadow has demonstrated passkey-based, gas-sponsored onboarding that can be applied to Float agents.</p>
+        </article>
+      </div>
       <div className="circleStackGrid circleStackGridSolo">
         <ModularWalletCard />
       </div>
