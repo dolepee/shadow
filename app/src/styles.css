@@ -2992,6 +2992,157 @@ input:focus-visible {
   background: var(--ink-soft);
 }
 
+.homeProofOverview {
+  background:
+    linear-gradient(180deg, rgba(15, 29, 49, 0.7), rgba(7, 17, 31, 0.76)),
+    rgba(7, 17, 31, 0.78);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  margin: 22px 0 0;
+  padding: 28px;
+}
+
+.homeProofHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+}
+
+.homeProofHeader h2 {
+  color: var(--ink);
+  font-size: clamp(30px, 4vw, 50px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin: 0;
+  max-width: 760px;
+}
+
+.homeProofStatus {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  gap: 8px;
+  letter-spacing: 0.08em;
+  padding: 8px 10px;
+  text-transform: uppercase;
+}
+
+.homeProofStatus.live {
+  border-color: rgba(77, 240, 168, 0.28);
+  color: var(--copy);
+}
+
+.homeProofStatus.error {
+  border-color: rgba(255, 95, 126, 0.35);
+  color: var(--block);
+}
+
+.homeProofStatusDot {
+  background: currentColor;
+  border-radius: 999px;
+  box-shadow: 0 0 12px currentColor;
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+}
+
+.homeProofGrid {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 26px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.homeProofCard {
+  background: rgba(7, 17, 31, 0.82);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-height: 210px;
+  padding: 20px;
+  text-decoration: none;
+}
+
+.homeProofCard:hover {
+  background: rgba(11, 23, 40, 0.94);
+  transform: none;
+}
+
+.homeProofCard span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.homeProofCard strong {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: clamp(30px, 4vw, 46px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 0.96;
+  overflow-wrap: anywhere;
+}
+
+.homeProofCard em {
+  color: var(--copy);
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.homeProofCard p {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 4px 0 0;
+}
+
+.homeProofLinks {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  margin-top: 24px;
+  padding-top: 18px;
+}
+
+.homeProofLinks a {
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.homeProofLinks a:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 1080px) and (min-width: 721px) {
+  .homeProofGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 720px) {
   .hero {
     border-radius: 20px;
@@ -3044,6 +3195,35 @@ input:focus-visible {
   }
   .heroLedgerCellMain {
     font-size: 26px;
+  }
+
+  .homeProofOverview {
+    border-radius: 16px;
+    padding: 20px 18px;
+  }
+
+  .homeProofHeader {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .homeProofHeader h2 {
+    font-size: 30px;
+    line-height: 1.06;
+  }
+
+  .homeProofGrid {
+    grid-template-columns: 1fr;
+    margin-top: 22px;
+  }
+
+  .homeProofCard {
+    min-height: auto;
+    padding: 17px;
+  }
+
+  .homeProofCard strong {
+    font-size: 34px;
   }
 }
 

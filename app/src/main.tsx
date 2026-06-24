@@ -973,6 +973,12 @@ function App() {
     navigate("/follow");
   };
 
+  const heroExternalSignedCount = floatState?.sourceBreakdown?.externalSigned?.cycles;
+  const heroExternalSignedLabel =
+    heroExternalSignedCount !== undefined
+      ? `${heroExternalSignedCount.toLocaleString()} signed external draws`
+      : "external signed proof live";
+
   const homePage = (
     <>
       <section className="hero" id="top">
@@ -1009,7 +1015,7 @@ function App() {
               <li><span className="heroTrustDot heroTrustDot--proof" />x402 bound onchain</li>
               <li>
                 <span className="heroTrustDot heroTrustDot--signal" />
-                {floatState?.sourceBreakdown?.externalSigned?.cycles || 0} signed external draws
+                {heroExternalSignedLabel}
               </li>
             </ul>
           </div>
@@ -1018,24 +1024,29 @@ function App() {
         <HeroMetrics state={floatState} />
       </section>
 
-      <FloatPanel state={floatState} loading={floatLoading} error={floatError} compact />
+      <HomeProofOverview state={floatState} loading={floatLoading} error={floatError} />
 
       <section className="pageNext" aria-label="Shadow Float verification paths">
         <Link to="/float" className="pageNextCard pageNextCardPrimary">
-          <span className="pageNextEyebrow">full proof</span>
+          <span className="pageNextEyebrow">product</span>
           <span className="pageNextTitle">Walk the Float loop from signed intent to debt receipt</span>
           <span className="pageNextArrow">→</span>
         </Link>
-        <a className="pageNextCard" href="/api/float" target="_blank" rel="noreferrer">
-          <span className="pageNextEyebrow">live API</span>
-          <span className="pageNextTitle">Read receipts, reserves, proof checks, and signed external draws</span>
+        <Link to="/proof" className="pageNextCard">
+          <span className="pageNextEyebrow">verify</span>
+          <span className="pageNextTitle">Check receipts, reserves, proof links, and external signed draws</span>
           <span className="pageNextArrow">→</span>
-        </a>
-        <a className="pageNextCard" href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
-          <span className="pageNextEyebrow">repo</span>
-          <span className="pageNextTitle">Run the no-secret verifier and contract tests from source</span>
+        </Link>
+        <Link to="/builders" className="pageNextCard">
+          <span className="pageNextEyebrow">builders</span>
+          <span className="pageNextTitle">Give another buyer agent a line without hot-funding it first</span>
           <span className="pageNextArrow">→</span>
-        </a>
+        </Link>
+        <Link to="/roadmap" className="pageNextCard">
+          <span className="pageNextEyebrow">roadmap</span>
+          <span className="pageNextTitle">Gateway-batched x402, independent providers, and mainnet reserves</span>
+          <span className="pageNextArrow">→</span>
+        </Link>
       </section>
     </>
   );
@@ -3979,6 +3990,108 @@ function SiteFooter() {
         <span>Shadow Float · spend before funded</span>
       </div>
     </footer>
+  );
+}
+
+function HomeProofOverview({
+  state,
+  loading,
+  error,
+}: {
+  state: FloatState | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  const externalSigned = state?.sourceBreakdown?.externalSigned;
+  const externalRepay = state?.receipts?.find(
+    (receipt) =>
+      receipt.receiptType === "REPAID" &&
+      receipt.agent?.toLowerCase() !== state.alpha?.toLowerCase() &&
+      receipt.agent?.toLowerCase() !== state.beta?.toLowerCase(),
+  );
+  const proofChecks = state?.proofChecks || {};
+  const greenChecks = Object.values(proofChecks).filter((value) => value === true).length;
+  const totalChecks = Object.values(proofChecks).filter((value) => typeof value === "boolean").length;
+  const latestExternalVerify = state?.proofPointers?.latestExternalVerify;
+  const x402Hash = state?.proofPointers?.x402BoundReceipt?.x402?.x402Hash || state?.walletProof?.x402Hash;
+  const repayHash = externalRepay?.transactionHash || state?.proofPointers?.repaymentReceipt?.transactionHash;
+  const loaded = Boolean(state?.configured);
+
+  const cards = [
+    {
+      eyebrow: "external signed use",
+      value: loaded ? `${externalSigned?.cycles ?? 0}` : "live",
+      label: "signed x402 spends",
+      body: "Builders sign intents with their own agents; Shadow fronts the provider payment and binds the receipt.",
+      href: latestExternalVerify?.verifyUrl || "/proof",
+      external: Boolean(latestExternalVerify?.verifyUrl),
+    },
+    {
+      eyebrow: "repay lifecycle",
+      value: externalRepay ? "closed" : loaded ? "open" : "syncing",
+      label: externalRepay ? "external debt repaid" : "repay proof tracked",
+      body: externalRepay
+        ? "A signed external agent repaid its Float debt and restored the full line onchain."
+        : "Borrow, spend, and repay are indexed as separate receipts so the lifecycle is auditable.",
+      href: repayHash ? txUrl(repayHash) : "/proof",
+      external: Boolean(repayHash),
+    },
+    {
+      eyebrow: "proof checks",
+      value: totalChecks ? `${greenChecks}/${totalChecks}` : "green",
+      label: "live verifier checks",
+      body: "Reserve, receipt count, x402 bind, debt, repayment, overspend, and denial checks are exposed through the API.",
+      href: "/proof",
+    },
+    {
+      eyebrow: "contract receipts",
+      value: loaded ? state?.receiptCount || "0" : "syncing",
+      label: "indexed receipts",
+      body: "Every grant, spend, fee, debt, block, denial, and repayment is read from Arc testnet logs.",
+      href: x402Hash ? txUrl(x402Hash) : "/api/float",
+      external: Boolean(x402Hash),
+    },
+  ];
+
+  return (
+    <section className="homeProofOverview" aria-label="Shadow Float live product proof">
+      <div className="homeProofHeader">
+        <div>
+          <p className="eyebrow">live product proof</p>
+          <h2>External agents can spend first, then settle the debt trail.</h2>
+        </div>
+        <div className={`homeProofStatus ${error ? "error" : loading ? "syncing" : "live"}`}>
+          <span className="homeProofStatusDot" />
+          {error ? "proof API degraded" : loading ? "syncing live receipts" : "proof API live"}
+        </div>
+      </div>
+      <div className="homeProofGrid">
+        {cards.map((card) => {
+          const content = (
+            <>
+              <span>{card.eyebrow}</span>
+              <strong>{card.value}</strong>
+              <em>{card.label}</em>
+              <p>{card.body}</p>
+            </>
+          );
+          return card.external ? (
+            <a className="homeProofCard" href={card.href} target="_blank" rel="noreferrer" key={card.eyebrow}>
+              {content}
+            </a>
+          ) : (
+            <Link className="homeProofCard" to={card.href} key={card.eyebrow}>
+              {content}
+            </Link>
+          );
+        })}
+      </div>
+      <div className="homeProofLinks">
+        <Link to="/proof">Open proof page</Link>
+        <a href="/api/float" target="_blank" rel="noreferrer">Read live API</a>
+        <a href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">View repository</a>
+      </div>
+    </section>
   );
 }
 
