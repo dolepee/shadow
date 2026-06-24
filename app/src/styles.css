@@ -917,6 +917,128 @@ html {
   margin: 5px 0;
 }
 
+.floatExternalPanel {
+  background:
+    linear-gradient(135deg, rgba(52, 229, 255, 0.06), rgba(77, 240, 168, 0.025)),
+    rgba(7, 17, 31, 0.58);
+  border: 1px solid rgba(52, 229, 255, 0.18);
+  border-radius: 14px;
+  margin-top: 14px;
+  padding: 16px;
+}
+
+.floatExternalIntro {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.floatExternalIntro strong {
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.floatExternalIntro p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 5px 0 0;
+  max-width: 780px;
+}
+
+.floatExternalIntro a {
+  border: 1px solid rgba(52, 229, 255, 0.22);
+  border-radius: 999px;
+  color: var(--accent);
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 11px;
+  text-decoration: none;
+}
+
+.floatExternalRows {
+  display: grid;
+  gap: 10px;
+}
+
+.floatExternalRow {
+  align-items: stretch;
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(160px, 0.78fr) minmax(0, 1.25fr) minmax(130px, 0.55fr) minmax(190px, 0.72fr);
+  padding: 12px;
+}
+
+.floatExternalRow.obol {
+  border-color: rgba(77, 240, 168, 0.32);
+  box-shadow: inset 0 1px 0 rgba(77, 240, 168, 0.12);
+}
+
+.floatExternalIdentity span,
+.floatExternalAmount span,
+.floatExternalIdentity small,
+.floatExternalAmount small {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.floatExternalIdentity strong,
+.floatExternalReason strong,
+.floatExternalAmount strong {
+  color: var(--ink);
+  display: block;
+  font-size: 15px;
+  line-height: 1.2;
+  margin-top: 5px;
+}
+
+.floatExternalRow.obol .floatExternalIdentity strong {
+  color: var(--copy);
+}
+
+.floatExternalReason p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 5px 0 0;
+}
+
+.floatExternalLinks {
+  align-content: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.floatExternalLinks a {
+  border: 1px solid rgba(184, 211, 255, 0.16);
+  border-radius: 999px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 7px 9px;
+  text-decoration: none;
+}
+
+.floatExternalEmpty {
+  background: rgba(7, 17, 31, 0.56);
+  border: 1px dashed rgba(50, 215, 255, 0.25);
+  border-radius: 12px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  padding: 12px;
+}
+
 .floatProofRail {
   display: grid;
   gap: 10px;
@@ -1732,7 +1854,8 @@ html {
 
   .floatHeadlineStats,
   .floatProofRail,
-  .floatProofCheckGrid {
+  .floatProofCheckGrid,
+  .floatEconomicsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1756,7 +1879,8 @@ html {
 
   .floatHeroGrid,
   .floatGrid,
-  .floatReceiptList {
+  .floatReceiptList,
+  .floatExternalRow {
     grid-template-columns: 1fr;
   }
 
@@ -1857,9 +1981,19 @@ html {
     display: block;
   }
 
+  .floatExternalIntro {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .floatExternalIntro a {
+    text-align: center;
+  }
+
   .floatHeadlineStats,
   .floatProofRail,
-  .floatProofCheckGrid {
+  .floatProofCheckGrid,
+  .floatEconomicsGrid {
     grid-template-columns: 1fr;
   }
 
@@ -6488,6 +6622,54 @@ code {
   font-size: 13.5px;
   line-height: 1.55;
   margin: 0;
+}
+
+.floatEconomicsPanel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
+}
+
+.floatEconomicsGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.floatEconomicsGrid article {
+  background: rgba(7, 17, 31, 0.58);
+  border: 1px solid rgba(184, 211, 255, 0.12);
+  border-radius: 12px;
+  min-height: 150px;
+  padding: 16px;
+}
+
+.floatEconomicsGrid span {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  margin-bottom: 9px;
+  text-transform: uppercase;
+}
+
+.floatEconomicsGrid p,
+.floatEconomicsNote {
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.floatEconomicsNote {
+  border-top: 1px solid rgba(184, 211, 255, 0.1);
+  padding-top: 14px;
 }
 
 .circleStackGridSolo {

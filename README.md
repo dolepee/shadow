@@ -54,6 +54,10 @@ What is not claimed yet:
 | Next milestone | Circle Gateway-batched x402. Two independent Arc projects we tested, Obol and Archer, exposed Gateway-batched requirements, so Float's next interop step is bridging the current EIP-3009 path into Gateway-batched settlement. |
 | Proven onboarding capability | Shadow has demonstrated Circle Modular Wallets and Gas Station for passkey-based, gas-sponsored onboarding. This can onboard Float agents, but it is not core to the current Float draw. |
 
+## Treasury Economics and Mainnet Roadmap
+
+The live testnet proves the mechanics, not meaningful revenue. At mainnet scale, the Float treasury should be funded by operators or liquidity providers who reserve capital against total available capacity, with line grants capped by treasury reserves and reduced or frozen after defaults. Each approved draw can accrue a small fee into the agent's debt; repayments return principal plus fee, creating the sustainability loop for treasury capital and default reserves. The mainnet need is budget timing: an autonomous agent may need to buy data, compute, or API access before its own wallet is topped up, while still staying inside a bounded, revocable policy line instead of hot-prefunding every agent wallet.
+
 ## Prior Shadow Foundation
 
 Built on Shadow's proven receipt-and-policy primitive: the earlier copy-capital system settled **2,893 onchain receipts across 30 follower wallets**. Float is the focused product.

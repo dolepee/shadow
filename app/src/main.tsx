@@ -51,6 +51,7 @@ import {
   type ShadowState,
   type SourceAgent,
 } from "./chain";
+import "./styles.css";
 
 type PresetKey = "conservative" | "balanced" | "aggressive";
 
@@ -89,7 +90,8 @@ const PRESETS: Record<PresetKey, Preset> = {
     minBpsOut: 9000,
   },
 };
-import "./styles.css";
+
+const OBOL_SIGNER = "0xd39AcD18d4aB66f31e3f1931953374d4a546ABA3".toLowerCase();
 
 declare global {
   interface Window {
@@ -250,6 +252,8 @@ type FloatLoopRun = {
   action?: string;
   outcome?: string;
   at?: string;
+  agent?: Address;
+  facilitator?: Address;
   amountUSDC?: string;
   x402Hash?: `0x${string}`;
   bindTxHash?: `0x${string}`;
@@ -258,6 +262,17 @@ type FloatLoopRun = {
   requestHash?: string;
   reason?: string;
   rationale?: string;
+  intent?: {
+    agent?: Address;
+    provider?: Address;
+    endpointHash?: string;
+    amountUSDC?: string;
+    nonce?: string;
+    expiry?: string;
+    reason?: string;
+    float?: Address;
+    chainId?: number;
+  };
   model?: string;
   fellBack?: boolean;
 };
@@ -1175,6 +1190,7 @@ function App() {
     <>
       <FloatPanel state={floatState} loading={floatLoading} error={floatError} />
       <CircleStackPanel />
+      <FloatEconomicsPanel />
     </>
   );
 
@@ -1401,6 +1417,7 @@ function FloatPanel({
       </div>
 
       <FloatStandingBoardPanel board={standingBoard} alpha={state?.alpha} beta={state?.beta} compact={compact} />
+      {!compact && <FloatExternalSignedPanel state={state} />}
 
       {!compact && (
         <div className="floatProofRail" aria-label="Shadow Float proof path">
@@ -1903,6 +1920,100 @@ function FloatStandingBoardPanel({
       </div>
     </article>
   );
+}
+
+function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
+  const externalRuns = (state?.loopRuns || []).filter((run) => run.source === "external-signed" && run.requestHash);
+  const obolRuns = externalRuns.filter((run) => classifyExternalSignedRun(run).kind === "obol");
+  const builderRuns = externalRuns.filter((run) => classifyExternalSignedRun(run).kind !== "obol");
+  const sortedRuns = [...obolRuns, ...builderRuns];
+  const summary = state?.sourceBreakdown?.externalSigned;
+
+  return (
+    <article className="floatExternalPanel" aria-label="External signed Shadow Float spends">
+      <div className="floatBoxHeader">
+        <span>external signed spends</span>
+        <small>
+          {summary?.cycles || 0} signed · {formatFloatUSDC(summary?.providerPaidUSDC)} USDC settled
+        </small>
+      </div>
+      <div className="floatExternalIntro">
+        <div>
+          <strong>Outside agents sign; Shadow fronts the x402 payment.</strong>
+          <p>
+            These rows are current-contract signed intents. Obol is shown separately as an arms-length buyer agent; invited
+            builders are listed without partner language.
+          </p>
+        </div>
+        <a href="/api/float" target="_blank" rel="noreferrer">
+          Live API
+        </a>
+      </div>
+      <div className="floatExternalRows">
+        {sortedRuns.length ? (
+          sortedRuns.map((run) => {
+            const label = classifyExternalSignedRun(run);
+            const requestHash = run.requestHash || "";
+            const agent = run.agent || run.intent?.agent;
+            const amount = run.amountUSDC || run.intent?.amountUSDC;
+            return (
+              <div className={`floatExternalRow ${label.kind}`} key={requestHash || run.id}>
+                <div className="floatExternalIdentity">
+                  <span>{label.eyebrow}</span>
+                  <strong>{label.title}</strong>
+                  <small>{agent ? shortAddress(agent) : "agent hidden"}</small>
+                </div>
+                <div className="floatExternalReason">
+                  <strong>{run.outcome || "SIGNED"}</strong>
+                  <p>{run.intent?.reason || run.reason || "Signed external Float intent."}</p>
+                </div>
+                <div className="floatExternalAmount">
+                  <span>amount</span>
+                  <strong>{formatFloatUSDC(amount)} USDC</strong>
+                  <small>{run.repayTxHash ? "repaid proof linked" : "debt open unless repaid separately"}</small>
+                </div>
+                <div className="floatExternalLinks">
+                  {requestHash && (
+                    <a href={`/api/float-tools?action=verify&hash=${requestHash}`} target="_blank" rel="noreferrer">
+                      verify {shortHash(requestHash)}
+                    </a>
+                  )}
+                  {run.x402Hash && (
+                    <a href={txUrl(run.x402Hash)} target="_blank" rel="noreferrer">
+                      x402 {shortAddress(run.x402Hash)}
+                    </a>
+                  )}
+                  {run.bindTxHash && (
+                    <a href={txUrl(run.bindTxHash)} target="_blank" rel="noreferrer">
+                      bind {shortAddress(run.bindTxHash)}
+                    </a>
+                  )}
+                  {run.repayTxHash && (
+                    <a href={txUrl(run.repayTxHash)} target="_blank" rel="noreferrer">
+                      repay {shortAddress(run.repayTxHash)}
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="floatExternalEmpty">
+            Signed external spends appear here after an outside agent signs a Float intent and Shadow binds it onchain.
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function classifyExternalSignedRun(run: FloatLoopRun): { kind: "obol" | "builder"; eyebrow: string; title: string } {
+  const agent = (run.agent || run.intent?.agent || "").toLowerCase();
+  const reason = (run.intent?.reason || run.reason || "").toLowerCase();
+  if (agent === OBOL_SIGNER || reason.includes("obol")) {
+    return { kind: "obol", eyebrow: "arms-length buyer agent", title: "Obol signed Float intent" };
+  }
+  return { kind: "builder", eyebrow: "invited builder agent", title: "External signed intent" };
 }
 
 function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact: boolean }) {
@@ -4363,6 +4474,48 @@ function CircleStackPanel() {
       <div className="circleStackGrid circleStackGridSolo">
         <ModularWalletCard />
       </div>
+    </section>
+  );
+}
+
+function FloatEconomicsPanel() {
+  return (
+    <section className="floatEconomicsPanel" aria-label="Shadow Float treasury economics roadmap">
+      <Header eyebrow="treasury economics · roadmap" title="Mainnet Float needs reserved capital, not hot-funded agents" />
+      <div className="floatEconomicsGrid">
+        <article>
+          <span>treasury capital</span>
+          <p>
+            At scale, operators or liquidity providers fund the treasury. Granted capacity stays capped by reserves, so
+            the system does not promise more available Float than it can front.
+          </p>
+        </article>
+        <article>
+          <span>defaults</span>
+          <p>
+            Defaults reduce or freeze future capacity and route the agent back through review. The live testnet proves
+            default accounting; the mainnet bad-debt model is roadmap.
+          </p>
+        </article>
+        <article>
+          <span>fees</span>
+          <p>
+            Each approved draw can accrue a small fee into the agent&apos;s debt. Repayment returns principal plus fee,
+            funding treasury sustainability and default reserves.
+          </p>
+        </article>
+        <article>
+          <span>why mainnet needs it</span>
+          <p>
+            Agents should not keep every wallet hot-funded just to buy data, compute, or APIs. Float lets them spend inside
+            a bounded, revocable line while budget settlement catches up.
+          </p>
+        </article>
+      </div>
+      <p className="floatEconomicsNote">
+        Current testnet numbers prove mechanics only: treasury fronting, x402 settlement, debt, fee accrual, repayment, and
+        block/deny behavior. They are not meaningful revenue.
+      </p>
     </section>
   );
 }
