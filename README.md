@@ -51,7 +51,7 @@ What is not claimed yet:
 | Tier | Role |
 | --- | --- |
 | Load-bearing in Float today | Float settles on Arc USDC over x402 using EIP-3009 authorization. Every current Float draw uses this path. |
-| Next milestone | Circle Gateway-batched x402. Two independent Arc projects we tested, Obol and Archer, exposed Gateway-batched requirements, so Float's next interop step is bridging the current EIP-3009 path into Gateway-batched settlement. |
+| Next milestone | Circle Gateway-batched x402. In lab, Shadow paid an independent Gateway-batched Arc x402 seller, but per-transfer onchain settlement binding into Float receipts remains roadmap work. Float's current judged proof stays on the live EIP-3009 path. |
 | Proven onboarding capability | Shadow has demonstrated Circle Modular Wallets and Gas Station for passkey-based, gas-sponsored onboarding. This can onboard Float agents, but it is not core to the current Float draw. |
 
 ## Treasury Economics and Mainnet Roadmap

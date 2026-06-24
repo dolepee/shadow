@@ -4770,8 +4770,9 @@ function CircleStackPanel() {
       />
       <p className="circleStackCaption">
         Float&apos;s core draw path uses Arc USDC, x402, and EIP-3009 today. Gateway-batched x402 is the next interop
-        milestone because Obol and Archer both surfaced that requirement in external testing. Circle Modular Wallets and
-        Gas Station are proven onboarding capability, not the current Float draw path.
+        milestone: Shadow paid an independent Gateway-batched Arc x402 seller in lab, but per-transfer onchain settlement
+        binding into Float receipts remains roadmap work. Circle Modular Wallets and Gas Station are proven onboarding
+        capability, not the current Float draw path.
       </p>
       <div className="circleStackGrid">
         <article className="circleTierCard primary">
@@ -4782,7 +4783,10 @@ function CircleStackPanel() {
         <article className="circleTierCard">
           <span>next milestone</span>
           <strong>Gateway-batched x402</strong>
-          <p>Two independent Arc projects we tested, Obol and Archer, exposed Gateway-batched requirements.</p>
+          <p>
+            Lab interop reached an independent Gateway-batched Arc x402 seller; the missing piece is a resolver that binds
+            per-transfer settlement into Float receipts.
+          </p>
         </article>
         <article className="circleTierCard">
           <span>onboarding capability</span>
