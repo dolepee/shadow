@@ -55,6 +55,7 @@ type FloatConfig = {
 type FloatLoopRun = {
   source?: string;
   float?: string;
+  agent?: string;
   action?: string;
   outcome?: string;
   at?: string;
@@ -67,6 +68,9 @@ type FloatLoopRun = {
   reason?: string;
   rationale?: string;
   rationalePreimage?: string;
+  intent?: {
+    agent?: string;
+  };
   model?: string;
   fellBack?: boolean;
 };
@@ -205,14 +209,6 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       readFloatLoopRuns(),
     ]);
     const loopRuns = allLoopRuns.filter((run) => runMatchesFloat(run, cfg.float));
-    const sourceBreakdown = summarizeSources(
-      loopRuns,
-      totalProviderPaidUSDC,
-      totalDebtOpenedUSDC,
-      totalBlockedUSDC,
-      totalDeniedUSDC,
-      totalRepaidUSDC,
-    );
 
     const fromBlock = cfg.startBlock > 0n ? cfg.startBlock : latestBlock > LOG_LOOKBACK ? latestBlock - LOG_LOOKBACK : 0n;
     const { receiptLogs: logs, x402Logs, warnings: logWarnings } = await readFloatLogs(client, cfg.float, fromBlock, latestBlock);
@@ -273,6 +269,15 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
         };
       });
     const receipts = indexedReceipts.slice(0, 30);
+    const sourceBreakdown = summarizeSources(
+      loopRuns,
+      totalProviderPaidUSDC,
+      totalDebtOpenedUSDC,
+      totalBlockedUSDC,
+      totalDeniedUSDC,
+      totalRepaidUSDC,
+      indexedReceipts,
+    );
     const proofPointers = buildProofPointers(indexedReceipts, loopRuns);
     const alphaWalletBalanceUSDC = await safeBalanceOf(client, cfg.usdc, cfg.alpha);
     const walletProof = buildWalletProof(indexedReceipts, alphaLine, alphaWalletBalanceUSDC);
@@ -435,6 +440,7 @@ function buildProofChecks(input: {
     hasOverspendBlock: has("SPEND_BLOCKED", "AMOUNT_TOO_HIGH"),
     hasRiskyDenial: has("CREDIT_DENIED", "CREDIT_DENIED"),
     externalSignedCurrentContract: Number(input.sourceBreakdown.externalSigned.cycles) > 0,
+    externalSignedRepayLifecycle: Number(input.sourceBreakdown.externalSigned.lifecycleClosedCount || 0) > 0,
     activeDebtReconciles: activeDebt === expectedActiveDebt,
     feeMechanicsVisible: input.receipts.some((receipt) => receipt.receiptType === "DEBT_OPENED" && BigInt(receipt.feeUSDC || "0") > 0n),
     trustBoundary: "operators are owner-approved executors; current scoring evidence is operator-reviewed, not permissionlessly auto-updated",
@@ -613,9 +619,12 @@ function summarizeSources(
   totalBlockedUSDC: bigint,
   totalDeniedUSDC: bigint,
   totalRepaidUSDC: bigint,
+  receipts: Array<any> = [],
 ) {
   const agentLoop = summarizeRunSet(runs.filter((run) => run.source === "agent-loop"));
-  const externalSigned = summarizeRunSet(runs.filter((run) => run.source === "external-signed"));
+  const externalSignedRuns = runs.filter((run) => run.source === "external-signed");
+  const externalSigned = summarizeRunSet(externalSignedRuns);
+  applyExternalRepays(externalSigned, externalSignedRuns, receipts);
   const assisted = summarizeRunSet(runs.filter((run) => run.source === "operator-assisted" || run.source === "external"));
   const knownProviderPaidUSDC =
     agentLoop.providerPaidUSDC + externalSigned.providerPaidUSDC + assisted.providerPaidUSDC;
@@ -675,6 +684,32 @@ function summarizeRunSet(runs: FloatLoopRun[]) {
   );
 }
 
+function applyExternalRepays(summary: SourceSummaryAcc, runs: FloatLoopRun[], receipts: Array<any>) {
+  const externalAgents = new Set(
+    runs
+      .map((run) => run.agent || run.intent?.agent)
+      .filter((agent): agent is string => Boolean(agent))
+      .map((agent) => agent.toLowerCase()),
+  );
+  if (!externalAgents.size) return;
+
+  const repayReceipts = receipts.filter(
+    (receipt) => receipt.receiptType === "REPAID" && externalAgents.has(String(receipt.agent || "").toLowerCase()),
+  );
+  if (!repayReceipts.length) return;
+
+  const repaidUSDC = repayReceipts.reduce((sum, receipt) => sum + toBigInt(receipt.amountUSDC), 0n);
+  const closedAgents = new Set(
+    repayReceipts
+      .filter((receipt) => toBigInt(receipt.debtAfterUSDC) === 0n)
+      .map((receipt) => String(receipt.agent || "").toLowerCase()),
+  );
+
+  summary.repaidCount = Math.max(summary.repaidCount, repayReceipts.length);
+  if (repaidUSDC > summary.repaidUSDC) summary.repaidUSDC = repaidUSDC;
+  summary.lifecycleClosedCount = Math.max(summary.lifecycleClosedCount, closedAgents.size);
+}
+
 function emptySourceSummary(): SourceSummaryAcc {
   return {
     cycles: 0,
@@ -690,6 +725,7 @@ function emptySourceSummary(): SourceSummaryAcc {
     blockedUSDC: 0n,
     deniedUSDC: 0n,
     repaidUSDC: 0n,
+    lifecycleClosedCount: 0,
   };
 }
 
@@ -707,6 +743,7 @@ type SourceSummaryAcc = {
   blockedUSDC: bigint;
   deniedUSDC: bigint;
   repaidUSDC: bigint;
+  lifecycleClosedCount: number;
 };
 
 function serializeSourceSummary(summary: SourceSummaryAcc) {
@@ -724,6 +761,7 @@ function serializeSourceSummary(summary: SourceSummaryAcc) {
     blockedUSDC: summary.blockedUSDC.toString(),
     deniedUSDC: summary.deniedUSDC.toString(),
     repaidUSDC: summary.repaidUSDC.toString(),
+    lifecycleClosedCount: summary.lifecycleClosedCount,
   };
 }
 

@@ -236,6 +236,7 @@ type FloatSourceSummary = {
   blockedCount?: number;
   deniedCount?: number;
   repaidCount?: number;
+  lifecycleClosedCount?: number;
   skipCount?: number;
   errorCount?: number;
   fallbacks?: number;
@@ -2115,13 +2116,15 @@ function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
   const builderRuns = externalRuns.filter((run) => classifyExternalSignedRun(run).kind !== "obol");
   const sortedRuns = [...obolRuns, ...builderRuns];
   const summary = state?.sourceBreakdown?.externalSigned;
+  const externalRepays = (state?.receipts || []).filter((receipt) => receipt.receiptType === "REPAID");
 
   return (
     <article className="floatExternalPanel" aria-label="External signed Shadow Float spends">
       <div className="floatBoxHeader">
         <span>external signed spends</span>
         <small>
-          {summary?.cycles || 0} signed · {formatFloatUSDC(summary?.providerPaidUSDC)} USDC settled
+          {summary?.cycles || 0} signed · {summary?.lifecycleClosedCount || 0} repaid ·{" "}
+          {formatFloatUSDC(summary?.providerPaidUSDC)} USDC settled
         </small>
       </div>
       <div className="floatExternalIntro">
@@ -2143,6 +2146,10 @@ function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
             const requestHash = run.requestHash || "";
             const agent = run.agent || run.intent?.agent;
             const amount = run.amountUSDC || run.intent?.amountUSDC;
+            const repayReceipt = agent
+              ? externalRepays.find((receipt) => receipt.agent?.toLowerCase() === agent.toLowerCase())
+              : undefined;
+            const repayTxHash = run.repayTxHash || repayReceipt?.transactionHash;
             return (
               <div className={`floatExternalRow ${label.kind}`} key={requestHash || run.id}>
                 <div className="floatExternalIdentity">
@@ -2157,7 +2164,7 @@ function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
                 <div className="floatExternalAmount">
                   <span>amount</span>
                   <strong>{formatFloatUSDC(amount)} USDC</strong>
-                  <small>{run.repayTxHash ? "repaid proof linked" : "debt open unless repaid separately"}</small>
+                  <small>{repayTxHash ? "debt repaid · line restored" : "debt open unless repaid separately"}</small>
                 </div>
                 <div className="floatExternalLinks">
                   {requestHash && (
@@ -2175,9 +2182,9 @@ function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
                       bind {shortAddress(run.bindTxHash)}
                     </a>
                   )}
-                  {run.repayTxHash && (
-                    <a href={txUrl(run.repayTxHash)} target="_blank" rel="noreferrer">
-                      repay {shortAddress(run.repayTxHash)}
+                  {repayTxHash && (
+                    <a href={txUrl(repayTxHash)} target="_blank" rel="noreferrer">
+                      repay {shortAddress(repayTxHash)}
                     </a>
                   )}
                 </div>
@@ -4015,6 +4022,7 @@ function HomeProofOverview({
   const latestExternalVerify = state?.proofPointers?.latestExternalVerify;
   const x402Hash = state?.proofPointers?.x402BoundReceipt?.x402?.x402Hash || state?.walletProof?.x402Hash;
   const repayHash = externalRepay?.transactionHash || state?.proofPointers?.repaymentReceipt?.transactionHash;
+  const lifecycleClosedCount = externalSigned?.lifecycleClosedCount ?? (externalRepay ? 1 : 0);
   const loaded = Boolean(state?.configured);
 
   const cards = [
@@ -4028,10 +4036,10 @@ function HomeProofOverview({
     },
     {
       eyebrow: "repay lifecycle",
-      value: externalRepay ? "closed" : loaded ? "open" : "syncing",
-      label: externalRepay ? "external debt repaid" : "repay proof tracked",
-      body: externalRepay
-        ? "A signed external agent repaid its Float debt and restored the full line onchain."
+      value: loaded ? `${lifecycleClosedCount}` : "syncing",
+      label: lifecycleClosedCount === 1 ? "external lifecycle closed" : "external lifecycles closed",
+      body: lifecycleClosedCount
+        ? "Signed external agents repaid their Float debt and restored their full lines onchain."
         : "Borrow, spend, and repay are indexed as separate receipts so the lifecycle is auditable.",
       href: repayHash ? txUrl(repayHash) : "/proof",
       external: Boolean(repayHash),
