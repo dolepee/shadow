@@ -2743,9 +2743,10 @@ input:focus-visible {
 }
 
 .hero h1 {
-  font-size: 70px;
-  line-height: 0.94;
-  max-width: 700px;
+  font-size: 64px;
+  letter-spacing: 0;
+  line-height: 1.02;
+  max-width: 760px;
 }
 
 .hero .lede {
@@ -3149,9 +3150,9 @@ input:focus-visible {
     padding: 44px 18px 24px;
   }
   .hero h1 {
-    font-size: 40px;
-    letter-spacing: -0.045em;
-    line-height: 1.02;
+    font-size: 38px;
+    letter-spacing: 0;
+    line-height: 1.08;
   }
   .heroGrid {
     gap: 36px;
@@ -3230,6 +3231,7 @@ input:focus-visible {
 @media (max-width: 480px) {
   .hero h1 {
     font-size: 34px;
+    line-height: 1.08;
   }
   .heroBackdropGlow--graphite {
     height: 360px;
