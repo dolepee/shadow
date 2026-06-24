@@ -1468,7 +1468,6 @@ function FloatPanel({
   const pointers = state?.proofPointers;
   const agentLoop = state?.sourceBreakdown?.agentLoop;
   const externalSigned = state?.sourceBreakdown?.externalSigned;
-  const assisted = state?.sourceBreakdown?.assisted;
   const standingBoard = state?.standingBoard;
   const runs = state?.loopRuns || [];
   const latestPaidRun = runs.find((run) => run.x402Hash || run.bindTxHash);
@@ -1581,31 +1580,39 @@ function FloatPanel({
 
       <div className="floatHeadlineStats">
         <FloatHeadlineStat
+          label="external signed x402"
+          value={`${externalSigned?.cycles || 0}`}
+          detail={`${formatFloatUSDC(externalSigned?.providerPaidUSDC)} provider paid`}
+          tone="allow"
+        />
+        <FloatHeadlineStat
+          label="external lifecycles closed"
+          value={`${externalSigned?.lifecycleClosedCount || 0}`}
+          detail={`${formatFloatUSDC(externalSigned?.repaidUSDC)} repaid`}
+          tone="allow"
+        />
+        <FloatHeadlineStat
           label="agent-loop cycles"
           value={`${agentLoop?.cycles || 0}`}
           detail={`${agentLoop?.paidCount || 0} paid · ${agentLoop?.skipCount || 0} skipped`}
         />
         <FloatHeadlineStat
-          label="x402 settled by loop"
+          label="autonomous loop settled"
           value={formatFloatUSDC(agentLoop?.providerPaidUSDC)}
-          detail="real provider payments"
+          detail="lab loop, separate from external"
           tone="allow"
         />
         <FloatHeadlineStat
-          label="blocked by mandate"
-          value={formatFloatUSDC(agentLoop?.blockedUSDC)}
-          detail="before funds moved"
+          label="blocked before spend"
+          value={formatFloatUSDC(state?.totalBlockedUSDC)}
+          detail="total refused before funds moved"
           tone="block"
         />
         <FloatHeadlineStat
-          label="external signed x402"
-          value={`${externalSigned?.cycles || 0}`}
-          detail={`${formatFloatUSDC(externalSigned?.providerPaidUSDC)} settled`}
-        />
-        <FloatHeadlineStat
-          label="assisted onboarding"
-          value={`${assisted?.cycles || 0}`}
-          detail="operator-run, not external usage"
+          label="risky denied"
+          value={formatFloatUSDC(state?.totalDeniedUSDC)}
+          detail="no spendable line opened"
+          tone="block"
         />
       </div>
 
