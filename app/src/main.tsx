@@ -971,116 +971,56 @@ function App() {
           <div className="heroCopy">
             <div className="heroBadge">
               <span className="heroBadgeDot" />
-              shadow 2.0 · live on arc testnet
+              Shadow Float · live on Arc testnet
             </div>
-            <h1>Float for agents. Mandates for capital. Receipts for proof.</h1>
+            <h1>Float for agents. Spend before you&apos;re funded. Every draw a verifiable receipt.</h1>
             <p className="lede">
-              Shadow 2.0 lets trusted agents buy approved x402 resources before their own wallet is funded, while mandates
-              block overreach before treasury USDC moves. Every approval, refusal, and repayment becomes an Arc receipt.
+              Shadow Float gives trusted agents a behavior-backed USDC spending line, so they buy approved x402 resources
+              before their own wallet is funded. The line blocks oversized spends before any treasury USDC moves, and every
+              draw, block, and repayment is a verifiable Arc receipt.
             </p>
             <div className="heroActions">
               <Link to="/float" className="heroCtaPrimary">
                 Open Shadow Float
                 <span className="heroCtaArrow">→</span>
               </Link>
-              <Link to="/lepton" className="heroCtaSecondary">
-                View mandate engine
-              </Link>
+              <a className="heroCtaSecondary" href="/api/float" target="_blank" rel="noreferrer">
+                Verify live API
+              </a>
             </div>
             <ul className="heroTrust" aria-label="Built on">
               <li><span className="heroTrustDot heroTrustDot--signal" />Arc testnet</li>
-              <li><span className="heroTrustDot heroTrustDot--proof" />real USDC</li>
-              <li><span className="heroTrustDot heroTrustDot--proof" />x402 settlement</li>
-              <li><span className="heroTrustDot heroTrustDot--signal" />onchain receipts</li>
+              <li><span className="heroTrustDot heroTrustDot--proof" />Arc USDC</li>
+              <li><span className="heroTrustDot heroTrustDot--proof" />x402 bound onchain</li>
+              <li>
+                <span className="heroTrustDot heroTrustDot--signal" />
+                {floatState?.sourceBreakdown?.externalSigned?.cycles || 0} signed external draws
+              </li>
             </ul>
           </div>
           <HeroDiagram />
         </div>
-        <HeroMetrics state={state} />
+        <HeroMetrics state={floatState} />
       </section>
 
-      <Shadow2ProofStrip
-        floatState={floatState}
-        leptonState={leptonState}
-        copiedCount={copiedReceipts.length}
-        blockedCount={blockedReceipts.length}
-      />
+      <FloatPanel state={floatState} loading={floatLoading} error={floatError} compact />
 
-      {spotlight ? (
-        <section className="spotlight" id="split">
-          <p className="eyebrow">adapter one · historical proof · live on Arc</p>
-          <h2>Copy trading was the first adapter. The primitive is policy before capital moves.</h2>
-          <p className="spotlightSummary">
-            {sourceNameByAddress.get(spotlight.intent.sourceAgent.toLowerCase()) || shortAddress(spotlight.intent.sourceAgent)}{" "}
-            wanted to swap {formatUSDC(spotlight.intent.amountUSDC)} USDC. Two followers were looking. One had room for it;
-            the other&apos;s risk rule said no. That same allow/block pattern now powers Float and protocol mandates.
-          </p>
-          <div className="spotlightGrid">
-            <SpotlightCard
-              verdict="COPIED"
-              kind="copied"
-              label="Copied follower · policy let it through"
-              follower={spotlight.copied.follower}
-              receipt={spotlight.copied}
-              detail="Within size, slippage, and daily cap. Swap went through. Mirror fee debited from this follower."
-            />
-            <div className="spotlightVs" aria-hidden="true">
-              <span className="spotlightVsLine" />
-              <span className="spotlightVsLabel">VS</span>
-              <span className="spotlightVsLine" />
-            </div>
-            <SpotlightCard
-              verdict="BLOCKED"
-              kind="blocked"
-              label="Blocked follower · policy refused"
-              follower={spotlight.blocked.follower}
-              receipt={spotlight.blocked}
-              detail={`Reason on chain: "${spotlight.blocked.reason}". Nothing was spent. The block is its own receipt.`}
-            />
-          </div>
-
-          <div className="liveVerify">
-            <div className="liveVerifyHeader">
-              <p className="eyebrow">don&apos;t trust the screenshot</p>
-              <p className="liveVerifyLede">
-                Publish a fresh intent right now. We sign as CatArb, pick a slippage that lands between the two followers&apos;
-                minimums, then print the on-chain receipts here. New transaction every click.
-              </p>
-            </div>
-            <button className="liveVerifyButton" onClick={runVerify} disabled={verifying}>
-              {verifying ? "publishing intent…" : "run live test"}
-            </button>
-            {verifyError && <div className="liveVerifyError">error: {verifyError}</div>}
-            {verifyResult && <VerifyResultPanel result={verifyResult} />}
-          </div>
-        </section>
-      ) : (
-        <SplitMomentFallback />
-      )}
-
-      <TractionStrip state={state} />
-
-      <section className="pageNext">
+      <section className="pageNext" aria-label="Shadow Float verification paths">
         <Link to="/float" className="pageNextCard pageNextCardPrimary">
-          <span className="pageNextEyebrow">float</span>
-          <span className="pageNextTitle">Behavior-backed USDC spending lines for agents</span>
+          <span className="pageNextEyebrow">full proof</span>
+          <span className="pageNextTitle">Walk the Float loop from signed intent to debt receipt</span>
           <span className="pageNextArrow">→</span>
         </Link>
-        <Link to="/lepton" className="pageNextCard">
-          <span className="pageNextEyebrow">mandates</span>
-          <span className="pageNextTitle">Protocol-facing enforcement before capital moves</span>
+        <a className="pageNextCard" href="/api/float" target="_blank" rel="noreferrer">
+          <span className="pageNextEyebrow">live API</span>
+          <span className="pageNextTitle">Read receipts, reserves, proof checks, and signed external draws</span>
           <span className="pageNextArrow">→</span>
-        </Link>
-        <Link to="/agents" className="pageNextCard">
-          <span className="pageNextEyebrow">agents</span>
-          <span className="pageNextTitle">Source-agent history that feeds reputation</span>
+        </a>
+        <a className="pageNextCard" href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
+          <span className="pageNextEyebrow">repo</span>
+          <span className="pageNextTitle">Run the no-secret verifier and contract tests from source</span>
           <span className="pageNextArrow">→</span>
-        </Link>
-        <Link to="/receipts" className="pageNextCard">
-          <span className="pageNextEyebrow">receipts</span>
-          <span className="pageNextTitle">Read the proof rail across every surface</span>
-          <span className="pageNextArrow">→</span>
-        </Link>
+        </a>
       </section>
     </>
   );
@@ -1246,21 +1186,15 @@ function App() {
           <span>Shadow</span>
         </Link>
         <div className="navLinks">
-          <NavLink to="/agents" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
-            Agents
-          </NavLink>
-          <NavLink to="/follow" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
-            Follow
-          </NavLink>
-          <NavLink to="/receipts" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
-            Receipts
-          </NavLink>
-          <NavLink to="/lepton" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
-            Mandates
-          </NavLink>
           <NavLink to="/float" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Float
           </NavLink>
+          <Link className="navLink" to="/float#float-loop">
+            How it works
+          </Link>
+          <Link className="navLink" to="/float#float-receipts">
+            Proof
+          </Link>
         </div>
         <div className="navActions">
           <button
@@ -3627,11 +3561,11 @@ function HeroDiagram() {
       <div className="heroLedgerIntent">
         <span className="heroLedgerIntentLabel">Agent request</span>
         <div className="heroLedgerIntentBody">
-          <span className="agentTag">Alpha</span>
+          <span className="agentTag">Obol</span>
           <span className="heroLedgerIntentVerb">buy</span>
           <span className="heroLedgerIntentNumber">x402 data</span>
           <span className="heroLedgerIntentArrow">→</span>
-          <span className="heroLedgerIntentNumber">0.001&nbsp;USDC</span>
+          <span className="heroLedgerIntentNumber">0.01&nbsp;USDC</span>
         </div>
       </div>
 
@@ -3644,7 +3578,7 @@ function HeroDiagram() {
             </span>
             <span className="heroLedgerCellAddr">x402 provider</span>
           </div>
-          <div className="heroLedgerCellMain">+0.001</div>
+          <div className="heroLedgerCellMain">+0.01</div>
           <div className="heroLedgerCellUnit">USDC settled to provider</div>
           <div className="heroLedgerCellMeta">
             <span className="heroLedgerCellMetaLabel">receipt</span>
@@ -3670,7 +3604,7 @@ function HeroDiagram() {
 
       <div className="heroLedgerProof">
         <span className="heroLedgerProofLabel">Float receipt</span>
-        <span className="heroLedgerProofHash">x402 + debt + block</span>
+        <span className="heroLedgerProofHash">external signature + x402 + debt</span>
         <span className="heroLedgerProofSep" />
         <span className="heroLedgerProofChain">chain&nbsp;5042002</span>
         <span className="heroLedgerProofVerify">verified onchain</span>
@@ -3753,31 +3687,29 @@ function SiteFooter() {
   );
 }
 
-function HeroMetrics({ state }: { state: ShadowState | null }) {
-  const lifetime = state?.lifetime;
-
+function HeroMetrics({ state }: { state: FloatState | null }) {
+  const externalSigned = state?.sourceBreakdown?.externalSigned;
   const items: Array<{ label: string; value: string }> = [
-    { label: "blocked by policy", value: lifetime?.blocked.toLocaleString() ?? "0" },
-    { label: "copies executed", value: lifetime?.copied.toLocaleString() ?? "0" },
-    { label: "USDC mirrored", value: lifetime ? formatUSDC(lifetime.mirroredUsdcAtomic) : "0" },
-    { label: "onboarded followers", value: lifetime?.followerWallets.toLocaleString() ?? "0" },
+    { label: "signed external draws", value: (externalSigned?.cycles || 0).toLocaleString() },
+    { label: "x402 provider paid", value: `${formatFloatUSDC(state?.totalProviderPaidUSDC)} USDC` },
+    { label: "active debt", value: `${formatFloatUSDC(state?.totalDebtOpenedUSDC ? BigInt(state.totalDebtOpenedUSDC) - BigInt(state.totalRepaidUSDC || "0") : undefined)} USDC` },
+    { label: "Float receipts", value: state?.receiptCount?.toString() ?? "0" },
   ];
 
-  const hasLiveData =
-    Boolean(lifetime) && (lifetime!.copied > 0 || lifetime!.blocked > 0 || lifetime!.followerWallets > 0 || lifetime!.mirroredUsdcAtomic > 0n);
+  const hasLiveData = Boolean(state?.configured) && Boolean(state?.receiptCount && Number(state.receiptCount) > 0);
 
   if (!hasLiveData) {
     return (
       <div className="heroMetrics heroMetrics--syncing" role="group" aria-label="Syncing live Arc data">
         <span className="heroMetricsSyncDot" />
-        <span className="heroMetricsSyncLabel">Live Arc receipts</span>
-        <span className="heroMetricsSyncHint">update as agents publish intents on chain 5042002</span>
+        <span className="heroMetricsSyncLabel">Live Float receipts</span>
+        <span className="heroMetricsSyncHint">syncing x402, debt, block, and repayment receipts on chain 5042002</span>
       </div>
     );
   }
 
   return (
-    <div className="heroMetricsWrap" role="group" aria-label="Snapshot-anchored lifetime numbers from Arc testnet">
+    <div className="heroMetricsWrap" role="group" aria-label="Live Shadow Float numbers from Arc testnet">
       <div className="heroMetrics">
         {items.map((m) => (
           <div className="heroMetric" key={m.label}>
@@ -3787,7 +3719,7 @@ function HeroMetrics({ state }: { state: ShadowState | null }) {
         ))}
       </div>
       <span className="heroMetricsNote">
-        since launch, snapshot-anchored at {lifetime?.snapshotAt}; recent feed remains windowed
+        live from the ShadowFloat contract and Arc receipt logs; testnet fee mechanics, not revenue claims
       </span>
     </div>
   );

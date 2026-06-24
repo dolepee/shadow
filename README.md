@@ -48,17 +48,7 @@ What is not claimed yet:
 
 ## Prior Shadow Foundation
 
-Shadow's earlier copy-capital system is the foundation: it proved policy-controlled USDC movement, no-cascade execution, and onchain refusal receipts. Submission snapshot, May 24, 2026: **30 follower wallets, 2,893 MirrorReceipt events (463 COPIED / 2,430 BLOCKED), 173 PositionClosed events, 13.355 USDC mirrored, and 3 source agents.** The BLOCKED receipts are the policy layer working, not failed volume.
-
-Lepton M1 adds the protocol-facing mandate engine underneath Float: a Circle-wallet-scoped USDC mandate is checked before capital moves, every `ALLOW` or `BLOCK` is recorded through `MandateAttestor`, and the enforcing adapter must be bonded. The current proof has live v4-style swap and vault-deposit adapters, both using the same mandate engine. See [`docs/LEPTON_M1.md`](docs/LEPTON_M1.md).
-
-Float uses Arc USDC and x402 as the load-bearing Circle path. Shadow's separate passkey onboarding proof uses Circle Modular Wallets and Gas Station.
-
-USDC agents need more than wallets. They need policy-controlled spending, onchain refusal receipts, and earned standing before autonomous capital can move safely. Shadow is that layer: source agents publish intents, followers define risk policies, and `MirrorRouter` either executes or refuses per follower with an onchain receipt.
-
-Three source agents (CatArb, LobsterRisk, MomentumOtter) compete on Arc Testnet. Each publishes intents every 10 minutes. Followers stake one or many through their own onchain policy. `MirrorRouter` evaluates the policy per follower at the receipt event and emits **COPIED** or **BLOCKED** with the exact reason in a single transaction. The **Pilot** reads live source reputation, recommends an allocation, and anchors its plan onchain through `PilotAttestor`. The **Watch Signal** on `/agents` scores each source live as Healthy / Watch / Stop from receipts and realized PnL, so trust can be earned and lost without anyone editing a leaderboard.
-
-The hackathon demo proves the primitive. The mainnet path turns it into the marketplace: any Arc source agent can earn followers through receipts, reputation, and policy-controlled USDC flow.
+Built on Shadow's proven receipt-and-policy primitive: the earlier copy-capital system settled **2,893 onchain receipts across 30 follower wallets**. Float is the focused product.
 
 Live app: https://shadow-arc.vercel.app
 
@@ -66,22 +56,13 @@ GitHub: https://github.com/dolepee/shadow
 
 Chain: Arc Testnet (chain id `5042002`)
 
+Lepton M1 mandate docs: [`docs/LEPTON_M1.md`](docs/LEPTON_M1.md)
+
 Mainnet path: [`docs/MAINNET_PATH.md`](docs/MAINNET_PATH.md)
 
 Economics: [`docs/ECONOMICS.md`](docs/ECONOMICS.md)
 
 Milestone roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md)
-
-## Forkable Arc primitives
-
-Shadow is built as four Arc OSS modules other builders can fork:
-
-| Primitive | Path | What it gives builders |
-| --- | --- | --- |
-| `MirrorRouter` | [`contracts/src/MirrorRouter.sol`](contracts/src/MirrorRouter.sol) | USDC-native fanout settlement where each follower's policy is evaluated independently, so one blocked follower cannot cascade-revert the batch. |
-| `MirrorReceipt` / `PositionClosed` | [`contracts/src/MirrorRouter.sol`](contracts/src/MirrorRouter.sol) | Canonical accountability events for copied flow, blocked flow, mirror fees, and realized PnL. |
-| `SourceRegistry` | [`contracts/src/SourceRegistry.sol`](contracts/src/SourceRegistry.sol) | An agent identity registry that lets source agents publish strategy metadata and earn reputation from receipts instead of claims. |
-| `PilotAttestor` | [`contracts/src/PilotAttestor.sol`](contracts/src/PilotAttestor.sol) | A minimal attestation primitive for anchoring agent allocation decisions before capital moves. |
 
 ## Judge quickstart
 
@@ -102,11 +83,15 @@ npm run float:verify-live
 
 The app and Float proof can be reviewed without private keys at https://shadow-arc.vercel.app. `npm run float:verify-live` is read-only and uses the public Arc RPC by default. `npm run verify:slippage` is an optional live-write verifier for the older copy-capital rail and requires `ARC_RPC_URL` plus the deployment/operator environment.
 
-## What makes this an Agora
+## Historical Copy-Capital Archive
+
+The sections below document the earlier Shadow copy-capital adapter. They are not the current Float submission path.
+
+### What made the earlier adapter work
 
 Three competing source agents. Each publishes its own intents with ERC-8004-style identity references stored in `SourceRegistry`. Followers stake one or many. The router scores them onchain through `MirrorReceipt` (per intent decisions) and `PositionClosed` (realized PnL). The Watch Signal panel turns those receipts into a Healthy / Watch / Stop badge per agent. No off chain leaderboard.
 
-## The binary moment
+### The binary moment
 
 CatArb published intent 48 at block 42697895. The ShadowAMM was thin. Five distinct followers, five different settings, one tx:
 
@@ -122,7 +107,7 @@ One source intent, five receipts in one tx, no cascade revert. The slippage rail
 
 Tx: https://testnet.arcscan.app/tx/0xfdc46c79e15e8fe05264f664ac4facfe971fa07c67a7a091d0ac24e6313ef739
 
-## Meet the Pilot
+### Meet the Pilot
 
 Shadow Pilot is the protagonist. A follower hands it a deposit and a risk profile. The Pilot:
 
@@ -134,7 +119,7 @@ Shadow Pilot is the protagonist. A follower hands it a deposit and a risk profil
 
 The Pilot is not advice. It proposes the onchain policy and leaves an audit anchor on every plan it commits to; `MirrorRouter` owns the refusal rail. The receipts table above is that policy holding the line on a thin intent.
 
-## Pilot-labeled refusal receipts
+### Pilot-labeled refusal receipts
 
 Shadow does not add a new `PILOT_VETO` enum to the deployed router. The onchain receipt remains the source of truth: `MirrorReceipt(BLOCKED, RiskPolicy.BlockReason, ...)`.
 
