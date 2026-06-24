@@ -1194,6 +1194,172 @@ function App() {
     </>
   );
 
+  const proofPage = (
+    <>
+      <section className="pageHead">
+        <p className="pageEyebrow">proof · live verification</p>
+        <h1 className="pageTitle">Verify the Float loop without trusting the screenshot.</h1>
+        <p className="pageLede">
+          Start with the external signed spends, then check the contract, reserve, x402 bind, debt, repayment, overspend
+          block, and denial. Every link below points to live data or Arc testnet transactions.
+        </p>
+      </section>
+      <FloatExternalSignedPanel state={floatState} />
+      <FloatProofChecksPanel state={floatState} />
+      <FloatJudgePath state={floatState} />
+      <section className="productPageGrid" aria-label="Verifier entry points">
+        <a className="productInfoCard primary" href="/api/float" target="_blank" rel="noreferrer">
+          <span>live API</span>
+          <strong>/api/float</strong>
+          <p>Receipts, source breakdowns, proof checks, treasury reserve, and standing board.</p>
+        </a>
+        <a className="productInfoCard" href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
+          <span>repo verifier</span>
+          <strong>npm run float:verify-live</strong>
+          <p>Read-only command that checks the live Float deployment with no private keys.</p>
+        </a>
+        {floatState?.float && (
+          <a className="productInfoCard" href={`https://testnet.arcscan.app/address/${floatState.float}`} target="_blank" rel="noreferrer">
+            <span>contract</span>
+            <strong>{shortAddress(floatState.float)}</strong>
+            <p>ShadowFloat on Arc testnet, including receipt and x402 bind events.</p>
+          </a>
+        )}
+      </section>
+    </>
+  );
+
+  const buildersPage = (
+    <>
+      <section className="pageHead">
+        <p className="pageEyebrow">builders · agent access</p>
+        <h1 className="pageTitle">Give your agent a spending line without hot-funding it first.</h1>
+        <p className="pageLede">
+          Shadow Float is for buyer agents that need paid data, compute, or API calls before their wallet is topped up. The
+          builder signs intent; Shadow fronts x402; the receipt proves what happened.
+        </p>
+      </section>
+      <section className="builderFlowGrid" aria-label="Builder integration flow">
+        <article className="builderFlowCard">
+          <span>1</span>
+          <strong>Request a line</strong>
+          <p>Share the Arc testnet wallet your agent actually controls. Shadow registers a bounded line for that signer.</p>
+        </article>
+        <article className="builderFlowCard">
+          <span>2</span>
+          <strong>Sign an intent</strong>
+          <p>Sign typed data locally. The key stays on your machine; only the intent JSON and signature are shared.</p>
+        </article>
+        <article className="builderFlowCard">
+          <span>3</span>
+          <strong>Shadow fronts x402</strong>
+          <p>Shadow verifies the signature, pays the x402 provider, and binds the settlement hash onchain.</p>
+        </article>
+        <article className="builderFlowCard">
+          <span>4</span>
+          <strong>Repay when ready</strong>
+          <p>Your agent can repay from its own wallet to close the external borrow, spend, and repay loop.</p>
+        </article>
+      </section>
+      <section className="builderReferenceGrid" aria-label="Builder references">
+        <article className="builderReferenceCard">
+          <span>standing API</span>
+          <code>/api/float-tools?action=agent&amp;address=0x...</code>
+          <p>Read line limit, available capacity, active debt, status, and behavior score.</p>
+        </article>
+        <article className="builderReferenceCard">
+          <span>intent verifier</span>
+          <code>/api/float-tools?action=verify&amp;hash=0x...</code>
+          <p>Verify signer, request hash, onchain receipt, and matching x402 bind event.</p>
+        </article>
+        <article className="builderReferenceCard">
+          <span>local scripts</span>
+          <code>float-builder-sign.mjs · float-builder-repay.mjs</code>
+          <p>Reference helpers for local signing and repayment. Builders can also construct calls with their own signer.</p>
+        </article>
+      </section>
+      <FloatStandingBoardPanel board={floatState?.standingBoard} alpha={floatState?.alpha} beta={floatState?.beta} compact={false} />
+    </>
+  );
+
+  const roadmapPage = (
+    <>
+      <section className="pageHead">
+        <p className="pageEyebrow">roadmap · mainnet path</p>
+        <h1 className="pageTitle">From testnet mechanics to an agent spending network.</h1>
+        <p className="pageLede">
+          The live product proves treasury fronting, x402 settlement, debt, repayment, blocks, and signed external use. The
+          roadmap is about opening the market without pretending those pieces are already complete.
+        </p>
+      </section>
+      <FloatEconomicsPanel />
+      <CircleStackPanel />
+      <section className="roadmapGrid" aria-label="Shadow Float roadmap">
+        <article className="roadmapCard">
+          <span>interop</span>
+          <strong>Gateway-batched x402</strong>
+          <p>Bridge the current EIP-3009 path into the Gateway-batched dialect Obol and Archer surfaced.</p>
+        </article>
+        <article className="roadmapCard">
+          <span>market</span>
+          <strong>Independent providers</strong>
+          <p>Let Float-funded buyer agents purchase from third-party x402 sellers, not only Shadow&apos;s provider.</p>
+        </article>
+        <article className="roadmapCard">
+          <span>risk</span>
+          <strong>Permissionless scoring</strong>
+          <p>Move from deterministic v0 over operator-reviewed evidence to an indexed, permissionless score path.</p>
+        </article>
+        <article className="roadmapCard">
+          <span>capital</span>
+          <strong>Treasury reserve model</strong>
+          <p>Give operators and LPs a reserve, fee, and default framework for funding agent spending lines.</p>
+        </article>
+      </section>
+    </>
+  );
+
+  const archivePage = (
+    <>
+      <section className="pageHead">
+        <p className="pageEyebrow">archive · prior Shadow</p>
+        <h1 className="pageTitle">The earlier receipt-and-policy surfaces remain live.</h1>
+        <p className="pageLede">
+          These routes are historical proof of the primitive that Float builds on: source-agent behavior, mirror receipts,
+          and mandate enforcement. They are not the current Lepton product path.
+        </p>
+      </section>
+      <Shadow2ProofStrip
+        floatState={floatState}
+        leptonState={leptonState}
+        copiedCount={copiedReceipts.length}
+        blockedCount={blockedReceipts.length}
+      />
+      <section className="pageNext" aria-label="Prior Shadow routes">
+        <Link to="/agents" className="pageNextCard">
+          <span className="pageNextEyebrow">agents</span>
+          <span className="pageNextTitle">Source-agent history that feeds reputation</span>
+          <span className="pageNextArrow">→</span>
+        </Link>
+        <Link to="/follow" className="pageNextCard">
+          <span className="pageNextEyebrow">follow</span>
+          <span className="pageNextTitle">The original mirror adapter and policy controls</span>
+          <span className="pageNextArrow">→</span>
+        </Link>
+        <Link to="/lepton" className="pageNextCard">
+          <span className="pageNextEyebrow">mandates</span>
+          <span className="pageNextTitle">Protocol-facing mandate enforcement</span>
+          <span className="pageNextArrow">→</span>
+        </Link>
+        <Link to="/receipts" className="pageNextCard">
+          <span className="pageNextEyebrow">receipts</span>
+          <span className="pageNextTitle">The full historical receipt rail</span>
+          <span className="pageNextArrow">→</span>
+        </Link>
+      </section>
+    </>
+  );
+
   return (
     <main className="shell">
       <nav className="nav">
@@ -1202,15 +1368,21 @@ function App() {
           <span>Shadow</span>
         </Link>
         <div className="navLinks">
+          <NavLink end to="/" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+            Home
+          </NavLink>
           <NavLink to="/float" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Float
           </NavLink>
-          <Link className="navLink" to="/float#float-loop">
-            How it works
-          </Link>
-          <Link className="navLink" to="/float#float-receipts">
+          <NavLink to="/proof" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Proof
-          </Link>
+          </NavLink>
+          <NavLink to="/builders" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+            Builders
+          </NavLink>
+          <NavLink to="/roadmap" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+            Roadmap
+          </NavLink>
         </div>
         <div className="navActions">
           <button
@@ -1222,8 +1394,8 @@ function App() {
             <span className="navWalletDot" />
             {account ? shortAddress(account) : "Wallet"}
           </button>
-          <Link to="/float" className="navCta">
-            Float proof
+          <Link to="/proof" className="navCta">
+            Verify Float
           </Link>
         </div>
       </nav>
@@ -1237,6 +1409,10 @@ function App() {
         <Route path="/receipts" element={receiptsPage} />
         <Route path="/lepton" element={leptonPage} />
         <Route path="/float" element={floatPage} />
+        <Route path="/proof" element={proofPage} />
+        <Route path="/builders" element={buildersPage} />
+        <Route path="/roadmap" element={roadmapPage} />
+        <Route path="/archive" element={archivePage} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
@@ -3729,25 +3905,33 @@ function SiteFooter() {
     {
       title: "Product",
       links: [
+        { label: "Home", href: "/" },
         { label: "Shadow Float", href: "/float" },
-        { label: "Mandate engine", href: "/lepton" },
-        { label: "Receipt rail", href: "/receipts#float-receipts" },
+        { label: "Roadmap", href: "/roadmap" },
       ],
     },
     {
-      title: "Proof",
+      title: "Verify",
       links: [
-        { label: "Agent behavior", href: "/agents#sources" },
-        { label: "Mirror adapter", href: "/follow" },
-        { label: "Circle stack", href: "/float#circle-stack" },
-      ],
-    },
-    {
-      title: "Resources",
-      links: [
-        { label: "Source on GitHub", href: "https://github.com/dolepee/shadow" },
+        { label: "Proof page", href: "/proof" },
+        { label: "Live API", href: "/api/float" },
         { label: "Arc explorer", href: "https://testnet.arcscan.app" },
-        { label: "Chain ID 5042002", href: "https://testnet.arcscan.app" },
+      ],
+    },
+    {
+      title: "Builders",
+      links: [
+        { label: "Builder guide", href: "/builders" },
+        { label: "Standing API", href: "/api/float" },
+        { label: "Source on GitHub", href: "https://github.com/dolepee/shadow" },
+      ],
+    },
+    {
+      title: "Prior Shadow",
+      links: [
+        { label: "Archive", href: "/archive" },
+        { label: "Agent history", href: "/agents" },
+        { label: "Mandate engine", href: "/lepton" },
       ],
     },
   ];
@@ -3761,7 +3945,7 @@ function SiteFooter() {
             <span>Shadow</span>
           </Link>
           <p className="siteFooterTagline">
-            Behavior-backed USDC float, mandate enforcement, and receipt proof for autonomous agents on Arc.
+            Behavior-backed USDC spending lines for autonomous agents on Arc.
           </p>
           <div className="siteFooterBadge">
             <span className="heroBadgeDot" />
@@ -3773,7 +3957,7 @@ function SiteFooter() {
             <div className="siteFooterColumn" key={s.title}>
               <span className="siteFooterColumnTitle">{s.title}</span>
               {s.links.map((l) => {
-                if (l.href.startsWith("http")) {
+                if (l.href.startsWith("http") || l.href.startsWith("/api")) {
                   return (
                     <a key={l.label} href={l.href} target="_blank" rel="noreferrer">
                       {l.label}
@@ -3792,7 +3976,7 @@ function SiteFooter() {
       </div>
       <div className="siteFooterBottom">
         <span>Built for Canteen × Circle Lepton · 2026</span>
-        <span>Shadow · float, mandates, receipts</span>
+        <span>Shadow Float · spend before funded</span>
       </div>
     </footer>
   );

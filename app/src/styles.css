@@ -2391,15 +2391,181 @@ input:focus-visible {
   transform: translateX(2px);
 }
 
+.productPageGrid,
+.builderFlowGrid,
+.builderReferenceGrid,
+.roadmapGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
+  margin: 28px 0 0;
+}
+
+.productInfoCard,
+.builderFlowCard,
+.builderReferenceCard,
+.roadmapCard {
+  background:
+    linear-gradient(135deg, rgba(184, 211, 255, 0.045), rgba(52, 229, 255, 0.018)),
+    rgba(7, 17, 31, 0.58);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--ink);
+  min-height: 168px;
+  padding: 18px;
+  text-decoration: none;
+}
+
+.productInfoCard,
+.builderReferenceCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.productInfoCard:hover,
+.builderReferenceCard:hover {
+  border-color: var(--border-strong);
+  transform: none;
+}
+
+.productInfoCard.primary {
+  border-color: rgba(77, 240, 168, 0.34);
+  box-shadow: 0 20px 60px -54px rgba(77, 240, 168, 0.65);
+}
+
+.productInfoCard span,
+.builderReferenceCard span,
+.roadmapCard span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.productInfoCard strong,
+.builderReferenceCard strong,
+.roadmapCard strong {
+  color: var(--ink);
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.productInfoCard p,
+.builderFlowCard p,
+.builderReferenceCard p,
+.roadmapCard p {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.builderFlowCard {
+  min-height: 178px;
+  padding-top: 20px;
+}
+
+.builderFlowCard span {
+  align-items: center;
+  background: rgba(52, 229, 255, 0.11);
+  border: 1px solid rgba(52, 229, 255, 0.24);
+  border-radius: 50%;
+  color: var(--accent);
+  display: inline-flex;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  height: 30px;
+  justify-content: center;
+  margin-bottom: 18px;
+  width: 30px;
+}
+
+.builderFlowCard strong {
+  color: var(--ink);
+  display: block;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+}
+
+.builderReferenceGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.builderReferenceCard code {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--accent);
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  padding: 10px;
+}
+
+.roadmapGrid {
+  margin-bottom: 10px;
+}
+
+.roadmapCard {
+  position: relative;
+}
+
+.roadmapCard::before {
+  background: linear-gradient(90deg, var(--accent), var(--copy));
+  content: "";
+  height: 2px;
+  left: 18px;
+  opacity: 0.82;
+  position: absolute;
+  right: 18px;
+  top: 0;
+}
+
+.roadmapCard strong {
+  margin: 12px 0 8px;
+}
+
 @media (max-width: 720px) {
   .pageNext {
     grid-template-columns: 1fr;
+  }
+
+  .productPageGrid,
+  .builderFlowGrid,
+  .builderReferenceGrid,
+  .roadmapGrid {
+    grid-template-columns: 1fr;
+    margin-top: 22px;
+  }
+
+  .productInfoCard,
+  .builderFlowCard,
+  .builderReferenceCard,
+  .roadmapCard {
+    min-height: auto;
+    padding: 16px;
   }
 }
 
 @media (max-width: 1080px) and (min-width: 721px) {
   .pageNext {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .builderReferenceGrid {
+    grid-template-columns: 1fr;
   }
 }
 
