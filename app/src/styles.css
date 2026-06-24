@@ -599,6 +599,7 @@ html {
   color: var(--copy);
 }
 
+.floatHeroCopy h1,
 .floatHeroCopy h2 {
   color: var(--ink);
   font-size: 74px;
@@ -1848,6 +1849,7 @@ html {
     grid-template-columns: 1fr;
   }
 
+  .floatHeroCopy h1,
   .floatHeroCopy h2 {
     font-size: 64px;
   }
@@ -1917,9 +1919,10 @@ html {
     padding-top: 8px;
   }
 
+  .floatHeroCopy h1,
   .floatHeroCopy h2 {
-    font-size: 42px;
-    line-height: 0.94;
+    font-size: 38px;
+    line-height: 1.06;
   }
 
   .floatProofCardMoment strong {

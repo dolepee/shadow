@@ -1510,17 +1510,22 @@ function FloatPanel({
   const primaryProofHash = latestPaidRun?.x402Hash || latestPaidReceipt?.x402?.x402Hash;
   const bindProofHash = latestPaidRun?.bindTxHash || latestPaidReceipt?.x402?.bindingTxHash || latestPaidReceipt?.transactionHash;
   const guardProofHash = latestGuardRun?.txHash || latestGuardReceipt?.transactionHash;
+  const syncPending = loading && !configured;
 
   return (
     <section className={`floatPanel floatPanelV2${compact ? " floatPanelCompact" : ""}`} id="shadow-float">
       <div className="floatHeroShell">
         <div className="floatHeroCopy">
-          <p className="eyebrow">Shadow 2.0 · behavior-backed float</p>
-          <h2>Verified behavior becomes spendable USDC.</h2>
+          <p className="eyebrow">Shadow Float · external proof live</p>
+          {compact ? (
+            <h2>Signed agents spend first. Shadow records the debt.</h2>
+          ) : (
+            <h1>Signed agents spend first. Shadow records the debt.</h1>
+          )}
           <p className="floatLede">
-            Shadow Float gives autonomous agents a tiny revocable spending line backed by verified onchain behavior. The
-            agent chooses what to buy; Shadow enforces the mandate, pays approved x402 providers, opens debt, and blocks
-            overreach before capital moves.
+            Shadow Float gives autonomous agents a bounded revocable spending line backed by verified onchain behavior.
+            The agent signs what it wants to buy; Shadow fronts the approved x402 payment, opens debt, and blocks overreach
+            before treasury USDC moves.
           </p>
           <div className="floatHeroActions">
             {primaryProofHash ? (
@@ -1553,7 +1558,7 @@ function FloatPanel({
             <small>{guardProofHash ? shortAddress(guardProofHash) : "no treasury spend"}</small>
           </div>
           <div className="floatProofCardFooter">
-            <span>treasury {formatFloatUSDC(state?.treasuryBalanceUSDC)} USDC</span>
+            <span>{configured ? `treasury ${formatFloatUSDC(state?.treasuryBalanceUSDC)} USDC` : "treasury syncing"}</span>
             <span>chain 5042002</span>
           </div>
         </aside>
@@ -1562,7 +1567,7 @@ function FloatPanel({
       <div className="floatStatusRow">
         <div className={`floatStatus ${configured ? "configured" : "pending"}`}>
           <span className="floatStatusDot" />
-          {configured ? "live Float reads" : "deploy pending"}
+          {configured ? "live Float reads" : syncPending ? "syncing live proof" : "configuration pending"}
           {loading && <small>syncing</small>}
           {updated && <small>updated {updated}</small>}
         </div>
@@ -1571,7 +1576,7 @@ function FloatPanel({
         <span>lab, signed external, and assisted onboarding stay separate</span>
       </div>
 
-      {!compact && <FloatWalletProof state={state} />}
+      {!compact && <FloatWalletProof state={state} loading={loading} />}
       {!compact && <FloatProofRunway state={state} />}
 
       <div className="floatHeadlineStats">
@@ -1787,9 +1792,11 @@ function FloatPanel({
   );
 }
 
-function FloatWalletProof({ state }: { state: FloatState | null }) {
+function FloatWalletProof({ state, loading }: { state: FloatState | null; loading: boolean }) {
   const proof = state?.walletProof;
   const exactHistory = Boolean(proof?.historicalBeforeBalanceAvailable);
+  const pending = loading && !proof;
+  const showUSDC = (value?: string | bigint | null) => (pending ? "syncing" : formatFloatUSDC(value));
   return (
     <article className="floatWalletProof" aria-label="Agent wallet shortfall proof">
       <div className="floatBoxHeader">
@@ -1805,12 +1812,12 @@ function FloatWalletProof({ state }: { state: FloatState | null }) {
         </p>
       </div>
       <div className="floatWalletProofGrid">
-        <FloatFact label="agent wallet USDC" value={formatFloatUSDC(proof?.agentWalletUSDC)} />
-        <FloatFact label="x402 required" value={formatFloatUSDC(proof?.requiredX402AmountUSDC)} />
-        <FloatFact label="current shortfall" value={formatFloatUSDC(proof?.walletShortfallUSDC)} />
-        <FloatFact label="Float capacity" value={formatFloatUSDC(proof?.floatAvailableCapacityUSDC)} />
-        <FloatFact label="facilitator paid" value={formatFloatUSDC(proof?.facilitatorPaidUSDC)} />
-        <FloatFact label="debt assigned" value={formatFloatUSDC(proof?.debtAssignedUSDC)} />
+        <FloatFact label="agent wallet USDC" value={showUSDC(proof?.agentWalletUSDC)} />
+        <FloatFact label="x402 required" value={showUSDC(proof?.requiredX402AmountUSDC)} />
+        <FloatFact label="current shortfall" value={showUSDC(proof?.walletShortfallUSDC)} />
+        <FloatFact label="Float capacity" value={showUSDC(proof?.floatAvailableCapacityUSDC)} />
+        <FloatFact label="facilitator paid" value={showUSDC(proof?.facilitatorPaidUSDC)} />
+        <FloatFact label="debt assigned" value={showUSDC(proof?.debtAssignedUSDC)} />
       </div>
       <div className="floatWalletProofLinks">
         {proof?.x402Hash && (
@@ -3793,7 +3800,7 @@ function Shadow2ProofStrip({
       metric: agentLoop?.cycles !== undefined ? `${agentLoop.cycles}` : "syncing",
       unit: "agent-loop cycles",
       title: "Behavior becomes spending power",
-      body: "A verified agent receives a tiny USDC line, buys approved x402 resources, opens debt, and gets blocked when it overreaches.",
+      body: "A verified agent receives a bounded USDC spending line, buys approved x402 resources, opens debt, and gets blocked when it overreaches.",
       to: "/float",
       tone: "float",
     },
@@ -3820,8 +3827,8 @@ function Shadow2ProofStrip({
   return (
     <section className="shadow2Strip" aria-label="Shadow 2.0 proof surfaces">
       <div className="shadow2StripHeader">
-        <p className="eyebrow">Shadow 2.0 proof map</p>
-        <h2>One enforcement primitive. Three live surfaces.</h2>
+        <p className="eyebrow">Shadow Float proof map</p>
+        <h2>The Float product, with prior proof surfaces underneath.</h2>
       </div>
       <div className="shadow2StripGrid">
         {cards.map((card) => (
