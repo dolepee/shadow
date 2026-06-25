@@ -37,6 +37,8 @@ The proof anchors are intentionally direct:
 
 The M1 receipt fields are not just labels. The allowed allocation receipt checks `decision = ALLOW`, `reason = NONE`, `amount = 0.1 USDC`, `actor = operator`, and `target = Morpho-style adapter`. The blocked allocation receipt checks `decision = BLOCK`, `reason = AMOUNT_TOO_HIGH`, `amount = 0.3 USDC`, and verifies that no vault USDC transfer occurred.
 
+External technical review: CitePay validated the architecture fit for agent/x402 policy enforcement. Forum reviewed the live Arc transactions and confirmed the core enforcement claim: the same vault adapter entrypoint moved `0.1` USDC when allowed, then moved zero USDC on the over-limit path while the bonded enforcer logged the block decision.
+
 Scope: **external Float usage is live and verifiable; Treasury proof is currently backed by public receipts, contract links, and the read-only verifier.**
 
 ## Live Float Proof

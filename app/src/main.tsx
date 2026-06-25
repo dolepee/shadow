@@ -1926,7 +1926,7 @@ function TreasuryProofPanel({
 
       <div className="treasuryBoundary">
         <span>External Float signed usage is live.</span>
-        <span>CitePay reviewed the Treasury architecture.</span>
+        <span>CitePay and Forum reviewed the Treasury proof.</span>
         <span>
           API and CLI both check the combined proof: <code>/api/treasury</code> and <code>npm run treasury:verify-live</code>.
         </span>
@@ -2121,6 +2121,11 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
       status: "architecture fit reviewed",
       detail: "Builder feedback says Float + M1 fits agent/x402 workflows because enforcement happens before USDC leaves the policy boundary.",
     },
+    {
+      label: "Forum",
+      status: "live txs verified",
+      detail: "Forum reviewed the Arc transactions and confirmed the same vault entrypoint moved funds when allowed, then moved zero USDC when over limit.",
+    },
   ];
 
   return (
@@ -2143,10 +2148,10 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
 
         <article className="treasuryValidationCard treasuryValidationCardValidated">
           <span>Treasury validation</span>
-          <strong>CitePay reviewed the model</strong>
+          <strong>Builders reviewed the proof</strong>
           <p>
-            A CitePay builder reviewed Shadow Treasury and confirmed the core pattern: block agent payment overreach before
-            funds move, where the policy belongs.
+            CitePay confirmed the architecture fit. Forum checked the live Arc transactions and verified the core claim:
+            the same vault adapter entrypoint moved USDC when allowed, then moved zero USDC when over limit.
           </p>
           <a href="/api/treasury" target="_blank" rel="noreferrer">
             Open verifier output →
