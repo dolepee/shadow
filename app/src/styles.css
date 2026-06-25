@@ -2085,6 +2085,7 @@ input:focus-visible {
   margin: 0 auto;
   max-width: 1320px;
   min-height: 100vh;
+  overflow-x: clip;
   padding: 18px 32px 48px;
 }
 
@@ -2235,6 +2236,7 @@ input:focus-visible {
 
 .pageHead {
   isolation: isolate;
+  overflow: clip;
   padding: 58px 0 38px;
   position: relative;
 }
@@ -3141,9 +3143,316 @@ input:focus-visible {
   color: var(--ink);
 }
 
+.treasuryProofPanel {
+  background:
+    linear-gradient(180deg, rgba(15, 29, 49, 0.72), rgba(7, 17, 31, 0.78)),
+    rgba(7, 17, 31, 0.82);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  margin: 22px 0 0;
+  padding: 28px;
+}
+
+.treasuryProofHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+}
+
+.treasuryProofHeader h2 {
+  color: var(--ink);
+  font-size: clamp(30px, 4vw, 50px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin: 0;
+  max-width: 860px;
+}
+
+.treasuryProofHeader p:not(.eyebrow) {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.58;
+  margin: 14px 0 0;
+  max-width: 820px;
+}
+
+.treasuryProofStatus {
+  align-items: center;
+  border: 1px solid rgba(77, 240, 168, 0.32);
+  border-radius: 999px;
+  color: var(--copy);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  gap: 8px;
+  letter-spacing: 0.08em;
+  padding: 8px 10px;
+  text-transform: uppercase;
+}
+
+.treasuryProofStatusDot {
+  background: currentColor;
+  border-radius: 999px;
+  box-shadow: 0 0 12px currentColor;
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+}
+
+.treasuryMetricGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 24px;
+}
+
+.treasuryMetric {
+  background: rgba(7, 17, 31, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  min-height: 96px;
+  padding: 15px;
+}
+
+.treasuryMetric span {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+}
+
+.treasuryMetric strong {
+  color: var(--ink);
+  display: block;
+  font-family: var(--mono);
+  font-size: clamp(22px, 3vw, 34px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.treasuryMetric.allow strong {
+  color: var(--copy);
+}
+
+.treasuryMetric.block strong {
+  color: var(--warn);
+}
+
+.treasuryProofLayout {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.7fr);
+  margin-top: 22px;
+}
+
+.treasuryTimeline {
+  display: grid;
+  gap: 12px;
+}
+
+.treasuryStep {
+  background:
+    linear-gradient(135deg, rgba(184, 211, 255, 0.04), rgba(52, 229, 255, 0.014)),
+    rgba(7, 17, 31, 0.66);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  padding: 16px;
+}
+
+.treasuryStep.live,
+.treasuryStep.proven {
+  border-color: rgba(77, 240, 168, 0.28);
+}
+
+.treasuryStepIndex {
+  align-items: center;
+  background: rgba(77, 240, 168, 0.08);
+  border: 1px solid rgba(77, 240, 168, 0.22);
+  border-radius: 10px;
+  color: var(--copy);
+  display: inline-flex;
+  font-family: var(--mono);
+  font-size: 14px;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.treasuryStepBody {
+  min-width: 0;
+}
+
+.treasuryStepMeta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.treasuryStepMeta span,
+.treasuryStepMeta code {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+
+.treasuryStep.live .treasuryStepMeta span,
+.treasuryStep.proven .treasuryStepMeta span {
+  border-color: rgba(77, 240, 168, 0.25);
+  color: var(--copy);
+}
+
+.treasuryStepBody strong {
+  color: var(--ink);
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.treasuryStepBody p {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 8px 0 0;
+}
+
+.treasuryStepFooter {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-top: 12px;
+}
+
+.treasuryStepFooter > span {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.treasuryStepLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.treasuryStepLinks a {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  padding: 6px 8px;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.treasuryStepLinks a:hover {
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+
+.treasuryContractStack {
+  align-self: start;
+  background: rgba(7, 17, 31, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.treasuryContractStack div {
+  align-items: center;
+  background: rgba(11, 23, 40, 0.58);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 14px;
+}
+
+.treasuryContractStack span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.treasuryContractStack code,
+.treasuryContractStack a {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  text-align: right;
+  text-decoration: none;
+}
+
+.treasuryContractStack a:hover {
+  color: var(--copy);
+}
+
+.treasuryBoundary {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 16px;
+}
+
+.treasuryBoundary span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  padding: 7px 10px;
+}
+
+.treasuryBoundary code {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
 @media (max-width: 1080px) and (min-width: 721px) {
   .homeProofGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .treasuryMetricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .treasuryProofLayout {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -3228,6 +3537,52 @@ input:focus-visible {
 
   .homeProofCard strong {
     font-size: 34px;
+  }
+
+  .treasuryProofPanel {
+    border-radius: 16px;
+    padding: 20px 18px;
+  }
+
+  .treasuryProofHeader {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .treasuryProofHeader h2 {
+    font-size: 30px;
+    line-height: 1.06;
+  }
+
+  .treasuryMetricGrid,
+  .treasuryProofLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .treasuryMetric {
+    min-height: auto;
+  }
+
+  .treasuryStep {
+    grid-template-columns: 36px minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .treasuryStepIndex {
+    border-radius: 9px;
+    height: 36px;
+    width: 36px;
+  }
+
+  .treasuryContractStack div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .treasuryContractStack code,
+  .treasuryContractStack a {
+    text-align: left;
   }
 }
 

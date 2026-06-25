@@ -24,6 +24,8 @@
     "float:external-spend": "node app/scripts/float-external-spend.mjs",
     "float:verify-live": "node app/scripts/float-verify-live.mjs",
     "float:loop": "node app/scripts/float-loop.mjs",
+    "treasury:spike": "node app/scripts/treasury-operator-spike.mjs",
+    "treasury:verify-live": "node app/scripts/treasury-verify-live.mjs",
     "extract:addresses": "node scripts/extract-addresses.mjs"
   }
 }

@@ -1,10 +1,31 @@
 # Shadow
 
-**Shadow Float lets an autonomous agent buy an x402 service before its own wallet is funded.**
+**Shadow Treasury runs an autonomous operator that pays and allocates Arc USDC inside bounded, bonded, verifiable rules.**
 
-Shadow fronts real Arc USDC from the Float treasury, verifies the x402 USDC settlement in the operator script, binds that settlement hash into an onchain receipt, opens debt against the agent's spending line, blocks unsafe spends before treasury funds move, and lets repayment restore capacity.
+The current product frame combines two live rails. **Float** fronts approved x402 provider payments, records debt, accrues a fee, blocks unsafe spends, and restores capacity on repayment. **M1 mandates** gate vault-style allocations through a bonded enforcer before USDC moves. The Treasury proof is self-operated today; external Float signed usage is live and verifiable.
 
-Live proof: https://shadow-arc.vercel.app/float
+Live proof: https://shadow-arc.vercel.app/treasury
+
+## Live Treasury Proof
+
+| Surface | What to check |
+| --- | --- |
+| Treasury page | https://shadow-arc.vercel.app/treasury |
+| Combined verifier | `npm run treasury:verify-live` |
+| Float contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
+| Mandate registry | `0x394b6955162ce147e813e0eea6104cd1164e3d33` |
+| Bonded enforcer | `0x05a11588155c6bde55bb7b3986f200ca556b23cc` |
+| Morpho-style adapter | `0x805db94a0b94c0d937063291ddaafb41690f5dee` |
+
+The live Treasury verifier checks that one operator:
+
+1. Paid an x402 provider through Float and bound the settlement onchain.
+2. Opened fee-inclusive Float debt for that provider payment.
+3. Allocated `0.1` Arc testnet USDC through the M1 vault adapter after an `ALLOW` receipt.
+4. Attempted a `0.3` USDC over-limit allocation that emitted `BLOCK / AMOUNT_TOO_HIGH` without moving vault funds.
+5. Left both rails verifiable without private keys.
+
+This is the honest boundary: **external Float usage is live; external Treasury buyer validation is still in progress.**
 
 ## Live Float Proof
 
@@ -18,7 +39,7 @@ Live proof: https://shadow-arc.vercel.app/float
 
 The live API exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The verifier command independently checks the live contract, receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys.
 
-## Economic Loop
+## Float Economic Loop
 
 1. An agent has a behavior-backed spending line but does not need to pre-fund the x402 call.
 2. The x402 provider requires USDC.
@@ -56,11 +77,13 @@ What is not claimed yet:
 
 ## Treasury Economics and Mainnet Roadmap
 
-The live testnet proves the mechanics, not meaningful revenue. At mainnet scale, the Float treasury should be funded by operators or liquidity providers who reserve capital against total available capacity, with line grants capped by treasury reserves and reduced or frozen after defaults. Each approved draw can accrue a small fee into the agent's debt; repayments return principal plus fee, creating the sustainability loop for treasury capital and default reserves. The mainnet need is budget timing: an autonomous agent may need to buy data, compute, or API access before its own wallet is topped up, while still staying inside a bounded, revocable policy line instead of hot-prefunding every agent wallet.
+The live testnet proves mechanics, not meaningful revenue. At mainnet scale, Shadow Treasury should be funded by operators, protocols, or liquidity providers who reserve capital against total available capacity and mandate budgets. Float draws can accrue a small fee into the agent's debt; mandate execution can later add a managed-volume fee once that rail is explicitly built. Repayments return principal plus Float fee, creating the sustainability loop for treasury capital and default reserves.
+
+The mainnet need is capital delegation. A protocol or business should be able to let an agent pay providers and allocate USDC without hot-funding an unconstrained agent wallet. The current proof shows the rails; the next validation step is an external treasury owner using those rails under its own policy.
 
 ## Prior Shadow Foundation
 
-Built on Shadow's proven receipt-and-policy primitive: the earlier copy-capital system settled **2,893 onchain receipts across 30 follower wallets**. Float is the focused product.
+Built on Shadow's proven receipt-and-policy primitive: the earlier copy-capital system settled **2,893 onchain receipts across 30 follower wallets**. Float is the payment rail; M1 is the allocation rail; Treasury is the focused product frame.
 
 Live app: https://shadow-arc.vercel.app
 
@@ -91,9 +114,10 @@ npm run app:typecheck
 npm run app:build
 npm run agent:typecheck
 npm run float:verify-live
+npm run treasury:verify-live
 ```
 
-The app and Float proof can be reviewed without private keys at https://shadow-arc.vercel.app. `npm run float:verify-live` is read-only and uses the public Arc RPC by default. `npm run verify:slippage` is an optional live-write verifier for the older copy-capital rail and requires `ARC_RPC_URL` plus the deployment/operator environment.
+The app, Float proof, and Treasury proof can be reviewed without private keys at https://shadow-arc.vercel.app. `npm run float:verify-live` and `npm run treasury:verify-live` are read-only and use the public Arc RPC by default. `npm run verify:slippage` is an optional live-write verifier for the older copy-capital rail and requires `ARC_RPC_URL` plus the deployment/operator environment.
 
 ## Historical Copy-Capital Archive
 

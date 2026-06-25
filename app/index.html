@@ -12,19 +12,19 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
     />
-    <title>Shadow Float: behavior-backed USDC spending lines for agents on Arc</title>
+    <title>Shadow Treasury: autonomous USDC payments and allocations on Arc</title>
     <meta
       name="description"
-      content="Shadow Float lets autonomous agents spend before they are funded. Verified behavior earns a bounded USDC spending line, x402 provider payments are bound onchain, and overspends are blocked before capital moves."
+      content="Shadow Treasury combines Float x402 payments and bonded M1 mandates so an autonomous operator can pay providers, allocate Arc USDC, and get blocked before funds move."
     />
     <link rel="canonical" href="https://shadow-arc.vercel.app/" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Shadow" />
-    <meta property="og:title" content="Shadow Float: behavior-backed USDC spending lines for agents on Arc" />
+    <meta property="og:title" content="Shadow Treasury: autonomous USDC payments and allocations on Arc" />
     <meta
       property="og:description"
-      content="Agents can buy approved x402 resources before they are funded. Shadow enforces the mandate, opens debt receipts, and blocks overreach before USDC moves."
+      content="Float pays x402 providers. M1 mandates gate allocations. Every allow, block, debt, and fee is verifiable on Arc testnet."
     />
     <meta property="og:url" content="https://shadow-arc.vercel.app/" />
     <meta property="og:image" content="https://shadow-arc.vercel.app/og-shadow-float.png" />
@@ -32,10 +32,10 @@
     <meta property="og:image:height" content="675" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Shadow Float: behavior-backed USDC spending lines for agents on Arc" />
+    <meta name="twitter:title" content="Shadow Treasury: autonomous USDC payments and allocations on Arc" />
     <meta
       name="twitter:description"
-      content="Verified agent behavior becomes spendable USDC. x402 payments, debt receipts, and overreach blocks are all visible on Arc."
+      content="One operator pays through Float, allocates through M1, and is blocked on overreach. The proof is live on Arc."
     />
     <meta name="twitter:image" content="https://shadow-arc.vercel.app/og-shadow-float.png" />
 
@@ -46,8 +46,8 @@
         "name": "Shadow",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
-        "description": "Behavior-backed USDC spending lines for autonomous agents on Arc. x402 provider payments are bound onchain, while over-limit spends are blocked before capital moves.",
-        "url": "https://shadow-arc.vercel.app/float",
+        "description": "Autonomous USDC payments and allocations on Arc, bounded by Float spending lines and bonded M1 mandates.",
+        "url": "https://shadow-arc.vercel.app/treasury",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
     </script>
@@ -62,38 +62,39 @@
       </noscript>
       <main data-prerender="shell" style="font-family:'Bricolage Grotesque',system-ui,sans-serif;max-width:860px;margin:48px auto;padding:24px;color:#f3f7ff;background:#07111f;border:1px solid rgba(184,211,255,.14);border-radius:22px">
         <header>
-          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow Float · live on Arc testnet</p>
-          <h1 style="font-size:40px;margin:0 0 12px;line-height:1.05;letter-spacing:0">Float for agents. Spend before you're funded. Every draw a verifiable receipt.</h1>
+          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow Treasury · Float rail live on Arc</p>
+          <h1 style="font-size:40px;margin:0 0 12px;line-height:1.05;letter-spacing:0">Agent treasury on Arc. Float pays providers. Mandates stop overreach.</h1>
           <p style="font-size:17px;line-height:1.55;color:#c0cce0;margin:0 0 18px">
-            Shadow Float gives trusted agents a behavior-backed USDC spending line, so they buy approved x402 resources before their own wallet is funded. The line blocks oversized spends before any treasury USDC moves, and every draw, block, and repayment is a verifiable Arc receipt.
+            Shadow combines Float x402 payments and bonded M1 mandate allocations. The current Treasury proof is self-operated: one operator pays a provider, allocates USDC into a vault sink, and gets blocked on an over-limit allocation.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:0 0 4px">
-            The judged product is <strong>Shadow Float</strong>: signed external spend intents, x402 settlement evidence, debt receipts, repayment, and over-limit blocks are all visible on Arc testnet.
+            Float remains the payment and credit rail: signed external spend intents, x402 settlement evidence, debt receipts, repayment, and over-limit blocks are all visible on Arc testnet.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:8px 0 0">
-            The old mandate and mirror surfaces remain historical proof, but the first path is Float.
+            External Float usage is live; external Treasury buyer validation is still in progress.
           </p>
         </header>
         <section>
           <h2 style="font-size:18px;margin:28px 0 8px">What the app proves</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#d5e5fb">
-            <li><strong>Signed external draw</strong> · an outside agent authorizes a Float spend intent</li>
-            <li><strong>x402 settlement</strong> · the facilitator pays the provider in Arc USDC</li>
-            <li><strong>Debt receipt</strong> · Float opens debt and updates available capacity</li>
-            <li><strong>Overreach block</strong> · unsafe spends are refused before treasury funds move</li>
+            <li><strong>Float payment</strong> · the operator fronts an x402 provider payment in Arc USDC</li>
+            <li><strong>M1 allocation</strong> · a vault-style deposit moves only after an ALLOW receipt</li>
+            <li><strong>Overreach block</strong> · an oversized allocation is refused before funds move</li>
+            <li><strong>No-secret verifier</strong> · Float and M1 proof are checked with one read-only command</li>
           </ul>
           <p style="font-size:14px;color:#8fb4d9;margin:8px 0 0">The full interactive proof loads when JavaScript starts.</p>
         </section>
         <section>
           <h2 style="font-size:18px;margin:28px 0 8px">Verification</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#d5e5fb">
-            <li>· <strong style="color:#4df0a8">/float</strong> shows the proof runway and standing board</li>
+            <li>· <strong style="color:#4df0a8">/treasury</strong> shows the combined Treasury proof</li>
+            <li>· <strong style="color:#4df0a8">/float</strong> shows the Float runway and standing board</li>
             <li>· <strong style="color:#4df0a8">/api/float</strong> exposes proof checks and receipt data</li>
-            <li>· <strong style="color:#ff5f7e">npm run float:verify-live</strong> verifies the live loop without secrets</li>
+            <li>· <strong style="color:#ff5f7e">npm run treasury:verify-live</strong> verifies both rails without secrets</li>
           </ul>
         </section>
         <footer style="margin-top:32px;border-top:1px solid rgba(184,211,255,.14);padding-top:16px;font-size:13px;color:#8fb4d9">
-          Live deployment on Arc testnet · chain id 5042002 · loading interactive Shadow Float surface...
+          Live deployment on Arc testnet · chain id 5042002 · loading interactive Shadow Treasury surface...
         </footer>
       </main>
     </div>

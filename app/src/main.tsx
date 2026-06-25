@@ -373,6 +373,32 @@ type FloatState = {
   error?: string;
 };
 
+const TREASURY_PROOF = {
+  operator: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
+  float: "0xF305647bA0ff7f1E2d4bE5f37F2EF9f930531057" as Address,
+  mandateRegistry: "0x394B6955162cE147e813E0eea6104cD1164e3d33" as Address,
+  mandateAttestor: "0x440EF290d63174182C6115B4356727e0AC136d48" as Address,
+  bondedEnforcer: "0x05a11588155c6bdE55BB7B3986f200ca556b23cc" as Address,
+  morphoAdapter: "0x805Db94a0b94C0D937063291dDAafB41690f5DEE" as Address,
+  vaultSink: "0x0e157AEAFFbEbe59BeCB7B93007015a06c5DEc90" as Address,
+  amountAllocatedUSDC: "100000",
+  amountBlockedUSDC: "300000",
+  amountX402USDC: "1000",
+  feeUSDC: "10",
+  txs: {
+    createMandate: "0x99c2c1efa8f81c1dbca63ea1c2bec18c8b223e03caa62e7d9f7eb1bd8d140cc2" as Hash,
+    allocation: "0x32c63c43b30f9567800275be2c39538fee5c0ec60d29456c8a66b4c0ae2e8b73" as Hash,
+    blocked: "0x92222fda0b93b12e3b834bafd737730ba907ec36fe85c5ddbd5a997364ba179f" as Hash,
+    x402Settlement: "0x53c88f43303136ba06534f76e99dc6479157d14ad701a600e5da91fd4d9aa5c5" as Hash,
+    floatBind: "0x79921c6f2bac709c42a7db5c654f2d0f55fe9aa83255158fe52877d38cafce6d" as Hash,
+  },
+  hashes: {
+    floatRequest: "0x7bd6fe10fcc7e230abf04cd3874684824fa783e89d97801abb3dad0cba2dce45",
+    allowedAction: "0xb4b62260d18e902b7821049c4997a797e558f1a6d7884cfd230da2834f25813b",
+    blockedAction: "0x20c95660fb24342944c59b114001484006dcb6a1adee5de609fa1f74b8db9d86",
+  },
+};
+
 function App() {
   const [state, setState] = useState<ShadowState | null>(null);
   const [loading, setLoading] = useState(false);
@@ -993,22 +1019,22 @@ function App() {
           <div className="heroCopy">
             <div className="heroBadge">
               <span className="heroBadgeDot" />
-              Shadow Float · live on Arc testnet
+              Shadow Treasury · Float rail live on Arc
             </div>
-            <h1>Float for agents. Spend before you&apos;re funded. Every draw a verifiable receipt.</h1>
+            <h1>Agent treasury on Arc. Float pays providers. Mandates stop overreach.</h1>
             <p className="lede">
-              Shadow Float gives trusted agents a behavior-backed USDC spending line, so they buy approved x402 resources
-              before their own wallet is funded. The line blocks oversized spends before any treasury USDC moves, and every
-              draw, block, and repayment is a verifiable Arc receipt.
+              Shadow runs an autonomous operator that pays x402 providers through Float and allocates USDC through bonded
+              mandates. Float remains the credit rail; M1 is the allocation rail. The current Treasury proof is self-operated,
+              while external Float usage is already signed and verifiable.
             </p>
             <div className="heroActions">
-              <Link to="/float" className="heroCtaPrimary">
-                Open Shadow Float
+              <Link to="/treasury" className="heroCtaPrimary">
+                Open Shadow Treasury
                 <span className="heroCtaArrow">→</span>
               </Link>
-              <a className="heroCtaSecondary" href="/api/float" target="_blank" rel="noreferrer">
-                Verify live API
-              </a>
+              <Link className="heroCtaSecondary" to="/float">
+                Open Float rail
+              </Link>
             </div>
             <ul className="heroTrust" aria-label="Built on">
               <li><span className="heroTrustDot heroTrustDot--signal" />Arc testnet</li>
@@ -1028,9 +1054,14 @@ function App() {
       <HomeProofOverview state={floatState} loading={floatLoading} error={floatError} />
 
       <section className="pageNext" aria-label="Shadow Float verification paths">
-        <Link to="/float" className="pageNextCard pageNextCardPrimary">
+        <Link to="/treasury" className="pageNextCard pageNextCardPrimary">
           <span className="pageNextEyebrow">product</span>
-          <span className="pageNextTitle">Walk the Float loop from signed intent to debt receipt</span>
+          <span className="pageNextTitle">Watch one operator pay, allocate, and get blocked on Arc</span>
+          <span className="pageNextArrow">→</span>
+        </Link>
+        <Link to="/float" className="pageNextCard">
+          <span className="pageNextEyebrow">float rail</span>
+          <span className="pageNextTitle">Walk the signed x402 spend, debt, and repay loop</span>
           <span className="pageNextArrow">→</span>
         </Link>
         <Link to="/proof" className="pageNextCard">
@@ -1038,14 +1069,9 @@ function App() {
           <span className="pageNextTitle">Check receipts, reserves, proof links, and external signed draws</span>
           <span className="pageNextArrow">→</span>
         </Link>
-        <Link to="/builders" className="pageNextCard">
-          <span className="pageNextEyebrow">builders</span>
-          <span className="pageNextTitle">Give another buyer agent a line without hot-funding it first</span>
-          <span className="pageNextArrow">→</span>
-        </Link>
         <Link to="/roadmap" className="pageNextCard">
           <span className="pageNextEyebrow">roadmap</span>
-          <span className="pageNextTitle">Gateway-batched x402, independent providers, and mainnet reserves</span>
+          <span className="pageNextTitle">External Treasury users, Gateway-batched x402, and mainnet reserves</span>
           <span className="pageNextArrow">→</span>
         </Link>
       </section>
@@ -1198,6 +1224,40 @@ function App() {
     </>
   );
 
+  const treasuryPage = (
+    <>
+      <section className="pageHead">
+        <p className="pageEyebrow">treasury · Float plus M1</p>
+        <h1 className="pageTitle">One agent pays and allocates under rules it cannot break.</h1>
+        <p className="pageLede">
+          Shadow Treasury is the combined product frame: Float fronts approved x402 payments, while M1 gates vault-style
+          allocations before USDC moves. The current proof is self-operated and live on Arc; external Treasury validation is
+          still in progress.
+        </p>
+      </section>
+      <TreasuryProofPanel floatState={floatState} leptonState={leptonState} />
+      <section className="productPageGrid" aria-label="Shadow Treasury rails">
+        <article className="productInfoCard primary">
+          <span>payment rail</span>
+          <strong>Float pays x402 providers</strong>
+          <p>Signed agents can spend before prefunding, with debt, fee, repayment, and overspend receipts on Arc.</p>
+        </article>
+        <article className="productInfoCard">
+          <span>allocation rail</span>
+          <strong>M1 gates vault-style deposits</strong>
+          <p>The bonded enforcer records ALLOW or BLOCK before USDC moves into the vault sink.</p>
+        </article>
+        <article className="productInfoCard">
+          <span>honest boundary</span>
+          <strong>External Treasury buyer is next</strong>
+          <p>External Float usage is live; the wider Treasury operator currently has self-operated receipts only.</p>
+        </article>
+      </section>
+      <FloatPanel state={floatState} loading={floatLoading} error={floatError} compact />
+      <LeptonM1Panel state={leptonState} loading={leptonLoading} error={leptonError} compact />
+    </>
+  );
+
   const floatPage = (
     <>
       <FloatPanel state={floatState} loading={floatLoading} error={floatError} />
@@ -1229,6 +1289,11 @@ function App() {
           <span>repo verifier</span>
           <strong>npm run float:verify-live</strong>
           <p>Read-only command that checks the live Float deployment with no private keys.</p>
+        </a>
+        <a className="productInfoCard" href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
+          <span>treasury verifier</span>
+          <strong>npm run treasury:verify-live</strong>
+          <p>Read-only command that checks the combined Float payment and M1 allocation proof.</p>
         </a>
         {floatState?.float && (
           <a className="productInfoCard" href={`https://testnet.arcscan.app/address/${floatState.float}`} target="_blank" rel="noreferrer">
@@ -1383,6 +1448,9 @@ function App() {
           <NavLink end to="/" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Home
           </NavLink>
+          <NavLink to="/treasury" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+            Treasury
+          </NavLink>
           <NavLink to="/float" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Float
           </NavLink>
@@ -1406,8 +1474,8 @@ function App() {
             <span className="navWalletDot" />
             {account ? shortAddress(account) : "Wallet"}
           </button>
-          <Link to="/proof" className="navCta">
-            Verify Float
+          <Link to="/treasury" className="navCta">
+            Open Treasury
           </Link>
         </div>
       </nav>
@@ -1420,6 +1488,7 @@ function App() {
         <Route path="/follow" element={followPage} />
         <Route path="/receipts" element={receiptsPage} />
         <Route path="/lepton" element={leptonPage} />
+        <Route path="/treasury" element={treasuryPage} />
         <Route path="/float" element={floatPage} />
         <Route path="/proof" element={proofPage} />
         <Route path="/builders" element={buildersPage} />
@@ -1448,6 +1517,180 @@ function RouteScroll() {
     }
   }, [pathname, hash]);
   return null;
+}
+
+function TreasuryProofPanel({
+  floatState,
+  leptonState,
+}: {
+  floatState: FloatState | null;
+  leptonState: LeptonState | null;
+}) {
+  const indexedFloatReceipt = Boolean(
+    floatState?.receipts?.some(
+      (receipt) => receipt.requestHash?.toLowerCase() === TREASURY_PROOF.hashes.floatRequest.toLowerCase(),
+    ),
+  );
+  const m1HasVaultProof = Boolean(leptonState?.morphoDepositedUSDC && leptonState.morphoDepositedUSDC > 0n);
+  const m1HasBlockProof = Boolean(leptonState?.morphoBlockedUSDC && leptonState.morphoBlockedUSDC > 0n);
+  const proofRows = [
+    {
+      status: indexedFloatReceipt ? "live" : "verifier",
+      title: "Float paid the x402 provider",
+      amount: TREASURY_PROOF.amountX402USDC,
+      receipt: "SPEND_ALLOWED + X402PaymentBound",
+      meaning: "The operator fronted Arc USDC to the provider, then bound the settlement into Float debt.",
+      links: [
+        { label: "settlement", href: txUrl(TREASURY_PROOF.txs.x402Settlement) },
+        { label: "bind", href: txUrl(TREASURY_PROOF.txs.floatBind) },
+        { label: "verify", href: `/api/float-tools?action=verify&hash=${TREASURY_PROOF.hashes.floatRequest}` },
+      ],
+    },
+    {
+      status: m1HasVaultProof ? "live" : "verifier",
+      title: "M1 allocated USDC into a vault sink",
+      amount: TREASURY_PROOF.amountAllocatedUSDC,
+      receipt: "ALLOW",
+      meaning: "The bonded mandate rail allowed a vault-style allocation only after policy checks passed.",
+      links: [{ label: "allocation", href: txUrl(TREASURY_PROOF.txs.allocation) }],
+    },
+    {
+      status: m1HasBlockProof ? "live" : "verifier",
+      title: "M1 blocked an oversized allocation",
+      amount: TREASURY_PROOF.amountBlockedUSDC,
+      receipt: "BLOCK / AMOUNT_TOO_HIGH",
+      meaning: "The same mandate refused an over-limit allocation before vault USDC moved.",
+      links: [{ label: "block", href: txUrl(TREASURY_PROOF.txs.blocked) }],
+    },
+    {
+      status: "proven",
+      title: "No-secret verifier checks both rails",
+      amount: `${formatFloatUSDC(TREASURY_PROOF.feeUSDC)} fee`,
+      receipt: "npm run treasury:verify-live",
+      meaning: "The verifier checks the payment tx, bind event, vault movement, blocked no-move path, debt, and fee.",
+      links: [{ label: "repo", href: "https://github.com/dolepee/shadow" }],
+    },
+  ];
+
+  return (
+    <section className="treasuryProofPanel" aria-label="Shadow Treasury live proof">
+      <div className="treasuryProofHeader">
+        <div>
+          <p className="eyebrow">live Treasury gate · self-operated</p>
+          <h2>One operator paid a provider, allocated to a vault, then got blocked on overreach.</h2>
+          <p>
+            This does not replace Float. Float is the payment and credit rail; M1 is the bonded allocation rail. The proof
+            below shows the combined product frame without claiming an external Treasury buyer yet.
+          </p>
+        </div>
+        <div className="treasuryProofStatus">
+          <span className="treasuryProofStatusDot" />
+          gate green
+        </div>
+      </div>
+
+      <div className="treasuryMetricGrid" aria-label="Treasury proof amounts">
+        <TreasuryMetric label="x402 paid" value={`${formatFloatUSDC(TREASURY_PROOF.amountX402USDC)} USDC`} tone="allow" />
+        <TreasuryMetric label="vault allocated" value={`${formatFloatUSDC(TREASURY_PROOF.amountAllocatedUSDC)} USDC`} tone="allow" />
+        <TreasuryMetric label="blocked attempt" value={`${formatFloatUSDC(TREASURY_PROOF.amountBlockedUSDC)} USDC`} tone="block" />
+        <TreasuryMetric label="Float fee" value={`${formatFloatUSDC(TREASURY_PROOF.feeUSDC)} USDC`} />
+      </div>
+
+      <div className="treasuryProofLayout">
+        <div className="treasuryTimeline">
+          {proofRows.map((row, index) => (
+            <article className={`treasuryStep ${row.status}`} key={row.title}>
+              <div className="treasuryStepIndex">{index + 1}</div>
+              <div className="treasuryStepBody">
+                <div className="treasuryStepMeta">
+                  <span>{row.status}</span>
+                  <code>{row.receipt}</code>
+                </div>
+                <strong>{row.title}</strong>
+                <p>{row.meaning}</p>
+                <div className="treasuryStepFooter">
+                  <span>{row.amount.includes("fee") ? row.amount : `${formatFloatUSDC(row.amount)} USDC`}</span>
+                  <div className="treasuryStepLinks">
+                    {row.links.map((link) =>
+                      link.href.startsWith("http") || link.href.startsWith("/api") ? (
+                        <a key={link.label} href={link.href} target="_blank" rel="noreferrer">
+                          {link.label}
+                        </a>
+                      ) : (
+                        <Link key={link.label} to={link.href}>
+                          {link.label}
+                        </Link>
+                      ),
+                    )}
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <aside className="treasuryContractStack" aria-label="Contracts used in the Treasury proof">
+          <div>
+            <span>operator</span>
+            <code>{shortAddress(TREASURY_PROOF.operator)}</code>
+          </div>
+          <div>
+            <span>Float</span>
+            <a href={`https://testnet.arcscan.app/address/${TREASURY_PROOF.float}`} target="_blank" rel="noreferrer">
+              {shortAddress(TREASURY_PROOF.float)}
+            </a>
+          </div>
+          <div>
+            <span>MandateRegistry</span>
+            <a href={`https://testnet.arcscan.app/address/${TREASURY_PROOF.mandateRegistry}`} target="_blank" rel="noreferrer">
+              {shortAddress(TREASURY_PROOF.mandateRegistry)}
+            </a>
+          </div>
+          <div>
+            <span>BondedEnforcer</span>
+            <a href={`https://testnet.arcscan.app/address/${TREASURY_PROOF.bondedEnforcer}`} target="_blank" rel="noreferrer">
+              {shortAddress(TREASURY_PROOF.bondedEnforcer)}
+            </a>
+          </div>
+          <div>
+            <span>Morpho-style adapter</span>
+            <a href={`https://testnet.arcscan.app/address/${TREASURY_PROOF.morphoAdapter}`} target="_blank" rel="noreferrer">
+              {shortAddress(TREASURY_PROOF.morphoAdapter)}
+            </a>
+          </div>
+          <div>
+            <span>vault sink</span>
+            <a href={`https://testnet.arcscan.app/address/${TREASURY_PROOF.vaultSink}`} target="_blank" rel="noreferrer">
+              {shortAddress(TREASURY_PROOF.vaultSink)}
+            </a>
+          </div>
+        </aside>
+      </div>
+
+      <div className="treasuryBoundary">
+        <span>External Float signed usage is live.</span>
+        <span>External Treasury buyer validation is still in progress.</span>
+        <span>Run <code>npm run treasury:verify-live</code> to check the combined proof.</span>
+      </div>
+    </section>
+  );
+}
+
+function TreasuryMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "allow" | "block";
+}) {
+  return (
+    <article className={`treasuryMetric${tone ? ` ${tone}` : ""}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </article>
+  );
 }
 
 function FloatPanel({
@@ -3938,6 +4181,7 @@ function SiteFooter() {
       title: "Product",
       links: [
         { label: "Home", href: "/" },
+        { label: "Shadow Treasury", href: "/treasury" },
         { label: "Shadow Float", href: "/float" },
         { label: "Roadmap", href: "/roadmap" },
       ],
@@ -3977,7 +4221,7 @@ function SiteFooter() {
             <span>Shadow</span>
           </Link>
           <p className="siteFooterTagline">
-            Behavior-backed USDC spending lines for autonomous agents on Arc.
+            Autonomous USDC payments and allocations on Arc, bounded by Float lines and bonded mandates.
           </p>
           <div className="siteFooterBadge">
             <span className="heroBadgeDot" />
@@ -4008,7 +4252,7 @@ function SiteFooter() {
       </div>
       <div className="siteFooterBottom">
         <span>Built for Canteen × Circle Lepton · 2026</span>
-        <span>Shadow Float · spend before funded</span>
+        <span>Shadow Treasury · Float remains the payment rail</span>
       </div>
     </footer>
   );
