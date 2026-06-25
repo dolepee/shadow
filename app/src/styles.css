@@ -3325,11 +3325,17 @@ input:focus-visible {
   line-height: 1.1;
 }
 
-.treasuryFlowBranch small {
+.treasuryFlowBranch small,
+.treasuryFlowBranch a {
   color: var(--ink-soft);
   font-family: var(--mono);
   font-size: 11px;
   overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.treasuryFlowBranch a:hover {
+  color: var(--copy);
 }
 
 .treasuryHeroStats {
@@ -3380,10 +3386,86 @@ input:focus-visible {
 }
 
 .treasuryRailSection,
+.treasuryEvidenceStrip,
 .treasuryJudgePath,
 .treasuryLiveVerifier,
+.treasuryReceiptStructure,
 .treasuryValidationSection {
   margin: 28px 0 0;
+}
+
+.treasuryEvidenceStrip {
+  background:
+    linear-gradient(135deg, rgba(77, 240, 168, 0.06), rgba(52, 229, 255, 0.022)),
+    rgba(7, 17, 31, 0.76);
+  border: 1px solid rgba(77, 240, 168, 0.18);
+  border-radius: 18px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(260px, 0.68fr) minmax(0, 1fr) minmax(0, 1.12fr);
+  padding: 20px;
+}
+
+.treasuryEvidenceIntro {
+  min-width: 0;
+}
+
+.treasuryEvidenceIntro span,
+.treasuryEvidenceGroup span {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.treasuryEvidenceIntro strong {
+  color: var(--copy);
+  display: block;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.08;
+  margin-top: 8px;
+}
+
+.treasuryEvidenceIntro p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+
+.treasuryEvidenceGroup {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.treasuryEvidenceGroup a {
+  align-items: center;
+  background: rgba(7, 17, 31, 0.58);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 11px 12px;
+  text-decoration: none;
+}
+
+.treasuryEvidenceGroup a:hover {
+  border-color: var(--border-strong);
+}
+
+.treasuryEvidenceGroup code {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .treasurySectionHeader {
@@ -3914,6 +3996,75 @@ input:focus-visible {
   font-size: 11px;
 }
 
+.treasuryReceiptStructure {
+  background:
+    linear-gradient(180deg, rgba(15, 29, 49, 0.52), rgba(7, 17, 31, 0.72)),
+    rgba(7, 17, 31, 0.74);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.treasuryReceiptGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.treasuryReceiptCard {
+  background:
+    linear-gradient(135deg, rgba(184, 211, 255, 0.04), rgba(52, 229, 255, 0.012)),
+    rgba(7, 17, 31, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 260px;
+  padding: 18px;
+  text-decoration: none;
+}
+
+.treasuryReceiptCard:hover {
+  border-color: var(--border-strong);
+}
+
+.treasuryReceiptCard span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.treasuryReceiptCard strong {
+  color: var(--ink);
+  display: block;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.treasuryReceiptCard ul {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.treasuryReceiptCard li {
+  border-top: 1px solid var(--border);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  padding-top: 8px;
+}
+
 .treasuryLiveVerifier {
   background:
     linear-gradient(180deg, rgba(15, 29, 49, 0.56), rgba(7, 17, 31, 0.74)),
@@ -4107,7 +4258,9 @@ input:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .treasuryRailGrid {
+  .treasuryRailGrid,
+  .treasuryEvidenceStrip,
+  .treasuryReceiptGrid {
     grid-template-columns: 1fr;
   }
 
@@ -4283,8 +4436,10 @@ input:focus-visible {
   }
 
   .treasuryRailSection,
+  .treasuryEvidenceStrip,
   .treasuryJudgePath,
   .treasuryLiveVerifier,
+  .treasuryReceiptStructure,
   .treasuryValidationSection {
     margin-top: 22px;
   }
@@ -4301,10 +4456,28 @@ input:focus-visible {
   }
 
   .treasuryRailGrid,
+  .treasuryEvidenceStrip,
   .treasuryJudgeGrid,
+  .treasuryReceiptGrid,
   .treasuryValidationGrid,
   .treasuryValidationList {
     grid-template-columns: 1fr;
+  }
+
+  .treasuryEvidenceStrip,
+  .treasuryReceiptStructure {
+    border-radius: 16px;
+    padding: 18px;
+  }
+
+  .treasuryEvidenceGroup a {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .treasuryEvidenceGroup code {
+    text-align: left;
   }
 
   .treasuryRailCard {
@@ -4363,6 +4536,15 @@ input:focus-visible {
 
   .treasuryValidationCard strong {
     font-size: 22px;
+  }
+
+  .treasuryReceiptCard {
+    min-height: auto;
+    padding: 17px;
+  }
+
+  .treasuryReceiptCard strong {
+    font-size: 20px;
   }
 
   .treasuryProofPanel {

@@ -26,6 +26,17 @@ The live Treasury API and verifier check that one operator:
 4. Attempted a `0.3` USDC over-limit allocation that emitted `BLOCK / AMOUNT_TOO_HIGH` without moving vault funds.
 5. Left both rails verifiable without private keys. The live `/api/treasury` response currently returns 25 pass/fail checks for the same proof path.
 
+The proof anchors are intentionally direct:
+
+| Proof | Link |
+| --- | --- |
+| x402 settlement tx | `0x53c88f43303136ba06534f76e99dc6479157d14ad701a600e5da91fd4d9aa5c5` |
+| Float bind tx | `0x79921c6f2bac709c42a7db5c654f2d0f55fe9aa83255158fe52877d38cafce6d` |
+| Vault allocation tx | `0x32c63c43b30f9567800275be2c39538fee5c0ec60d29456c8a66b4c0ae2e8b73` |
+| Blocked allocation tx | `0x92222fda0b93b12e3b834bafd737730ba907ec36fe85c5ddbd5a997364ba179f` |
+
+The M1 receipt fields are not just labels. The allowed allocation receipt checks `decision = ALLOW`, `reason = NONE`, `amount = 0.1 USDC`, `actor = operator`, and `target = Morpho-style adapter`. The blocked allocation receipt checks `decision = BLOCK`, `reason = AMOUNT_TOO_HIGH`, `amount = 0.3 USDC`, and verifies that no vault USDC transfer occurred.
+
 This is the honest boundary: **external Float usage is live; external Treasury buyer validation is still in progress.**
 
 ## Live Float Proof

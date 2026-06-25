@@ -1284,8 +1284,10 @@ function App() {
   const treasuryPage = (
     <>
       <TreasuryHero floatState={floatState} treasuryState={treasuryState} />
+      <TreasuryEvidenceStrip treasuryState={treasuryState} />
       <TreasuryRailSplit floatState={floatState} leptonState={leptonState} />
       <TreasuryProofPanel floatState={floatState} leptonState={leptonState} treasuryState={treasuryState} />
+      <TreasuryReceiptStructurePanel />
       <TreasuryLiveVerifierPanel state={treasuryState} loading={treasuryLoading} error={treasuryError} />
       <TreasuryJudgePath />
       <TreasuryValidationPanel floatState={floatState} />
@@ -1609,17 +1611,23 @@ function TreasuryHero({ floatState, treasuryState }: {
         <div className="treasuryFlowBranch allow">
           <span>Float rail</span>
           <strong>Pays x402 provider</strong>
-          <small>{shortAddress(TREASURY_PROOF.txs.x402Settlement)}</small>
+          <a href={txUrl(TREASURY_PROOF.txs.x402Settlement)} target="_blank" rel="noreferrer">
+            {shortAddress(TREASURY_PROOF.txs.x402Settlement)}
+          </a>
         </div>
         <div className="treasuryFlowBranch allow">
           <span>M1 rail</span>
           <strong>Allocates to vault</strong>
-          <small>{shortAddress(TREASURY_PROOF.txs.allocation)}</small>
+          <a href={txUrl(TREASURY_PROOF.txs.allocation)} target="_blank" rel="noreferrer">
+            {shortAddress(TREASURY_PROOF.txs.allocation)}
+          </a>
         </div>
         <div className="treasuryFlowBranch block">
           <span>policy guard</span>
           <strong>Blocks overreach</strong>
-          <small>{shortAddress(TREASURY_PROOF.txs.blocked)}</small>
+          <a href={txUrl(TREASURY_PROOF.txs.blocked)} target="_blank" rel="noreferrer">
+            {shortAddress(TREASURY_PROOF.txs.blocked)}
+          </a>
         </div>
         <div className="treasuryFlowFooter">
           <span>combined verifier</span>
@@ -1634,6 +1642,65 @@ function TreasuryHero({ floatState, treasuryState }: {
             <strong>{stat.value}</strong>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function TreasuryEvidenceStrip({ treasuryState }: { treasuryState: TreasuryState | null }) {
+  const passed = treasuryState?.checks?.filter((check) => check.ok).length;
+  const total = treasuryState?.checks?.length;
+  const contractLinks = [
+    { label: "Float", value: TREASURY_PROOF.float, href: `https://testnet.arcscan.app/address/${TREASURY_PROOF.float}` },
+    {
+      label: "MandateRegistry",
+      value: TREASURY_PROOF.mandateRegistry,
+      href: `https://testnet.arcscan.app/address/${TREASURY_PROOF.mandateRegistry}`,
+    },
+    {
+      label: "BondedEnforcer",
+      value: TREASURY_PROOF.bondedEnforcer,
+      href: `https://testnet.arcscan.app/address/${TREASURY_PROOF.bondedEnforcer}`,
+    },
+    {
+      label: "Morpho adapter",
+      value: TREASURY_PROOF.morphoAdapter,
+      href: `https://testnet.arcscan.app/address/${TREASURY_PROOF.morphoAdapter}`,
+    },
+  ];
+  const txLinks = [
+    { label: "x402 settlement", value: TREASURY_PROOF.txs.x402Settlement, href: txUrl(TREASURY_PROOF.txs.x402Settlement) },
+    { label: "Float bind", value: TREASURY_PROOF.txs.floatBind, href: txUrl(TREASURY_PROOF.txs.floatBind) },
+    { label: "vault allocation", value: TREASURY_PROOF.txs.allocation, href: txUrl(TREASURY_PROOF.txs.allocation) },
+    { label: "blocked allocation", value: TREASURY_PROOF.txs.blocked, href: txUrl(TREASURY_PROOF.txs.blocked) },
+  ];
+
+  return (
+    <section className="treasuryEvidenceStrip" aria-label="Shadow Treasury onchain evidence">
+      <div className="treasuryEvidenceIntro">
+        <span>onchain evidence</span>
+        <strong>{treasuryState?.ok ? `${passed}/${total} live checks pass` : "contracts and txs visible"}</strong>
+        <p>Contract addresses, ArcScan transactions, and verifier JSON are visible before any narrative section.</p>
+      </div>
+      <div className="treasuryEvidenceGroup" aria-label="Treasury contracts">
+        {contractLinks.map((item) => (
+          <a href={item.href} target="_blank" rel="noreferrer" key={item.label}>
+            <span>{item.label}</span>
+            <code>{shortAddress(item.value)}</code>
+          </a>
+        ))}
+      </div>
+      <div className="treasuryEvidenceGroup" aria-label="Treasury proof transactions">
+        {txLinks.map((item) => (
+          <a href={item.href} target="_blank" rel="noreferrer" key={item.label}>
+            <span>{item.label}</span>
+            <code>{shortAddress(item.value)}</code>
+          </a>
+        ))}
+        <a href="/api/treasury" target="_blank" rel="noreferrer">
+          <span>verifier JSON</span>
+          <code>/api/treasury</code>
+        </a>
       </div>
     </section>
   );
@@ -1863,6 +1930,70 @@ function TreasuryProofPanel({
         <span>
           API and CLI both check the combined proof: <code>/api/treasury</code> and <code>npm run treasury:verify-live</code>.
         </span>
+      </div>
+    </section>
+  );
+}
+
+function TreasuryReceiptStructurePanel() {
+  const receipts = [
+    {
+      title: "ALLOW receipt",
+      subtitle: "vault allocation",
+      href: txUrl(TREASURY_PROOF.txs.allocation),
+      fields: [
+        "decision = ALLOW",
+        "reason = NONE",
+        `amount = ${formatFloatUSDC(TREASURY_PROOF.amountAllocatedUSDC)} USDC`,
+        `actor = ${shortAddress(TREASURY_PROOF.operator)}`,
+        `target = ${shortAddress(TREASURY_PROOF.morphoAdapter)}`,
+        `actionHash = ${shortAddress(TREASURY_PROOF.hashes.allowedAction as Hash)}`,
+      ],
+    },
+    {
+      title: "BLOCK receipt",
+      subtitle: "over-limit allocation",
+      href: txUrl(TREASURY_PROOF.txs.blocked),
+      fields: [
+        "decision = BLOCK",
+        "reason = AMOUNT_TOO_HIGH",
+        `amount = ${formatFloatUSDC(TREASURY_PROOF.amountBlockedUSDC)} USDC`,
+        `actor = ${shortAddress(TREASURY_PROOF.operator)}`,
+        "vault Transfer = none",
+        `actionHash = ${shortAddress(TREASURY_PROOF.hashes.blockedAction as Hash)}`,
+      ],
+    },
+    {
+      title: "Float debt receipt",
+      subtitle: "x402 payment",
+      href: `/api/float-tools?action=verify&hash=${TREASURY_PROOF.hashes.floatRequest}`,
+      fields: [
+        "receipt = SPEND_ALLOWED + PROVIDER_PAID + FEE_ACCRUED + DEBT_OPENED",
+        `provider paid = ${formatFloatUSDC(TREASURY_PROOF.amountX402USDC)} USDC`,
+        `fee = ${formatFloatUSDC(TREASURY_PROOF.feeUSDC)} USDC`,
+        `requestHash = ${shortAddress(TREASURY_PROOF.hashes.floatRequest as Hash)}`,
+      ],
+    },
+  ];
+
+  return (
+    <section className="treasuryReceiptStructure" aria-label="Treasury receipt structure">
+      <div className="treasurySectionHeader">
+        <p className="eyebrow">receipt structure · defined fields</p>
+        <h2>ALLOW and BLOCK are not labels; they are receipt fields checked by the verifier.</h2>
+      </div>
+      <div className="treasuryReceiptGrid">
+        {receipts.map((receipt) => (
+          <a className="treasuryReceiptCard" href={receipt.href} target="_blank" rel="noreferrer" key={receipt.title}>
+            <span>{receipt.subtitle}</span>
+            <strong>{receipt.title}</strong>
+            <ul>
+              {receipt.fields.map((field) => (
+                <li key={field}>{field}</li>
+              ))}
+            </ul>
+          </a>
+        ))}
       </div>
     </section>
   );
