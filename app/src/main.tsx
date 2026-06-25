@@ -1561,7 +1561,7 @@ function TreasuryHero({ floatState, treasuryState }: {
   const checks = floatState?.proofChecks || {};
   const greenChecks = Object.values(checks).filter((value) => value === true).length;
   const totalChecks = Object.values(checks).filter((value) => typeof value === "boolean").length;
-  const externalDrawsLabel = floatState ? `${externalSigned?.cycles ?? 0}` : "live";
+  const externalDrawsLabel = floatState ? `${externalSigned?.cycles ?? 0}` : "syncing";
   const railStats = [
     { label: "x402 paid", value: `${formatFloatUSDC(TREASURY_PROOF.amountX402USDC)} USDC`, tone: "allow" },
     { label: "vault allocated", value: `${formatFloatUSDC(TREASURY_PROOF.amountAllocatedUSDC)} USDC`, tone: "allow" },
@@ -1574,7 +1574,7 @@ function TreasuryHero({ floatState, treasuryState }: {
       : "Treasury verifier red"
     : totalChecks
       ? `${greenChecks}/${totalChecks} Float checks`
-      : "live verifier";
+      : "syncing verifier";
 
   return (
     <section className="treasuryHero" aria-label="Shadow Treasury overview">
@@ -1647,7 +1647,7 @@ function TreasuryRailSplit({
   leptonState: LeptonState | null;
 }) {
   const externalSigned = floatState?.sourceBreakdown?.externalSigned;
-  const externalDrawsLabel = floatState ? `${externalSigned?.cycles ?? 0} signed draws` : "live signed draws";
+  const externalDrawsLabel = floatState ? `${externalSigned?.cycles ?? 0} signed draws` : "syncing signed draws";
   const railCards = [
     {
       eyebrow: "payment rail",
