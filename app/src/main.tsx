@@ -1987,8 +1987,8 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
     },
     {
       label: "Forum / CitePay",
-      status: "validation requested",
-      detail: "Waiting for the human builder's own Treasury feedback; AI-assistant quotes are not counted as external validation.",
+      status: "CitePay validated fit",
+      detail: "CitePay builder feedback: Float + M1 is the right place to block agent overreach before funds move. Forum feedback is still pending.",
     },
   ];
 
@@ -2010,15 +2010,15 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
           <Link to="/proof">Open external proof →</Link>
         </article>
 
-        <article className="treasuryValidationCard">
-          <span>Treasury validation target</span>
-          <strong>One external treasury owner</strong>
+        <article className="treasuryValidationCard treasuryValidationCardValidated">
+          <span>Treasury validation</span>
+          <strong>CitePay says the model fits</strong>
           <p>
-            The self-operated Treasury gate is green. The next credible step is a builder or protocol saying they would let
-            an agent pay and allocate USDC under this bounded policy model.
+            A CitePay builder reviewed the live proof and validated the architecture: enforce agent payment policy before
+            funds move, not after the fact. Forum feedback remains pending.
           </p>
           <a href="https://shadow-arc.vercel.app/treasury" target="_blank" rel="noreferrer">
-            Share live proof →
+            Open live proof →
           </a>
         </article>
 
