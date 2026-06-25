@@ -2,7 +2,7 @@
 
 **Shadow Treasury runs an autonomous operator that pays and allocates Arc USDC inside bounded, bonded, verifiable rules.**
 
-The current product frame combines two live rails. **Float** fronts approved x402 provider payments, records debt, accrues a fee, blocks unsafe spends, and restores capacity on repayment. **M1 mandates** gate vault-style allocations through a bonded enforcer before USDC moves. The Treasury proof is self-operated today; external Float signed usage is live and verifiable.
+The current product frame combines two live rails. **Float** fronts approved x402 provider payments, records debt, accrues a fee, blocks unsafe spends, and restores capacity on repayment. **M1 mandates** gate vault-style allocations through a bonded enforcer before USDC moves. The Treasury proof is anchored to public Arc receipts and a read-only verifier; external Float signed usage is live and verifiable.
 
 Live proof: https://shadow-arc.vercel.app/treasury
 
@@ -37,7 +37,7 @@ The proof anchors are intentionally direct:
 
 The M1 receipt fields are not just labels. The allowed allocation receipt checks `decision = ALLOW`, `reason = NONE`, `amount = 0.1 USDC`, `actor = operator`, and `target = Morpho-style adapter`. The blocked allocation receipt checks `decision = BLOCK`, `reason = AMOUNT_TOO_HIGH`, `amount = 0.3 USDC`, and verifies that no vault USDC transfer occurred.
 
-This is the honest boundary: **external Float usage is live; external Treasury buyer validation is still in progress.**
+Scope: **external Float usage is live and verifiable; Treasury proof is currently backed by public receipts, contract links, and the read-only verifier.**
 
 ## Live Float Proof
 
