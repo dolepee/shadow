@@ -405,28 +405,28 @@ type TreasuryState = {
 };
 
 const TREASURY_PROOF = {
-  operator: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
+  operator: "0x26bA923FbbB4404395E61f94Ca4b39823A1763c5" as Address,
   float: "0xF305647bA0ff7f1E2d4bE5f37F2EF9f930531057" as Address,
-  mandateRegistry: "0x394B6955162cE147e813E0eea6104cD1164e3d33" as Address,
-  mandateAttestor: "0x440EF290d63174182C6115B4356727e0AC136d48" as Address,
-  bondedEnforcer: "0x05a11588155c6bdE55BB7B3986f200ca556b23cc" as Address,
-  morphoAdapter: "0x805Db94a0b94C0D937063291dDAafB41690f5DEE" as Address,
-  vaultSink: "0x0e157AEAFFbEbe59BeCB7B93007015a06c5DEc90" as Address,
+  mandateRegistry: "0xe3cf1a4d54f627f599255142cef4bf9b8c361a4c" as Address,
+  mandateAttestor: "0x9b5afc6c442364d4397763917ebbc659d85ee86d" as Address,
+  bondedEnforcer: "0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e" as Address,
+  morphoAdapter: "0xba9f134f7b13dadd45dcf16b09c5121a7555e2c5" as Address,
+  vaultSink: "0x110f79c5617797b199d3d6e2abb855c34fbc5e58" as Address,
   amountAllocatedUSDC: "100000",
   amountBlockedUSDC: "300000",
   amountX402USDC: "1000",
   feeUSDC: "10",
   txs: {
-    createMandate: "0x99c2c1efa8f81c1dbca63ea1c2bec18c8b223e03caa62e7d9f7eb1bd8d140cc2" as Hash,
-    allocation: "0x32c63c43b30f9567800275be2c39538fee5c0ec60d29456c8a66b4c0ae2e8b73" as Hash,
-    blocked: "0x92222fda0b93b12e3b834bafd737730ba907ec36fe85c5ddbd5a997364ba179f" as Hash,
-    x402Settlement: "0x53c88f43303136ba06534f76e99dc6479157d14ad701a600e5da91fd4d9aa5c5" as Hash,
-    floatBind: "0x79921c6f2bac709c42a7db5c654f2d0f55fe9aa83255158fe52877d38cafce6d" as Hash,
+    createMandate: "0x5f511e1bf49fadf998b7a94f5e34598510e9479fab15f5a5fb713636c158a411" as Hash,
+    allocation: "0x9836e74ee95907847fac464f3a65554cf314adab9efe7141f4644022b3e09c17" as Hash,
+    blocked: "0x7d3dddd89dc50ea5b410564c7f1134ce1350fd3687e8cefec74192d9e9b4bd23" as Hash,
+    x402Settlement: "0x516d95ed55d61663c491f2cccb45d1d16d83967bdcc6fc66899d05426fea80ab" as Hash,
+    floatBind: "0x7fe14e70081f682017d5804250f9db6b0dc7416fe1eb100f7135c6e34007d103" as Hash,
   },
   hashes: {
-    floatRequest: "0x7bd6fe10fcc7e230abf04cd3874684824fa783e89d97801abb3dad0cba2dce45",
-    allowedAction: "0xb4b62260d18e902b7821049c4997a797e558f1a6d7884cfd230da2834f25813b",
-    blockedAction: "0x20c95660fb24342944c59b114001484006dcb6a1adee5de609fa1f74b8db9d86",
+    floatRequest: "0xbcb5bbbcdd270198a5c4258d34ac1c0625c8b807f8fe8dde8912ac12feda910b",
+    allowedAction: "0x7b0f276c844b63db15c82995ba154ffb136dab19aa7481a853ce95eedff16205",
+    blockedAction: "0xe93a7933e6ce39a04dcb0bf8561c838930f8333b6d4eeb4f60db4d2a366b7523",
   },
 };
 
@@ -5083,11 +5083,11 @@ function LeptonM1Panel({
     amount: "0.01 USDC",
   };
   const morphoProof = {
-    adapter: "0x805db94a0b94c0d937063291ddaafb41690f5dee" as Address,
-    vault: "0x0e157aeaffbebe59becb7b93007015a06c5dec90" as Address,
+    adapter: "0xba9f134f7b13dadd45dcf16b09c5121a7555e2c5" as Address,
+    vault: "0x110f79c5617797b199d3d6e2abb855c34fbc5e58" as Address,
     mandateId: "3",
-    allowTx: "0x477f9378f0f8d68302d5cfa7149026e6597fadd2a9939ade4931efe72e0031cc" as `0x${string}`,
-    blockTx: "0xcc72f59c00df7109b2140d9a30053930592df29eb72827223a8283088c12bef9" as `0x${string}`,
+    allowTx: "0x9836e74ee95907847fac464f3a65554cf314adab9efe7141f4644022b3e09c17" as `0x${string}`,
+    blockTx: "0x7d3dddd89dc50ea5b410564c7f1134ce1350fd3687e8cefec74192d9e9b4bd23" as `0x${string}`,
   };
   const updated = state ? new Date(state.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
 

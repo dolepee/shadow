@@ -39,11 +39,11 @@ export const addresses = {
 };
 
 export const leptonAddresses = {
-  mandateRegistry: readAddress("VITE_SHADOW_MANDATE_REGISTRY", "0x394b6955162ce147e813e0eea6104cd1164e3d33"),
-  mandateAttestor: readAddress("VITE_SHADOW_MANDATE_ATTESTOR", "0x440ef290d63174182c6115b4356727e0ac136d48"),
-  bondedEnforcer: readAddress("VITE_SHADOW_BONDED_ENFORCER", "0x05a11588155c6bde55bb7b3986f200ca556b23cc"),
-  v4StyleAdapter: readAddress("VITE_SHADOW_V4_STYLE_ADAPTER", "0x16ebc65c9f3188734277c9fafd73d9f13b93d868"),
-  morphoStyleAdapter: readAddress("VITE_SHADOW_MORPHO_STYLE_ADAPTER", "0x805db94a0b94c0d937063291ddaafb41690f5dee"),
+  mandateRegistry: readAddress("VITE_SHADOW_MANDATE_REGISTRY", "0xe3cf1a4d54f627f599255142cef4bf9b8c361a4c"),
+  mandateAttestor: readAddress("VITE_SHADOW_MANDATE_ATTESTOR", "0x9b5afc6c442364d4397763917ebbc659d85ee86d"),
+  bondedEnforcer: readAddress("VITE_SHADOW_BONDED_ENFORCER", "0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e"),
+  v4StyleAdapter: readAddress("VITE_SHADOW_V4_STYLE_ADAPTER", "0xd890db70ba5135141a5d4522ba36fc0ca7cad177"),
+  morphoStyleAdapter: readAddress("VITE_SHADOW_MORPHO_STYLE_ADAPTER", "0xba9f134f7b13dadd45dcf16b09c5121a7555e2c5"),
 };
 
 export const startBlock = BigInt(import.meta.env.VITE_SHADOW_START_BLOCK || 0);

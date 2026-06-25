@@ -14,9 +14,9 @@ Live proof: https://shadow-arc.vercel.app/treasury
 | Live Treasury API | `GET https://shadow-arc.vercel.app/api/treasury` |
 | Combined verifier | `npm run treasury:verify-live` |
 | Float contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
-| Mandate registry | `0x394b6955162ce147e813e0eea6104cd1164e3d33` |
-| Bonded enforcer | `0x05a11588155c6bde55bb7b3986f200ca556b23cc` |
-| Morpho-style adapter | `0x805db94a0b94c0d937063291ddaafb41690f5dee` |
+| Mandate registry | `0xe3cf1a4d54f627f599255142cef4bf9b8c361a4c` |
+| Bonded enforcer | `0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e` |
+| Morpho-style adapter | `0xba9f134f7b13dadd45dcf16b09c5121a7555e2c5` |
 
 The live Treasury API and verifier check that one operator:
 
@@ -30,10 +30,10 @@ The proof anchors are intentionally direct:
 
 | Proof | Link |
 | --- | --- |
-| x402 settlement tx | `0x53c88f43303136ba06534f76e99dc6479157d14ad701a600e5da91fd4d9aa5c5` |
-| Float bind tx | `0x79921c6f2bac709c42a7db5c654f2d0f55fe9aa83255158fe52877d38cafce6d` |
-| Vault allocation tx | `0x32c63c43b30f9567800275be2c39538fee5c0ec60d29456c8a66b4c0ae2e8b73` |
-| Blocked allocation tx | `0x92222fda0b93b12e3b834bafd737730ba907ec36fe85c5ddbd5a997364ba179f` |
+| x402 settlement tx | `0x516d95ed55d61663c491f2cccb45d1d16d83967bdcc6fc66899d05426fea80ab` |
+| Float bind tx | `0x7fe14e70081f682017d5804250f9db6b0dc7416fe1eb100f7135c6e34007d103` |
+| Vault allocation tx | `0x9836e74ee95907847fac464f3a65554cf314adab9efe7141f4644022b3e09c17` |
+| Blocked allocation tx | `0x7d3dddd89dc50ea5b410564c7f1134ce1350fd3687e8cefec74192d9e9b4bd23` |
 
 The M1 receipt fields are not just labels. The allowed allocation receipt checks `decision = ALLOW`, `reason = NONE`, `amount = 0.1 USDC`, `actor = operator`, and `target = Morpho-style adapter`. The blocked allocation receipt checks `decision = BLOCK`, `reason = AMOUNT_TOO_HIGH`, `amount = 0.3 USDC`, and verifies that no vault USDC transfer occurred.
 
