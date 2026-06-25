@@ -2117,9 +2117,9 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
       detail: "Agent Alpha signed a Float intent for paid x402 security data before producing a verdict.",
     },
     {
-      label: "Forum / CitePay",
-      status: "CitePay validated fit",
-      detail: "CitePay builder feedback: Float + M1 is the right place to block agent overreach before funds move. Forum feedback is still pending.",
+      label: "CitePay",
+      status: "architecture fit reviewed",
+      detail: "Builder feedback says Float + M1 fits agent/x402 workflows because enforcement happens before USDC leaves the policy boundary.",
     },
   ];
 
@@ -2127,7 +2127,7 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
     <section className="treasuryValidationSection" aria-label="External validation and builder background">
       <div className="treasurySectionHeader">
         <p className="eyebrow">validation · current boundary</p>
-        <h2>External agents have used Float; Treasury buyer validation is the next proof to close.</h2>
+        <h2>External Float usage is live; Treasury validation is anchored to verifier proof.</h2>
       </div>
 
       <div className="treasuryValidationGrid">
@@ -2143,13 +2143,13 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
 
         <article className="treasuryValidationCard treasuryValidationCardValidated">
           <span>Treasury validation</span>
-          <strong>CitePay says the model fits</strong>
+          <strong>CitePay reviewed the model</strong>
           <p>
-            A CitePay builder reviewed the live proof and validated the architecture: enforce agent payment policy before
-            funds move, not after the fact. Forum feedback remains pending.
+            A CitePay builder reviewed Shadow Treasury and confirmed the core pattern: block agent payment overreach before
+            funds move, where the policy belongs.
           </p>
-          <a href="https://shadow-arc.vercel.app/treasury" target="_blank" rel="noreferrer">
-            Open live proof →
+          <a href="/api/treasury" target="_blank" rel="noreferrer">
+            Open verifier output →
           </a>
         </article>
 
