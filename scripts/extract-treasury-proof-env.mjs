@@ -10,6 +10,8 @@ if (!file) {
 
 const proof = JSON.parse(readFileSync(file, "utf8"));
 const env = {
+  TREASURY_OPERATOR_ADDRESS: proof.operator,
+  TREASURY_OPERATOR_PROVIDER: proof.provider,
   TREASURY_VERIFY_CREATE_MANDATE_TX: proof.txs?.createMandate,
   TREASURY_VERIFY_ALLOWED_TX: proof.txs?.allowedAllocation,
   TREASURY_VERIFY_BLOCKED_TX: proof.txs?.blockedAllocation,

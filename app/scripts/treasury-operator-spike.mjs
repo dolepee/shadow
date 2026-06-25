@@ -362,6 +362,7 @@ async function verifySpike({ before, after, provider, x402Amount, requestHash, a
     resumedM1,
     chainId: CHAIN_ID,
     operator: operator.address,
+    provider,
     contracts: {
       float: FLOAT,
       mandateRegistry: REGISTRY,
