@@ -1226,35 +1226,10 @@ function App() {
 
   const treasuryPage = (
     <>
-      <section className="pageHead">
-        <p className="pageEyebrow">treasury · Float plus M1</p>
-        <h1 className="pageTitle">One agent pays and allocates under rules it cannot break.</h1>
-        <p className="pageLede">
-          Shadow Treasury is the combined product frame: Float fronts approved x402 payments, while M1 gates vault-style
-          allocations before USDC moves. The current proof is self-operated and live on Arc; external Treasury validation is
-          still in progress.
-        </p>
-      </section>
+      <TreasuryHero floatState={floatState} />
+      <TreasuryRailSplit floatState={floatState} leptonState={leptonState} />
       <TreasuryProofPanel floatState={floatState} leptonState={leptonState} />
-      <section className="productPageGrid" aria-label="Shadow Treasury rails">
-        <article className="productInfoCard primary">
-          <span>payment rail</span>
-          <strong>Float pays x402 providers</strong>
-          <p>Signed agents can spend before prefunding, with debt, fee, repayment, and overspend receipts on Arc.</p>
-        </article>
-        <article className="productInfoCard">
-          <span>allocation rail</span>
-          <strong>M1 gates vault-style deposits</strong>
-          <p>The bonded enforcer records ALLOW or BLOCK before USDC moves into the vault sink.</p>
-        </article>
-        <article className="productInfoCard">
-          <span>honest boundary</span>
-          <strong>External Treasury buyer is next</strong>
-          <p>External Float usage is live; the wider Treasury operator currently has self-operated receipts only.</p>
-        </article>
-      </section>
-      <FloatPanel state={floatState} loading={floatLoading} error={floatError} compact />
-      <LeptonM1Panel state={leptonState} loading={leptonLoading} error={leptonError} compact />
+      <TreasuryJudgePath />
     </>
   );
 
@@ -1519,6 +1494,153 @@ function RouteScroll() {
   return null;
 }
 
+function TreasuryHero({ floatState }: {
+  floatState: FloatState | null;
+}) {
+  const externalSigned = floatState?.sourceBreakdown?.externalSigned;
+  const checks = floatState?.proofChecks || {};
+  const greenChecks = Object.values(checks).filter((value) => value === true).length;
+  const totalChecks = Object.values(checks).filter((value) => typeof value === "boolean").length;
+  const externalDrawsLabel = floatState ? `${externalSigned?.cycles ?? 0}` : "live";
+  const railStats = [
+    { label: "x402 paid", value: `${formatFloatUSDC(TREASURY_PROOF.amountX402USDC)} USDC`, tone: "allow" },
+    { label: "vault allocated", value: `${formatFloatUSDC(TREASURY_PROOF.amountAllocatedUSDC)} USDC`, tone: "allow" },
+    { label: "blocked first", value: `${formatFloatUSDC(TREASURY_PROOF.amountBlockedUSDC)} USDC`, tone: "block" },
+    { label: "external Float draws", value: externalDrawsLabel, tone: "neutral" },
+  ];
+  const verifierLabel = totalChecks ? `${greenChecks}/${totalChecks} Float checks` : "live verifier";
+
+  return (
+    <section className="treasuryHero" aria-label="Shadow Treasury overview">
+      <div className="treasuryHeroCopy">
+        <p className="eyebrow">Shadow Treasury · live on Arc testnet</p>
+        <h1>Let an agent operate USDC without letting it break policy.</h1>
+        <p>
+          Shadow Treasury combines two live rails: Float pays approved x402 providers, and M1 gates vault-style
+          allocations before funds move. The operator can act autonomously, but every payment, allocation, block, debt, and
+          fee lands as an Arc receipt.
+        </p>
+        <div className="treasuryHeroActions">
+          <a className="treasuryHeroPrimary" href="#treasury-proof">
+            Verify live proof
+          </a>
+          <a className="treasuryHeroSecondary" href="/api/float" target="_blank" rel="noreferrer">
+            Open live API
+          </a>
+        </div>
+        <div className="treasuryHeroBoundary" aria-label="Current proof boundary">
+          <span>External Float usage live</span>
+          <span>External Treasury buyer in progress</span>
+          <span>{verifierLabel}</span>
+        </div>
+      </div>
+
+      <aside className="treasuryFlow" aria-label="Shadow Treasury flow">
+        <div className="treasuryFlowHeader">
+          <span>operator</span>
+          <code>{shortAddress(TREASURY_PROOF.operator)}</code>
+        </div>
+        <div className="treasuryFlowBranch allow">
+          <span>Float rail</span>
+          <strong>Pays x402 provider</strong>
+          <small>{shortAddress(TREASURY_PROOF.txs.x402Settlement)}</small>
+        </div>
+        <div className="treasuryFlowBranch allow">
+          <span>M1 rail</span>
+          <strong>Allocates to vault</strong>
+          <small>{shortAddress(TREASURY_PROOF.txs.allocation)}</small>
+        </div>
+        <div className="treasuryFlowBranch block">
+          <span>policy guard</span>
+          <strong>Blocks overreach</strong>
+          <small>{shortAddress(TREASURY_PROOF.txs.blocked)}</small>
+        </div>
+        <div className="treasuryFlowFooter">
+          <span>combined verifier</span>
+          <code>npm run treasury:verify-live</code>
+        </div>
+      </aside>
+
+      <div className="treasuryHeroStats" aria-label="Shadow Treasury live amounts">
+        {railStats.map((stat) => (
+          <div className={`treasuryHeroStat ${stat.tone}`} key={stat.label}>
+            <span>{stat.label}</span>
+            <strong>{stat.value}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TreasuryRailSplit({
+  floatState,
+  leptonState,
+}: {
+  floatState: FloatState | null;
+  leptonState: LeptonState | null;
+}) {
+  const externalSigned = floatState?.sourceBreakdown?.externalSigned;
+  const externalDrawsLabel = floatState ? `${externalSigned?.cycles ?? 0} signed draws` : "live signed draws";
+  const railCards = [
+    {
+      eyebrow: "payment rail",
+      title: "Float pays before the agent is funded",
+      body: "Signed agents authorize a spend, Shadow fronts the approved x402 payment, fee-inclusive debt opens, and repayment restores capacity.",
+      stat: externalDrawsLabel,
+      href: "/float",
+      cta: "Open Float",
+    },
+    {
+      eyebrow: "allocation rail",
+      title: "M1 gates treasury movement",
+      body: "The bonded enforcer writes ALLOW or BLOCK before vault-style USDC movement. The blocked proof moved no vault funds.",
+      stat: leptonState?.morphoDepositedUSDC !== undefined ? `${formatUSDC(leptonState.morphoDepositedUSDC)} USDC allocated` : "0.1 USDC allocated",
+      href: "/lepton",
+      cta: "Open M1",
+    },
+    {
+      eyebrow: "combined proof",
+      title: "One read-only verifier checks both rails",
+      body: "The verifier checks the x402 transfer, Float bind, debt math, vault transfer, blocked no-move path, and live API proof state.",
+      stat: "25 checks",
+      href: "https://github.com/dolepee/shadow",
+      cta: "View repo",
+    },
+  ];
+
+  return (
+    <section className="treasuryRailSection" aria-label="Shadow Treasury rail split">
+      <div className="treasurySectionHeader">
+        <p className="eyebrow">two rails · one operator story</p>
+        <h2>Payments and allocations stay separate onchain, but read as one treasury product.</h2>
+      </div>
+      <div className="treasuryRailGrid">
+        {railCards.map((card) => {
+          const content = (
+            <>
+              <span>{card.eyebrow}</span>
+              <strong>{card.title}</strong>
+              <p>{card.body}</p>
+              <em>{card.stat}</em>
+              <small>{card.cta} →</small>
+            </>
+          );
+          return card.href.startsWith("http") ? (
+            <a className="treasuryRailCard" href={card.href} target="_blank" rel="noreferrer" key={card.eyebrow}>
+              {content}
+            </a>
+          ) : (
+            <Link className="treasuryRailCard" to={card.href} key={card.eyebrow}>
+              {content}
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function TreasuryProofPanel({
   floatState,
   leptonState,
@@ -1573,14 +1695,14 @@ function TreasuryProofPanel({
   ];
 
   return (
-    <section className="treasuryProofPanel" aria-label="Shadow Treasury live proof">
+    <section className="treasuryProofPanel" id="treasury-proof" aria-label="Shadow Treasury live proof">
       <div className="treasuryProofHeader">
         <div>
-          <p className="eyebrow">live Treasury gate · self-operated</p>
-          <h2>One operator paid a provider, allocated to a vault, then got blocked on overreach.</h2>
+          <p className="eyebrow">live proof runway · self-operated</p>
+          <h2>One operator paid, allocated, and was stopped on the third action.</h2>
           <p>
-            This does not replace Float. Float is the payment and credit rail; M1 is the bonded allocation rail. The proof
-            below shows the combined product frame without claiming an external Treasury buyer yet.
+            The proof below is deliberately concrete: one x402 payment, one vault allocation, one blocked over-limit
+            allocation, and one read-only verifier.
           </p>
         </div>
         <div className="treasuryProofStatus">
@@ -1671,6 +1793,34 @@ function TreasuryProofPanel({
         <span>External Float signed usage is live.</span>
         <span>External Treasury buyer validation is still in progress.</span>
         <span>Run <code>npm run treasury:verify-live</code> to check the combined proof.</span>
+      </div>
+    </section>
+  );
+}
+
+function TreasuryJudgePath() {
+  const links = [
+    { label: "Run verifier", value: "npm run treasury:verify-live", href: "https://github.com/dolepee/shadow" },
+    { label: "x402 settlement", value: shortAddress(TREASURY_PROOF.txs.x402Settlement), href: txUrl(TREASURY_PROOF.txs.x402Settlement) },
+    { label: "Float bind", value: shortAddress(TREASURY_PROOF.txs.floatBind), href: txUrl(TREASURY_PROOF.txs.floatBind) },
+    { label: "Vault allocation", value: shortAddress(TREASURY_PROOF.txs.allocation), href: txUrl(TREASURY_PROOF.txs.allocation) },
+    { label: "Blocked allocation", value: shortAddress(TREASURY_PROOF.txs.blocked), href: txUrl(TREASURY_PROOF.txs.blocked) },
+    { label: "Live Float API", value: "/api/float", href: "/api/float" },
+  ];
+
+  return (
+    <section className="treasuryJudgePath" aria-label="Judge path for Shadow Treasury">
+      <div className="treasurySectionHeader">
+        <p className="eyebrow">judge path · one click each</p>
+        <h2>Check the proof without trusting the UI.</h2>
+      </div>
+      <div className="treasuryJudgeGrid">
+        {links.map((link) => (
+          <a className="treasuryJudgeLink" href={link.href} target="_blank" rel="noreferrer" key={link.label}>
+            <span>{link.label}</span>
+            <strong>{link.value}</strong>
+          </a>
+        ))}
       </div>
     </section>
   );

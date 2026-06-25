@@ -3143,14 +3143,372 @@ input:focus-visible {
   color: var(--ink);
 }
 
+.treasuryHero {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(52, 229, 255, 0.16), transparent 34%),
+    linear-gradient(135deg, rgba(15, 29, 49, 0.92), rgba(7, 17, 31, 0.84) 58%, rgba(5, 14, 27, 0.96)),
+    rgba(7, 17, 31, 0.88);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  display: grid;
+  gap: 26px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.74fr);
+  margin: 18px 0 0;
+  overflow: hidden;
+  padding: 34px;
+  position: relative;
+}
+
+.treasuryHero::before {
+  background: linear-gradient(90deg, var(--copy), rgba(255, 214, 102, 0.86), rgba(184, 211, 255, 0.28));
+  content: "";
+  height: 2px;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.treasuryHeroCopy {
+  min-width: 0;
+}
+
+.treasuryHeroCopy h1 {
+  color: var(--ink);
+  font-size: 58px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 0.98;
+  margin: 0;
+  max-width: 870px;
+}
+
+.treasuryHeroCopy p:not(.eyebrow) {
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1.62;
+  margin: 20px 0 0;
+  max-width: 820px;
+}
+
+.treasuryHeroActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.treasuryHeroPrimary,
+.treasuryHeroSecondary {
+  align-items: center;
+  border-radius: 10px;
+  display: inline-flex;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  justify-content: center;
+  letter-spacing: 0.08em;
+  min-height: 42px;
+  padding: 0 14px;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.treasuryHeroPrimary {
+  background: var(--copy);
+  color: #06121f;
+}
+
+.treasuryHeroPrimary:hover {
+  filter: brightness(1.06);
+}
+
+.treasuryHeroSecondary {
+  background: rgba(7, 17, 31, 0.52);
+  border: 1px solid var(--border);
+  color: var(--ink);
+}
+
+.treasuryHeroSecondary:hover {
+  border-color: var(--border-strong);
+}
+
+.treasuryHeroBoundary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.treasuryHeroBoundary span {
+  border: 1px solid rgba(184, 211, 255, 0.16);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  padding: 7px 9px;
+  text-transform: uppercase;
+}
+
+.treasuryFlow {
+  align-self: stretch;
+  background:
+    linear-gradient(180deg, rgba(11, 23, 40, 0.92), rgba(7, 17, 31, 0.78)),
+    rgba(7, 17, 31, 0.82);
+  border: 1px solid rgba(184, 211, 255, 0.16);
+  border-radius: 16px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.treasuryFlowHeader,
+.treasuryFlowFooter {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-content: space-between;
+}
+
+.treasuryFlowHeader span,
+.treasuryFlowFooter span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.treasuryFlowHeader code,
+.treasuryFlowFooter code {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.treasuryFlowBranch {
+  background: rgba(7, 17, 31, 0.58);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.treasuryFlowBranch.allow {
+  border-color: rgba(77, 240, 168, 0.26);
+}
+
+.treasuryFlowBranch.block {
+  border-color: rgba(255, 214, 102, 0.28);
+}
+
+.treasuryFlowBranch span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.treasuryFlowBranch strong {
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.treasuryFlowBranch small {
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.treasuryHeroStats {
+  background: rgba(184, 211, 255, 0.14);
+  border: 1px solid rgba(184, 211, 255, 0.14);
+  border-radius: 14px;
+  display: grid;
+  gap: 1px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.treasuryHeroStat {
+  background: rgba(7, 17, 31, 0.72);
+  min-width: 0;
+  padding: 16px;
+}
+
+.treasuryHeroStat span {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.treasuryHeroStat strong {
+  color: var(--ink);
+  display: block;
+  font-family: var(--mono);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+
+.treasuryHeroStat.allow strong {
+  color: var(--copy);
+}
+
+.treasuryHeroStat.block strong {
+  color: var(--warn);
+}
+
+.treasuryRailSection,
+.treasuryJudgePath {
+  margin: 28px 0 0;
+}
+
+.treasurySectionHeader {
+  align-items: flex-end;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.treasurySectionHeader h2 {
+  color: var(--ink);
+  font-size: 34px;
+  font-weight: 620;
+  letter-spacing: 0;
+  line-height: 1.05;
+  margin: 0;
+  max-width: 820px;
+}
+
+.treasuryRailGrid,
+.treasuryJudgeGrid {
+  display: grid;
+  gap: 14px;
+}
+
+.treasuryRailGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.treasuryRailCard,
+.treasuryJudgeLink {
+  background:
+    linear-gradient(135deg, rgba(184, 211, 255, 0.04), rgba(52, 229, 255, 0.012)),
+    rgba(7, 17, 31, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--ink);
+  min-width: 0;
+  text-decoration: none;
+}
+
+.treasuryRailCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 246px;
+  padding: 20px;
+}
+
+.treasuryRailCard:hover,
+.treasuryJudgeLink:hover {
+  border-color: var(--border-strong);
+  transform: none;
+}
+
+.treasuryRailCard span,
+.treasuryJudgeLink span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.treasuryRailCard strong {
+  color: var(--ink);
+  display: block;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.treasuryRailCard p {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.58;
+  margin: 0;
+}
+
+.treasuryRailCard em {
+  color: var(--copy);
+  font-family: var(--mono);
+  font-size: 15px;
+  font-style: normal;
+  margin-top: auto;
+}
+
+.treasuryRailCard small {
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.treasuryJudgeGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.treasuryJudgeLink {
+  display: grid;
+  gap: 10px;
+  min-height: 108px;
+  padding: 16px;
+}
+
+.treasuryJudgeLink strong {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .treasuryProofPanel {
   background:
     linear-gradient(180deg, rgba(15, 29, 49, 0.72), rgba(7, 17, 31, 0.78)),
     rgba(7, 17, 31, 0.82);
   border: 1px solid var(--border);
   border-radius: 18px;
-  margin: 22px 0 0;
+  margin: 28px 0 0;
   padding: 28px;
+  scroll-margin-top: 90px;
 }
 
 .treasuryProofHeader {
@@ -3162,10 +3520,10 @@ input:focus-visible {
 
 .treasuryProofHeader h2 {
   color: var(--ink);
-  font-size: clamp(30px, 4vw, 50px);
+  font-size: 38px;
   font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  letter-spacing: 0;
+  line-height: 1.05;
   margin: 0;
   max-width: 860px;
 }
@@ -3443,6 +3801,22 @@ input:focus-visible {
 }
 
 @media (max-width: 1080px) and (min-width: 721px) {
+  .treasuryHero {
+    grid-template-columns: 1fr;
+  }
+
+  .treasuryHeroStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .treasuryRailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .treasuryJudgeGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .homeProofGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3537,6 +3911,100 @@ input:focus-visible {
 
   .homeProofCard strong {
     font-size: 34px;
+  }
+
+  .treasuryHero {
+    border-radius: 18px;
+    gap: 18px;
+    grid-template-columns: 1fr;
+    margin-top: 12px;
+    padding: 24px 18px 18px;
+  }
+
+  .treasuryHeroCopy h1 {
+    font-size: 38px;
+    line-height: 1.06;
+  }
+
+  .treasuryHeroCopy p:not(.eyebrow) {
+    font-size: 15px;
+    line-height: 1.58;
+    margin-top: 16px;
+  }
+
+  .treasuryHeroActions {
+    align-items: stretch;
+    flex-direction: column;
+    margin-top: 22px;
+  }
+
+  .treasuryHeroPrimary,
+  .treasuryHeroSecondary {
+    width: 100%;
+  }
+
+  .treasuryHeroBoundary span {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  .treasuryFlow {
+    padding: 14px;
+  }
+
+  .treasuryFlowBranch {
+    padding: 13px;
+  }
+
+  .treasuryFlowBranch strong {
+    font-size: 18px;
+  }
+
+  .treasuryHeroStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .treasuryHeroStat {
+    padding: 14px;
+  }
+
+  .treasuryHeroStat strong {
+    font-size: 24px;
+  }
+
+  .treasuryRailSection,
+  .treasuryJudgePath {
+    margin-top: 22px;
+  }
+
+  .treasurySectionHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .treasurySectionHeader h2 {
+    font-size: 27px;
+    line-height: 1.12;
+  }
+
+  .treasuryRailGrid,
+  .treasuryJudgeGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .treasuryRailCard {
+    min-height: auto;
+    padding: 17px;
+  }
+
+  .treasuryRailCard strong {
+    font-size: 21px;
+  }
+
+  .treasuryJudgeLink {
+    min-height: auto;
+    padding: 15px;
   }
 
   .treasuryProofPanel {
