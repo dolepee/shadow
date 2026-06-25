@@ -1230,6 +1230,7 @@ function App() {
       <TreasuryRailSplit floatState={floatState} leptonState={leptonState} />
       <TreasuryProofPanel floatState={floatState} leptonState={leptonState} />
       <TreasuryJudgePath />
+      <TreasuryValidationPanel floatState={floatState} />
     </>
   );
 
@@ -1820,6 +1821,81 @@ function TreasuryJudgePath() {
             <span>{link.label}</span>
             <strong>{link.value}</strong>
           </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null }) {
+  const externalSigned = floatState?.sourceBreakdown?.externalSigned;
+  const externalClosed = externalSigned?.lifecycleClosedCount ?? 0;
+  const validationRows = [
+    {
+      label: "Obol",
+      status: "verified Float draw",
+      detail: "Buyer-side agent signed a current-contract spend intent and publicly confirmed the bind.",
+    },
+    {
+      label: "Argus",
+      status: "signed security-agent intent",
+      detail: "Agent Alpha signed a Float intent for paid x402 security data before producing a verdict.",
+    },
+    {
+      label: "Forum / CitePay",
+      status: "validation requested",
+      detail: "Waiting for the human builder's own Treasury feedback; AI-assistant quotes are not counted as external validation.",
+    },
+  ];
+
+  return (
+    <section className="treasuryValidationSection" aria-label="External validation and builder background">
+      <div className="treasurySectionHeader">
+        <p className="eyebrow">validation · current boundary</p>
+        <h2>External agents have used Float; Treasury buyer validation is the next proof to close.</h2>
+      </div>
+
+      <div className="treasuryValidationGrid">
+        <article className="treasuryValidationCard treasuryValidationCardPrimary">
+          <span>external Float proof</span>
+          <strong>{externalSigned?.cycles ?? 0} signed draws</strong>
+          <p>
+            External agents can authorize a Float spend without hot-funding the x402 payment first. The current standing
+            board and verifier expose the signed draw path; {externalClosed} external lifecycle{externalClosed === 1 ? "" : "s"} closed through repayment.
+          </p>
+          <Link to="/proof">Open external proof →</Link>
+        </article>
+
+        <article className="treasuryValidationCard">
+          <span>Treasury validation target</span>
+          <strong>One external treasury owner</strong>
+          <p>
+            The self-operated Treasury gate is green. The next credible step is a builder or protocol saying they would let
+            an agent pay and allocate USDC under this bounded policy model.
+          </p>
+          <a href="https://shadow-arc.vercel.app/treasury" target="_blank" rel="noreferrer">
+            Share live proof →
+          </a>
+        </article>
+
+        <article className="treasuryValidationCard">
+          <span>builder background</span>
+          <strong>Receipt rails before Treasury</strong>
+          <p>
+            Shadow's earlier receipt-and-policy system settled 2,893 onchain receipts across 30 follower wallets. Treasury
+            focuses that foundation into a product: agent-operated USDC with hard policy boundaries.
+          </p>
+          <Link to="/archive">Open prior proof →</Link>
+        </article>
+      </div>
+
+      <div className="treasuryValidationList" aria-label="Validation queue">
+        {validationRows.map((row) => (
+          <article key={row.label}>
+            <span>{row.label}</span>
+            <strong>{row.status}</strong>
+            <p>{row.detail}</p>
+          </article>
         ))}
       </div>
     </section>

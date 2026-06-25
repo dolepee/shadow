@@ -3380,7 +3380,8 @@ input:focus-visible {
 }
 
 .treasuryRailSection,
-.treasuryJudgePath {
+.treasuryJudgePath,
+.treasuryValidationSection {
   margin: 28px 0 0;
 }
 
@@ -3498,6 +3499,105 @@ input:focus-visible {
   letter-spacing: 0;
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.treasuryValidationSection {
+  background:
+    linear-gradient(180deg, rgba(15, 29, 49, 0.58), rgba(7, 17, 31, 0.7)),
+    rgba(7, 17, 31, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.treasuryValidationGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1.15fr 1fr 1fr;
+}
+
+.treasuryValidationCard,
+.treasuryValidationList article {
+  background:
+    linear-gradient(135deg, rgba(184, 211, 255, 0.04), rgba(52, 229, 255, 0.012)),
+    rgba(7, 17, 31, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.treasuryValidationCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 230px;
+  padding: 20px;
+}
+
+.treasuryValidationCardPrimary {
+  border-color: rgba(77, 240, 168, 0.24);
+}
+
+.treasuryValidationCard span,
+.treasuryValidationList span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.treasuryValidationCard strong {
+  color: var(--ink);
+  display: block;
+  font-size: 25px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.treasuryValidationCard p,
+.treasuryValidationList p {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.58;
+  margin: 0;
+}
+
+.treasuryValidationCard a {
+  color: var(--copy);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  margin-top: auto;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.treasuryValidationCard a:hover {
+  color: var(--ink);
+}
+
+.treasuryValidationList {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.treasuryValidationList article {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+
+.treasuryValidationList strong {
+  color: var(--ink);
+  display: block;
+  font-size: 17px;
+  font-weight: 620;
+  line-height: 1.2;
 }
 
 .treasuryProofPanel {
@@ -3813,6 +3913,14 @@ input:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .treasuryValidationGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .treasuryValidationList {
+    grid-template-columns: 1fr;
+  }
+
   .treasuryJudgeGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -3973,7 +4081,8 @@ input:focus-visible {
   }
 
   .treasuryRailSection,
-  .treasuryJudgePath {
+  .treasuryJudgePath,
+  .treasuryValidationSection {
     margin-top: 22px;
   }
 
@@ -3989,7 +4098,9 @@ input:focus-visible {
   }
 
   .treasuryRailGrid,
-  .treasuryJudgeGrid {
+  .treasuryJudgeGrid,
+  .treasuryValidationGrid,
+  .treasuryValidationList {
     grid-template-columns: 1fr;
   }
 
@@ -4005,6 +4116,20 @@ input:focus-visible {
   .treasuryJudgeLink {
     min-height: auto;
     padding: 15px;
+  }
+
+  .treasuryValidationSection {
+    border-radius: 16px;
+    padding: 20px 18px;
+  }
+
+  .treasuryValidationCard {
+    min-height: auto;
+    padding: 17px;
+  }
+
+  .treasuryValidationCard strong {
+    font-size: 22px;
   }
 
   .treasuryProofPanel {
