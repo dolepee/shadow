@@ -373,6 +373,37 @@ type FloatState = {
   error?: string;
 };
 
+type TreasuryCheck = {
+  check: string;
+  status: "PASS" | "FAIL";
+  ok: boolean;
+  detail: string;
+};
+
+type TreasuryState = {
+  ok: boolean;
+  checkedAt?: string;
+  mode?: string;
+  chainId?: number;
+  operator?: Address;
+  requestHash?: Hash;
+  txs?: {
+    createMandate?: Hash;
+    allowedAllocation?: Hash;
+    blockedAllocation?: Hash;
+    x402Settlement?: Hash;
+    floatBind?: Hash;
+  };
+  amounts?: {
+    allowedAllocationUSDC?: string;
+    blockedAttemptUSDC?: string;
+    x402PaidUSDC?: string;
+    floatFeeUSDC?: string;
+  };
+  checks?: TreasuryCheck[];
+  error?: string;
+};
+
 const TREASURY_PROOF = {
   operator: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
   float: "0xF305647bA0ff7f1E2d4bE5f37F2EF9f930531057" as Address,
@@ -429,6 +460,9 @@ function App() {
   const [floatState, setFloatState] = useState<FloatState | null>(null);
   const [floatLoading, setFloatLoading] = useState(false);
   const [floatError, setFloatError] = useState<string | null>(null);
+  const [treasuryState, setTreasuryState] = useState<TreasuryState | null>(null);
+  const [treasuryLoading, setTreasuryLoading] = useState(false);
+  const [treasuryError, setTreasuryError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -505,6 +539,29 @@ function App() {
   useEffect(() => {
     refreshFloat();
     const interval = setInterval(refreshFloat, 20_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function refreshTreasury() {
+    setTreasuryLoading(true);
+    try {
+      const response = await fetch("/api/treasury");
+      const data = (await response.json()) as TreasuryState;
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `Treasury proof read failed with ${response.status}`);
+      }
+      setTreasuryState(data);
+      setTreasuryError(null);
+    } catch (error) {
+      setTreasuryError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setTreasuryLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refreshTreasury();
+    const interval = setInterval(refreshTreasury, 30_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -1226,9 +1283,10 @@ function App() {
 
   const treasuryPage = (
     <>
-      <TreasuryHero floatState={floatState} />
+      <TreasuryHero floatState={floatState} treasuryState={treasuryState} />
       <TreasuryRailSplit floatState={floatState} leptonState={leptonState} />
-      <TreasuryProofPanel floatState={floatState} leptonState={leptonState} />
+      <TreasuryProofPanel floatState={floatState} leptonState={leptonState} treasuryState={treasuryState} />
+      <TreasuryLiveVerifierPanel state={treasuryState} loading={treasuryLoading} error={treasuryError} />
       <TreasuryJudgePath />
       <TreasuryValidationPanel floatState={floatState} />
     </>
@@ -1495,8 +1553,9 @@ function RouteScroll() {
   return null;
 }
 
-function TreasuryHero({ floatState }: {
+function TreasuryHero({ floatState, treasuryState }: {
   floatState: FloatState | null;
+  treasuryState: TreasuryState | null;
 }) {
   const externalSigned = floatState?.sourceBreakdown?.externalSigned;
   const checks = floatState?.proofChecks || {};
@@ -1509,7 +1568,13 @@ function TreasuryHero({ floatState }: {
     { label: "blocked first", value: `${formatFloatUSDC(TREASURY_PROOF.amountBlockedUSDC)} USDC`, tone: "block" },
     { label: "external Float draws", value: externalDrawsLabel, tone: "neutral" },
   ];
-  const verifierLabel = totalChecks ? `${greenChecks}/${totalChecks} Float checks` : "live verifier";
+  const verifierLabel = treasuryState
+    ? treasuryState.ok
+      ? `${treasuryState.checks?.filter((check) => check.ok).length || 0}/${treasuryState.checks?.length || 0} Treasury checks`
+      : "Treasury verifier red"
+    : totalChecks
+      ? `${greenChecks}/${totalChecks} Float checks`
+      : "live verifier";
 
   return (
     <section className="treasuryHero" aria-label="Shadow Treasury overview">
@@ -1645,9 +1710,11 @@ function TreasuryRailSplit({
 function TreasuryProofPanel({
   floatState,
   leptonState,
+  treasuryState,
 }: {
   floatState: FloatState | null;
   leptonState: LeptonState | null;
+  treasuryState: TreasuryState | null;
 }) {
   const indexedFloatReceipt = Boolean(
     floatState?.receipts?.some(
@@ -1706,9 +1773,9 @@ function TreasuryProofPanel({
             allocation, and one read-only verifier.
           </p>
         </div>
-        <div className="treasuryProofStatus">
+        <div className={`treasuryProofStatus ${treasuryState?.ok === false ? "fail" : ""}`}>
           <span className="treasuryProofStatusDot" />
-          gate green
+          {treasuryState ? (treasuryState.ok ? "live verifier green" : "verifier red") : "gate green"}
         </div>
       </div>
 
@@ -1793,8 +1860,85 @@ function TreasuryProofPanel({
       <div className="treasuryBoundary">
         <span>External Float signed usage is live.</span>
         <span>External Treasury buyer validation is still in progress.</span>
-        <span>Run <code>npm run treasury:verify-live</code> to check the combined proof.</span>
+        <span>
+          API and CLI both check the combined proof: <code>/api/treasury</code> and <code>npm run treasury:verify-live</code>.
+        </span>
       </div>
+    </section>
+  );
+}
+
+function TreasuryLiveVerifierPanel({
+  state,
+  loading,
+  error,
+}: {
+  state: TreasuryState | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  const checks = state?.checks || [];
+  const passed = checks.filter((check) => check.ok).length;
+  const failed = checks.length - passed;
+  const visibleChecks = checks.slice(0, 8);
+  const checkedAt = state?.checkedAt
+    ? new Date(state.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : null;
+
+  return (
+    <section className="treasuryLiveVerifier" aria-label="Live Shadow Treasury verifier">
+      <div className="treasuryLiveVerifierHeader">
+        <div>
+          <p className="eyebrow">live verifier · no private keys</p>
+          <h2>The Treasury page now reads the same proof checks as the CLI.</h2>
+          <p>
+            This endpoint verifies the x402 settlement, Float bind, debt math, vault transfer, blocked no-transfer path,
+            bonds, and API indexing from live Arc state.
+          </p>
+        </div>
+        <a href="/api/treasury" target="_blank" rel="noreferrer" className={`treasuryVerifierBadge ${state?.ok ? "pass" : error ? "fail" : ""}`}>
+          {loading && !state ? "syncing" : state?.ok ? "PASS" : error ? "CHECK API" : "loading"}
+          {state && <span>{passed}/{checks.length} checks</span>}
+        </a>
+      </div>
+
+      {error ? (
+        <div className="treasuryVerifierError">
+          <strong>Verifier read failed</strong>
+          <p>{error}</p>
+        </div>
+      ) : (
+        <div className="treasuryVerifierGrid">
+          <article className="treasuryVerifierSummary">
+            <span>combined proof</span>
+            <strong>{state?.ok ? "green" : loading ? "syncing" : "pending"}</strong>
+            <p>
+              {failed
+                ? `${failed} check${failed === 1 ? "" : "s"} need attention before using this in the demo.`
+                : state
+                  ? `All ${passed} live checks passed${checkedAt ? ` at ${checkedAt}` : ""}.`
+                  : "Waiting for the live Treasury API to return."}
+            </p>
+            <div>
+              <a href="/api/treasury" target="_blank" rel="noreferrer">
+                Open JSON
+              </a>
+              <a href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
+                Run CLI
+              </a>
+            </div>
+          </article>
+          <div className="treasuryVerifierChecks">
+            {visibleChecks.map((check) => (
+              <article className={check.ok ? "pass" : "fail"} key={check.check}>
+                <span>{check.status}</span>
+                <strong>{check.check}</strong>
+                <p>{check.detail}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

@@ -3381,6 +3381,7 @@ input:focus-visible {
 
 .treasuryRailSection,
 .treasuryJudgePath,
+.treasuryLiveVerifier,
 .treasuryValidationSection {
   margin: 28px 0 0;
 }
@@ -3651,6 +3652,11 @@ input:focus-visible {
   text-transform: uppercase;
 }
 
+.treasuryProofStatus.fail {
+  border-color: rgba(255, 126, 107, 0.36);
+  color: var(--warn);
+}
+
 .treasuryProofStatusDot {
   background: currentColor;
   border-radius: 999px;
@@ -3900,6 +3906,190 @@ input:focus-visible {
   font-size: 11px;
 }
 
+.treasuryLiveVerifier {
+  background:
+    linear-gradient(180deg, rgba(15, 29, 49, 0.56), rgba(7, 17, 31, 0.74)),
+    rgba(7, 17, 31, 0.74);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.treasuryLiveVerifierHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.treasuryLiveVerifierHeader h2 {
+  color: var(--ink);
+  font-size: 34px;
+  font-weight: 620;
+  letter-spacing: 0;
+  line-height: 1.05;
+  margin: 0;
+  max-width: 780px;
+}
+
+.treasuryLiveVerifierHeader p:not(.eyebrow) {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.58;
+  margin: 12px 0 0;
+  max-width: 760px;
+}
+
+.treasuryVerifierBadge {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  gap: 8px;
+  letter-spacing: 0.08em;
+  padding: 8px 10px;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.treasuryVerifierBadge.pass {
+  border-color: rgba(77, 240, 168, 0.32);
+  color: var(--copy);
+}
+
+.treasuryVerifierBadge.fail {
+  border-color: rgba(255, 126, 107, 0.36);
+  color: var(--warn);
+}
+
+.treasuryVerifierBadge span {
+  color: var(--ink-faint);
+}
+
+.treasuryVerifierGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(260px, 0.38fr) minmax(0, 1fr);
+  margin-top: 18px;
+}
+
+.treasuryVerifierSummary,
+.treasuryVerifierChecks article,
+.treasuryVerifierError {
+  background:
+    linear-gradient(135deg, rgba(184, 211, 255, 0.04), rgba(52, 229, 255, 0.012)),
+    rgba(7, 17, 31, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--ink);
+}
+
+.treasuryVerifierSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 230px;
+  padding: 20px;
+}
+
+.treasuryVerifierSummary span,
+.treasuryVerifierChecks span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.treasuryVerifierSummary strong {
+  color: var(--copy);
+  display: block;
+  font-size: 32px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.05;
+}
+
+.treasuryVerifierSummary p,
+.treasuryVerifierChecks p,
+.treasuryVerifierError p {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.treasuryVerifierSummary div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.treasuryVerifierSummary a {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  padding: 7px 9px;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.treasuryVerifierSummary a:hover {
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+
+.treasuryVerifierChecks {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.treasuryVerifierChecks article {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.treasuryVerifierChecks article.pass {
+  border-color: rgba(77, 240, 168, 0.22);
+}
+
+.treasuryVerifierChecks article.fail {
+  border-color: rgba(255, 126, 107, 0.28);
+}
+
+.treasuryVerifierChecks article.pass span {
+  color: var(--copy);
+}
+
+.treasuryVerifierChecks article.fail span {
+  color: var(--warn);
+}
+
+.treasuryVerifierChecks strong,
+.treasuryVerifierError strong {
+  color: var(--ink);
+  display: block;
+  font-size: 15px;
+  font-weight: 620;
+  line-height: 1.25;
+}
+
+.treasuryVerifierError {
+  margin-top: 18px;
+  padding: 18px;
+}
+
 @media (max-width: 1080px) and (min-width: 721px) {
   .treasuryHero {
     grid-template-columns: 1fr;
@@ -3923,6 +4113,10 @@ input:focus-visible {
 
   .treasuryJudgeGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .treasuryVerifierGrid {
+    grid-template-columns: 1fr;
   }
 
   .homeProofGrid {
@@ -4082,6 +4276,7 @@ input:focus-visible {
 
   .treasuryRailSection,
   .treasuryJudgePath,
+  .treasuryLiveVerifier,
   .treasuryValidationSection {
     margin-top: 22px;
   }
@@ -4116,6 +4311,36 @@ input:focus-visible {
   .treasuryJudgeLink {
     min-height: auto;
     padding: 15px;
+  }
+
+  .treasuryLiveVerifier {
+    border-radius: 16px;
+    padding: 20px 18px;
+  }
+
+  .treasuryLiveVerifierHeader {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .treasuryLiveVerifierHeader h2 {
+    font-size: 27px;
+    line-height: 1.12;
+  }
+
+  .treasuryVerifierBadge {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .treasuryVerifierGrid,
+  .treasuryVerifierChecks {
+    grid-template-columns: 1fr;
+  }
+
+  .treasuryVerifierSummary {
+    min-height: auto;
+    padding: 17px;
   }
 
   .treasuryValidationSection {
