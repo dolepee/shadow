@@ -11,19 +11,20 @@ Live proof: https://shadow-arc.vercel.app/treasury
 | Surface | What to check |
 | --- | --- |
 | Treasury page | https://shadow-arc.vercel.app/treasury |
+| Live Treasury API | `GET https://shadow-arc.vercel.app/api/treasury` |
 | Combined verifier | `npm run treasury:verify-live` |
 | Float contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
 | Mandate registry | `0x394b6955162ce147e813e0eea6104cd1164e3d33` |
 | Bonded enforcer | `0x05a11588155c6bde55bb7b3986f200ca556b23cc` |
 | Morpho-style adapter | `0x805db94a0b94c0d937063291ddaafb41690f5dee` |
 
-The live Treasury verifier checks that one operator:
+The live Treasury API and verifier check that one operator:
 
 1. Paid an x402 provider through Float and bound the settlement onchain.
 2. Opened fee-inclusive Float debt for that provider payment.
 3. Allocated `0.1` Arc testnet USDC through the M1 vault adapter after an `ALLOW` receipt.
 4. Attempted a `0.3` USDC over-limit allocation that emitted `BLOCK / AMOUNT_TOO_HIGH` without moving vault funds.
-5. Left both rails verifiable without private keys.
+5. Left both rails verifiable without private keys. The live `/api/treasury` response currently returns 25 pass/fail checks for the same proof path.
 
 This is the honest boundary: **external Float usage is live; external Treasury buyer validation is still in progress.**
 
@@ -113,11 +114,12 @@ npm run contracts:build
 npm run app:typecheck
 npm run app:build
 npm run agent:typecheck
+curl -s https://shadow-arc.vercel.app/api/treasury
 npm run float:verify-live
 npm run treasury:verify-live
 ```
 
-The app, Float proof, and Treasury proof can be reviewed without private keys at https://shadow-arc.vercel.app. `npm run float:verify-live` and `npm run treasury:verify-live` are read-only and use the public Arc RPC by default. `npm run verify:slippage` is an optional live-write verifier for the older copy-capital rail and requires `ARC_RPC_URL` plus the deployment/operator environment.
+The app, Float proof, and Treasury proof can be reviewed without private keys at https://shadow-arc.vercel.app. `GET /api/treasury`, `npm run float:verify-live`, and `npm run treasury:verify-live` are read-only and use the public Arc RPC by default. `npm run verify:slippage` is an optional live-write verifier for the older copy-capital rail and requires `ARC_RPC_URL` plus the deployment/operator environment.
 
 ## Historical Copy-Capital Archive
 
