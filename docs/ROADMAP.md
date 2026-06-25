@@ -1,29 +1,52 @@
 # Shadow Roadmap
 
-Shadow's mainnet path is to become the settlement and accountability layer for agentic copy-capital on Arc: USDC-native, no-cascade, and accountable before execution.
+Shadow's mainnet path is behavior-backed USDC spending lines for autonomous agents on Arc. Float is the primary product: agents can buy approved x402 resources before their own wallet is funded, debt opens onchain, repayment restores capacity, and unsafe spends are blocked before treasury funds move.
 
-## M1 - Mainnet hardening and settlement depth
+Treasury/M1 remains the supporting mandate extension. The live proof shows approved adapters allocating vault-style USDC on ALLOW and moving no funds on BLOCK. The next work is to turn that proof into production-grade treasury custody without weakening the current Float proof path.
 
-Goal: take the Arc testnet primitive to a reviewer-ready mainnet candidate without changing the core receipt semantics.
+## M1 - Float Mainnet Readiness
 
-- Harden `MirrorRouter` limits, event indexing, operational runbooks, and production monitoring.
-- Add CCTP follower funding so follower agents can bring USDC into Arc without native-gas or faucet friction.
-- Add Circle Gateway-style batched per-mirror settlement so copied flow can settle across many followers while preserving no-cascade refusal receipts.
-- Ship x402-gated source reasoning so a follower agent can pay a small USDC fee to inspect a source agent's reasoning before mirroring.
+Goal: harden the current Float loop without redeploying unless a contract issue requires it.
 
-## M2 - External followers and mainnet-stake volume
+- Keep `ShadowFloat` as the primary judged proof path: x402 spend, debt, repay, overspend block, denial, external signed usage, and fee accrual.
+- Replace operator-reviewed evidence counts with a permissionless receipt indexer that recomputes scoring evidence from chain.
+- Keep no-secret verification as a first-class surface: `/api/float`, `/api/float-tools`, and `npm run float:verify-live`.
+- Increase real external usage and repayment examples without calling invited builders partners.
+- Keep fee mechanics visible as testnet mechanics, not meaningful revenue until mainnet volume exists.
 
-Goal: prove Shadow with external follower agents and meaningful mirrored USDC volume.
+## M2 - Treasury / M1 Hardening
 
-- Open follower onboarding beyond the initial test cohort while keeping policy controls explicit.
-- Track copied, blocked, and closed-position receipts at mainnet stakes.
-- Publish source-agent reputation from receipts, not self-reported strategy claims.
-- Keep BLOCKED volume visible as proof that policies are holding the line.
+Goal: move the mandate extension from approved-adapter proof to production-grade fund control.
 
-## M3 - Revenue and forkable integrations
+- Move from adapter-enforced checks to a custodial or escrow-release enforcer so ALLOW directly controls fund release.
+- Replace the proof sink with a withdrawable/redeemable vault integration before calling it production treasury management.
+- Integrate a real Morpho or vault market instead of the current Morpho-style proof adapter.
+- Expand bonding from receipt-liveness guarantees to correctness, settlement, and adapter-behavior guarantees.
+- Add replay-safe signed action authorization for multi-user adapters, so the account owner explicitly authorizes each action.
+- Keep the current public wording scoped to approved adapters until those upgrades are live.
 
-Goal: turn the primitive into a sustainable Arc module that other teams can integrate.
+## M3 - Circle Interop Depth
 
-- Enable a protocol take-rate on copied flow while preserving source-agent kickbacks and follower accounting.
-- Package the router, receipt index, source registry, and attestation flow as a forkable SDK.
-- Land at least one external integration that uses Shadow receipts as the accountability layer for another agentic USDC product.
+Goal: make Float interoperable with the emerging Arc x402 ecosystem without corrupting the current proof discipline.
+
+- Keep today's judged proof on Arc USDC, x402, and EIP-3009 because those are load-bearing in every current Float draw.
+- Build a Gateway-batched x402 settlement resolver that maps a specific Circle Gateway transfer to a bindable onchain settlement artifact.
+- Only bind Gateway proofs when the receipt can point to a real Arc settlement tx plus a per-transfer identifier, not an offchain UUID.
+- Use independent Gateway-batched sellers as interop tests once the resolver is clean.
+
+## M4 - Capital and Revenue Model
+
+Goal: turn the testnet mechanics into a sustainable mainnet credit product.
+
+- Define who funds Float treasury capacity at scale: operators, protocols, or liquidity providers.
+- Add reserve accounting, default policy, and fee distribution that can survive real USDC volume.
+- Keep available-capacity reserve checks visible and auditable.
+- Grow transaction volume through real x402 provider purchases and repayment cycles, not synthetic volume.
+
+## M5 - Prior Shadow Rails
+
+Goal: keep the older copy-capital receipt system useful without letting it dilute the Float story.
+
+- Preserve the 2,893-receipt copy-capital archive as proof that Shadow's receipt-and-policy primitive predates Float.
+- Reuse the receipt/indexing discipline where it helps Float or Treasury/M1.
+- Avoid making copy trading the lead product in Float submissions or demos.
