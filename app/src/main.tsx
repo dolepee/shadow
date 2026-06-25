@@ -1076,21 +1076,21 @@ function App() {
           <div className="heroCopy">
             <div className="heroBadge">
               <span className="heroBadgeDot" />
-              Shadow Treasury · Float rail live on Arc
+              Shadow Float · live on Arc testnet
             </div>
-            <h1>Agent treasury on Arc. Float pays providers. Mandates stop overreach.</h1>
+            <h1>Agents buy x402 services before their wallet is funded.</h1>
             <p className="lede">
-              Shadow runs an autonomous operator that pays x402 providers through Float and allocates USDC through bonded
-              mandates. Float is the credit rail; M1 is the allocation rail. The Treasury proof is anchored on Arc receipts,
-              and external Float usage is signed and verifiable.
+              Shadow Float fronts approved Arc USDC payments to x402 providers, opens fee-inclusive debt, restores capacity
+              on repayment, and blocks unsafe spends before treasury funds move. Treasury/M1 is the supporting mandate
+              extension, not the primary Float proof path.
             </p>
             <div className="heroActions">
-              <Link to="/treasury" className="heroCtaPrimary">
-                Open Shadow Treasury
+              <Link to="/float" className="heroCtaPrimary">
+                Open Shadow Float
                 <span className="heroCtaArrow">→</span>
               </Link>
-              <Link className="heroCtaSecondary" to="/float">
-                Open Float rail
+              <Link className="heroCtaSecondary" to="/treasury">
+                View Treasury extension
               </Link>
             </div>
             <ul className="heroTrust" aria-label="Built on">
@@ -1111,14 +1111,14 @@ function App() {
       <HomeProofOverview state={floatState} loading={floatLoading} error={floatError} />
 
       <section className="pageNext" aria-label="Shadow Float verification paths">
-        <Link to="/treasury" className="pageNextCard pageNextCardPrimary">
+        <Link to="/float" className="pageNextCard pageNextCardPrimary">
           <span className="pageNextEyebrow">product</span>
-          <span className="pageNextTitle">Watch one operator pay, allocate, and get blocked on Arc</span>
+          <span className="pageNextTitle">Walk the signed x402 spend, debt, repay, block, and denial loop</span>
           <span className="pageNextArrow">→</span>
         </Link>
-        <Link to="/float" className="pageNextCard">
-          <span className="pageNextEyebrow">float rail</span>
-          <span className="pageNextTitle">Walk the signed x402 spend, debt, and repay loop</span>
+        <Link to="/treasury" className="pageNextCard">
+          <span className="pageNextEyebrow">mandate extension</span>
+          <span className="pageNextTitle">See the M1 adapter allocate when allowed and move nothing when blocked</span>
           <span className="pageNextArrow">→</span>
         </Link>
         <Link to="/proof" className="pageNextCard">
@@ -1128,7 +1128,7 @@ function App() {
         </Link>
         <Link to="/roadmap" className="pageNextCard">
           <span className="pageNextEyebrow">roadmap</span>
-          <span className="pageNextTitle">External Treasury users, Gateway-batched x402, and mainnet reserves</span>
+          <span className="pageNextTitle">Permissionless underwriting, Gateway-batched x402, and production-grade M1 custody</span>
           <span className="pageNextArrow">→</span>
         </Link>
       </section>
@@ -1291,6 +1291,7 @@ function App() {
       <TreasuryLiveVerifierPanel state={treasuryState} loading={treasuryLoading} error={treasuryError} />
       <TreasuryJudgePath />
       <TreasuryValidationPanel floatState={floatState} />
+      <TreasuryHardeningPanel />
     </>
   );
 
@@ -1581,12 +1582,12 @@ function TreasuryHero({ floatState, treasuryState }: {
   return (
     <section className="treasuryHero" aria-label="Shadow Treasury overview">
       <div className="treasuryHeroCopy">
-        <p className="eyebrow">Shadow Treasury · live on Arc testnet</p>
-        <h1>Let an agent operate USDC through adapters that enforce policy first.</h1>
+        <p className="eyebrow">Shadow Treasury / M1 · verified extension</p>
+        <h1>Approved adapters enforce mandate checks before vault-style funds move.</h1>
         <p>
-          Shadow Treasury combines two live rails: Float pays approved x402 providers, and M1-approved adapters check
-          vault-style allocations before funds move. The operator can act autonomously through those adapters, and every
-          payment, allocation, block, debt, and fee lands as an Arc receipt.
+          Shadow Treasury is the M1 extension to Float, not the primary Float proof path. The live proof shows an operator
+          paying an x402 provider through Float, allocating through a hardened approved adapter, and getting an over-limit
+          allocation blocked before vault-style USDC moves.
         </p>
         <div className="treasuryHeroActions">
           <a className="treasuryHeroPrimary" href="#treasury-proof">
@@ -1598,7 +1599,7 @@ function TreasuryHero({ floatState, treasuryState }: {
         </div>
         <div className="treasuryHeroBoundary" aria-label="Verified proof scope">
           <span>External Float usage live</span>
-          <span>Treasury verifier live</span>
+          <span>M1 approved-adapter proof</span>
           <span>{verifierLabel}</span>
         </div>
       </div>
@@ -1726,15 +1727,15 @@ function TreasuryRailSplit({
     },
     {
       eyebrow: "allocation rail",
-      title: "M1 gates treasury movement",
-      body: "The approved adapter authenticates the account, reads the bonded enforcer's ALLOW or BLOCK decision, and only moves vault-style USDC on ALLOW. The blocked proof moved no vault funds.",
+      title: "M1 gates approved-adapter movement",
+      body: "The approved adapter authenticates the account, reads the bonded enforcer's ALLOW or BLOCK decision, and only moves vault-style USDC on ALLOW. This guarantee is scoped to approved adapters.",
       stat: leptonState?.morphoDepositedUSDC !== undefined ? `${formatUSDC(leptonState.morphoDepositedUSDC)} USDC allocated` : "0.1 USDC allocated",
       href: "/lepton",
       cta: "Open M1",
     },
     {
       eyebrow: "combined proof",
-      title: "One read-only verifier checks both rails",
+      title: "One read-only verifier checks the proof path",
       body: "The verifier checks the x402 transfer, Float bind, debt math, vault transfer, blocked no-move path, and live API proof state.",
       stat: "25 checks",
       href: "https://github.com/dolepee/shadow",
@@ -1746,7 +1747,7 @@ function TreasuryRailSplit({
     <section className="treasuryRailSection" aria-label="Shadow Treasury rail split">
       <div className="treasurySectionHeader">
         <p className="eyebrow">two rails · one operator story</p>
-        <h2>Payments and allocations stay separate onchain, but read as one treasury product.</h2>
+        <h2>Payments and allocations stay separate onchain, but read as one verified mandate extension.</h2>
       </div>
       <div className="treasuryRailGrid">
         {railCards.map((card) => {
@@ -2132,7 +2133,7 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
     <section className="treasuryValidationSection" aria-label="External validation and builder background">
       <div className="treasurySectionHeader">
         <p className="eyebrow">validation · proof scope</p>
-        <h2>External Float usage is live; Treasury validation is anchored to verifier proof.</h2>
+        <h2>External Float usage is live; M1 review is tied to verifier proof.</h2>
       </div>
 
       <div className="treasuryValidationGrid">
@@ -2147,7 +2148,7 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
         </article>
 
         <article className="treasuryValidationCard treasuryValidationCardValidated">
-          <span>Treasury validation</span>
+          <span>technical review</span>
           <strong>Builders reviewed the proof</strong>
           <p>
             CitePay confirmed the architecture fit. Forum checked the live Arc transactions and verified the core claim:
@@ -2162,8 +2163,8 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
           <span>builder background</span>
           <strong>Receipt rails before Treasury</strong>
           <p>
-            Shadow's earlier receipt-and-policy system settled 2,893 onchain receipts across 30 follower wallets. Treasury
-            focuses that foundation into a product: agent-operated USDC with hard policy boundaries.
+            Shadow's earlier receipt-and-policy system settled 2,893 onchain receipts across 30 follower wallets. Float is
+            the focused product; M1 shows how the same discipline extends into policy-bound allocations.
           </p>
           <Link to="/archive">Open prior proof →</Link>
         </article>
@@ -2175,6 +2176,49 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
             <span>{row.label}</span>
             <strong>{row.status}</strong>
             <p>{row.detail}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TreasuryHardeningPanel() {
+  const boundaries = [
+    {
+      label: "approved-adapter boundary",
+      title: "The live M1 guarantee is scoped",
+      body: "The hardened proof adapters authenticate the account and honor ALLOW/BLOCK before transfer. Arbitrary third-party adapters are not covered by this claim.",
+    },
+    {
+      label: "proof sink",
+      title: "Vault proof is not production treasury custody",
+      body: "The current sink proves an allowed allocation and a no-transfer block. Post-hackathon work is a withdrawable vault or real market integration.",
+    },
+    {
+      label: "bond scope",
+      title: "The bond covers receipt liveness today",
+      body: "Correctness and settlement slashing remain roadmap work. The live proof does not pretend the bond covers every production treasury risk.",
+    },
+    {
+      label: "underwriting roadmap",
+      title: "Float scoring is deterministic v0",
+      body: "Current lines use operator-reviewed evidence. The next upgrade is a permissionless receipt indexer that recomputes evidence counts from chain.",
+    },
+  ];
+
+  return (
+    <section className="treasuryValidationSection" aria-label="M1 proof boundaries and post-hackathon hardening">
+      <div className="treasurySectionHeader">
+        <p className="eyebrow">proof boundary · post-hackathon hardening</p>
+        <h2>The live proof is real; production treasury custody is the next build.</h2>
+      </div>
+      <div className="roadmapGrid">
+        {boundaries.map((item) => (
+          <article className="roadmapCard" key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.title}</strong>
+            <p>{item.body}</p>
           </article>
         ))}
       </div>
@@ -4687,8 +4731,8 @@ function SiteFooter() {
       title: "Product",
       links: [
         { label: "Home", href: "/" },
-        { label: "Shadow Treasury", href: "/treasury" },
         { label: "Shadow Float", href: "/float" },
+        { label: "Treasury / M1", href: "/treasury" },
         { label: "Roadmap", href: "/roadmap" },
       ],
     },
@@ -4727,7 +4771,7 @@ function SiteFooter() {
             <span>Shadow</span>
           </Link>
           <p className="siteFooterTagline">
-            Autonomous USDC payments and allocations on Arc, bounded by Float lines and bonded mandates.
+            Behavior-backed x402 spending lines on Arc, with a verified Treasury/M1 mandate extension.
           </p>
           <div className="siteFooterBadge">
             <span className="heroBadgeDot" />
@@ -4758,7 +4802,7 @@ function SiteFooter() {
       </div>
       <div className="siteFooterBottom">
         <span>Built for Canteen × Circle Lepton · 2026</span>
-        <span>Shadow Treasury · Float remains the payment rail</span>
+        <span>Shadow Float · Treasury/M1 is the verified extension</span>
       </div>
     </footer>
   );

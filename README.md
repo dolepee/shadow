@@ -1,12 +1,28 @@
 # Shadow
 
-**Shadow Treasury runs an autonomous operator that pays and allocates Arc USDC through bounded, bonded, verifiable rails.**
+**Shadow Float lets autonomous agents buy x402 services before their own wallet is funded.**
 
-The current product frame combines two live rails. **Float** fronts approved x402 provider payments, records debt, accrues a fee, blocks unsafe spends, and restores capacity on repayment. **M1-approved adapters** authenticate the account, read a bonded enforcer's ALLOW/BLOCK decision, and only move vault-style USDC on ALLOW. The Treasury proof is anchored to public Arc receipts and a read-only verifier; external Float signed usage is live and verifiable.
+Shadow fronts Arc USDC for approved x402 purchases, records fee-inclusive debt onchain, restores capacity on repayment, and blocks unsafe spends before treasury funds move. That Float loop is the primary proof path.
 
-Live proof: https://shadow-arc.vercel.app/treasury
+Shadow Treasury / M1 is the supporting mandate extension: approved adapters authenticate the account, read a bonded enforcer's ALLOW/BLOCK decision, and only move vault-style USDC on ALLOW. It is a verified design extension over live Arc receipts, not a claimed production treasury customer or real Morpho deployment.
 
-## Live Treasury Proof
+Primary proof: https://shadow-arc.vercel.app/float
+
+Supporting proof: https://shadow-arc.vercel.app/treasury
+
+## Primary Float Proof
+
+| Surface | What to check |
+| --- | --- |
+| Float contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
+| Live state API | `GET https://shadow-arc.vercel.app/api/float` |
+| Live proof page | https://shadow-arc.vercel.app/float |
+| No-secret verifier | `npm run float:verify-live` |
+| Signed intent verifier | `GET /api/float-tools?action=verify&hash=0x...` |
+
+The live API exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The verifier command independently checks the live contract, receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys.
+
+## Supporting Treasury / M1 Proof
 
 | Surface | What to check |
 | --- | --- |
@@ -39,19 +55,19 @@ The M1 receipt fields are not just labels. The allowed allocation receipt checks
 
 External technical review: CitePay validated the architecture fit for agent/x402 policy enforcement. Forum reviewed the live Arc transactions and confirmed the core enforcement claim: the same vault adapter entrypoint moved `0.1` USDC when allowed, then moved zero USDC on the over-limit path while the bonded enforcer logged the block decision.
 
-Scope: **external Float usage is live and verifiable; Treasury proof is currently backed by public receipts, contract links, and the read-only verifier.**
+Scope: **external Float usage is live and verifiable; Treasury/M1 proof is a supporting verified extension backed by public receipts, contract links, and the read-only verifier.**
 
-## Live Float Proof
+## M1 Boundaries and Post-Hackathon Hardening
 
-| Surface | What to check |
-| --- | --- |
-| Float contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
-| Live state API | `GET https://shadow-arc.vercel.app/api/float` |
-| Live proof page | https://shadow-arc.vercel.app/float |
-| No-secret verifier | `npm run float:verify-live` |
-| Signed intent verifier | `GET /api/float-tools?action=verify&hash=0x...` |
+The M1 proof uses hardened approved adapters. Those adapters authenticate the account and honor the enforcer's ALLOW/BLOCK result before moving funds. The current claim is therefore bounded to approved adapters and the public proof path, not arbitrary third-party adapters.
 
-The live API exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The verifier command independently checks the live contract, receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys.
+Post-hackathon hardening is explicit:
+
+- Move from adapter-enforced checks to a custodial or escrow-release enforcer for stronger fund-control guarantees.
+- Replace the proof sink with a withdrawable/redeemable vault integration before calling it production treasury management.
+- Integrate a real Morpho or vault market instead of the current Morpho-style proof adapter.
+- Expand bonding from receipt-liveness guarantees to correctness and settlement guarantees.
+- Replace operator-reviewed underwriting evidence with a permissionless receipt indexer.
 
 ## Float Economic Loop
 

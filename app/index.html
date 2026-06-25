@@ -12,30 +12,30 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
     />
-    <title>Shadow Treasury: autonomous USDC payments and allocations on Arc</title>
+    <title>Shadow Float: x402 spending lines for agents on Arc</title>
     <meta
       name="description"
-      content="Shadow Treasury combines Float x402 payments and bonded M1 mandates so an autonomous operator can pay providers, allocate Arc USDC, and get blocked before funds move."
+      content="Shadow Float lets agents buy approved x402 services before their wallet is funded. Treasury/M1 is the verified mandate extension."
     />
-    <link rel="canonical" href="https://shadow-arc.vercel.app/treasury" />
+    <link rel="canonical" href="https://shadow-arc.vercel.app/float" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Shadow" />
-    <meta property="og:title" content="Shadow Treasury: autonomous USDC payments and allocations on Arc" />
+    <meta property="og:title" content="Shadow Float: x402 spending lines for agents on Arc" />
     <meta
       property="og:description"
-      content="Float pays x402 providers. M1 mandates gate allocations. Every allow, block, debt, and fee is verifiable on Arc testnet."
+      content="Shadow fronts Arc USDC for approved x402 spends, records debt, restores capacity on repayment, and blocks unsafe spends before funds move."
     />
-    <meta property="og:url" content="https://shadow-arc.vercel.app/treasury" />
+    <meta property="og:url" content="https://shadow-arc.vercel.app/float" />
     <meta property="og:image" content="https://shadow-arc.vercel.app/og-shadow-float.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="675" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Shadow Treasury: autonomous USDC payments and allocations on Arc" />
+    <meta name="twitter:title" content="Shadow Float: x402 spending lines for agents on Arc" />
     <meta
       name="twitter:description"
-      content="One operator pays through Float, allocates through M1, and is blocked on overreach. The proof is live on Arc."
+      content="Agents can buy approved x402 resources before their wallet is funded. Every draw, debt, repayment, and block is verifiable on Arc."
     />
     <meta name="twitter:image" content="https://shadow-arc.vercel.app/og-shadow-float.png" />
 
@@ -46,8 +46,8 @@
         "name": "Shadow",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
-        "description": "Autonomous USDC payments and allocations on Arc, bounded by Float spending lines and bonded M1 mandates.",
-        "url": "https://shadow-arc.vercel.app/treasury",
+        "description": "Behavior-backed x402 spending lines for autonomous agents on Arc, with a verified Treasury/M1 mandate extension.",
+        "url": "https://shadow-arc.vercel.app/float",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
     </script>
@@ -56,35 +56,36 @@
     <div id="root">
       <noscript>
         <p>
-          Shadow's Treasury proof is independently browsable on Arc testnet; the app adds live receipt and verifier views
-          when JavaScript is available. Float: 0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057. Bonded enforcer:
+          Shadow Float proof is independently browsable on Arc testnet; the app adds live receipt and verifier views when
+          JavaScript is available. Float: 0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057. Bonded enforcer:
           0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e.
         </p>
       </noscript>
       <main data-prerender="shell" style="font-family:'Bricolage Grotesque',system-ui,sans-serif;max-width:860px;margin:48px auto;padding:24px;color:#f3f7ff;background:#07111f;border:1px solid rgba(184,211,255,.14);border-radius:22px">
         <header>
-          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow Treasury · Float rail live on Arc</p>
-          <h1 style="font-size:40px;margin:0 0 12px;line-height:1.05;letter-spacing:0">Agent treasury on Arc. Float pays providers. Mandates stop overreach.</h1>
+          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow Float · live on Arc testnet</p>
+          <h1 style="font-size:40px;margin:0 0 12px;line-height:1.05;letter-spacing:0">Agents buy x402 services before their wallet is funded.</h1>
           <p style="font-size:17px;line-height:1.55;color:#c0cce0;margin:0 0 18px">
-            Shadow combines Float x402 payments and bonded M1 mandate allocations. The Treasury proof is concrete: one operator pays a provider, allocates USDC into a vault sink, and gets blocked on an over-limit allocation.
+            Shadow Float fronts approved Arc USDC payments to x402 providers, opens debt, restores capacity on repayment, and blocks unsafe spends before treasury funds move.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:0 0 4px">
-            Float remains the payment and credit rail: signed external spend intents, x402 settlement evidence, debt receipts, repayment, and over-limit blocks are all visible on Arc testnet.
+            Treasury/M1 is the supporting mandate extension: approved adapters allocate vault-style USDC only after an ALLOW receipt, and the over-limit proof moves no vault funds.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:8px 0 0">
-            External Float usage is live, and Treasury proof is anchored by public contract and transaction links.
+            External Float usage is live, and both proof surfaces are anchored by public contract and transaction links.
           </p>
         </header>
         <section>
           <h2 style="font-size:18px;margin:28px 0 8px">What the app proves</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#d5e5fb">
-            <li><strong>Float payment</strong> · the operator fronts an x402 provider payment in Arc USDC</li>
+            <li><strong>Float payment</strong> · Shadow fronts an approved x402 provider payment in Arc USDC</li>
+            <li><strong>Float debt</strong> · debt opens onchain and repayment restores available capacity</li>
             <li><strong>M1 allocation</strong> · a vault-style deposit moves only after an ALLOW receipt</li>
-            <li><strong>Overreach block</strong> · an oversized allocation is refused before funds move</li>
+            <li><strong>Overreach block</strong> · oversized Float and M1 actions move no funds</li>
             <li><strong>No-secret verifier</strong> · Float and M1 proof are checked with one read-only command</li>
           </ul>
           <p style="font-size:14px;color:#8fb4d9;margin:8px 0 0">
-            Proof anchors are below; the full app adds the live receipt timeline and 25-check verifier panel.
+            Proof anchors are below; the full app adds the Float runway, standing board, M1 proof path, and verifier panels.
           </p>
         </section>
         <section>
@@ -110,7 +111,7 @@
           </ul>
         </section>
         <footer style="margin-top:32px;border-top:1px solid rgba(184,211,255,.14);padding-top:16px;font-size:13px;color:#8fb4d9">
-          Live deployment on Arc testnet · chain id 5042002 · loading interactive Shadow Treasury surface...
+          Live deployment on Arc testnet · chain id 5042002 · loading interactive Shadow Float surface...
         </footer>
       </main>
     </div>
