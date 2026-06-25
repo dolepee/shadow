@@ -1081,8 +1081,8 @@ function App() {
             <h1>Agent treasury on Arc. Float pays providers. Mandates stop overreach.</h1>
             <p className="lede">
               Shadow runs an autonomous operator that pays x402 providers through Float and allocates USDC through bonded
-              mandates. Float remains the credit rail; M1 is the allocation rail. The current Treasury proof is self-operated,
-              while external Float usage is already signed and verifiable.
+              mandates. Float is the credit rail; M1 is the allocation rail. The Treasury proof is anchored on Arc receipts,
+              and external Float usage is signed and verifiable.
             </p>
             <div className="heroActions">
               <Link to="/treasury" className="heroCtaPrimary">
@@ -1596,9 +1596,9 @@ function TreasuryHero({ floatState, treasuryState }: {
             Open live API
           </a>
         </div>
-        <div className="treasuryHeroBoundary" aria-label="Current proof boundary">
+        <div className="treasuryHeroBoundary" aria-label="Verified proof scope">
           <span>External Float usage live</span>
-          <span>External Treasury buyer in progress</span>
+          <span>Treasury verifier live</span>
           <span>{verifierLabel}</span>
         </div>
       </div>
@@ -1833,7 +1833,7 @@ function TreasuryProofPanel({
     <section className="treasuryProofPanel" id="treasury-proof" aria-label="Shadow Treasury live proof">
       <div className="treasuryProofHeader">
         <div>
-          <p className="eyebrow">live proof runway · self-operated</p>
+          <p className="eyebrow">live proof runway · Arc receipts</p>
           <h2>One operator paid, allocated, and was stopped on the third action.</h2>
           <p>
             The proof below is deliberately concrete: one x402 payment, one vault allocation, one blocked over-limit
@@ -1842,7 +1842,7 @@ function TreasuryProofPanel({
         </div>
         <div className={`treasuryProofStatus ${treasuryState?.ok === false ? "fail" : ""}`}>
           <span className="treasuryProofStatusDot" />
-          {treasuryState ? (treasuryState.ok ? "live verifier green" : "verifier red") : "gate green"}
+          {treasuryState ? (treasuryState.ok ? "live verifier green" : "verifier red") : "verifier ready"}
         </div>
       </div>
 
@@ -1926,7 +1926,7 @@ function TreasuryProofPanel({
 
       <div className="treasuryBoundary">
         <span>External Float signed usage is live.</span>
-        <span>External Treasury buyer validation is still in progress.</span>
+        <span>CitePay reviewed the Treasury architecture.</span>
         <span>
           API and CLI both check the combined proof: <code>/api/treasury</code> and <code>npm run treasury:verify-live</code>.
         </span>
@@ -2045,7 +2045,7 @@ function TreasuryLiveVerifierPanel({
             <strong>{state?.ok ? "green" : loading ? "syncing" : "pending"}</strong>
             <p>
               {failed
-                ? `${failed} check${failed === 1 ? "" : "s"} need attention before using this in the demo.`
+                ? `${failed} check${failed === 1 ? "" : "s"} need attention before relying on this proof.`
                 : state
                   ? `All ${passed} live checks passed${checkedAt ? ` at ${checkedAt}` : ""}.`
                   : "Waiting for the live Treasury API to return."}
@@ -2126,7 +2126,7 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
   return (
     <section className="treasuryValidationSection" aria-label="External validation and builder background">
       <div className="treasurySectionHeader">
-        <p className="eyebrow">validation · current boundary</p>
+        <p className="eyebrow">validation · proof scope</p>
         <h2>External Float usage is live; Treasury validation is anchored to verifier proof.</h2>
       </div>
 
@@ -2164,7 +2164,7 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
         </article>
       </div>
 
-      <div className="treasuryValidationList" aria-label="Validation queue">
+      <div className="treasuryValidationList" aria-label="External validation entries">
         {validationRows.map((row) => (
           <article key={row.label}>
             <span>{row.label}</span>
@@ -2316,7 +2316,7 @@ function FloatPanel({
         </div>
         <span>real Arc USDC</span>
         <span>x402 settlement bound onchain</span>
-        <span>lab, signed external, and assisted onboarding stay separate</span>
+        <span>operator, external, and onboarding proofs stay separated</span>
       </div>
 
       {!compact && <FloatWalletProof state={state} loading={loading} />}
@@ -2336,14 +2336,14 @@ function FloatPanel({
           tone="allow"
         />
         <FloatHeadlineStat
-          label="agent-loop cycles"
+          label="operator loop cycles"
           value={`${agentLoop?.cycles || 0}`}
           detail={`${agentLoop?.paidCount || 0} paid · ${agentLoop?.skipCount || 0} skipped`}
         />
         <FloatHeadlineStat
-          label="autonomous loop settled"
+          label="operator loop settled"
           value={formatFloatUSDC(agentLoop?.providerPaidUSDC)}
-          detail="lab loop, separate from external"
+          detail="separate from external signed usage"
           tone="allow"
         />
         <FloatHeadlineStat
@@ -2519,7 +2519,7 @@ function FloatPanel({
                 </div>
               ))
             ) : (
-              <div className="floatEmpty">Run the Float proof script after deployment to populate live receipts.</div>
+              <div className="floatEmpty">No Float receipts are indexed for this deployment yet.</div>
             )}
           </div>
         </article>
@@ -2536,7 +2536,7 @@ function FloatPanel({
           <span>testnet USDC line, not a lending market</span>
           <span>agent chooses the spend; Shadow enforces the mandate</span>
           <span>x402 settlement tx is bound on-chain</span>
-          <span>signed external and assisted onboarding stay labeled separately</span>
+          <span>external signed and onboarding-assisted proofs stay labeled separately</span>
         </div>
       )}
     </section>
@@ -2889,8 +2889,8 @@ function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
         <div>
           <strong>Outside agents sign; Shadow fronts the x402 payment.</strong>
           <p>
-            These rows are current-contract signed intents. Obol is shown separately as an arms-length buyer agent; invited
-            builders are listed without partner language.
+            These rows show spend intents signed against the live Float contract. Obol is shown separately as an arms-length
+            buyer agent; other builder agents are labeled without partner language.
           </p>
         </div>
         <a href="/api/float" target="_blank" rel="noreferrer">
@@ -2978,7 +2978,7 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
     <article className="floatLoopPanel" id="float-loop">
       <div className="floatBoxHeader">
         <span>autonomous float loop</span>
-        <small>{hasRuns ? `${summary?.cycles || 0} labeled cycles` : "waiting for first cron"}</small>
+        <small>{hasRuns ? `${summary?.cycles || 0} labeled cycles` : "no scheduled cycle indexed"}</small>
       </div>
       <div className="floatLoopStats">
         <FloatFact label="agent-loop paid" value={`${summary?.paidCount || 0}`} />
@@ -2986,7 +2986,7 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
         <FloatFact label="denied" value={`${summary?.deniedCount || 0}`} />
         <FloatFact label="repaid" value={`${summary?.repaidCount || 0}`} />
         <FloatFact label="skipped" value={`${summary?.skipCount || 0}`} />
-        <FloatFact label="fallbacks" value={`${summary?.fallbacks || 0}`} />
+        <FloatFact label="quote-only exits" value={`${summary?.fallbacks || 0}`} />
       </div>
       <div className="floatLoopSplit">
         <div>
@@ -2994,7 +2994,7 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
           <strong>{formatFloatUSDC(summary?.providerPaidUSDC)}</strong>
         </div>
         <div>
-          <span>demo/admin x402 settled</span>
+          <span>operator x402 settled</span>
           <strong>{formatFloatUSDC(state?.sourceBreakdown?.demoAdmin?.providerPaidUSDC)}</strong>
         </div>
         <div>
@@ -3013,7 +3013,7 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
             <strong>{latest.outcome || "pending"}</strong>
             <small>
               {latest.model || "model unknown"}
-              {latest.fellBack ? " · fallback" : ""}
+              {latest.fellBack ? " · conservative route" : ""}
             </small>
           </div>
           <p>{latest.rationale || "No rationale recorded."}</p>
@@ -3042,7 +3042,7 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
         </div>
       ) : (
         <div className="floatLoopEmpty">
-          The x402-bound proof is live. The autonomous cron has not written its first labeled loop run yet.
+          The x402-bound proof is live. No scheduled agent-loop receipt is indexed yet.
         </div>
       )}
       {!compact && hasRuns && (
@@ -5515,9 +5515,9 @@ function CircleStackPanel() {
       />
       <p className="circleStackCaption">
         Float&apos;s core draw path uses Arc USDC, x402, and EIP-3009 today. Gateway-batched x402 is the next interop
-        milestone: Shadow paid an independent Gateway-batched Arc x402 seller in lab, but per-transfer onchain settlement
-        binding into Float receipts remains roadmap work. Circle Modular Wallets and Gas Station are proven onboarding
-        capability, not the current Float draw path.
+        milestone: Shadow completed an interoperability test with an independent Gateway-batched Arc x402 seller, while
+        per-transfer onchain settlement binding into Float receipts remains the next milestone. Circle Modular Wallets and
+        Gas Station are proven onboarding capability, not the current Float draw path.
       </p>
       <div className="circleStackGrid">
         <article className="circleTierCard primary">
