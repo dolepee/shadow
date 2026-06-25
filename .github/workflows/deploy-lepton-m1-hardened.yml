@@ -1,0 +1,72 @@
+name: deploy-lepton-m1-hardened
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ARC_RPC_URL: ${{ secrets.ARC_RPC_URL }}
+      ARC_USDC: ${{ secrets.ARC_USDC }}
+      SHADOW_FLOAT: "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057"
+      PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      FLOAT_X402_PROVIDER_URL: ${{ secrets.FLOAT_X402_PROVIDER_URL }}
+      FLOAT_ALPHA_ADDRESS: ${{ secrets.FLOAT_ALPHA_ADDRESS }}
+      LEPTON_MIN_BOND_USDC: "10000000"
+      TREASURY_OPERATOR_EXECUTE: "1"
+      TREASURY_OPERATOR_AUTO_BOND: "1"
+      TREASURY_OPERATOR_PROOF_OUT: "treasury-proof.json"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - name: install app deps
+        working-directory: app
+        run: pnpm install --no-frozen-lockfile --ignore-workspace
+
+      - name: test hardened adapters
+        run: forge test --root contracts --match-contract 'MorphoStyleVaultAdapterTest|V4StyleArcAdapterTest' -vv
+
+      - name: deploy hardened M1 contracts
+        working-directory: contracts
+        run: forge script script/DeployLeptonM1.s.sol:DeployLeptonM1 --rpc-url "$ARC_RPC_URL" --broadcast
+
+      - name: extract hardened M1 addresses
+        run: |
+          node scripts/extract-lepton-m1-addresses.mjs \
+            contracts/broadcast/DeployLeptonM1.s.sol/5042002/run-latest.json \
+            lepton-m1-addresses.json | tee lepton-m1-addresses.env
+          cat lepton-m1-addresses.env >> "$GITHUB_ENV"
+
+      - name: run hardened Treasury proof
+        run: npm run treasury:spike
+
+      - name: extract hardened Treasury proof env
+        run: |
+          node scripts/extract-treasury-proof-env.mjs treasury-proof.json treasury-proof.env
+          cat treasury-proof.env >> "$GITHUB_ENV"
+
+      - name: verify hardened Treasury proof
+        run: npm run treasury:verify-live
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hardened-lepton-m1-proof
+          path: |
+            lepton-m1-addresses.json
+            lepton-m1-addresses.env
+            treasury-proof.json
+            treasury-proof.env
+            contracts/broadcast/DeployLeptonM1.s.sol/5042002/run-latest.json

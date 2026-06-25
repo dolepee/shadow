@@ -1,8 +1,8 @@
 # Shadow
 
-**Shadow Treasury runs an autonomous operator that pays and allocates Arc USDC inside bounded, bonded, verifiable rules.**
+**Shadow Treasury runs an autonomous operator that pays and allocates Arc USDC through bounded, bonded, verifiable rails.**
 
-The current product frame combines two live rails. **Float** fronts approved x402 provider payments, records debt, accrues a fee, blocks unsafe spends, and restores capacity on repayment. **M1 mandates** gate vault-style allocations through a bonded enforcer before USDC moves. The Treasury proof is anchored to public Arc receipts and a read-only verifier; external Float signed usage is live and verifiable.
+The current product frame combines two live rails. **Float** fronts approved x402 provider payments, records debt, accrues a fee, blocks unsafe spends, and restores capacity on repayment. **M1-approved adapters** authenticate the account, read a bonded enforcer's ALLOW/BLOCK decision, and only move vault-style USDC on ALLOW. The Treasury proof is anchored to public Arc receipts and a read-only verifier; external Float signed usage is live and verifiable.
 
 Live proof: https://shadow-arc.vercel.app/treasury
 

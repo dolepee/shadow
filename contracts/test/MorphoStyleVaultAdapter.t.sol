@@ -88,7 +88,7 @@ contract MorphoStyleVaultAdapterTest {
         uint256 circleBefore = usdc.balanceOf(address(circleWallet));
         uint256 vaultBefore = usdc.balanceOf(address(vaultSink));
 
-        (bytes32 receiptHash, bool allowed, RiskPolicy.BlockReason reason) = caller.run(adapter, action);
+        (bytes32 receiptHash, bool allowed, RiskPolicy.BlockReason reason) = circleWallet.run(adapter, action);
 
         require(allowed, "deposit should allow");
         require(reason == RiskPolicy.BlockReason.NONE, "allow reason");
@@ -113,7 +113,7 @@ contract MorphoStyleVaultAdapterTest {
         uint256 circleBefore = usdc.balanceOf(address(circleWallet));
         uint256 vaultBefore = usdc.balanceOf(address(vaultSink));
 
-        (bytes32 receiptHash, bool allowed, RiskPolicy.BlockReason reason) = caller.run(adapter, action);
+        (bytes32 receiptHash, bool allowed, RiskPolicy.BlockReason reason) = circleWallet.run(adapter, action);
 
         require(!allowed, "deposit should block");
         require(reason == RiskPolicy.BlockReason.ASSET_NOT_ALLOWED, "block reason");
@@ -144,7 +144,7 @@ contract MorphoStyleVaultAdapterTest {
         MandateRegistry.Action memory action = _action(1 * USDC, address(usdc), 2, 9_950, "morpho-mismatch");
         action.mandateId = swapMandateId;
 
-        (bytes32 receiptHash, bool allowed, RiskPolicy.BlockReason reason) = caller.run(adapter, action);
+        (bytes32 receiptHash, bool allowed, RiskPolicy.BlockReason reason) = circleWallet.run(adapter, action);
 
         require(!allowed, "mismatched mandate should block");
         require(reason == RiskPolicy.BlockReason.NOT_FOLLOWING, "mismatch reason");
@@ -185,7 +185,7 @@ contract MorphoStyleVaultAdapterTest {
         });
 
         bool reverted = false;
-        try caller.run(unbondedAdapter, action) {
+        try circleWallet.run(unbondedAdapter, action) {
             reverted = false;
         } catch {
             reverted = true;
@@ -199,7 +199,7 @@ contract MorphoStyleVaultAdapterTest {
         action.target = address(0xCAFE);
 
         bool reverted = false;
-        try caller.run(adapter, action) {
+        try circleWallet.run(adapter, action) {
             reverted = false;
         } catch {
             reverted = true;
@@ -214,7 +214,7 @@ contract MorphoStyleVaultAdapterTest {
         action.actionType = MandateRegistry.ActionType.SWAP;
 
         bool reverted = false;
-        try caller.run(adapter, action) {
+        try circleWallet.run(adapter, action) {
             reverted = false;
         } catch {
             reverted = true;
@@ -239,6 +239,27 @@ contract MorphoStyleVaultAdapterTest {
         require(refA != bytes32(0), "execution ref");
         require(refA != refB, "salt bound");
         require(refA != refDifferentMarket, "market fields bound");
+    }
+
+    function testCallerCannotForceDepositFromApprovedCircleAccount() public {
+        MandateRegistry.Action memory action = _action(2 * USDC, address(usdc), 2, 9_950, "forced-deposit");
+        uint256 circleBefore = usdc.balanceOf(address(circleWallet));
+        uint256 vaultBefore = usdc.balanceOf(address(vaultSink));
+
+        bool reverted = false;
+        try caller.run(adapter, action) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+
+        require(reverted, "non-account caller must not force deposit");
+        require(attestor.receiptCount() == 0, "forced attempt should not receipt");
+        require(adapter.depositedUSDC() == 0, "no deposited notional");
+        require(adapter.blockedUSDC() == 0, "no blocked notional");
+        require(usdc.balanceOf(address(circleWallet)) == circleBefore, "circle wallet unchanged");
+        require(usdc.balanceOf(address(vaultSink)) == vaultBefore, "vault unchanged");
+        require(vaultSink.totalDepositedUSDC() == 0, "vault ledger unchanged");
     }
 
     function _action(

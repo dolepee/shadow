@@ -86,7 +86,7 @@ contract V4StyleArcAdapterTest {
         uint256 circleBefore = usdc.balanceOf(address(circleWallet));
         uint256 sinkBefore = usdc.balanceOf(address(vaultSink));
 
-        (bytes32 receiptHash, bool allowed, RiskPolicy.BlockReason reason) = caller.run(adapter, action);
+        (bytes32 receiptHash, bool allowed, RiskPolicy.BlockReason reason) = circleWallet.run(adapter, action);
 
         require(allowed, "adapter action should allow");
         require(reason == RiskPolicy.BlockReason.NONE, "allow reason");
@@ -110,7 +110,7 @@ contract V4StyleArcAdapterTest {
         uint256 circleBefore = usdc.balanceOf(address(circleWallet));
         uint256 sinkBefore = usdc.balanceOf(address(vaultSink));
 
-        (bytes32 receiptHash, bool allowed, RiskPolicy.BlockReason reason) = caller.run(adapter, action);
+        (bytes32 receiptHash, bool allowed, RiskPolicy.BlockReason reason) = circleWallet.run(adapter, action);
 
         require(!allowed, "adapter action should block");
         require(reason == RiskPolicy.BlockReason.ASSET_NOT_ALLOWED, "block reason");
@@ -155,7 +155,7 @@ contract V4StyleArcAdapterTest {
         });
 
         bool reverted = false;
-        try caller.run(unbondedAdapter, action) {
+        try circleWallet.run(unbondedAdapter, action) {
             reverted = false;
         } catch {
             reverted = true;
@@ -169,7 +169,7 @@ contract V4StyleArcAdapterTest {
         action.target = address(0xCAFE);
 
         bool reverted = false;
-        try caller.run(adapter, action) {
+        try circleWallet.run(adapter, action) {
             reverted = false;
         } catch {
             reverted = true;
@@ -184,7 +184,7 @@ contract V4StyleArcAdapterTest {
         action.actionType = MandateRegistry.ActionType.DEPOSIT;
 
         bool reverted = false;
-        try caller.run(adapter, action) {
+        try circleWallet.run(adapter, action) {
             reverted = false;
         } catch {
             reverted = true;
@@ -221,6 +221,27 @@ contract V4StyleArcAdapterTest {
         require(refA != refDifferentPool, "pool key bound");
     }
 
+    function testCallerCannotForceActionFromApprovedCircleAccount() public {
+        MandateRegistry.Action memory action = _action(2 * USDC, address(usdc), 2, 9_800, "forced-v4-action");
+        uint256 circleBefore = usdc.balanceOf(address(circleWallet));
+        uint256 sinkBefore = usdc.balanceOf(address(vaultSink));
+
+        bool reverted = false;
+        try caller.run(adapter, action) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+
+        require(reverted, "non-account caller must not force action");
+        require(attestor.receiptCount() == 0, "forced attempt should not receipt");
+        require(adapter.executedUSDC() == 0, "no executed notional");
+        require(adapter.blockedUSDC() == 0, "no blocked notional");
+        require(usdc.balanceOf(address(circleWallet)) == circleBefore, "circle wallet unchanged");
+        require(usdc.balanceOf(address(vaultSink)) == sinkBefore, "sink unchanged");
+        require(vaultSink.totalDepositedUSDC() == 0, "vault ledger unchanged");
+    }
+
     function testAdapterCanStillSendToPlainAddressSink() public {
         address plainSink = address(0xA11CE);
         V4StyleArcAdapter plainAdapter = new V4StyleArcAdapter(address(usdc), address(enforcer), plainSink);
@@ -255,7 +276,7 @@ contract V4StyleArcAdapterTest {
         });
         uint256 sinkBefore = usdc.balanceOf(plainSink);
 
-        (, bool allowed,) = caller.run(plainAdapter, action);
+        (, bool allowed,) = circleWallet.run(plainAdapter, action);
 
         require(allowed, "plain sink action should allow");
         require(usdc.balanceOf(plainSink) == sinkBefore + 1 * USDC, "plain sink credited");

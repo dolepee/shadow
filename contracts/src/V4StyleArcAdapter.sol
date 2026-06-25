@@ -49,6 +49,7 @@ contract V4StyleArcAdapter {
 
     error WrongAdapterTarget();
     error UnsupportedActionType();
+    error CallerNotCircleAccount();
 
     constructor(address usdc_, address enforcer_, address liquiditySink_) {
         usdc = IERC20(usdc_);
@@ -112,6 +113,7 @@ contract V4StyleArcAdapter {
     {
         if (action.target != address(this)) revert WrongAdapterTarget();
         if (action.actionType != MandateRegistry.ActionType.SWAP) revert UnsupportedActionType();
+        if (msg.sender != action.circleAccount || action.actor != msg.sender) revert CallerNotCircleAccount();
 
         bytes32 actionHash;
         (receiptHash, allowed, reason, actionHash) = _check(action);

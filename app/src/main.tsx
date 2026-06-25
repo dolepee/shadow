@@ -1582,11 +1582,11 @@ function TreasuryHero({ floatState, treasuryState }: {
     <section className="treasuryHero" aria-label="Shadow Treasury overview">
       <div className="treasuryHeroCopy">
         <p className="eyebrow">Shadow Treasury · live on Arc testnet</p>
-        <h1>Let an agent operate USDC without letting it break policy.</h1>
+        <h1>Let an agent operate USDC through adapters that enforce policy first.</h1>
         <p>
-          Shadow Treasury combines two live rails: Float pays approved x402 providers, and M1 gates vault-style
-          allocations before funds move. The operator can act autonomously, but every payment, allocation, block, debt, and
-          fee lands as an Arc receipt.
+          Shadow Treasury combines two live rails: Float pays approved x402 providers, and M1-approved adapters check
+          vault-style allocations before funds move. The operator can act autonomously through those adapters, and every
+          payment, allocation, block, debt, and fee lands as an Arc receipt.
         </p>
         <div className="treasuryHeroActions">
           <a className="treasuryHeroPrimary" href="#treasury-proof">
@@ -1727,7 +1727,7 @@ function TreasuryRailSplit({
     {
       eyebrow: "allocation rail",
       title: "M1 gates treasury movement",
-      body: "The bonded enforcer writes ALLOW or BLOCK before vault-style USDC movement. The blocked proof moved no vault funds.",
+      body: "The approved adapter authenticates the account, reads the bonded enforcer's ALLOW or BLOCK decision, and only moves vault-style USDC on ALLOW. The blocked proof moved no vault funds.",
       stat: leptonState?.morphoDepositedUSDC !== undefined ? `${formatUSDC(leptonState.morphoDepositedUSDC)} USDC allocated` : "0.1 USDC allocated",
       href: "/lepton",
       cta: "Open M1",

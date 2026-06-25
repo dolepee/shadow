@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
   createPublicClient,
   createWalletClient,
@@ -51,6 +51,7 @@ const endpointHash = keccak256(stringToBytes(endpointLabel));
 
 const EXECUTE = clean(env.TREASURY_OPERATOR_EXECUTE) === "1";
 const RESUME_M1 = clean(env.TREASURY_OPERATOR_RESUME_M1) === "1";
+const AUTO_BOND = clean(env.TREASURY_OPERATOR_AUTO_BOND) === "1";
 const now = Math.floor(Date.now() / 1000);
 const salt = `${now}-${Math.random().toString(16).slice(2)}`;
 const minBond = BigInt(clean(env.TREASURY_OPERATOR_MIN_BOND_USDC) || "10000000");
@@ -123,15 +124,24 @@ async function main() {
   }
   if (x402Amount <= 0n) throw new Error("x402 amount must be positive");
 
-  const before = await snapshot(provider);
+  let before = await snapshot(provider);
   printHeader(before, provider, x402Amount);
-  const requiredForMandate = allowAmount;
+  const bondTopUp = before.adapterBond < minBond ? minBond - before.adapterBond : 0n;
+  const requiredForMandate = allowAmount + bondTopUp;
   if (before.operatorUsdc < requiredForMandate + x402Amount) {
     throw new Error(`operator needs at least ${fmt(requiredForMandate + x402Amount)} USDC; has ${fmt(before.operatorUsdc)}`);
   }
   if (before.nativeBalance === 0n) throw new Error("operator has no native gas balance");
   if (before.adapterBond < minBond) {
-    throw new Error(`Morpho adapter bond ${fmt(before.adapterBond)} is below required ${fmt(minBond)}; post bond before spike`);
+    if (!EXECUTE || !AUTO_BOND) {
+      throw new Error(`Morpho adapter bond ${fmt(before.adapterBond)} is below required ${fmt(minBond)}; set TREASURY_OPERATOR_AUTO_BOND=1 to post bond during the spike`);
+    }
+    await approveIfNeeded(USDC, MORPHO_ADAPTER, bondTopUp);
+    await send("post Morpho adapter bond", MORPHO_ADAPTER, morphoAbi, "postBond", [bondTopUp]);
+    before = await snapshot(provider);
+    if (before.adapterBond < minBond) {
+      throw new Error(`Morpho adapter bond ${fmt(before.adapterBond)} is still below required ${fmt(minBond)}`);
+    }
   }
   if (before.alphaLine.availableCreditUSDC < x402Amount) {
     throw new Error(`Float alpha available ${fmt(before.alphaLine.availableCreditUSDC)} is below x402 amount ${fmt(x402Amount)}`);
@@ -234,6 +244,11 @@ async function main() {
   const proof = await verifySpike({ before, after, provider, x402Amount, requestHash, actionHashes, txs, resumedM1: RESUME_M1 });
   console.log("\ncombined treasury operator proof");
   console.log(JSON.stringify(proof, null, 2));
+  const proofOut = clean(env.TREASURY_OPERATOR_PROOF_OUT);
+  if (proofOut) {
+    writeFileSync(proofOut, `${JSON.stringify(proof, null, 2)}\n`);
+    console.log(`proof written to ${proofOut}`);
+  }
   if (!proof.ok) process.exit(1);
 }
 
@@ -356,11 +371,22 @@ async function verifySpike({ before, after, provider, x402Amount, requestHash, a
       morphoStyleVaultSink: MORPHO_SINK,
     },
     txs,
+    requestHash,
+    actionHashes: {
+      allowed: actionHashes[0],
+      blocked: actionHashes[1],
+    },
     amounts: {
       vaultAllowedUSDC: fmt(allowAmount),
       vaultBlockedUSDC: fmt(blockAmount),
       x402PaidUSDC: fmt(x402Amount),
       floatFeeDeltaUSDC: fmt(after.floatFees - before.floatFees),
+    },
+    amountsAtomic: {
+      vaultAllowedUSDC: allowAmount.toString(),
+      vaultBlockedUSDC: blockAmount.toString(),
+      x402PaidUSDC: x402Amount.toString(),
+      floatFeeDeltaUSDC: (after.floatFees - before.floatFees).toString(),
     },
     checks,
   };

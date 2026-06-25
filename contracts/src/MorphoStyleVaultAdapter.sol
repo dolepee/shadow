@@ -39,6 +39,7 @@ contract MorphoStyleVaultAdapter {
     error UnsupportedActionType();
     error ZeroMarketId();
     error MissingExecutionRef();
+    error CallerNotCircleAccount();
 
     constructor(address usdc_, address enforcer_, address vaultSink_, bytes32 marketId_) {
         if (marketId_ == bytes32(0)) revert ZeroMarketId();
@@ -104,6 +105,7 @@ contract MorphoStyleVaultAdapter {
         if (action.target != address(this)) revert WrongAdapterTarget();
         if (action.actionType != MandateRegistry.ActionType.DEPOSIT) revert UnsupportedActionType();
         if (action.executionRef == bytes32(0)) revert MissingExecutionRef();
+        if (msg.sender != action.circleAccount || action.actor != msg.sender) revert CallerNotCircleAccount();
 
         bytes32 actionHash;
         (receiptHash, allowed, reason, actionHash) = _check(action);
