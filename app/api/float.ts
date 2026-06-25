@@ -82,6 +82,42 @@ type FloatReadClient = {
   readContract: (args: any) => Promise<any>;
 };
 
+type FloatReceiptEventArgs = {
+  receiptId: bigint;
+  receiptHash: `0x${string}`;
+  receiptType: number;
+  agent: Address;
+  provider: Address;
+  endpointHash: `0x${string}`;
+  amountUSDC: bigint;
+  creditBeforeUSDC: bigint;
+  creditAfterUSDC: bigint;
+  debtBeforeUSDC: bigint;
+  debtAfterUSDC: bigint;
+  reason: number;
+  mandateId: `0x${string}`;
+  requestHash: `0x${string}`;
+  prevChecksum: `0x${string}`;
+  checksum: `0x${string}`;
+};
+
+type X402PaymentBoundEventArgs = {
+  receiptId: bigint;
+  requestHash: `0x${string}`;
+  x402Hash: `0x${string}`;
+  provider: Address;
+  amountUSDC: bigint;
+  facilitator: Address;
+};
+
+type IndexedLog<TArgs> = {
+  args: TArgs;
+  transactionHash: `0x${string}`;
+  blockNumber: bigint;
+  data: `0x${string}`;
+  topics: readonly `0x${string}`[];
+};
+
 const floatAbi = parseAbi([
   "function receiptCount() view returns (uint256)",
   "function treasuryBalanceUSDC() view returns (uint256)",
@@ -208,7 +244,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       client.getBlockNumber(),
       readFloatLoopRuns(),
     ]);
-    const loopRuns = allLoopRuns.filter((run) => runMatchesFloat(run, cfg.float));
+    const loopRuns = (allLoopRuns as FloatLoopRun[]).filter((run: FloatLoopRun) => runMatchesFloat(run, cfg.float));
 
     const fromBlock = cfg.startBlock > 0n ? cfg.startBlock : latestBlock > LOG_LOOKBACK ? latestBlock - LOG_LOOKBACK : 0n;
     const { receiptLogs: logs, x402Logs, warnings: logWarnings } = await readFloatLogs(client, cfg.float, fromBlock, latestBlock);
@@ -448,8 +484,8 @@ function buildProofChecks(input: {
 }
 
 async function readFloatLogs(client: any, address: Address, fromBlock: bigint, toBlock: bigint) {
-  const receiptLogs: Array<any> = [];
-  const x402Logs: Array<any> = [];
+  const receiptLogs: Array<IndexedLog<FloatReceiptEventArgs>> = [];
+  const x402Logs: Array<IndexedLog<X402PaymentBoundEventArgs>> = [];
   const warnings: string[] = [];
   if (toBlock < fromBlock) return { receiptLogs, x402Logs, warnings };
 
@@ -458,12 +494,12 @@ async function readFloatLogs(client: any, address: Address, fromBlock: bigint, t
     try {
       const rawLogs = await client.getLogs({ address, fromBlock: start, toBlock: end });
       for (const log of rawLogs) {
-        const receipt = decodeLog(floatReceiptEvent, log);
+        const receipt = decodeFloatReceiptLog(log);
         if (receipt) {
           receiptLogs.push({ ...log, args: receipt.args });
           continue;
         }
-        const x402 = decodeLog(x402PaymentBoundEvent, log);
+        const x402 = decodeX402PaymentBoundLog(log);
         if (x402) x402Logs.push({ ...log, args: x402.args });
       }
     } catch (error) {
@@ -477,9 +513,25 @@ async function readFloatLogs(client: any, address: Address, fromBlock: bigint, t
   return { receiptLogs, x402Logs, warnings };
 }
 
-function decodeLog(event: typeof floatReceiptEvent | typeof x402PaymentBoundEvent, log: any) {
+function decodeFloatReceiptLog(log: { data: `0x${string}`; topics: readonly `0x${string}`[] }): { args: FloatReceiptEventArgs } | null {
   try {
-    return decodeEventLog({ abi: [event], data: log.data, topics: log.topics });
+    return decodeEventLog({
+      abi: [floatReceiptEvent] as any,
+      data: log.data,
+      topics: log.topics as any,
+    }) as unknown as { args: FloatReceiptEventArgs };
+  } catch {
+    return null;
+  }
+}
+
+function decodeX402PaymentBoundLog(log: { data: `0x${string}`; topics: readonly `0x${string}`[] }): { args: X402PaymentBoundEventArgs } | null {
+  try {
+    return decodeEventLog({
+      abi: [x402PaymentBoundEvent] as any,
+      data: log.data,
+      topics: log.topics as any,
+    }) as unknown as { args: X402PaymentBoundEventArgs };
   } catch {
     return null;
   }

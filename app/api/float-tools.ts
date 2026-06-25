@@ -11,6 +11,7 @@ import {
   parseAbiItem,
   recoverTypedDataAddress,
   stringToBytes,
+  type Address,
 } from "viem";
 
 export const config = { maxDuration: 15 };
@@ -36,6 +37,23 @@ const x402PaymentBoundEvent = parseAbiItem(
 
 type Req = { method?: string; url?: string; query?: Record<string, string | string[] | undefined> };
 type Res = { setHeader(n: string, v: string | number): void; status(c: number): Res; json(b: unknown): void };
+
+type FloatToolsClient = {
+  readContract: (args: any) => Promise<unknown>;
+  getTransactionReceipt: (args: { hash: `0x${string}` }) => Promise<{
+    status: "success" | "reverted";
+    logs: Array<{ address: Address; data: `0x${string}`; topics: readonly `0x${string}`[] }>;
+  }>;
+};
+
+type X402PaymentBoundArgs = {
+  requestHash: `0x${string}`;
+  x402Hash: `0x${string}`;
+  provider: Address;
+  amountUSDC: bigint;
+};
+
+type DecodedX402PaymentBoundLog = { args: X402PaymentBoundArgs };
 
 type LoopRun = {
   source?: string;
@@ -252,7 +270,7 @@ async function handleVerify(req: Req, res: Res) {
     const signerMatchesAgent = getAddress(recovered) === getAddress(intent.agent);
     const digestMatchesRequestHash = digest.toLowerCase() === hash.toLowerCase();
     const rpcUrl = clean(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
-    const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) });
+    const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) }) as unknown as FloatToolsClient;
     const onchain = await verifyOnchainExternalProof(client, {
       float: getAddress(floatRaw),
       requestHash: hash,
@@ -299,7 +317,7 @@ async function handleVerify(req: Req, res: Res) {
 }
 
 async function verifyOnchainExternalProof(
-  client: ReturnType<typeof createPublicClient>,
+  client: FloatToolsClient,
   expected: {
     float: `0x${string}`;
     requestHash: `0x${string}`;
@@ -310,12 +328,12 @@ async function verifyOnchainExternalProof(
   },
 ) {
   try {
-    const receiptHash = await client.readContract({
+    const receiptHash = (await client.readContract({
       address: expected.float,
       abi: floatAbi,
       functionName: "receiptByRequestHash",
       args: [expected.requestHash],
-    });
+    })) as `0x${string}`;
     if (!receiptHash || receiptHash === "0x0000000000000000000000000000000000000000000000000000000000000000") {
       return { ok: false, reason: "receiptByRequestHash is empty" };
     }
@@ -329,7 +347,7 @@ async function verifyOnchainExternalProof(
     if (bindReceipt.status !== "success") return { ok: false, receiptHash, reason: "bind transaction failed" };
     const matched = bindReceipt.logs.some((log) => {
       if (getAddress(log.address) !== expected.float) return false;
-      const decoded = decodeLog(x402PaymentBoundEvent, log);
+      const decoded = decodeX402PaymentBoundLog(log);
       return Boolean(
         decoded &&
           decoded.args.requestHash?.toLowerCase() === expected.requestHash.toLowerCase() &&
@@ -346,9 +364,13 @@ async function verifyOnchainExternalProof(
   }
 }
 
-function decodeLog(event: typeof x402PaymentBoundEvent, log: { data: `0x${string}`; topics: readonly `0x${string}`[] }) {
+function decodeX402PaymentBoundLog(log: { data: `0x${string}`; topics: readonly `0x${string}`[] }): DecodedX402PaymentBoundLog | null {
   try {
-    return decodeEventLog({ abi: [event], data: log.data, topics: log.topics as any });
+    return decodeEventLog({
+      abi: [x402PaymentBoundEvent] as any,
+      data: log.data,
+      topics: log.topics as any,
+    }) as unknown as DecodedX402PaymentBoundLog;
   } catch {
     return null;
   }
