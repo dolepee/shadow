@@ -26,6 +26,8 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 // the action came from the builder, even though Shadow submitted the tx.
 //
 //   node app/scripts/float-external-x402.mjs path/to/intent.json
+//   node app/scripts/float-external-x402.mjs --verify-only path/to/intent.json
+//   FLOAT_SIGNED_INTENT_JSON='{"intent":...,"signature":"0x..."}' node app/scripts/float-external-x402.mjs --verify-only
 
 const env = {
   ...readEnv("/home/qdee/shadow/.env"),
@@ -40,17 +42,18 @@ const USDC = getAddress(clean(env.ARC_USDC || env.VITE_ARC_USDC) || "0x360000000
 const FACILITATOR_KEY = normalizeKey(clean(env.FLOAT_FACILITATOR_PRIVATE_KEY || env.CAT_AGENT_PRIVATE_KEY || env.PRIVATE_KEY));
 const PROVIDER_URL = clean(env.FLOAT_X402_PROVIDER_URL) || "https://shadow-arc.vercel.app/api/reasoning-x402";
 const maxRuns = Number(clean(env.FLOAT_LOOP_MAX_RUNS) || "120");
+const args = process.argv.slice(2);
+const VERIFY_ONLY = args.includes("--verify-only");
+const intentPath = args.find((arg) => arg !== "--verify-only");
 
-if (!FACILITATOR_KEY) throw new Error("missing FLOAT_FACILITATOR_PRIVATE_KEY (the Shadow facilitator that fronts the x402 payment)");
-
-const intentPath = process.argv[2];
-if (!intentPath || !existsSync(intentPath)) {
-  throw new Error("usage: node app/scripts/float-external-x402.mjs path/to/intent.json (the { intent, signature } the builder sent)");
+if (!VERIFY_ONLY && !FACILITATOR_KEY) {
+  throw new Error("missing FLOAT_FACILITATOR_PRIVATE_KEY (the Shadow facilitator that fronts the x402 payment)");
 }
-const { intent, signature } = JSON.parse(readFileSync(intentPath, "utf8"));
+
+const { intent, signature, digest } = readSignedIntent(intentPath);
 if (!intent || !signature) throw new Error("intent file must contain { intent, signature }");
 
-const facilitator = privateKeyToAccount(FACILITATOR_KEY);
+const facilitator = FACILITATOR_KEY ? privateKeyToAccount(FACILITATOR_KEY) : null;
 const chain = defineChain({
   id: CHAIN_ID,
   name: "Arc Testnet",
@@ -58,7 +61,9 @@ const chain = defineChain({
   rpcUrls: { default: { http: [RPC] } },
 });
 const publicClient = createPublicClient({ chain, transport: http(RPC, { timeout: 60_000, retryCount: 3 }) });
-const wallet = createWalletClient({ account: facilitator, chain, transport: http(RPC, { timeout: 60_000, retryCount: 3 }) });
+const wallet = facilitator
+  ? createWalletClient({ account: facilitator, chain, transport: http(RPC, { timeout: 60_000, retryCount: 3 }) })
+  : null;
 
 const floatAbi = parseAbi([
   "function previewSpend(address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, bytes32 requestHash) view returns (bool allowed, uint8 reason)",
@@ -107,8 +112,12 @@ if (BigInt(Math.floor(Date.now() / 1000)) > BigInt(intent.expiry)) {
 // requestHash IS the signed digest, so the on-chain receipt commits to exactly
 // what the builder signed (and the DUPLICATE_REQUEST guard blocks replay).
 const requestHash = hashTypedData({ domain, types, primaryType: "FloatSpendIntent", message });
+if (digest && digest.toLowerCase() !== requestHash.toLowerCase()) {
+  throw new Error(`digest mismatch: JSON digest ${digest}, recomputed requestHash ${requestHash}`);
+}
 
 console.log("Shadow Float signed external x402 spend");
+console.log(`mode           ${VERIFY_ONLY ? "verify-only" : "bind"}`);
 console.log(`agent (signer) ${agent}`);
 console.log(`provider       ${provider}`);
 console.log(`amount         ${formatUnits(amount, 6)} USDC (Shadow fronts it; debt opens on the agent's line)`);
@@ -127,6 +136,31 @@ if (getAddress(requirement.payTo) !== provider) {
 }
 if (requirement.asset && getAddress(requirement.asset) !== USDC) {
   throw new Error(`x402 asset mismatch: expected ${USDC}, got ${requirement.asset}`);
+}
+
+if (VERIFY_ONLY) {
+  console.log("\nverify-only passed. No x402 payment was made and no Float bind was submitted.");
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        mode: "verify-only",
+        agent,
+        provider,
+        amountUSDC: amount.toString(),
+        requestHash,
+        signerMatchesAgent: true,
+        digestMatchesRequestHash: !digest || digest.toLowerCase() === requestHash.toLowerCase(),
+        previewAllowed: true,
+        providerMatchesIntent: true,
+        assetMatchesArcUSDC: true,
+        verifyUrl: `https://shadow-arc.vercel.app/api/float-tools?action=verify&hash=${requestHash}`,
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(0);
 }
 
 const facilitatorUsdc = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [facilitator.address] });
@@ -358,4 +392,16 @@ function clean(value) {
 function normalizeKey(value) {
   if (!value) return null;
   return value.startsWith("0x") ? value : `0x${value}`;
+}
+
+function readSignedIntent(path) {
+  const inline = clean(env.FLOAT_SIGNED_INTENT_JSON);
+  if (inline) return JSON.parse(inline);
+  if (path === "-") return JSON.parse(readFileSync(0, "utf8"));
+  if (!path || !existsSync(path)) {
+    throw new Error(
+      "usage: node app/scripts/float-external-x402.mjs [--verify-only] path/to/intent.json (or set FLOAT_SIGNED_INTENT_JSON)",
+    );
+  }
+  return JSON.parse(readFileSync(path, "utf8"));
 }
