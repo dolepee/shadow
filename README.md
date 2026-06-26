@@ -15,7 +15,7 @@ Supporting proof: https://shadow-arc.vercel.app/treasury
 | Surface | What to check |
 | --- | --- |
 | Current Float V2 contract | `0x20dcA96B0C487D94De885c726c956ffaF38b12C2` |
-| V2 no-secret verifier | `npm run float:v2-verify-live` |
+| V2 no-secret proof-loop verifier | `npm run float:v2-verify-live` |
 | V2 sponsored proof runner | `npm run float:v2-sponsored-proof` |
 | V1 historical/live receipt board | https://shadow-arc.vercel.app/float |
 | V1 state API | `GET https://shadow-arc.vercel.app/api/float` |
@@ -25,11 +25,11 @@ Supporting proof: https://shadow-arc.vercel.app/treasury
 | Builder typed-data intent | `GET /api/float-tools?action=intent&agent=0x...&reason=...` |
 | Signed intent verifier | `GET /api/float-tools?action=verify&hash=0x...` |
 
-The V2 verifier independently checks the new contract deployment, EIP-170-sized bytecode, sponsor-funded reserve, contract-enforced EIP-712 intent consumption, direct provider payment from `ShadowFloat`, blocked overrun with no provider transfer, repayment, restored capacity, and receipt anchors without private keys.
+The V2 verifier independently checks the new contract deployment, EIP-170-sized bytecode, sponsor-funded reserve, contract-enforced EIP-712 intent consumption, direct provider payment from `ShadowFloat`, blocked overrun with no provider transfer, repayment, restored capacity, and receipt anchors without private keys. It is a proof-loop verifier, not a substitute for the full contract test suite.
 
 The V1 live API remains the rich historical receipt board. It exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The V1 verifier independently checks receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys. The score verifier and underwriting runner show how receipt-derived behavior becomes a computed score and a proposed line update.
 
-V2 status: deployed and freshly proven on Arc testnet. V1 proved the economic loop and external signed usage; V2 removes the blind-signature trust gap for sponsor-funded lines by adding contract-enforced signed intents, nonce cancellation, direct provider payment, provider delivery receipts, sponsor-funded reserves, and bad-debt cleanup.
+V2 status: deployed and freshly proven on Arc testnet. V1 proved the economic loop and external signed usage; V2 removes the blind-signature trust gap for sponsor-funded lines by adding contract-enforced signed intents, nonce cancellation, direct provider payment, implemented provider delivery receipts, sponsor-funded reserves, and bad-debt cleanup. Provider delivery receipts are implemented and tested; the canonical live V2 proof loop does not include a provider-signed delivery tx yet.
 
 ## Supporting Treasury / M1 Proof
 
@@ -104,22 +104,23 @@ What the deployed V2 contract adds:
 
 - `requestSignedSpend` verifies signer, nonce, expiry, executor, provider, endpoint, amount, and maximum cumulative debt before USDC moves.
 - Sponsored V2 lines use direct provider payment instead of operator-assisted x402 reimbursement.
-- Provider delivery receipts let a paid provider sign a response hash for the exact paid request.
+- Provider delivery receipts let a paid provider sign a response hash for the exact paid request; this is implemented and tested, but not part of the canonical live V2 proof loop until a provider signs a delivery receipt.
 - Sponsors can cleanly close repaid lines or default unrepaid lines and recover only reserve minus written-off debt.
 - The fresh V2 proof at `0x20dcA96B0C487D94De885c726c956ffaF38b12C2` opened a `0.05` USDC sponsor-funded line, paid `0.01` USDC directly to the provider, blocked a `0.1` USDC overrun with no provider transfer, repaid to zero debt, and restored full capacity.
 
 What is not claimed yet:
 
 - The score formula is deterministic v0 and the public score endpoint derives behavior counts from Float receipts. Grant execution is still owner/operator-controlled; automated updates require an owner-run command.
-- The Float contract binds operator-verified x402 payment evidence; the EVM contract cannot independently inspect a prior HTTP/x402 transaction or subjective service quality.
-- Operators are trusted owner-approved executors: they front the x402 payment, verify the USDC transfer offchain, and then bind the settlement hash onchain.
+- The V1/legacy x402 path binds operator-verified x402 payment evidence; the EVM contract cannot independently inspect a prior HTTP/x402 transaction or subjective service quality.
+- V2's hero path does not depend on operator-assisted x402 reimbursement. It proves the signed provider was paid directly from contract custody after onchain intent checks.
+- Legacy operators are trusted owner-approved executors: they front x402 payments, verify USDC transfers offchain, and bind settlement hashes onchain for non-sponsored lines.
 - Invited builder signatures are external usage tests, not partnerships.
 
 ## Circle Integration
 
 | Tier | Role |
 | --- | --- |
-| Load-bearing in Float today | Float settles on Arc USDC over x402 using EIP-3009 authorization. Every current Float draw uses this path. |
+| Load-bearing in Float today | Arc USDC is the settlement asset. V1 historical proof uses x402/EIP-3009 binding; V2's current hero proof uses direct Arc USDC provider payment after contract-enforced signed authorization. |
 | Next milestone | Circle Gateway-batched x402. In lab, Shadow paid an independent Gateway-batched Arc x402 seller, but per-transfer onchain settlement binding into Float receipts remains roadmap work. Float's current judged proof stays on the live EIP-3009 path. |
 | Proven onboarding capability | Shadow has demonstrated Circle Modular Wallets and Gas Station for passkey-based, gas-sponsored onboarding. This can onboard Float agents, but it is not core to the current Float draw. |
 

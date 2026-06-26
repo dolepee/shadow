@@ -247,7 +247,8 @@ Do not bind Circle Gateway UUIDs as settlement hashes. A valid Gateway V2 milest
 
 Until then:
 
-- lead with Arc USDC, x402, and EIP-3009 as the live load-bearing path;
+- lead with Arc USDC as the load-bearing settlement asset;
+- keep x402/EIP-3009 framed as the V1 historical/legacy binding path, not the sponsored V2 hero settlement primitive;
 - state Gateway-batched x402 as an interoperability roadmap backed by Obol/Archer testing;
 - do not claim Gateway is in the Float loop.
 
@@ -271,9 +272,11 @@ Migration status:
 - V2 is deployed as the current permissionless Float contract:
   `0x20dcA96B0C487D94De885c726c956ffaF38b12C2`.
 - V2 treasury is funded through a sponsor reserve.
-- Fresh V2 proof is live and reproducible with `npm run float:v2-verify-live`: sponsor opened a `0.05` USDC line, the
+- Fresh V2 proof-loop verification is live and reproducible with `npm run float:v2-verify-live`: sponsor opened a `0.05` USDC line, the
   agent signed, the contract paid `0.01` USDC directly to the provider, a `0.1` USDC overrun blocked with no provider
-  transfer, repayment cleared debt, and the line restored to full capacity.
+  transfer, repayment cleared debt, and the line restored to full capacity. This live verifier proves the canonical V2
+  spend/block/repay loop; delivery receipts, close/default recovery, replay rejection, and cancellation remain covered by
+  tests unless they are added to a future live proof loop.
 - Re-run signed x402 bind only as secondary proof, not the hero path.
 - Site must show both:
   - V1: historical loop and external proof;

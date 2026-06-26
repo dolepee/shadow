@@ -80,6 +80,8 @@ const floatIntentConsumedEvent = parseAbiItem(
   "event FloatIntentConsumed(address indexed agent, address indexed signer, uint256 indexed nonce, bytes32 requestHash)",
 );
 const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
+const erc1271Abi = parseAbi(["function isValidSignature(bytes32 hash, bytes signature) view returns (bytes4)"]);
+const ERC1271_MAGIC_VALUE = "0x1626ba7e";
 
 type Req = { method?: string; url?: string; query?: Record<string, string | string[] | undefined> };
 type Res = { setHeader(n: string, v: string | number): void; status(c: number): Res; json(b: unknown): void };
@@ -412,18 +414,31 @@ async function handleVerify(req: Req, res: Res) {
   const proofVersion = hasMaxDebt ? "v2-max-debt" : hasV2Executor ? "legacy-v2-executor" : "legacy-v1";
 
   try {
-    const recovered = await recoverTypedDataAddress({
-      domain,
-      types: typesForDigest,
-      primaryType: "FloatSpendIntent",
-      message,
-      signature: match.signature as `0x${string}`,
-    });
     const digest = hashTypedData({ domain, types: typesForDigest, primaryType: "FloatSpendIntent", message });
-    const signerMatchesAgent = getAddress(recovered) === getAddress(intent.agent);
-    const digestMatchesRequestHash = digest.toLowerCase() === hash.toLowerCase();
     const rpcUrl = clean(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
     const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) }) as unknown as FloatToolsClient;
+    const signature = match.signature as `0x${string}`;
+    let recovered = ZERO;
+    let eoaSignerMatchesAgent = false;
+    try {
+      recovered = await recoverTypedDataAddress({
+        domain,
+        types: typesForDigest,
+        primaryType: "FloatSpendIntent",
+        message,
+        signature,
+      });
+      eoaSignerMatchesAgent = getAddress(recovered) === getAddress(intent.agent);
+    } catch {
+      recovered = ZERO;
+    }
+    const erc1271SignerMatchesAgent = eoaSignerMatchesAgent
+      ? false
+      : await verifyErc1271Signature(client, getAddress(intent.agent), digest, signature);
+    const signerMatchesAgent = eoaSignerMatchesAgent || erc1271SignerMatchesAgent;
+    const verifiedSigner = erc1271SignerMatchesAgent ? getAddress(intent.agent) : recovered;
+    const signatureMode = erc1271SignerMatchesAgent ? "erc1271" : "eoa";
+    const digestMatchesRequestHash = digest.toLowerCase() === hash.toLowerCase();
     const onchain = await verifyOnchainExternalProof(client, {
       float: getAddress(floatRaw),
       requestHash: hash,
@@ -442,7 +457,8 @@ async function handleVerify(req: Req, res: Res) {
         found: false,
         metadataFound: true,
         requestHash: hash,
-        recoveredSigner: recovered,
+        recoveredSigner: verifiedSigner,
+        signatureMode,
         agent: getAddress(intent.agent),
         signerMatchesAgent,
         digestMatchesRequestHash,
@@ -456,7 +472,8 @@ async function handleVerify(req: Req, res: Res) {
     res.status(200).json({
       found: true,
       requestHash: hash,
-      recoveredSigner: recovered,
+      recoveredSigner: verifiedSigner,
+      signatureMode,
       agent: getAddress(intent.agent),
       signerMatchesAgent,
       digestMatchesRequestHash,
@@ -618,6 +635,25 @@ async function verifyOnchainExternalProof(
         };
   } catch (error) {
     return { ok: false, reason: sanitize(error) };
+  }
+}
+
+async function verifyErc1271Signature(
+  client: FloatToolsClient,
+  signer: `0x${string}`,
+  digest: `0x${string}`,
+  signature: `0x${string}`,
+) {
+  try {
+    const magicValue = (await client.readContract({
+      address: signer,
+      abi: erc1271Abi,
+      functionName: "isValidSignature",
+      args: [digest, signature],
+    })) as string;
+    return magicValue.toLowerCase() === ERC1271_MAGIC_VALUE;
+  } catch {
+    return false;
   }
 }
 

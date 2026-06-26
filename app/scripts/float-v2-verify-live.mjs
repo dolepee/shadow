@@ -76,7 +76,6 @@ const publicClient = createPublicClient({ chain, transport: http(rpcUrl, { timeo
 const floatAbi = parseAbi([
   "function owner() view returns (address)",
   "function usdc() view returns (address)",
-  "function operators(address) view returns (bool)",
   "function feeBps() view returns (uint16)",
   "function totalSponsoredReserveUSDC() view returns (uint256)",
   "function totalSponsoredAvailableCreditUSDC() view returns (uint256)",
@@ -110,7 +109,6 @@ const codeSize = hexByteLength(deployedCode);
 const [
   owner,
   usdc,
-  sponsorIsOperator,
   feeBps,
   sponsorLine,
   line,
@@ -127,7 +125,6 @@ const [
 ] = await Promise.all([
   publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "owner" }),
   publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "usdc" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "operators", args: [proof.sponsor] }),
   publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "feeBps" }),
   publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "lineSponsors", args: [proof.agent] }),
   publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "lines", args: [proof.agent] }),
@@ -147,7 +144,6 @@ check("V2 deploy tx succeeded at expected address", txs.deploy.status === "succe
 check("V2 bytecode is deployed and EIP-170-sized", codeSize > 0 && codeSize <= 24_576, `${codeSize} bytes`);
 check("V2 owner is expected sponsor/deployer", sameAddress(owner, proof.owner), owner);
 check("V2 USDC immutable is Arc USDC", sameAddress(usdc, proof.usdc), usdc);
-check("sponsor is an approved operator for proof execution", Boolean(sponsorIsOperator), String(sponsorIsOperator));
 check("fee is zero on fresh V2 proof", Number(feeBps) === 0, String(feeBps));
 
 const openEvent = findDecoded(txs.openLine, proof.float, sponsoredLineOpenedEvent, (args) => {
@@ -230,7 +226,7 @@ check("sponsored available accounting tracks restored line", totalSponsoredAvail
 const result = {
   ok: checks.every((entry) => entry.ok),
   checkedAt: new Date().toISOString(),
-  mode: "shadow-float-v2-live-verifier",
+  mode: "shadow-float-v2-proof-loop-verifier",
   chainId: CHAIN_ID,
   rpcUrl: rpcUrl === DEFAULT_RPC ? DEFAULT_RPC : "[custom rpc]",
   contracts: {
