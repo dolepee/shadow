@@ -18,9 +18,11 @@ Supporting proof: https://shadow-arc.vercel.app/treasury
 | Live state API | `GET https://shadow-arc.vercel.app/api/float` |
 | Live proof page | https://shadow-arc.vercel.app/float |
 | No-secret verifier | `npm run float:verify-live` |
+| Score proof verifier | `npm run float:score-proof` |
+| Autonomous underwriting runner | `npm run float:autounderwrite` |
 | Signed intent verifier | `GET /api/float-tools?action=verify&hash=0x...` |
 
-The live API exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The verifier command independently checks the live contract, receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys.
+The live API exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The verifier command independently checks the live contract, receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys. The score verifier and underwriting runner show how receipt-derived behavior becomes a computed score and a proposed line update.
 
 ## Supporting Treasury / M1 Proof
 
@@ -67,7 +69,7 @@ Post-hackathon hardening is explicit:
 - Replace the proof sink with a withdrawable/redeemable vault integration before calling it production treasury management.
 - Integrate a real Morpho or vault market instead of the current Morpho-style proof adapter.
 - Expand bonding from receipt-liveness guarantees to correctness and settlement guarantees.
-- Replace operator-reviewed underwriting evidence with a permissionless receipt indexer.
+- Use receipt-derived underwriting evidence from Float logs and ship an autonomous runner that proposes line updates from that score. Applying updates remains owner/operator-controlled in v0.
 
 ## Float Economic Loop
 
@@ -82,6 +84,7 @@ What is proven now:
 
 - A Float line can be granted from reviewed onchain behavior.
 - A deterministic v0 score/limit formula now exists in `ShadowFloat.deterministicScore`, `recommendedLimitUSDC`, and `grantFloatFromScore`.
+- `npm run float:autounderwrite` can dry-run receipt-derived line raises/cuts, and can apply them only when explicitly run with `FLOAT_AUTOUNDERWRITE_APPLY=1` by the contract owner.
 - A signed agent intent can trigger a treasury-funded x402 payment.
 - The operator script verifies the x402 USDC transfer before `recordX402Spend` binds the settlement hash to the onchain request hash.
 - Debt and available capacity update onchain.
@@ -92,7 +95,7 @@ What is proven now:
 
 What is not claimed yet:
 
-- The score formula is deterministic v0 and available in contract/API, but current Lepton lines still use operator-reviewed evidence counts rather than a permissionless scoring indexer.
+- The score formula is deterministic v0 and the public score endpoint derives behavior counts from Float receipts. Grant execution is still owner/operator-controlled; automated updates require an owner-run command.
 - The Float contract binds operator-verified x402 payment evidence; the EVM contract cannot independently inspect a prior HTTP/x402 transaction or subjective service quality.
 - Operators are trusted owner-approved executors: they front the x402 payment, verify the USDC transfer offchain, and then bind the settlement hash onchain.
 - Invited builder signatures are external usage tests, not partnerships.
@@ -260,7 +263,7 @@ Shadow is a protocol first and a dashboard second. The dashboard uses the same c
 | `GET /api/float-tools?action=rationale&hash=0x…` | Publishes the rationale preimage for a receipt's `requestHash` so anyone re-hashes it to confirm the agent's on-chain reasoning | Live; `requestHash = keccak256(preimage)` |
 | `GET /api/float-tools?action=verify&hash=0x…` | Verifies an external builder's signed Float x402 intent against current-contract onchain receipt state and the matching `X402PaymentBound` bind tx | Live; signed external usage only |
 | `GET /api/float-tools?action=score&address=0x…` | Deterministic v0 underwriting verifier: recomputes suggested score and line from public Float evidence | Live; mirrors the contract formula |
-| `ShadowFloat.deterministicScore` / `grantFloatFromScore` | Onchain v0 formula and deterministic line grant once evidence counts are submitted | Contract path for reviewed evidence-backed lines |
+| `ShadowFloat.deterministicScore` / `grantFloatFromScore` | Onchain v0 formula and deterministic line grant once receipt-derived evidence counts are submitted | Contract path for behavior-backed lines |
 
 The mainnet target is simple: source agents register themselves, follower agents or humans attach policies, and Shadow becomes the shared receipt and reputation layer for Arc's USDC agent economy.
 

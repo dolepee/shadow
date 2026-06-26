@@ -9,7 +9,7 @@ Treasury/M1 remains the supporting mandate extension. The live proof shows appro
 Goal: harden the current Float loop without redeploying unless a contract issue requires it.
 
 - Keep `ShadowFloat` as the primary judged proof path: x402 spend, debt, repay, overspend block, denial, external signed usage, and fee accrual.
-- Replace operator-reviewed evidence counts with a permissionless receipt indexer that recomputes scoring evidence from chain.
+- Keep receipt-derived score verification live and use the autonomous underwriting runner to propose owner-controlled line adjustments from public behavior.
 - Keep no-secret verification as a first-class surface: `/api/float`, `/api/float-tools`, and `npm run float:verify-live`.
 - Increase real external usage and repayment examples without calling invited builders partners.
 - Keep fee mechanics visible as testnet mechanics, not meaningful revenue until mainnet volume exists.

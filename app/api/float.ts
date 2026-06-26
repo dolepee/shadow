@@ -479,7 +479,7 @@ function buildProofChecks(input: {
     externalSignedRepayLifecycle: Number(input.sourceBreakdown.externalSigned.lifecycleClosedCount || 0) > 0,
     activeDebtReconciles: activeDebt === expectedActiveDebt,
     feeMechanicsVisible: input.receipts.some((receipt) => receipt.receiptType === "DEBT_OPENED" && BigInt(receipt.feeUSDC || "0") > 0n),
-    trustBoundary: "operators are owner-approved executors; current scoring evidence is operator-reviewed, not permissionlessly auto-updated",
+    trustBoundary: "operators are owner-approved executors; score evidence is receipt-derived, but line execution is not permissionlessly auto-updated",
   };
 }
 

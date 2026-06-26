@@ -14,7 +14,7 @@ import {
   type Address,
 } from "viem";
 
-export const config = { maxDuration: 15 };
+export const config = { maxDuration: 25 };
 
 const ARC_CHAIN_ID = 5_042_002;
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -25,12 +25,52 @@ const DEFAULT_SELF_TEST_AGENTS = [
   "0xD3eed2f7dcED5fbc96Fb1a0FC058C540D50b4f80",
   "0xa539a18b55e5e3b98892c724f8f75914c0b69942",
 ] as const;
+const LOG_LOOKBACK = BigInt(process.env.FLOAT_LOG_LOOKBACK || "250000");
+const LOG_CHUNK_SIZE = BigInt(process.env.FLOAT_LOG_CHUNK_SIZE || "9000");
+const SCORE_EVIDENCE_CACHE_MS = Number(process.env.FLOAT_SCORE_EVIDENCE_CACHE_MS || "15000");
 const STATUSES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"];
+const RECEIPT_TYPES = [
+  "UNKNOWN",
+  "FLOAT_GRANTED",
+  "SPEND_ALLOWED",
+  "SPEND_BLOCKED",
+  "PROVIDER_PAID",
+  "DEBT_OPENED",
+  "REPAID",
+  "LIMIT_REDUCED",
+  "LIMIT_REVOKED",
+  "CREDIT_DENIED",
+  "FEE_ACCRUED",
+  "DEFAULTED",
+];
+const REASONS = [
+  "NONE",
+  "NOT_AUTHORIZED",
+  "NOT_ELIGIBLE",
+  "CREDIT_DENIED",
+  "REVOKED",
+  "PROVIDER_NOT_ALLOWED",
+  "ENDPOINT_NOT_ALLOWED",
+  "AMOUNT_TOO_HIGH",
+  "DAILY_LIMIT_EXCEEDED",
+  "EXPIRED",
+  "INSUFFICIENT_TREASURY",
+  "DUPLICATE_REQUEST",
+  "ZERO_AMOUNT",
+  "MISSING_REQUEST_HASH",
+  "NO_DEBT",
+  "REPAY_TOO_HIGH",
+  "DEFAULTED",
+];
 
 const floatAbi = parseAbi([
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
+  "function receiptCount() view returns (uint256)",
   "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
 ]);
+const floatReceiptEvent = parseAbiItem(
+  "event FloatReceipt(uint256 indexed receiptId, bytes32 indexed receiptHash, uint8 indexed receiptType, address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, uint256 creditBeforeUSDC, uint256 creditAfterUSDC, uint256 debtBeforeUSDC, uint256 debtAfterUSDC, uint8 reason, bytes32 mandateId, bytes32 requestHash, bytes32 prevChecksum, bytes32 checksum)",
+);
 const x402PaymentBoundEvent = parseAbiItem(
   "event X402PaymentBound(uint256 indexed receiptId, bytes32 indexed requestHash, bytes32 x402Hash, address indexed provider, uint256 amountUSDC, address facilitator)",
 );
@@ -40,11 +80,67 @@ type Res = { setHeader(n: string, v: string | number): void; status(c: number): 
 
 type FloatToolsClient = {
   readContract: (args: any) => Promise<unknown>;
+  getBlockNumber: () => Promise<bigint>;
+  getLogs: (args: any) => Promise<Array<{ address: Address; data: `0x${string}`; topics: readonly `0x${string}`[]; transactionHash: `0x${string}`; blockNumber: bigint }>>;
   getTransactionReceipt: (args: { hash: `0x${string}` }) => Promise<{
     status: "success" | "reverted";
     logs: Array<{ address: Address; data: `0x${string}`; topics: readonly `0x${string}`[] }>;
   }>;
 };
+
+type FloatReceiptEventArgs = {
+  receiptId: bigint;
+  receiptHash: `0x${string}`;
+  receiptType: number;
+  agent: Address;
+  provider: Address;
+  endpointHash: `0x${string}`;
+  amountUSDC: bigint;
+  creditBeforeUSDC: bigint;
+  creditAfterUSDC: bigint;
+  debtBeforeUSDC: bigint;
+  debtAfterUSDC: bigint;
+  reason: number;
+  mandateId: `0x${string}`;
+  requestHash: `0x${string}`;
+  prevChecksum: `0x${string}`;
+  checksum: `0x${string}`;
+};
+
+type IndexedFloatReceipt = {
+  receiptId: string;
+  receiptHash: `0x${string}`;
+  receiptType: string;
+  agent: Address;
+  provider: Address;
+  amountUSDC: string;
+  reason: string;
+  requestHash: `0x${string}`;
+  debtBeforeUSDC: string;
+  debtAfterUSDC: string;
+  transactionHash: `0x${string}`;
+  blockNumber: string;
+  hasX402Bind: boolean;
+};
+
+type ReceiptEvidence = {
+  receipts: IndexedFloatReceipt[];
+  warnings: string[];
+  fromBlock: bigint;
+  toBlock: bigint;
+  cached: boolean;
+};
+
+let receiptEvidenceCache:
+  | {
+      address: string;
+      fromBlock: bigint;
+      toBlock: bigint;
+      cachedAt: number;
+      receipts: IndexedFloatReceipt[];
+      warnings: string[];
+    }
+  | null = null;
 
 type X402PaymentBoundArgs = {
   requestHash: `0x${string}`;
@@ -376,6 +472,18 @@ function decodeX402PaymentBoundLog(log: { data: `0x${string}`; topics: readonly 
   }
 }
 
+function decodeFloatReceiptLog(log: { data: `0x${string}`; topics: readonly `0x${string}`[] }): { args: FloatReceiptEventArgs } | null {
+  try {
+    return decodeEventLog({
+      abi: [floatReceiptEvent] as any,
+      data: log.data,
+      topics: log.topics as any,
+    }) as unknown as { args: FloatReceiptEventArgs };
+  } catch {
+    return null;
+  }
+}
+
 async function handleScore(req: Req, res: Res) {
   const address = readParam(req, "address");
   if (!address || !isAddress(address)) {
@@ -392,28 +500,37 @@ async function handleScore(req: Req, res: Res) {
   const agent = getAddress(address);
 
   try {
-    const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) });
-    const line = await client.readContract({
-      address: getAddress(floatRaw),
-      abi: floatAbi,
-      functionName: "lines",
-      args: [agent],
-    });
+    const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) }) as unknown as FloatToolsClient;
+    const float = getAddress(floatRaw);
+    const [line, receiptCount, latestBlock] = await Promise.all([
+      client.readContract({
+        address: float,
+        abi: floatAbi,
+        functionName: "lines",
+        args: [agent],
+      }),
+      client.readContract({ address: float, abi: floatAbi, functionName: "receiptCount" }),
+      client.getBlockNumber(),
+    ]);
+    const startBlock = BigInt(clean(process.env.SHADOW_FLOAT_START_BLOCK || process.env.VITE_SHADOW_FLOAT_START_BLOCK) || "0");
+    const fromBlock = startBlock > 0n ? startBlock : latestBlock > LOG_LOOKBACK ? latestBlock - LOG_LOOKBACK : 0n;
+    const receiptEvidence = await readReceiptEvidence(client, float, fromBlock, latestBlock);
     const runs = filterRunsForFloat(await readLoopRuns(), floatRaw);
     const label = labelFor(agent);
-    const evidence = scoreEvidence(agent, runs);
+    const evidence = scoreEvidenceFromReceipts(agent, receiptEvidence.receipts, runs);
     const score = deterministicScore(label, evidence);
     const recommendedLimitUSDC = recommendedLimitForScore(score);
-    const currentLine = serializeLine(line);
+    const currentLine = serializeLine(line as readonly unknown[]);
 
     res.status(200).json({
       configured: true,
       testnet: true,
       network: "arc-testnet",
-      float: getAddress(floatRaw),
+      float,
       agent,
       label,
       formulaVersion: "shadow-float-score-v0",
+      evidenceMode: "receipt-derived",
       formula: {
         base: {
           lab: 8500,
@@ -437,14 +554,25 @@ async function handleScore(req: Req, res: Res) {
         ],
       },
       evidence,
+      evidenceCompleteness: {
+        fromBlock: receiptEvidence.fromBlock.toString(),
+        toBlock: receiptEvidence.toBlock.toString(),
+        cache: receiptEvidence.cached ? "hit" : "miss",
+        receiptLogsIndexed: receiptEvidence.receipts.length,
+        onchainReceiptCount: (receiptCount as bigint).toString(),
+        indexedReceiptCountMatchesChain: BigInt(receiptEvidence.receipts.length) === (receiptCount as bigint),
+        logFetchComplete: receiptEvidence.warnings.length === 0,
+        warnings: receiptEvidence.warnings,
+      },
       evidenceSources: {
         lineLabel: "operator-configured label set for lab, invited, self-test, and demo addresses",
-        paidBound: "KV-published Float loop metadata filtered to the current Float contract",
+        paidBound: "FloatReceipt logs with SPEND_ALLOWED, PROVIDER_PAID, DEBT_OPENED, and matching X402PaymentBound",
         signedExternalPaidBound:
-          "KV-published signed-intent metadata plus onchain verification through ?action=verify for each requestHash",
-        repaid: "KV-published repay metadata and onchain line state; receipt logs are the canonical final check",
-        blocked: "KV-published blocked-run metadata and FloatReceipt logs",
-        denied: "KV-published denied-run metadata and FloatReceipt logs",
+          "published signed-intent metadata, but counted only when the same requestHash is present in receipt-derived paid-bound evidence",
+        repaid: "FloatReceipt logs with REPAID for this agent",
+        blocked: "FloatReceipt logs with SPEND_BLOCKED for this agent",
+        denied: "FloatReceipt logs with CREDIT_DENIED for this agent",
+        error: "offchain execution errors are not scored from receipts in v0; chain-derived value is zero",
         currentLine: "ShadowFloat.lines(address) on Arc testnet",
       },
       computed: {
@@ -462,9 +590,9 @@ async function handleScore(req: Req, res: Res) {
           currentLine.score <= score && BigInt(currentLine.creditLimitUSDC) <= BigInt(recommendedLimitUSDC),
       },
       trustAssumption:
-        "Deterministic v0 formula, operator-reviewed evidence window. Current Lepton lines are not permissionlessly auto-updated yet.",
+        "Deterministic v0 formula over receipt-derived evidence. Grant execution remains owner/operator-controlled and current Lepton lines are not permissionlessly auto-updated yet.",
       note:
-        "This v0 verifier is deterministic and public. The contract exposes the same formula through deterministicScore/recommendedLimitUSDC and can grant with grantFloatFromScore once reviewed evidence counts are submitted.",
+        "This v0 verifier derives behavior counts from FloatReceipt logs, then mirrors the contract formula. signedExternalPaidBound still requires the published builder signature metadata because signatures are not stored onchain.",
       fetchedAt: Date.now(),
     });
   } catch (error) {
@@ -491,6 +619,83 @@ async function readLoopRuns(): Promise<LoopRun[]> {
   }
 }
 
+async function readReceiptEvidence(client: FloatToolsClient, address: Address, fromBlock: bigint, toBlock: bigint): Promise<ReceiptEvidence> {
+  const cacheKey = address.toLowerCase();
+  if (
+    receiptEvidenceCache &&
+    receiptEvidenceCache.address === cacheKey &&
+    receiptEvidenceCache.fromBlock === fromBlock &&
+    Date.now() - receiptEvidenceCache.cachedAt <= SCORE_EVIDENCE_CACHE_MS
+  ) {
+    return {
+      receipts: receiptEvidenceCache.receipts,
+      warnings: receiptEvidenceCache.warnings,
+      fromBlock: receiptEvidenceCache.fromBlock,
+      toBlock: receiptEvidenceCache.toBlock,
+      cached: true,
+    };
+  }
+
+  const receiptLogs: IndexedFloatReceipt[] = [];
+  const x402ByRequest = new Set<string>();
+  const warnings: string[] = [];
+  if (toBlock < fromBlock) return { receipts: receiptLogs, warnings, fromBlock, toBlock, cached: false };
+
+  for (let start = fromBlock; start <= toBlock; start += LOG_CHUNK_SIZE) {
+    const end = start + LOG_CHUNK_SIZE - 1n > toBlock ? toBlock : start + LOG_CHUNK_SIZE - 1n;
+    try {
+      const rawLogs = await client.getLogs({ address, fromBlock: start, toBlock: end });
+      const decodedReceipts: Array<{ args: FloatReceiptEventArgs; transactionHash: `0x${string}`; blockNumber: bigint }> = [];
+      for (const log of rawLogs) {
+        const receipt = decodeFloatReceiptLog(log);
+        if (receipt) {
+          decodedReceipts.push({ args: receipt.args, transactionHash: log.transactionHash, blockNumber: log.blockNumber });
+          continue;
+        }
+        const x402 = decodeX402PaymentBoundLog(log);
+        if (x402?.args.requestHash) x402ByRequest.add(x402.args.requestHash.toLowerCase());
+      }
+      for (const log of decodedReceipts) {
+        receiptLogs.push({
+          receiptId: log.args.receiptId.toString(),
+          receiptHash: log.args.receiptHash,
+          receiptType: RECEIPT_TYPES[Number(log.args.receiptType)] || `TYPE_${log.args.receiptType}`,
+          agent: log.args.agent,
+          provider: log.args.provider,
+          amountUSDC: log.args.amountUSDC.toString(),
+          reason: REASONS[Number(log.args.reason)] || `REASON_${log.args.reason}`,
+          requestHash: log.args.requestHash,
+          debtBeforeUSDC: log.args.debtBeforeUSDC.toString(),
+          debtAfterUSDC: log.args.debtAfterUSDC.toString(),
+          transactionHash: log.transactionHash,
+          blockNumber: log.blockNumber.toString(),
+          hasX402Bind: x402ByRequest.has(log.args.requestHash.toLowerCase()),
+        });
+      }
+    } catch (error) {
+      warnings.push(`logs ${start.toString()}-${end.toString()}: ${sanitize(error)}`);
+    }
+  }
+
+  if (warnings.length > 0 && receiptLogs.length === 0) {
+    throw new Error(`Float receipt evidence fetch failed across ${warnings.length} chunks: ${warnings[0]}`);
+  }
+
+  const result = {
+    receipts: receiptLogs.sort((a, b) => Number(BigInt(a.receiptId) - BigInt(b.receiptId))),
+    warnings,
+  };
+  receiptEvidenceCache = {
+    address: cacheKey,
+    fromBlock,
+    toBlock,
+    cachedAt: Date.now(),
+    receipts: result.receipts,
+    warnings: result.warnings,
+  };
+  return { ...result, fromBlock, toBlock, cached: false };
+}
+
 function labelFor(address: string): "lab" | "invited" | "self-test" | "demo" {
   const a = address.toLowerCase();
   const lab = parseSet(process.env.FLOAT_LAB_AGENTS, [DEFAULT_ALPHA]);
@@ -502,27 +707,96 @@ function labelFor(address: string): "lab" | "invited" | "self-test" | "demo" {
   return "invited";
 }
 
-function scoreEvidence(agent: string, runs: LoopRun[]) {
+type ScoreEvidence = {
+  runs: number;
+  paidBound: number;
+  signedExternalPaidBound: number;
+  repaid: number;
+  blocked: number;
+  denied: number;
+  error: number;
+  requestHashes: `0x${string}`[];
+  receiptHashes: `0x${string}`[];
+  scoringReceipts: Array<{
+    receiptType: string;
+    reason: string;
+    requestHash: `0x${string}`;
+    receiptHash: `0x${string}`;
+    txHash: `0x${string}`;
+    blockNumber: string;
+  }>;
+};
+
+function scoreEvidenceFromReceipts(agent: string, receipts: IndexedFloatReceipt[], runs: LoopRun[]): ScoreEvidence {
   const a = agent.toLowerCase();
-  const matching = runs.filter((run) => runAgent(run) === a);
-  const paidBound = matching.filter((run) => run.outcome === "PAID_BOUND").length;
-  const signedExternalPaidBound = matching.filter(
-    (run) => run.source === "external-signed" && run.outcome === "PAID_BOUND" && Boolean(run.signature && run.intent && run.x402Hash && run.bindTxHash),
-  ).length;
-  const repaid = matching.filter((run) => run.outcome === "REPAID").length;
-  const blocked = matching.filter((run) => run.outcome === "PREMIUM_BLOCKED" || run.outcome === "GATE_BLOCKED").length;
-  const denied = matching.filter((run) => run.outcome === "DENIED").length;
-  const error = matching.filter((run) => run.outcome === "ERROR").length;
+  const matchingReceipts = receipts.filter((receipt) => receipt.agent.toLowerCase() === a);
+  const byRequest = groupReceiptsByRequest(matchingReceipts);
+  const paidBoundRequests = [...byRequest.entries()]
+    .filter(([, grouped]) => isPaidBoundReceiptGroup(grouped))
+    .map(([requestHash]) => requestHash as `0x${string}`);
+  const signedExternalRequests = new Set(
+    runs
+      .filter(
+        (run) =>
+          runAgent(run) === a &&
+          run.source === "external-signed" &&
+          run.outcome === "PAID_BOUND" &&
+          Boolean(run.signature && run.intent && run.x402Hash && run.bindTxHash && run.requestHash),
+      )
+      .map((run) => run.requestHash!.toLowerCase()),
+  );
+  const repaidReceipts = matchingReceipts.filter((receipt) => receipt.receiptType === "REPAID");
+  const blockedReceipts = matchingReceipts.filter((receipt) => receipt.receiptType === "SPEND_BLOCKED");
+  const deniedReceipts = matchingReceipts.filter((receipt) => receipt.receiptType === "CREDIT_DENIED");
+  const scoringReceipts = matchingReceipts.filter(
+    (receipt) =>
+      receipt.receiptType === "SPEND_ALLOWED" ||
+      receipt.receiptType === "DEBT_OPENED" ||
+      receipt.receiptType === "REPAID" ||
+      receipt.receiptType === "SPEND_BLOCKED" ||
+      receipt.receiptType === "CREDIT_DENIED",
+  );
+  const signedExternalPaidBound = paidBoundRequests.filter((requestHash) => signedExternalRequests.has(requestHash.toLowerCase())).length;
   return {
-    runs: matching.length,
-    paidBound,
+    runs: matchingReceipts.length,
+    paidBound: paidBoundRequests.length,
     signedExternalPaidBound,
-    repaid,
-    blocked,
-    denied,
-    error,
-    requestHashes: matching.map((run) => run.requestHash).filter(Boolean).slice(-8),
+    repaid: repaidReceipts.length,
+    blocked: blockedReceipts.length,
+    denied: deniedReceipts.length,
+    error: 0,
+    requestHashes: [...new Set([...paidBoundRequests, ...scoringReceipts.map((receipt) => receipt.requestHash)])].filter(isNonZeroHash).slice(-12),
+    receiptHashes: scoringReceipts.map((receipt) => receipt.receiptHash).slice(-12),
+    scoringReceipts: scoringReceipts.slice(-12).map((receipt) => ({
+      receiptType: receipt.receiptType,
+      reason: receipt.reason,
+      requestHash: receipt.requestHash,
+      receiptHash: receipt.receiptHash,
+      txHash: receipt.transactionHash,
+      blockNumber: receipt.blockNumber,
+    })),
   };
+}
+
+function groupReceiptsByRequest(receipts: IndexedFloatReceipt[]) {
+  const grouped = new Map<string, IndexedFloatReceipt[]>();
+  for (const receipt of receipts) {
+    if (!isNonZeroHash(receipt.requestHash)) continue;
+    const key = receipt.requestHash.toLowerCase();
+    const current = grouped.get(key) || [];
+    current.push(receipt);
+    grouped.set(key, current);
+  }
+  return grouped;
+}
+
+function isPaidBoundReceiptGroup(receipts: IndexedFloatReceipt[]) {
+  const types = new Set(receipts.map((receipt) => receipt.receiptType));
+  return types.has("SPEND_ALLOWED") && types.has("PROVIDER_PAID") && types.has("DEBT_OPENED") && receipts.some((receipt) => receipt.hasX402Bind);
+}
+
+function isNonZeroHash(value: string | undefined): value is `0x${string}` {
+  return Boolean(value && /^0x[0-9a-fA-F]{64}$/.test(value) && !/^0x0{64}$/i.test(value));
 }
 
 function runAgent(run: LoopRun): string | null {
@@ -536,7 +810,7 @@ function filterRunsForFloat(runs: LoopRun[], floatRaw: string | undefined): Loop
   return runs.filter((run) => Boolean(run.float && isAddress(run.float) && getAddress(run.float) === current));
 }
 
-function deterministicScore(label: "lab" | "invited" | "self-test" | "demo", evidence: ReturnType<typeof scoreEvidence>) {
+function deterministicScore(label: "lab" | "invited" | "self-test" | "demo", evidence: ScoreEvidence) {
   const base = label === "lab" ? 8500 : label === "invited" ? 7500 : label === "self-test" ? 6500 : 5000;
   const raw =
     base +

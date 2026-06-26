@@ -1426,8 +1426,8 @@ function App() {
         </article>
         <article className="roadmapCard">
           <span>risk</span>
-          <strong>Permissionless scoring</strong>
-          <p>Move from deterministic v0 over operator-reviewed evidence to an indexed, permissionless score path.</p>
+          <strong>Autonomous line adjustment</strong>
+          <p>Use the receipt-derived score path to raise or cut lines automatically from public behavior.</p>
         </article>
         <article className="roadmapCard">
           <span>capital</span>
@@ -2208,7 +2208,7 @@ function TreasuryHardeningPanel() {
     {
       label: "underwriting roadmap",
       title: "Float scoring is deterministic v0",
-      body: "Current lines use operator-reviewed evidence. The next upgrade is a permissionless receipt indexer that recomputes evidence counts from chain.",
+      body: "The score verifier derives behavior counts from Float receipts. The next upgrade is an autonomous runner that adjusts lines from that public score.",
     },
   ];
 
@@ -2674,7 +2674,7 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       amount: formatFloatUSDC(grantReceipt?.amountUSDC || state?.alphaLine?.creditLimitUSDC),
       receipt: "FLOAT_GRANTED",
       href: grantReceipt?.transactionHash ? txUrl(grantReceipt.transactionHash) : "/api/float",
-      meaning: "The line exists onchain and is operator-reviewed from observed behavior.",
+      meaning: "The line exists onchain and can be checked against receipt-derived behavior evidence.",
     },
     {
       title: "x402 payment required",
