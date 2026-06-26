@@ -38,6 +38,7 @@ const RPC = clean(env.ARC_RPC_URL || env.VITE_ARC_RPC_URL) || "https://rpc.testn
 const FLOAT = getAddress(clean(env.SHADOW_FLOAT || env.VITE_SHADOW_FLOAT) || "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
 const APPLY = clean(env.FLOAT_AUTOUNDERWRITE_APPLY) === "1";
 const ALLOW_ACTIVE_DEBT_RAISE = clean(env.FLOAT_AUTOUNDERWRITE_ALLOW_ACTIVE_DEBT_RAISE) === "1";
+const APPLY_SCORE_REFRESH = clean(env.FLOAT_AUTOUNDERWRITE_APPLY_SCORE_REFRESH) === "1";
 const OWNER_KEY = normalizeKey(clean(env.FLOAT_ADMIN_PRIVATE_KEY || env.PRIVATE_KEY || env.FLOAT_OWNER_PRIVATE_KEY));
 const REQUEST_SALT = clean(env.FLOAT_AUTOUNDERWRITE_SALT) || Date.now().toString();
 const explicitAgents = parseAgents(process.argv.slice(2).join(" ") || clean(env.FLOAT_AUTOUNDERWRITE_AGENTS));
@@ -155,8 +156,11 @@ async function planAgent(agent, score, line) {
     if (recommendedLimit === 0n && activeDebt === 0n) return { ...base, action: "revoke", reason: "receipt_derived_score_supports_zero_limit" };
     return { ...base, action: "reduce_limit", reason: "receipt_derived_score_supports_lower_limit" };
   }
-  if (computedScore !== currentScore && activeDebt === 0n) {
+  if (computedScore !== currentScore && activeDebt === 0n && recommendedLimit > 0n && APPLY_SCORE_REFRESH) {
     return { ...base, action: "grant_from_score", reason: "refresh_onchain_score_from_receipt_derived_evidence" };
+  }
+  if (computedScore !== currentScore) {
+    return { ...base, action: "none", reason: "score_changed_but_limit_band_is_unchanged" };
   }
   return { ...base, action: "none", reason: "current_line_matches_receipt_derived_score_band" };
 }
