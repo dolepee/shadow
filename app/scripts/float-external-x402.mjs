@@ -37,11 +37,16 @@ const env = {
 
 const CHAIN_ID = 5_042_002;
 const RPC = clean(env.ARC_RPC_URL || env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
-const FLOAT = getAddress(clean(env.SHADOW_FLOAT || env.VITE_SHADOW_FLOAT) || "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
+const LEGACY_FLOAT = getAddress("0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
+const FLOAT_RAW = clean(env.SHADOW_FLOAT || env.VITE_SHADOW_FLOAT);
+if (!FLOAT_RAW) throw new Error("set SHADOW_FLOAT to the deployed V2 ShadowFloat address before binding signed spends");
+const FLOAT = getAddress(FLOAT_RAW);
+if (FLOAT === LEGACY_FLOAT && clean(env.ALLOW_LEGACY_FLOAT) !== "1") {
+  throw new Error("refusing to bind against the known V1 ShadowFloat address; set SHADOW_FLOAT to V2 or ALLOW_LEGACY_FLOAT=1");
+}
 const USDC = getAddress(clean(env.ARC_USDC || env.VITE_ARC_USDC) || "0x3600000000000000000000000000000000000000");
 const FACILITATOR_KEY = normalizeKey(clean(env.FLOAT_FACILITATOR_PRIVATE_KEY || env.CAT_AGENT_PRIVATE_KEY || env.PRIVATE_KEY));
 const PROVIDER_URL = clean(env.FLOAT_X402_PROVIDER_URL) || "https://shadow-arc.vercel.app/api/reasoning-x402";
-const BIND_MODE = clean(env.FLOAT_BIND_MODE) || "legacy-v1";
 const maxRuns = Number(clean(env.FLOAT_LOOP_MAX_RUNS) || "120");
 const args = process.argv.slice(2);
 const VERIFY_ONLY = args.includes("--verify-only");
@@ -67,9 +72,9 @@ const wallet = facilitator
   : null;
 
 const floatAbi = parseAbi([
+  "function lineSponsors(address agent) view returns (address sponsor, uint256 reserveUSDC)",
   "function previewSpend(address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, bytes32 requestHash) view returns (bool allowed, uint8 reason)",
-  "function recordX402Spend(address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, bytes32 requestHash, bytes32 x402Hash, address facilitator) returns (bytes32 receiptHash, bool allowed, uint8 reason)",
-  "function recordSignedX402Spend((address agent,address provider,bytes32 endpointHash,uint256 amountUSDC,uint256 nonce,uint256 expiry,string reason) intent, bytes32 x402Hash, address facilitator, bytes signature) returns (bytes32 receiptHash, bool allowed, uint8 reason)",
+  "function recordSignedX402Spend((address agent,address provider,bytes32 endpointHash,uint256 amountUSDC,uint256 maxDebtUSDC,uint256 nonce,uint256 expiry,address executor,string reason) intent, bytes32 x402Hash, address facilitator, bytes signature) returns (bytes32 receiptHash, bool allowed, uint8 reason)",
   "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
 ]);
 const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
@@ -88,18 +93,28 @@ const types = {
     { name: "provider", type: "address" },
     { name: "endpointHash", type: "bytes32" },
     { name: "amountUSDC", type: "uint256" },
+    { name: "maxDebtUSDC", type: "uint256" },
     { name: "nonce", type: "uint256" },
     { name: "expiry", type: "uint256" },
+    { name: "executor", type: "address" },
     { name: "reason", type: "string" },
   ],
 };
+const hasV2Executor = intent.executor !== undefined && intent.executor !== null;
+const hasMaxDebt = intent.maxDebtUSDC !== undefined && intent.maxDebtUSDC !== null;
+if (!hasV2Executor || !hasMaxDebt) {
+  throw new Error("current V2 external-x402 binding requires executor and maxDebtUSDC. Ask the builder to re-sign with app/scripts/float-builder-sign.mjs.");
+}
+const executor = hasV2Executor ? getAddress(intent.executor) : zeroAddress();
 const message = {
   agent,
   provider,
   endpointHash: intent.endpointHash,
   amountUSDC: amount,
+  maxDebtUSDC: BigInt(intent.maxDebtUSDC),
   nonce: BigInt(intent.nonce),
   expiry: BigInt(intent.expiry),
+  executor,
   reason: intent.reason,
 };
 
@@ -109,6 +124,9 @@ if (getAddress(recovered) !== agent) {
 }
 if (BigInt(Math.floor(Date.now() / 1000)) > BigInt(intent.expiry)) {
   throw new Error("intent has expired. Ask the builder to sign a fresh one.");
+}
+if (executor !== zeroAddress() && (!facilitator || getAddress(facilitator.address) !== executor)) {
+  throw new Error(`intent is restricted to executor ${executor}, but this facilitator is ${facilitator?.address || "not configured"}`);
 }
 
 // requestHash IS the signed digest, so the on-chain receipt commits to exactly
@@ -120,18 +138,23 @@ if (digest && digest.toLowerCase() !== requestHash.toLowerCase()) {
 
 console.log("Shadow Float signed external x402 spend");
 console.log(`mode           ${VERIFY_ONLY ? "verify-only" : "bind"}`);
-console.log(`bind mode      ${BIND_MODE}`);
 console.log(`agent (signer) ${agent}`);
 console.log(`provider       ${provider}`);
 console.log(`amount         ${formatUnits(amount, 6)} USDC (Shadow fronts it; debt opens on the agent's line)`);
 console.log(`requestHash    ${requestHash}  (= the EIP-712 digest the builder signed)`);
-console.log(`signature      ${signature}`);
+console.log("signature      present (not printed before bind)");
 
 const already = await readFloat("receiptByRequestHash", [requestHash]);
 if (already && already !== zeroHash()) throw new Error(`this signed intent was already spent (receipt ${already}).`);
 
 const [allowed, reason] = await readFloat("previewSpend", [agent, provider, intent.endpointHash, amount, requestHash]);
 if (!allowed) throw new Error(`the spend would be blocked (reason code ${reason}). Check the agent's line is ELIGIBLE and within limit.`);
+const [sponsor] = await readFloat("lineSponsors", [agent]);
+if (getAddress(sponsor) !== zeroAddress()) {
+  throw new Error(
+    `agent ${agent} has a sponsored V2 line. Do not use operator-assisted x402 reimbursement; use requestSignedSpend via float-v2-sponsored-proof.mjs so the contract pays the provider directly.`,
+  );
+}
 
 const requirement = await fetchX402Requirement(PROVIDER_URL);
 if (getAddress(requirement.payTo) !== provider) {
@@ -165,6 +188,9 @@ if (VERIFY_ONLY) {
   );
   process.exit(0);
 }
+
+const signedIntent = signedIntentForContract();
+await assertRecordSignedX402SpendCanBind(signedIntent);
 
 const facilitatorUsdc = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [facilitator.address] });
 if (facilitatorUsdc < amount) {
@@ -201,37 +227,7 @@ console.log(`verify          https://shadow-arc.vercel.app/api/float-tools?actio
 console.log(JSON.stringify(run, null, 2));
 
 async function recordFloatBind(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_) {
-  if (BIND_MODE === "signed-v2") {
-    return recordSignedX402Spend(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_);
-  }
-  if (BIND_MODE !== "legacy-v1") {
-    throw new Error(`unknown FLOAT_BIND_MODE ${BIND_MODE}; expected legacy-v1 or signed-v2`);
-  }
-  return recordX402Spend(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_);
-}
-
-async function recordX402Spend(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_) {
-  console.log("binding legacy recordX402Spend...");
-  const duplicateCheck = await readFloat("receiptByRequestHash", [requestHash_]);
-  if (duplicateCheck && duplicateCheck !== zeroHash()) {
-    throw new Error(`intent was consumed before bind; refusing to persist x402 as bound (receipt ${duplicateCheck})`);
-  }
-  const txHash = await wallet.writeContract({
-    address: FLOAT,
-    abi: floatAbi,
-    functionName: "recordX402Spend",
-    args: [agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_, facilitator.address],
-    account: facilitator,
-    chain,
-  });
-  const rcpt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 60_000 });
-  if (rcpt.status !== "success") throw new Error(`recordX402Spend reverted: ${txHash}`);
-  assertX402BoundReceipt(rcpt, { requestHash: requestHash_, x402Hash: x402Hash_, provider: provider_, amount: amount_ });
-  const boundReceipt = await readFloat("receiptByRequestHash", [requestHash_]);
-  if (!boundReceipt || boundReceipt === zeroHash()) {
-    throw new Error(`recordX402Spend succeeded but receiptByRequestHash stayed empty: ${txHash}`);
-  }
-  return txHash;
+  return recordSignedX402Spend(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_);
 }
 
 async function recordSignedX402Spend(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_) {
@@ -240,15 +236,6 @@ async function recordSignedX402Spend(agent_, provider_, endpointHash_, amount_, 
   if (duplicateCheck && duplicateCheck !== zeroHash()) {
     throw new Error(`intent was consumed before bind; refusing to persist x402 as bound (receipt ${duplicateCheck})`);
   }
-  const signedIntent = {
-    agent: agent_,
-    provider: provider_,
-    endpointHash: endpointHash_,
-    amountUSDC: amount_,
-    nonce: BigInt(intent.nonce),
-    expiry: BigInt(intent.expiry),
-    reason: intent.reason,
-  };
   const txHash = await wallet.writeContract({
     address: FLOAT,
     abi: floatAbi,
@@ -265,6 +252,35 @@ async function recordSignedX402Spend(agent_, provider_, endpointHash_, amount_, 
     throw new Error(`recordSignedX402Spend succeeded but receiptByRequestHash stayed empty: ${txHash}`);
   }
   return txHash;
+}
+
+function signedIntentForContract() {
+  return {
+    agent,
+    provider,
+    endpointHash: intent.endpointHash,
+    amountUSDC: amount,
+    maxDebtUSDC: BigInt(intent.maxDebtUSDC),
+    nonce: BigInt(intent.nonce),
+    expiry: BigInt(intent.expiry),
+    executor,
+    reason: intent.reason,
+  };
+}
+
+async function assertRecordSignedX402SpendCanBind(signedIntent) {
+  const dummyX402Hash = "0x1111111111111111111111111111111111111111111111111111111111111111";
+  try {
+    await publicClient.simulateContract({
+      address: FLOAT,
+      abi: floatAbi,
+      functionName: "recordSignedX402Spend",
+      args: [signedIntent, dummyX402Hash, facilitator.address, signature],
+      account: facilitator.address,
+    });
+  } catch (error) {
+    throw new Error(`recordSignedX402Spend would revert before binding; no x402 payment was made. ${error?.shortMessage || error?.message || error}`);
+  }
 }
 
 async function payProviderX402(url, payTo, value) {
@@ -416,6 +432,10 @@ async function kvSet(base, token, key, value) {
 
 function zeroHash() {
   return "0x0000000000000000000000000000000000000000000000000000000000000000";
+}
+
+function zeroAddress() {
+  return "0x0000000000000000000000000000000000000000";
 }
 
 function readEnv(path) {

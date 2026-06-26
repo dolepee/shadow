@@ -11,7 +11,11 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-// Shadow Float: external builder self-spend.
+// Shadow Float V1 legacy: external builder self-spend.
+//
+// V2 builders should use float-builder-sign.mjs and the signed-intent direct
+// provider path. This script calls the legacy requestSpend path and is kept only
+// for historical V1 proof reproduction.
 //
 // YOUR agent pushes this transaction with YOUR key, so on-chain the `from` is
 // you, not Shadow. The Float treasury fronts the USDC to the provider and opens
@@ -26,7 +30,13 @@ import { privateKeyToAccount } from "viem/accounts";
 
 const RPC = clean(process.env.ARC_RPC_URL) || "https://rpc.testnet.arc.network";
 const CHAIN_ID = 5_042_002;
-const FLOAT = getAddress(clean(process.env.SHADOW_FLOAT) || "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
+const LEGACY_FLOAT = getAddress("0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
+const FLOAT_RAW = clean(process.env.SHADOW_FLOAT);
+if (!FLOAT_RAW || clean(process.env.ALLOW_LEGACY_FLOAT) !== "1") {
+  throw new Error("float-builder-spend.mjs is V1-only. Set SHADOW_FLOAT and ALLOW_LEGACY_FLOAT=1, or use float-builder-sign.mjs for V2.");
+}
+const FLOAT = getAddress(FLOAT_RAW);
+if (FLOAT !== LEGACY_FLOAT) throw new Error("float-builder-spend.mjs is V1-only and must not be used against V2");
 const PROVIDER = getAddress(clean(process.env.FLOAT_PROVIDER) || "0x8ddf06fE8985988d3e0883F945E891BD57084937");
 const ENDPOINT_HASH = clean(process.env.FLOAT_ENDPOINT_HASH) || "0x54f180bcd31ab4c3401b23bc78cb3eeb89f85d42a3b43e3d06a692b91d941160";
 const AMOUNT = BigInt(clean(process.env.FLOAT_SPEND_ATOMIC) || "10000"); // 0.01 USDC (6 decimals)

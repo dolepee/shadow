@@ -35,6 +35,9 @@ const PROVIDER_URL = clean(env.FLOAT_X402_PROVIDER_URL) || "https://shadow-arc.v
 
 if (!RPC) throw new Error("missing ARC_RPC_URL or VITE_ARC_RPC_URL");
 if (!FLOAT) throw new Error("missing SHADOW_FLOAT or VITE_SHADOW_FLOAT");
+if (clean(env.ALLOW_LEGACY_FLOAT) !== "1") {
+  throw new Error("float-x402-proof.mjs is a V1 legacy proof runner that calls recordX402Spend. Set ALLOW_LEGACY_FLOAT=1 only for V1 proof reproduction.");
+}
 if (!ADMIN_KEY) throw new Error("missing FLOAT_ADMIN_PRIVATE_KEY or PRIVATE_KEY");
 if (!FACILITATOR_KEY) throw new Error("missing FLOAT_FACILITATOR_PRIVATE_KEY or CAT_AGENT_PRIVATE_KEY");
 

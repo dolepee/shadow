@@ -24,6 +24,7 @@
     "float:external-spend": "node app/scripts/float-external-spend.mjs",
     "float:verify-live": "node app/scripts/float-verify-live.mjs",
     "float:score-proof": "node app/scripts/float-score-proof.mjs",
+    "float:v2-sponsored-proof": "node app/scripts/float-v2-sponsored-proof.mjs",
     "float:autounderwrite": "node app/scripts/float-autounderwrite.mjs",
     "float:loop": "node app/scripts/float-loop.mjs",
     "treasury:spike": "node app/scripts/treasury-operator-spike.mjs",

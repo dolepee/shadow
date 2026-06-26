@@ -63,6 +63,9 @@ const minBpsOut = Number(clean(env.TREASURY_OPERATOR_MIN_BPS_OUT) || "9900");
 const FLOAT_ALPHA = getAddress(clean(env.FLOAT_ALPHA_ADDRESS) || "0xa100000000000000000000000000000000000001");
 
 if (!OPERATOR_KEY) throw new Error("missing TREASURY_OPERATOR_PRIVATE_KEY, FLOAT_FACILITATOR_PRIVATE_KEY, CAT_AGENT_PRIVATE_KEY, or PRIVATE_KEY");
+if (clean(env.ALLOW_LEGACY_FLOAT) !== "1") {
+  throw new Error("treasury-operator-spike.mjs is a V1 legacy proof runner that calls recordX402Spend. Set ALLOW_LEGACY_FLOAT=1 only for V1 Treasury proof reproduction.");
+}
 
 const operator = privateKeyToAccount(OPERATOR_KEY);
 const chain = defineChain({

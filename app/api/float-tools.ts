@@ -67,6 +67,7 @@ const floatAbi = parseAbi([
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
   "function receiptCount() view returns (uint256)",
   "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
+  "function providerDeliveryByRequestHash(bytes32 requestHash) view returns (bytes32)",
   "function intentNonceUsed(address agent, uint256 nonce) view returns (bool)",
 ]);
 const floatReceiptEvent = parseAbiItem(
@@ -78,6 +79,7 @@ const x402PaymentBoundEvent = parseAbiItem(
 const floatIntentConsumedEvent = parseAbiItem(
   "event FloatIntentConsumed(address indexed agent, address indexed signer, uint256 indexed nonce, bytes32 requestHash)",
 );
+const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 
 type Req = { method?: string; url?: string; query?: Record<string, string | string[] | undefined> };
 type Res = { setHeader(n: string, v: string | number): void; status(c: number): Res; json(b: unknown): void };
@@ -152,8 +154,10 @@ type X402PaymentBoundArgs = {
   provider: Address;
   amountUSDC: bigint;
 };
+type TransferArgs = { from: Address; to: Address; value: bigint };
 
 type DecodedX402PaymentBoundLog = { args: X402PaymentBoundArgs };
+type DecodedTransferLog = { args: TransferArgs };
 type FloatIntentConsumedArgs = {
   agent: Address;
   signer: Address;
@@ -186,8 +190,10 @@ type SignedIntent = {
   provider: string;
   endpointHash: string;
   amountUSDC: string;
+  maxDebtUSDC?: string;
   nonce: string;
   expiry: string;
+  executor?: string;
   reason: string;
   float: string;
   chainId: number;
@@ -199,8 +205,33 @@ const intentTypes = {
     { name: "provider", type: "address" },
     { name: "endpointHash", type: "bytes32" },
     { name: "amountUSDC", type: "uint256" },
+    { name: "maxDebtUSDC", type: "uint256" },
     { name: "nonce", type: "uint256" },
     { name: "expiry", type: "uint256" },
+    { name: "executor", type: "address" },
+    { name: "reason", type: "string" },
+  ],
+} as const;
+const legacyIntentTypes = {
+  FloatSpendIntent: [
+    { name: "agent", type: "address" },
+    { name: "provider", type: "address" },
+    { name: "endpointHash", type: "bytes32" },
+    { name: "amountUSDC", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+    { name: "expiry", type: "uint256" },
+    { name: "reason", type: "string" },
+  ],
+} as const;
+const legacyExecutorIntentTypes = {
+  FloatSpendIntent: [
+    { name: "agent", type: "address" },
+    { name: "provider", type: "address" },
+    { name: "endpointHash", type: "bytes32" },
+    { name: "amountUSDC", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+    { name: "expiry", type: "uint256" },
+    { name: "executor", type: "address" },
     { name: "reason", type: "string" },
   ],
 } as const;
@@ -339,7 +370,7 @@ async function handleVerify(req: Req, res: Res) {
     return;
   }
   const runs = filterRunsForFloat(await readLoopRuns(), floatRaw);
-  const match = runs.find((r) => r.source === "external-signed" && (r.requestHash || "").toLowerCase() === hash.toLowerCase());
+  const match = runs.find((r) => r.intent && r.signature && (r.requestHash || "").toLowerCase() === hash.toLowerCase());
   if (!match || !match.intent || !match.signature) {
     res.status(200).json({
       found: false,
@@ -357,25 +388,38 @@ async function handleVerify(req: Req, res: Res) {
     chainId: intent.chainId || ARC_CHAIN_ID,
     verifyingContract: getAddress(intent.float),
   };
-  const message = {
+  const hasMaxDebt = Boolean(intent.maxDebtUSDC && /^\d+$/.test(intent.maxDebtUSDC));
+  const hasV2Executor = Boolean(intent.executor && isAddress(intent.executor));
+  const baseMessage = {
     agent: getAddress(intent.agent),
     provider: getAddress(intent.provider),
     endpointHash: intent.endpointHash as `0x${string}`,
     amountUSDC: BigInt(intent.amountUSDC),
     nonce: BigInt(intent.nonce),
     expiry: BigInt(intent.expiry),
-    reason: intent.reason,
   };
+  const message = hasMaxDebt
+    ? {
+        ...baseMessage,
+        maxDebtUSDC: BigInt(intent.maxDebtUSDC!),
+        executor: hasV2Executor ? getAddress(intent.executor!) : ZERO,
+        reason: intent.reason,
+      }
+    : hasV2Executor
+      ? { ...baseMessage, executor: getAddress(intent.executor!), reason: intent.reason }
+      : { ...baseMessage, reason: intent.reason };
+  const typesForDigest = hasMaxDebt ? intentTypes : hasV2Executor ? legacyExecutorIntentTypes : legacyIntentTypes;
+  const proofVersion = hasMaxDebt ? "v2-max-debt" : hasV2Executor ? "legacy-v2-executor" : "legacy-v1";
 
   try {
     const recovered = await recoverTypedDataAddress({
       domain,
-      types: intentTypes,
+      types: typesForDigest,
       primaryType: "FloatSpendIntent",
       message,
       signature: match.signature as `0x${string}`,
     });
-    const digest = hashTypedData({ domain, types: intentTypes, primaryType: "FloatSpendIntent", message });
+    const digest = hashTypedData({ domain, types: typesForDigest, primaryType: "FloatSpendIntent", message });
     const signerMatchesAgent = getAddress(recovered) === getAddress(intent.agent);
     const digestMatchesRequestHash = digest.toLowerCase() === hash.toLowerCase();
     const rpcUrl = clean(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
@@ -384,11 +428,14 @@ async function handleVerify(req: Req, res: Res) {
       float: getAddress(floatRaw),
       requestHash: hash,
       bindTxHash: match.bindTxHash,
+      txHash: match.txHash,
       x402Hash: match.x402Hash,
       agent: getAddress(intent.agent),
       nonce: BigInt(intent.nonce),
       provider: getAddress(intent.provider),
       amountUSDC: BigInt(intent.amountUSDC),
+      usdc: getAddress(clean(process.env.ARC_USDC || process.env.VITE_ARC_USDC) || "0x3600000000000000000000000000000000000000"),
+      requireContractEnforcedIntent: hasMaxDebt || hasV2Executor,
     });
     if (!signerMatchesAgent || !digestMatchesRequestHash || !onchain.ok) {
       res.status(200).json({
@@ -415,14 +462,23 @@ async function handleVerify(req: Req, res: Res) {
       digestMatchesRequestHash,
       onchainVerified: true,
       contractEnforcedIntent: Boolean(onchain.contractEnforcedIntent),
+      proofVersion,
       intentNonceUsed: onchain.intentNonceUsed ?? null,
       receiptHash: onchain.receiptHash,
+      providerDeliveryConfirmed: Boolean(onchain.providerDeliveryConfirmed),
+      providerDeliveryHash: onchain.providerDeliveryHash ?? null,
       intent,
       signature: match.signature,
       x402Hash: match.x402Hash,
       bindTxHash: match.bindTxHash,
+      txHash: match.txHash,
+      settlementMode: onchain.settlementMode,
       note: onchain.contractEnforcedIntent
-        ? "V2 proof: hashTypedData(intent) equals requestHash, the signature recovers to the agent, receiptByRequestHash is nonzero, the bind tx emitted matching FloatIntentConsumed and X402PaymentBound events, and the contract nonce is marked used."
+        ? onchain.settlementMode === "direct-provider-transfer"
+          ? onchain.providerDeliveryConfirmed
+            ? "V2 direct proof: hashTypedData(intent) equals requestHash, the signature recovers to the agent, receiptByRequestHash is nonzero, the spend tx emitted FloatIntentConsumed, the contract nonce is marked used, Arc USDC moved directly from ShadowFloat to the signed provider, and the provider signed a delivery receipt for the same request."
+            : "V2 direct proof: hashTypedData(intent) equals requestHash, the signature recovers to the agent, receiptByRequestHash is nonzero, the spend tx emitted FloatIntentConsumed, the contract nonce is marked used, and Arc USDC moved directly from ShadowFloat to the signed provider."
+          : "V2 x402 proof: hashTypedData(intent) equals requestHash, the signature recovers to the agent, receiptByRequestHash is nonzero, the bind tx emitted matching FloatIntentConsumed and X402PaymentBound events, and the contract nonce is marked used."
         : "V1 proof: hashTypedData(intent) equals requestHash, the signature recovers to the agent, receiptByRequestHash is nonzero, and bindTxHash emits the matching X402PaymentBound event. V1 signature verification happened before bind; V2 additionally proves contract-side nonce consumption.",
       fetchedAt: Date.now(),
     });
@@ -437,11 +493,14 @@ async function verifyOnchainExternalProof(
     float: `0x${string}`;
     requestHash: `0x${string}`;
     bindTxHash?: string;
+    txHash?: string;
     x402Hash?: string;
     agent: string;
     nonce: bigint;
     provider: string;
     amountUSDC: bigint;
+    usdc: string;
+    requireContractEnforcedIntent?: boolean;
   },
 ) {
   try {
@@ -454,15 +513,14 @@ async function verifyOnchainExternalProof(
     if (!receiptHash || receiptHash === "0x0000000000000000000000000000000000000000000000000000000000000000") {
       return { ok: false, reason: "receiptByRequestHash is empty" };
     }
-    if (!expected.bindTxHash || !/^0x[0-9a-fA-F]{64}$/.test(expected.bindTxHash)) {
-      return { ok: false, receiptHash, reason: "missing valid bindTxHash" };
+    const proofTxHash = expected.bindTxHash || expected.txHash;
+    if (!proofTxHash || !/^0x[0-9a-fA-F]{64}$/.test(proofTxHash)) {
+      return { ok: false, receiptHash, reason: "missing valid proof transaction hash" };
     }
-    if (!expected.x402Hash || !/^0x[0-9a-fA-F]{64}$/.test(expected.x402Hash)) {
-      return { ok: false, receiptHash, reason: "missing valid x402Hash" };
-    }
-    const bindReceipt = await client.getTransactionReceipt({ hash: expected.bindTxHash as `0x${string}` });
-    if (bindReceipt.status !== "success") return { ok: false, receiptHash, reason: "bind transaction failed" };
+    const proofReceipt = await client.getTransactionReceipt({ hash: proofTxHash as `0x${string}` });
+    if (proofReceipt.status !== "success") return { ok: false, receiptHash, reason: "proof transaction failed" };
     let intentNonceUsed: boolean | null = null;
+    let providerDeliveryHash: `0x${string}` | null = null;
     try {
       intentNonceUsed = (await client.readContract({
         address: expected.float,
@@ -473,7 +531,20 @@ async function verifyOnchainExternalProof(
     } catch {
       intentNonceUsed = null;
     }
-    const intentConsumed = bindReceipt.logs.some((log) => {
+    try {
+      providerDeliveryHash = (await client.readContract({
+        address: expected.float,
+        abi: floatAbi,
+        functionName: "providerDeliveryByRequestHash",
+        args: [expected.requestHash],
+      })) as `0x${string}`;
+    } catch {
+      providerDeliveryHash = null;
+    }
+    const providerDeliveryConfirmed =
+      Boolean(providerDeliveryHash) &&
+      providerDeliveryHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+    const intentConsumed = proofReceipt.logs.some((log) => {
       if (getAddress(log.address) !== expected.float) return false;
       const decoded = decodeFloatIntentConsumedLog(log);
       return Boolean(
@@ -483,21 +554,68 @@ async function verifyOnchainExternalProof(
           decoded.args.requestHash?.toLowerCase() === expected.requestHash.toLowerCase(),
       );
     });
-    const matched = bindReceipt.logs.some((log) => {
-      if (getAddress(log.address) !== expected.float) return false;
-      const decoded = decodeX402PaymentBoundLog(log);
-      return Boolean(
-        decoded &&
-          decoded.args.requestHash?.toLowerCase() === expected.requestHash.toLowerCase() &&
-          decoded.args.x402Hash?.toLowerCase() === expected.x402Hash!.toLowerCase() &&
-          getAddress(decoded.args.provider) === getAddress(expected.provider) &&
-          decoded.args.amountUSDC === expected.amountUSDC,
-      );
-    });
+    let matched = false;
+    let settlementMode = "direct-provider-transfer";
+    if (expected.x402Hash && /^0x[0-9a-fA-F]{64}$/.test(expected.x402Hash)) {
+      settlementMode = "operator-assisted-x402";
+      matched = proofReceipt.logs.some((log) => {
+        if (getAddress(log.address) !== expected.float) return false;
+        const decoded = decodeX402PaymentBoundLog(log);
+        return Boolean(
+          decoded &&
+            decoded.args.requestHash?.toLowerCase() === expected.requestHash.toLowerCase() &&
+            decoded.args.x402Hash?.toLowerCase() === expected.x402Hash!.toLowerCase() &&
+            getAddress(decoded.args.provider) === getAddress(expected.provider) &&
+            decoded.args.amountUSDC === expected.amountUSDC,
+        );
+      });
+    } else {
+      matched = proofReceipt.logs.some((log) => {
+        if (getAddress(log.address) !== getAddress(expected.usdc)) return false;
+        const decoded = decodeTransferLog(log);
+        return Boolean(
+          decoded &&
+            getAddress(decoded.args.from) === expected.float &&
+            getAddress(decoded.args.to) === getAddress(expected.provider) &&
+            decoded.args.value === expected.amountUSDC,
+        );
+      });
+    }
     const contractEnforcedIntent = intentNonceUsed === true && intentConsumed;
+    if (expected.requireContractEnforcedIntent && !contractEnforcedIntent) {
+      return {
+        ok: false,
+        receiptHash,
+        proofTxHash,
+        intentNonceUsed,
+        intentConsumed,
+        contractEnforcedIntent,
+        reason: "V2 proof missing FloatIntentConsumed or nonce-used confirmation",
+      };
+    }
     return matched
-      ? { ok: true, receiptHash, bindTxHash: expected.bindTxHash, intentNonceUsed, intentConsumed, contractEnforcedIntent }
-      : { ok: false, receiptHash, reason: "bind transaction missing matching X402PaymentBound event" };
+      ? {
+          ok: true,
+          receiptHash,
+          proofTxHash,
+          bindTxHash: expected.bindTxHash,
+          txHash: expected.txHash,
+          settlementMode,
+          intentNonceUsed,
+          intentConsumed,
+          contractEnforcedIntent,
+          providerDeliveryConfirmed,
+          providerDeliveryHash,
+        }
+      : {
+          ok: false,
+          receiptHash,
+          settlementMode,
+          reason:
+            settlementMode === "operator-assisted-x402"
+              ? "bind transaction missing matching X402PaymentBound event"
+              : "proof transaction missing direct Arc USDC transfer from ShadowFloat to signed provider",
+        };
   } catch (error) {
     return { ok: false, reason: sanitize(error) };
   }
@@ -522,6 +640,18 @@ function decodeFloatIntentConsumedLog(log: { data: `0x${string}`; topics: readon
       data: log.data,
       topics: log.topics as any,
     }) as unknown as DecodedFloatIntentConsumedLog;
+  } catch {
+    return null;
+  }
+}
+
+function decodeTransferLog(log: { data: `0x${string}`; topics: readonly `0x${string}`[] }): DecodedTransferLog | null {
+  try {
+    return decodeEventLog({
+      abi: [transferEvent] as any,
+      data: log.data,
+      topics: log.topics as any,
+    }) as unknown as DecodedTransferLog;
   } catch {
     return null;
   }
@@ -621,7 +751,8 @@ async function handleScore(req: Req, res: Res) {
       },
       evidenceSources: {
         lineLabel: "operator-configured label set for lab, invited, self-test, and demo addresses",
-        paidBound: "FloatReceipt logs with SPEND_ALLOWED, PROVIDER_PAID, DEBT_OPENED, and matching X402PaymentBound",
+        paidBound:
+          "FloatReceipt logs with SPEND_ALLOWED, PROVIDER_PAID, and DEBT_OPENED for the same requestHash. X402PaymentBound is the legacy/operator-assisted settlement subtype; V2 direct sponsored spends are counted from contract-paid provider receipts.",
         signedExternalPaidBound:
           "published signed-intent metadata, but counted only when the same requestHash is present in receipt-derived paid-bound evidence",
         repaid: "FloatReceipt logs with REPAID for this agent",
@@ -677,12 +808,18 @@ async function handleIntent(req: Req, res: Res) {
   const providerRaw = clean(readParam(req, "provider")) || clean(process.env.FLOAT_PROVIDER || process.env.VITE_FLOAT_PROVIDER) || "0x8ddf06fE8985988d3e0883F945E891BD57084937";
   const endpointHash = clean(readParam(req, "endpointHash")) || clean(process.env.FLOAT_ENDPOINT_HASH || process.env.VITE_FLOAT_ENDPOINT_HASH) || "0x54f180bcd31ab4c3401b23bc78cb3eeb89f85d42a3b43e3d06a692b91d941160";
   const amountUSDC = clean(readParam(req, "amountUSDC")) || "10000";
+  const maxDebtRaw = clean(readParam(req, "maxDebtUSDC"));
   const nonce = clean(readParam(req, "nonce")) || Date.now().toString();
   const ttlSeconds = BigInt(clean(readParam(req, "ttl")) || `${7 * 24 * 3600}`);
   const expiry = clean(readParam(req, "expiry")) || (BigInt(Math.floor(Date.now() / 1000)) + ttlSeconds).toString();
+  const executorRaw = clean(readParam(req, "executor")) || clean(process.env.FLOAT_INTENT_EXECUTOR || process.env.VITE_FLOAT_INTENT_EXECUTOR) || ZERO;
 
   if (!providerRaw || !isAddress(providerRaw)) {
     res.status(400).json({ error: "provider must be a valid address" });
+    return;
+  }
+  if (!isAddress(executorRaw)) {
+    res.status(400).json({ error: "executor must be a valid address or omitted for open execution" });
     return;
   }
   if (!/^0x[0-9a-fA-F]{64}$/.test(endpointHash)) {
@@ -693,22 +830,43 @@ async function handleIntent(req: Req, res: Res) {
     res.status(400).json({ error: "amountUSDC must be a positive integer in 6-decimal atomic units" });
     return;
   }
+  const float = getAddress(floatRaw);
+  const agent = getAddress(agentParam);
+  let activeDebtUSDC = 0n;
+  let activeDebtRead = false;
+  if (!maxDebtRaw) {
+    const rpcUrl = clean(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
+    try {
+      const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) }) as unknown as FloatToolsClient;
+      const line = (await client.readContract({ address: float, abi: floatAbi, functionName: "lines", args: [agent] })) as readonly unknown[];
+      activeDebtUSDC = BigInt(line[4] as bigint);
+      activeDebtRead = true;
+    } catch {
+      activeDebtUSDC = 0n;
+    }
+  }
+  const maxDebtUSDC = maxDebtRaw || (activeDebtUSDC + (BigInt(amountUSDC) * 110n) / 100n).toString();
+  if (!/^\d+$/.test(maxDebtUSDC) || BigInt(maxDebtUSDC) < BigInt(amountUSDC)) {
+    res.status(400).json({ error: "maxDebtUSDC must be an integer >= amountUSDC" });
+    return;
+  }
   if (!/^\d+$/.test(nonce) || !/^\d+$/.test(expiry)) {
     res.status(400).json({ error: "nonce and expiry must be integer strings" });
     return;
   }
 
-  const float = getAddress(floatRaw);
-  const agent = getAddress(agentParam);
   const provider = getAddress(providerRaw);
+  const executor = getAddress(executorRaw);
   const domain = { name: "ShadowFloat", version: "1", chainId: ARC_CHAIN_ID, verifyingContract: float };
   const message = {
     agent,
     provider,
     endpointHash: endpointHash as `0x${string}`,
     amountUSDC: BigInt(amountUSDC),
+    maxDebtUSDC: BigInt(maxDebtUSDC),
     nonce: BigInt(nonce),
     expiry: BigInt(expiry),
+    executor,
     reason,
   };
   const digest = hashTypedData({ domain, types: intentTypes, primaryType: "FloatSpendIntent", message });
@@ -726,8 +884,10 @@ async function handleIntent(req: Req, res: Res) {
       message: {
         ...message,
         amountUSDC: amountUSDC,
+        maxDebtUSDC,
         nonce,
         expiry,
+        executor,
       },
     },
     intent: {
@@ -735,8 +895,10 @@ async function handleIntent(req: Req, res: Res) {
       provider,
       endpointHash,
       amountUSDC,
+      maxDebtUSDC,
       nonce,
       expiry,
+      executor,
       reason,
       float,
       chainId: ARC_CHAIN_ID,
@@ -745,11 +907,18 @@ async function handleIntent(req: Req, res: Res) {
     requestHash: digest,
     signingNotes: [
       "The digest is the requestHash Shadow will bind onchain.",
-      "A signature authorizes only this provider, endpoint hash, amount, nonce, expiry, and reason.",
+      "A signature authorizes only this provider, endpoint hash, amount, maximum debt, nonce, expiry, executor, and reason.",
+      "If executor is nonzero, only that address can consume the signed intent; if it is zero, any caller can submit it once.",
       "No transaction, approval, or USDC movement is required from the builder to sign typed data.",
+      "On V2, the Float contract verifies this signature, consumes the nonce, and emits FloatIntentConsumed before direct provider payment or operator-assisted x402 reimbursement.",
     ],
+    debtContext: {
+      activeDebtUSDC: activeDebtUSDC.toString(),
+      activeDebtIncludedInDefaultMaxDebt: !maxDebtRaw && activeDebtRead,
+      maxDebtSource: maxDebtRaw ? "caller-provided" : activeDebtRead ? "active-debt-plus-amount-headroom" : "amount-headroom-fallback",
+    },
     verifyBeforeBinding:
-      "Shadow will recover the signer from this typed data and signature before fronting x402 or submitting recordX402Spend.",
+      "A V2 direct spend is enforced entirely by the contract. Operator-assisted x402 still verifies the same signature onchain before reimbursement, while settlement truth is checked by the script/verifier.",
     fetchedAt: Date.now(),
   });
 }
@@ -894,7 +1063,8 @@ function scoreEvidenceFromReceipts(agent: string, receipts: IndexedFloatReceipt[
           runAgent(run) === a &&
           run.source === "external-signed" &&
           run.outcome === "PAID_BOUND" &&
-          Boolean(run.signature && run.intent && run.x402Hash && run.bindTxHash && run.requestHash),
+          Boolean(run.signature && run.intent && run.requestHash) &&
+          (Boolean(run.x402Hash && run.bindTxHash) || Boolean(run.intent?.maxDebtUSDC)),
       )
       .map((run) => run.requestHash!.toLowerCase()),
   );
@@ -945,7 +1115,7 @@ function groupReceiptsByRequest(receipts: IndexedFloatReceipt[]) {
 
 function isPaidBoundReceiptGroup(receipts: IndexedFloatReceipt[]) {
   const types = new Set(receipts.map((receipt) => receipt.receiptType));
-  return types.has("SPEND_ALLOWED") && types.has("PROVIDER_PAID") && types.has("DEBT_OPENED") && receipts.some((receipt) => receipt.hasX402Bind);
+  return types.has("SPEND_ALLOWED") && types.has("PROVIDER_PAID") && types.has("DEBT_OPENED");
 }
 
 function isNonZeroHash(value: string | undefined): value is `0x${string}` {

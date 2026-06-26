@@ -14,7 +14,7 @@ Supporting proof: https://shadow-arc.vercel.app/treasury
 
 | Surface | What to check |
 | --- | --- |
-| Float contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
+| Current deployed Float contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
 | Live state API | `GET https://shadow-arc.vercel.app/api/float` |
 | Live proof page | https://shadow-arc.vercel.app/float |
 | No-secret verifier | `npm run float:verify-live` |
@@ -23,7 +23,9 @@ Supporting proof: https://shadow-arc.vercel.app/treasury
 | Builder typed-data intent | `GET /api/float-tools?action=intent&agent=0x...&reason=...` |
 | Signed intent verifier | `GET /api/float-tools?action=verify&hash=0x...` |
 
-The live API exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The verifier command independently checks the live contract, receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys. The score verifier and underwriting runner show how receipt-derived behavior becomes a computed score and a proposed line update.
+The live API exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The verifier command independently checks the deployed V1 contract, receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys. The score verifier and underwriting runner show how receipt-derived behavior becomes a computed score and a proposed line update.
+
+V2 status: the repo contains pre-deploy hardening for permissionless sponsored lines. V2 keeps the V1 receipt proof as historical/current deployed evidence, then adds contract-enforced signed intents, nonce cancellation, direct provider payment, provider delivery receipts, sponsor-funded reserves, and bad-debt cleanup. Do not treat `0xf305...1057` receipts as V2 receipts until a V2 contract is deployed and freshly proven.
 
 ## Supporting Treasury / M1 Proof
 
@@ -76,23 +78,30 @@ Post-hackathon hardening is explicit:
 
 1. An agent has a behavior-backed spending line but does not need to pre-fund the x402 call.
 2. The x402 provider requires USDC.
-3. Shadow's facilitator fronts the provider payment in Arc USDC.
-4. `ShadowFloat.recordX402Spend` binds the x402 settlement hash onchain and opens debt against the agent.
+3. In the V2 hardening branch, the agent signs a bounded `FloatSpendIntent` and `ShadowFloat.requestSignedSpend` pays the signed provider directly from the reserved Float treasury.
+4. The contract opens fee-inclusive debt against the agent and can record a provider-signed delivery receipt for the same paid request.
 5. Repayment reduces debt and restores available capacity.
 6. Oversized or denied spends emit receipts without moving treasury funds.
 
-What is proven now:
+What is proven now on the deployed V1 contract:
 
 - A Float line can be granted from reviewed onchain behavior.
 - A deterministic v0 score/limit formula now exists in `ShadowFloat.deterministicScore`, `recommendedLimitUSDC`, and `grantFloatFromScore`.
 - `npm run float:autounderwrite` can dry-run receipt-derived line raises/cuts, and can apply them only when explicitly run with `FLOAT_AUTOUNDERWRITE_APPLY=1` by the contract owner.
-- A signed agent intent can trigger a treasury-funded x402 payment.
-- The operator script verifies the x402 USDC transfer before `recordX402Spend` binds the settlement hash to the onchain request hash.
+- A signed agent intent can be verified against the current contract proof path and bound to a treasury-funded provider payment.
+- Operator-assisted x402 reimbursement remains the current deployed path.
 - Debt and available capacity update onchain.
 - Oversized spends and denied agents produce receipts without moving treasury USDC.
 - Repayment restores capacity.
 - Optional line expiry, default marking, reserve-safe treasury withdrawals, and fee-accrued debt are covered in the contract test suite.
 - The live verifier can be run without secrets: `npm run float:verify-live`.
+
+What the pre-deploy V2 hardening adds:
+
+- `requestSignedSpend` verifies signer, nonce, expiry, executor, provider, endpoint, amount, and maximum cumulative debt before USDC moves.
+- Sponsored V2 lines use direct provider payment instead of operator-assisted x402 reimbursement.
+- Provider delivery receipts let a paid provider sign a response hash for the exact paid request.
+- Sponsors can cleanly close repaid lines or default unrepaid lines and recover only reserve minus written-off debt.
 
 What is not claimed yet:
 
@@ -258,12 +267,13 @@ Shadow is a protocol first and a dashboard second. The dashboard uses the same c
 | `GET /api/reasoning` | Latest source reasoning packet joined to receipt UI labels | Live on `shadow-arc.vercel.app` |
 | `GET /api/reasoning-x402` | Paid agent preview for source reasoning via Arc USDC EIP-3009/x402 flow | M1 proof point; see [`docs/X402.md`](docs/X402.md) |
 | `GET/POST /api/settlements` | Circle Gateway per-copied-receipt nanosettlement; blocked mirrors are rejected before payment | Credential-gated M1 path; see [`docs/GATEWAY.md`](docs/GATEWAY.md) |
-| `ShadowFloat.recordX402Spend` | Behavior-backed agent float: gate the spend, bind the x402 tx hash, reimburse the facilitator, and open debt | Live proof at `/float`; script: `npm run float:x402-proof` |
+| `ShadowFloat.requestSignedSpend` | V2 behavior-backed agent float: verify the agent's signed intent, pay the named provider directly, open debt, and block overreach before USDC moves | V2 proof script: `npm run float:v2-sponsored-proof` |
+| `ShadowFloat.recordSignedX402Spend` | Legacy/secondary owner-managed x402 path: verify the signed intent before reimbursing an operator-attested x402 settlement | Not the V2 sponsored-line hero path |
 | `GET /api/float` | Browser-readable Float receipt chain, treasury, agent lines, blocked/denied totals, x402 binding txs, and the `standingBoard` | Live on `shadow-arc.vercel.app/float` |
 | `GET /api/float-tools?action=agent&address=0x…` | Composable standing read for any agent: line limit, available capacity, active debt, status, behavior score, and Lab/Invited/Self-test/Demo label | Live; the read other agents and protocols call |
 | `GET /api/float-tools?action=rationale&hash=0x…` | Publishes the rationale preimage for a receipt's `requestHash` so anyone re-hashes it to confirm the agent's on-chain reasoning | Live; `requestHash = keccak256(preimage)` |
 | `GET /api/float-tools?action=intent&agent=0x…&reason=…` | Returns the exact EIP-712 `FloatSpendIntent` typed data and digest a builder can sign with their own wallet tooling | Live; no Shadow script or private key env required |
-| `GET /api/float-tools?action=verify&hash=0x…` | Verifies an external builder's signed Float x402 intent against current-contract onchain receipt state and the matching `X402PaymentBound` bind tx | Live; signed external usage only |
+| `GET /api/float-tools?action=verify&hash=0x…` | Verifies an external builder's signed Float intent against current-contract receipt state, nonce consumption, direct provider payment or legacy x402 bind, and provider delivery when present | Live; signed external usage only |
 | `GET /api/float-tools?action=score&address=0x…` | Deterministic v0 underwriting verifier: recomputes suggested score and line from public Float evidence | Live; mirrors the contract formula |
 | `ShadowFloat.deterministicScore` / `grantFloatFromScore` | Onchain v0 formula and deterministic line grant once receipt-derived evidence counts are submitted | Contract path for behavior-backed lines |
 

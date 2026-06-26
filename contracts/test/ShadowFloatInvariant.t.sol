@@ -10,6 +10,18 @@ interface Vm {
 }
 
 contract FloatInvariantActor {
+    bytes4 constant ERC1271_MAGIC_VALUE = 0x1626ba7e;
+
+    mapping(bytes32 => bool) public validHashes;
+
+    function setValidHash(bytes32 digest, bool valid) external {
+        validHashes[digest] = valid;
+    }
+
+    function isValidSignature(bytes32 digest, bytes calldata) external view returns (bytes4) {
+        return validHashes[digest] ? ERC1271_MAGIC_VALUE : bytes4(0xffffffff);
+    }
+
     function approveToken(address token, address spender, uint256 amount) external {
         IERC20(token).approve(spender, amount);
     }
@@ -172,6 +184,49 @@ contract ShadowFloatHandler {
         try shadowFloat.revoke(agentAddress(agentSeed), nextHash("revoke")) {} catch {}
     }
 
+    function openSponsoredLine(uint8 agentSeed, uint8 providerSeed, uint8 endpointSeed, uint32 limitSeed) external {
+        address agent = agentAddress(agentSeed);
+        uint256 limit = 1 + (uint256(limitSeed) % (10 * USDC));
+        if (usdc.balanceOf(address(this)) < limit) return;
+        try shadowFloat.openSponsoredLine(
+            agent,
+            limit,
+            keccak256(abi.encode("sponsored-line", agent, nextRequestNonce)),
+            uint64(block.timestamp + 30 days),
+            providers[providerSeed % providers.length],
+            endpoints[endpointSeed % endpoints.length],
+            limit,
+            limit,
+            uint64(block.timestamp + 30 days)
+        ) {} catch {}
+    }
+
+    function setSponsoredProvider(uint8 agentSeed, uint8 providerSeed, uint8 endpointSeed, uint32 maxSeed, bool active)
+        external
+    {
+        address agent = agentAddress(agentSeed);
+        uint256 maxPerRequest = 1 + (uint256(maxSeed) % (10 * USDC));
+        try shadowFloat.setSponsoredProviderMandate(
+            agent,
+            providers[providerSeed % providers.length],
+            endpoints[endpointSeed % endpoints.length],
+            maxPerRequest,
+            maxPerRequest * 3,
+            uint64(block.timestamp + 30 days),
+            active
+        ) {} catch {}
+    }
+
+    function closeSponsoredLine(uint8 agentSeed) external {
+        address agent = agentAddress(agentSeed);
+        try shadowFloat.closeSponsoredLine(agent, address(this), nextHash("sponsor-close")) {} catch {}
+    }
+
+    function defaultSponsoredLine(uint8 agentSeed) external {
+        address agent = agentAddress(agentSeed);
+        try shadowFloat.defaultSponsoredLine(agent, address(this), nextHash("sponsor-default")) {} catch {}
+    }
+
     function setLineExpiry(uint8 agentSeed, uint32 secondsFromNow) external {
         vm.prank(OWNER);
         try shadowFloat.setLineExpiry(agentAddress(agentSeed), uint64(block.timestamp + (uint256(secondsFromNow) % 30 days))) {} catch {}
@@ -194,6 +249,41 @@ contract ShadowFloatHandler {
             ShadowFloat.BlockReason
         ) {
             if (receiptHash != bytes32(0)) touchedRequestHashes.push(requestHash);
+        } catch {}
+    }
+
+    function requestSignedSpend(
+        uint8 agentSeed,
+        uint8 providerSeed,
+        uint8 endpointSeed,
+        uint32 amountSeed,
+        uint32 maxDebtSeed
+    ) external {
+        FloatInvariantActor actor = agents[agentSeed % agents.length];
+        address agent = address(actor);
+        address provider = providers[providerSeed % providers.length];
+        bytes32 endpoint = endpoints[endpointSeed % endpoints.length];
+        uint256 amount = 1 + (uint256(amountSeed) % (5 * USDC));
+        uint256 maxDebt = amount + (amount / 10) + (uint256(maxDebtSeed) % (20 * USDC));
+        ShadowFloat.FloatSpendIntent memory intent = ShadowFloat.FloatSpendIntent({
+            agent: agent,
+            provider: provider,
+            endpointHash: endpoint,
+            amountUSDC: amount,
+            maxDebtUSDC: maxDebt,
+            nonce: nextRequestNonce++,
+            expiry: uint64(block.timestamp + 30 days),
+            executor: address(0),
+            reason: "invariant-signed-spend"
+        });
+        bytes32 digest = shadowFloat.hashFloatSpendIntent(intent);
+        actor.setValidHash(digest, true);
+        try shadowFloat.requestSignedSpend(intent, hex"01") returns (
+            bytes32 receiptHash,
+            bool,
+            ShadowFloat.BlockReason
+        ) {
+            if (receiptHash != bytes32(0)) touchedRequestHashes.push(digest);
         } catch {}
     }
 
@@ -250,7 +340,7 @@ contract ShadowFloatInvariantTest {
             uint32 d = _u32(entropy, 3);
             uint16 e = _u16(entropy, 7);
 
-            uint256 action = entropyWord % 12;
+            uint256 action = entropyWord % 17;
             if (action == 0) handler.setFeeBps(e);
             else if (action == 1) handler.setProvider(a, b, d, _u32(entropy, 11), entropyWord & 1 == 0);
             else if (action == 2) handler.fund(d);
@@ -274,13 +364,20 @@ contract ShadowFloatInvariantTest {
             else if (action == 8) handler.setLineExpiry(a, d);
             else if (action == 9) handler.markDefault(a);
             else if (action == 10) handler.requestSpend(a, b, c, d);
-            else handler.recordX402Spend(a, b, c, d, entropyWord & 4 == 0);
+            else if (action == 11) handler.recordX402Spend(a, b, c, d, entropyWord & 4 == 0);
+            else if (action == 12) handler.openSponsoredLine(a, b, c, d);
+            else if (action == 13) handler.setSponsoredProvider(a, b, c, d, entropyWord & 8 == 0);
+            else if (action == 14) handler.closeSponsoredLine(a);
+            else if (action == 15) handler.requestSignedSpend(a, b, c, d, _u32(entropy, 19));
+            else handler.defaultSponsoredLine(a);
 
             assertTreasuryAlwaysBacksAvailableCredit();
             assertTotalAvailableCreditMatchesLines();
             assertLineStateIsInternallyConsistent();
             assertGlobalAccountingIsMonotoneSane();
             assertUsedRequestHashesHaveReceipts();
+            assertPaidSpendCommitmentsHaveReceipts();
+            assertSponsoredLinesAreInternallyConsistent();
         }
     }
 
@@ -311,6 +408,14 @@ contract ShadowFloatInvariantTest {
 
     function invariant_usedRequestHashesHaveReceipts() public view {
         assertUsedRequestHashesHaveReceipts();
+    }
+
+    function invariant_paidSpendCommitmentsHaveReceipts() public view {
+        assertPaidSpendCommitmentsHaveReceipts();
+    }
+
+    function invariant_sponsoredLinesAreInternallyConsistent() public view {
+        assertSponsoredLinesAreInternallyConsistent();
     }
 
     function assertTreasuryAlwaysBacksAvailableCredit() internal view {
@@ -360,5 +465,41 @@ contract ShadowFloatInvariantTest {
             require(requestHash != bytes32(0), "zero request hash recorded");
             require(shadowFloat.receiptByRequestHash(requestHash) != bytes32(0), "used request hash missing receipt");
         }
+    }
+
+    function assertPaidSpendCommitmentsHaveReceipts() internal view {
+        uint256 count = handler.touchedRequestHashCount();
+        for (uint256 i = 0; i < count; i++) {
+            bytes32 requestHash = handler.touchedRequestHash(i);
+            if (shadowFloat.paidSpendCommitments(requestHash) != bytes32(0)) {
+                require(shadowFloat.receiptByRequestHash(requestHash) != bytes32(0), "paid commitment missing receipt");
+            }
+        }
+    }
+
+    function assertSponsoredLinesAreInternallyConsistent() internal view {
+        uint256 count = handler.agentCount();
+        uint256 sponsoredAvailableSum = 0;
+        for (uint256 i = 0; i < count; i++) {
+            address agent = handler.agentAddress(i);
+            (address sponsor, uint256 reserveUSDC) = shadowFloat.lineSponsors(agent);
+            if (sponsor == address(0)) {
+                require(reserveUSDC == 0, "zero sponsor with reserve");
+                continue;
+            }
+            (,, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, ShadowFloat.AgentStatus status,,,,) =
+                shadowFloat.lines(agent);
+            require(sponsor == address(handler), "unexpected sponsor");
+            require(creditLimitUSDC <= reserveUSDC, "sponsor reserve below limit");
+            require(availableCreditUSDC + activeDebtUSDC <= reserveUSDC, "sponsored reserve overdrawn");
+            sponsoredAvailableSum += availableCreditUSDC;
+            require(status != ShadowFloat.AgentStatus.DENIED, "sponsored denied");
+            require(status != ShadowFloat.AgentStatus.REVOKED, "sponsored revoked");
+            require(status != ShadowFloat.AgentStatus.DEFAULTED, "sponsored defaulted");
+        }
+        require(
+            sponsoredAvailableSum == shadowFloat.totalSponsoredAvailableCreditUSDC(),
+            "sponsored available aggregate mismatch"
+        );
     }
 }

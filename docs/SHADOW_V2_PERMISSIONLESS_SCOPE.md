@@ -7,8 +7,14 @@ revocable, nonce-bound, and independently verifiable.
 ## Thesis
 
 Shadow lets agents pay and allocate USDC on Arc under bounded, provable authority. The user or agent signs explicit
-authorization; the contract enforces the signer, amount, provider, endpoint, nonce, expiry, and cancellation before funds
-move.
+authorization; the contract enforces the signer, amount, provider, endpoint, nonce, expiry, optional executor, and
+cancellation before funds move.
+
+The V2 Float product is sponsor-funded by default: a sponsor deposits the reserve for a specific agent line and sets the
+allowed provider policy for that line. The sponsor can cleanly close after full repayment, or default an unrepaid line and
+recover only the reserve remainder after bad debt is written off. This is not permissionless unsecured underwriting; it is
+permissionless creation of reserve-backed, contract-enforced spending lines whose capacity is refreshed from
+contract-stored behavior.
 
 ## Non-Negotiable Guarantees
 
@@ -16,10 +22,15 @@ move.
 - No reusable bearer signatures.
 - No expired signature can be consumed.
 - No cancelled signature can be consumed.
-- No signature can be rebound to a different provider, endpoint, amount, nonce, expiry, agent, or contract.
+- No signature can be rebound to a different provider, endpoint, amount, nonce, expiry, executor, agent, or contract.
 - No request hash can open debt twice.
 - No blocked action moves funds.
 - No admin withdrawal can break Float reserve solvency.
+- No admin withdrawal can drain sponsor reserve that has not been returned through `closeSponsoredLine`.
+- No owner action can silently reduce, revoke, or deny a sponsor-funded line.
+- Owner-triggered sponsored default is limited to lines with active bad debt, emits `SponsoredLineDefaulted`, writes off
+  only that debt, and can return any residual reserve only to the sponsor.
+- No sponsored line can use the owner's global provider policy; the sponsor's line-specific provider mandate is enforced.
 - No external agent wallet can be drained by signing a Float intent.
 - No M1 adapter can force a deposit from a wallet just because it has allowance.
 - No "vault" wording without an exit path or a clear test-sink label.
@@ -45,16 +56,20 @@ assumptions."
 
 ### Onchain Signed Spend
 
-Add a contract-native `FloatSpendIntent` path:
+Implemented contract-native `FloatSpendIntent` path:
 
 - EIP-712 domain: `ShadowFloat`, version `1`, chain id, verifying contract.
-- Fields: `agent`, `provider`, `endpointHash`, `amountUSDC`, `nonce`, `expiry`, `reason`.
+- Fields: `agent`, `provider`, `endpointHash`, `amountUSDC`, `maxDebtUSDC`, `nonce`, `expiry`, `executor`, `reason`.
+- If `executor == address(0)`, any caller can submit the signed intent once.
+- If `executor != address(0)`, only that executor can submit it.
 - Contract computes the digest.
 - Contract recovers the signer or validates ERC-1271 signatures.
 - Signer must equal the line wallet, or the agent address when no wallet is set.
 - Contract rejects expired intents.
 - Contract rejects used nonces.
 - Contract rejects cancelled nonces.
+- Contract rejects restricted intents submitted by the wrong executor.
+- Contract rejects any spend where existing active debt plus provider amount plus current fee exceeds the signed `maxDebtUSDC`.
 - Contract marks nonce used before external token movement.
 - Contract emits `FloatIntentConsumed`.
 
@@ -71,10 +86,65 @@ Add a contract-native `FloatSpendIntent` path:
 - If allowed, it pays the provider directly from the treasury and opens debt.
 - If blocked, it writes a structured block receipt and moves no funds.
 
+This is the V2 hero path because settlement truth is enforced by the contract itself: Arc USDC moves directly from
+`ShadowFloat` to the provider named in the signed intent. x402 service delivery can still be handled offchain by the
+provider, but the money movement no longer depends on a backend-attested prior settlement.
+
+### Provider-Signed Delivery Receipts
+
+Implemented for V2 direct spends:
+
+- `ProviderDeliveryReceipt` is an EIP-712 typed receipt signed by the provider.
+- Fields: `requestHash`, `agent`, `provider`, `endpointHash`, `amountUSDC`, `responseHash`, `deliveredAt`.
+- `recordProviderDelivery(...)` verifies the provider signature onchain.
+- A delivery receipt can only be recorded for a request that already produced a paid spend commitment.
+- Blocked or unknown requests cannot receive delivery receipts.
+- Mismatched agent, provider, endpoint, or amount is rejected.
+- A request can receive only one provider delivery receipt.
+- The receipt binds the provider to a response hash for that exact paid request.
+
+This does not make the EVM judge service quality. It gives the proof path a provider-signed acknowledgement that the
+specific paid request was serviced, without letting anyone attach a delivery claim to an unpaid or blocked request.
+
+### Sponsor-Funded Lines
+
+Implemented V2 sponsor path:
+
+- `openSponsoredLine(...)` is public and requires the sponsor to deposit the line reserve into `ShadowFloat`.
+- The sponsored agent must be its own signing wallet.
+- The sponsor sets the first line-specific provider mandate in the same call.
+- The sponsor does not supply a score or label; V2 sponsored lines start from the fixed external-agent baseline.
+- The contract computes the starting score and credit limit from stored behavior stats.
+- `setSponsoredProviderMandate(...)` lets only the sponsor update provider policy for that line.
+- Sponsored lines ignore owner-global provider mandates.
+- `closeSponsoredLine(...)` lets only the sponsor withdraw the full reserve, and only when active debt is zero.
+- `defaultSponsoredLine(...)` lets the sponsor write off unrepaid sponsored debt and recover only reserve minus active debt.
+- Owner grant, deny, reduce, revoke, and legacy `markDefault` actions reject sponsored lines. Owner-triggered
+  `defaultSponsoredLine(...)` is a bad-debt cleanup path only; it can return the reserve remainder only to the sponsor.
+- Existing owner-funded V1 lines remain supported as historical/current operator-managed proof.
+
+### Autonomous Sponsored-Line Refresh
+
+Implemented for V2 sponsored lines:
+
+- Contract stores `BehaviorStats` per agent: paid, signed paid, repaid, blocked, denied, and error counts.
+- `openSponsoredLine(...)` computes the starting line from `deterministicScore(SPONSORED_BASE_LABEL, stats...)`.
+- Allowed signed spends increment signed-paid behavior.
+- Blocked spends increment blocked behavior and can cut the earned limit.
+- Repayment increments repaid behavior and can grow the earned limit.
+- `refreshSponsoredLineFromBehavior(agent, requestHash)` is public, so no owner is required to apply a behavior-derived
+  line refresh.
+- Automatic refresh runs after direct signed spend, blocked spend, and repayment.
+- The refreshed credit limit is capped by the sponsor's deposited reserve.
+
+This is not unsecured credit. The sponsor still supplies the capital at risk. The autonomous part is that the contract
+derives and applies the score/limit from recorded behavior instead of owner-submitted evidence.
+
 ### x402 Bind
 
 - `recordSignedX402Spend(intent, x402Hash, facilitator, signature)` should verify the same signed intent onchain before
   any reimbursement.
+- Sponsored V2 lines reject this path. They use `requestSignedSpend` so the contract pays the signed provider directly.
 - This path can remain operator-gated until x402 settlement can be verified onchain, because otherwise anyone could submit
   a fake settlement hash and drain treasury reimbursements.
 - The operator still has to prove the x402 transfer off-chain in the script/verifier.
@@ -84,10 +154,21 @@ Add a contract-native `FloatSpendIntent` path:
 
 Required Float V2 tests:
 
+- sponsor can open a line without owner approval;
+- sponsored line starts from deterministic behavior-derived score and reserve-capped limit;
+- signed spend plus repayment grows the sponsored line from behavior;
+- blocked spend can cut the sponsored line from behavior;
+- sponsor-funded direct signed spend pays the provider and opens debt;
+- sponsor-funded debt includes fee and close requires repayment;
+- only sponsor can close or change line provider policy;
+- sponsor line uses sponsor provider policy, not owner global policy;
+- owner admin cannot mutate sponsor-funded line reserve;
+- owner withdrawal cannot drain sponsored available reserve;
 - valid signed direct spend pays provider and opens debt;
-- valid signed x402 spend reimburses facilitator and opens debt;
+- valid signed x402 spend reimburses facilitator and opens debt only for non-sponsored legacy lines;
 - wrong signer reverts;
 - wrong provider/endpoint/amount signature does not verify;
+- current fee cannot exceed signed `maxDebtUSDC`;
 - expired intent reverts;
 - cancelled intent reverts;
 - consumed nonce cannot replay;
@@ -98,24 +179,16 @@ Required Float V2 tests:
 - solvency invariant still holds;
 - old V1 paths either remain explicitly legacy or are disabled for external proof claims.
 
-## Float V2 Underwriting Requirements
+## Float V2 Underwriting Boundaries
 
-Target claim: "receipt-derived, deterministic V2 line refresh," not fully permissionless credit unless every input is
-chain-derived.
+Allowed claim: "sponsor-funded lines refresh from contract-stored behavior."
 
-Required:
+Not allowed claim: "permissionless unsecured credit underwriting." V2 does not let an unfunded agent borrow from a public
+treasury only because it has a good score. A sponsor or future pool must still reserve capital first.
 
-- Score evidence derived from `FloatReceipt` logs where possible.
-- External signed count only counted when a matching signature proof and onchain bind are present.
-- Repaid count derived from `REPAID` receipts.
-- Blocked/denied/error counts derived from receipts.
-- Onchain `deterministicScore` and off-chain verifier must match exactly.
-- Autounderwrite must be reproducible from public data or clearly label any operator-submitted input.
-
-Stretch:
-
-- Permissionless line refresh where anyone can submit a receipt-derived evidence bundle and the contract verifies enough of
-  it to grant or reduce a line. If not fully verifiable in ten days, label it "verified operator submission."
+The off-chain verifier should still recompute the same score from receipts and compare it to `autonomousLineScore(...)`,
+but the V2 deploy proof should lead with the contract-stored behavior refresh because that path no longer depends on owner
+evidence submission.
 
 ## M1 V2 Requirements
 
@@ -189,18 +262,21 @@ Until then:
 
 ## Deployment And Migration
 
-V2 likely requires redeploying `ShadowFloat` because signature state and nonce mappings are contract storage.
+V2 requires redeploying `ShadowFloat` because sponsor state, line-specific provider policy, signature state, and nonce
+mappings are contract storage.
 
 Migration stance:
 
 - Keep V1 contract address and receipts live as historical proof.
 - Deploy V2 as the current permissionless contract.
 - Fund V2 treasury.
-- Re-grant key lines on V2.
-- Run fresh V2 proof loop: grant, signed direct spend, signed x402 bind, block, repay, cancel, replay fail.
+- Run fresh V2 proof loop with `npm run float:v2-sponsored-proof`: sponsor opens line, agent signs, contract pays provider
+  directly, overrun blocks with no provider transfer, repayment restores capacity and grows the line from behavior,
+  optional sponsor close.
+- Re-run signed x402 bind only as secondary proof, not the hero path.
 - Site must show both:
   - V1: historical loop and external proof;
-  - V2: current permissionless authorization path.
+  - V2: current sponsor-funded, contract-enforced authorization path.
 
 ## Demo Standard
 
@@ -208,11 +284,11 @@ The demo must show the product moment before proof details:
 
 1. Builder signs an intent locally.
 2. Contract verifies signer/nonce/expiry onchain.
-3. Shadow fronts provider payment or reimburses a verified x402 facilitator.
+3. Shadow fronts provider payment directly for sponsored V2 lines; non-sponsored legacy lines can use operator-assisted x402 reimbursement.
 4. Debt opens.
 5. Overspend or cancelled intent is blocked before funds move.
 6. Repayment restores capacity.
-7. Score/line can refresh from receipts.
+7. Score/line refreshes from contract-stored behavior.
 8. Verifier confirms the whole path.
 
 ## Claim Boundaries
@@ -222,6 +298,7 @@ Allowed:
 - "V2 verifies signed Float intents onchain."
 - "Agents can cancel unused nonces."
 - "Replays and expired intents fail in the contract."
+- "Sponsor-funded lines can grow or cut from contract-stored behavior."
 - "V1 proved the economic loop; V2 removes the off-chain trust gap."
 - "M1 adapters enforce policy before transfer for audited adapter paths."
 

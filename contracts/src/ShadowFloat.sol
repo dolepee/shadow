@@ -77,6 +77,20 @@ contract ShadowFloat {
         bool active;
     }
 
+    struct LineSponsor {
+        address sponsor;
+        uint256 reserveUSDC;
+    }
+
+    struct BehaviorStats {
+        uint16 paidBound;
+        uint16 signedExternalPaid;
+        uint16 repaid;
+        uint16 blocked;
+        uint16 denied;
+        uint16 errorCount;
+    }
+
     struct SpendContext {
         address agent;
         address provider;
@@ -86,6 +100,7 @@ contract ShadowFloat {
         uint256 creditBeforeUSDC;
         uint256 debtBeforeUSDC;
         bytes32 mandateId;
+        bool signedIntent;
     }
 
     struct FloatSpendIntent {
@@ -93,15 +108,30 @@ contract ShadowFloat {
         address provider;
         bytes32 endpointHash;
         uint256 amountUSDC;
+        uint256 maxDebtUSDC;
         uint256 nonce;
         uint256 expiry;
+        address executor;
         string reason;
+    }
+
+    struct ProviderDeliveryReceipt {
+        bytes32 requestHash;
+        address agent;
+        address provider;
+        bytes32 endpointHash;
+        uint256 amountUSDC;
+        bytes32 responseHash;
+        uint256 deliveredAt;
     }
 
     bytes32 public constant EIP712_DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
     bytes32 public constant FLOAT_SPEND_INTENT_TYPEHASH = keccak256(
-        "FloatSpendIntent(address agent,address provider,bytes32 endpointHash,uint256 amountUSDC,uint256 nonce,uint256 expiry,string reason)"
+        "FloatSpendIntent(address agent,address provider,bytes32 endpointHash,uint256 amountUSDC,uint256 maxDebtUSDC,uint256 nonce,uint256 expiry,address executor,string reason)"
+    );
+    bytes32 public constant PROVIDER_DELIVERY_TYPEHASH = keccak256(
+        "ProviderDeliveryReceipt(bytes32 requestHash,address agent,address provider,bytes32 endpointHash,uint256 amountUSDC,bytes32 responseHash,uint256 deliveredAt)"
     );
     bytes32 public constant NAME_HASH = keccak256("ShadowFloat");
     bytes32 public constant VERSION_HASH = keccak256("1");
@@ -121,14 +151,26 @@ contract ShadowFloat {
     uint256 public totalAvailableCreditUSDC;
     uint256 public totalFeesAccruedUSDC;
     uint256 public totalDefaultedUSDC;
+    uint256 public totalSponsoredReserveUSDC;
+    uint256 public totalSponsoredAvailableCreditUSDC;
     uint16 public feeBps;
+    uint8 public constant SPONSORED_BASE_LABEL = 2;
+    uint256 private _reentrancyLock = 1;
 
     mapping(address => bool) public operators;
     mapping(address => AgentLine) public lines;
     mapping(address => uint64) public lineExpiries;
     mapping(address => uint256) public defaultedDebtUSDC;
     mapping(address => ProviderMandate) public providerMandates;
+    mapping(address => LineSponsor) public lineSponsors;
+    mapping(address => uint8) public lineLabels;
+    mapping(address => BehaviorStats) public behaviorStats;
+    mapping(address => mapping(address => ProviderMandate)) public lineProviderMandates;
+    mapping(address => uint256) public lineSponsorEpoch;
+    mapping(address => mapping(address => uint256)) public lineProviderMandateEpoch;
     mapping(bytes32 => bytes32) public receiptByRequestHash;
+    mapping(bytes32 => bytes32) public paidSpendCommitments;
+    mapping(bytes32 => bytes32) public providerDeliveryByRequestHash;
     mapping(address => mapping(uint256 => bool)) public intentNonceUsed;
     mapping(address => mapping(uint256 => bool)) public intentNonceCancelled;
 
@@ -153,6 +195,33 @@ contract ShadowFloat {
     event ProviderMandateSet(
         address indexed provider,
         bytes32 indexed endpointHash,
+        uint256 maxPerRequestUSDC,
+        uint256 dailyLimitUSDC,
+        uint64 expiry,
+        bool active
+    );
+    event SponsoredLineOpened(
+        address indexed sponsor,
+        address indexed agent,
+        address indexed provider,
+        uint256 reserveUSDC,
+        bytes32 endpointHash,
+        uint256 maxPerRequestUSDC,
+        uint256 dailyLimitUSDC
+    );
+    event SponsoredLineClosed(address indexed sponsor, address indexed agent, address indexed recipient, uint256 amountUSDC);
+    event SponsoredLineDefaulted(
+        address indexed sponsor,
+        address indexed agent,
+        address indexed recipient,
+        uint256 defaultedDebtUSDC,
+        uint256 returnedReserveUSDC
+    );
+    event LineProviderMandateSet(
+        address indexed agent,
+        address indexed sponsor,
+        address indexed provider,
+        bytes32 endpointHash,
         uint256 maxPerRequestUSDC,
         uint256 dailyLimitUSDC,
         uint64 expiry,
@@ -186,6 +255,24 @@ contract ShadowFloat {
     );
     event FloatIntentCancelled(address indexed agent, address indexed signer, uint256 indexed nonce);
     event FloatIntentConsumed(address indexed agent, address indexed signer, uint256 indexed nonce, bytes32 requestHash);
+    event AutonomousLineReviewed(
+        address indexed agent,
+        uint8 label,
+        uint16 score,
+        uint256 previousLimitUSDC,
+        uint256 newLimitUSDC,
+        bytes32 indexed requestHash
+    );
+    event ProviderDeliveryConfirmed(
+        bytes32 indexed requestHash,
+        address indexed agent,
+        address indexed provider,
+        bytes32 endpointHash,
+        uint256 amountUSDC,
+        bytes32 responseHash,
+        uint256 deliveredAt,
+        bytes32 deliveryHash
+    );
 
     error NotOwner();
     error NotAuthorized();
@@ -206,6 +293,18 @@ contract ShadowFloat {
     error IntentNonceUsed();
     error IntentCancelled();
     error InvalidIntent();
+    error AgentWalletMismatch();
+    error SignedIntentRequired();
+    error LineAlreadyExists();
+    error SponsoredLineExists();
+    error NotSponsor();
+    error ActiveDebt();
+    error FeeExceedsIntent();
+    error ExceedsMaxDebt();
+    error DeliveryAlreadyConfirmed();
+    error DeliveryRequestMissing();
+    error DeliveryMismatch();
+    error ReentrantCall();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -215,6 +314,13 @@ contract ShadowFloat {
     modifier onlyOperator() {
         if (!operators[msg.sender]) revert NotAuthorized();
         _;
+    }
+
+    modifier nonReentrant() {
+        if (_reentrancyLock != 1) revert ReentrantCall();
+        _reentrancyLock = 2;
+        _;
+        _reentrancyLock = 1;
     }
 
     constructor(address usdc_) {
@@ -239,17 +345,19 @@ contract ShadowFloat {
         emit OperatorSet(operator, allowed);
     }
 
-    function fund(uint256 amountUSDC) external {
+    function fund(uint256 amountUSDC) external nonReentrant {
         if (amountUSDC == 0) revert ZeroAmount();
         if (!usdc.transferFrom(msg.sender, address(this), amountUSDC)) revert TransferFailed();
         emit TreasuryFunded(msg.sender, amountUSDC);
     }
 
-    function withdraw(address recipient, uint256 amountUSDC) external onlyOwner {
+    function withdraw(address recipient, uint256 amountUSDC) external onlyOwner nonReentrant {
         if (recipient == address(0)) revert ZeroAddress();
         if (amountUSDC == 0) revert ZeroAmount();
         uint256 balance = usdc.balanceOf(address(this));
-        if (amountUSDC > balance || balance - amountUSDC < totalAvailableCreditUSDC) revert InsolventTreasury();
+        uint256 ownerAvailableCreditUSDC = totalAvailableCreditUSDC - totalSponsoredAvailableCreditUSDC;
+        uint256 reserveFloor = ownerAvailableCreditUSDC + totalSponsoredReserveUSDC;
+        if (amountUSDC > balance || balance - amountUSDC < reserveFloor) revert InsolventTreasury();
         if (!usdc.transfer(recipient, amountUSDC)) revert TransferFailed();
         emit TreasuryWithdrawn(recipient, amountUSDC);
     }
@@ -271,6 +379,205 @@ contract ShadowFloat {
             active: active
         });
         emit ProviderMandateSet(provider, endpointHash, maxPerRequestUSDC, dailyLimitUSDC, expiry, active);
+    }
+
+    function openSponsoredLine(
+        address agent,
+        uint256 reserveUSDC,
+        bytes32 mandateId,
+        uint64 lineExpiry,
+        address provider,
+        bytes32 endpointHash,
+        uint256 maxPerRequestUSDC,
+        uint256 dailyLimitUSDC,
+        uint64 providerExpiry
+    ) external nonReentrant returns (bytes32 receiptHash) {
+        if (agent == address(0) || provider == address(0)) revert ZeroAddress();
+        if (reserveUSDC == 0 || maxPerRequestUSDC == 0 || dailyLimitUSDC == 0) revert ZeroAmount();
+        if (lines[agent].wallet != address(0)) revert LineAlreadyExists();
+        if (!usdc.transferFrom(msg.sender, address(this), reserveUSDC)) revert TransferFailed();
+
+        uint256 epoch = lineSponsorEpoch[agent] + 1;
+        lineSponsorEpoch[agent] = epoch;
+        lineProviderMandates[agent][provider] = ProviderMandate({
+            endpointHash: endpointHash,
+            maxPerRequestUSDC: maxPerRequestUSDC,
+            dailyLimitUSDC: dailyLimitUSDC,
+            expiry: providerExpiry,
+            active: true
+        });
+        lineProviderMandateEpoch[agent][provider] = epoch;
+        uint8 label = SPONSORED_BASE_LABEL;
+        uint16 score = _autonomousScore(agent, label);
+        uint256 creditLimitUSDC = _minUint(reserveUSDC, recommendedLimitUSDC(score));
+        lineLabels[agent] = label;
+        receiptHash = _grantFloat(agent, agent, creditLimitUSDC, score, mandateId, lineExpiry);
+        lineSponsors[agent] = LineSponsor({sponsor: msg.sender, reserveUSDC: reserveUSDC});
+        totalSponsoredReserveUSDC += reserveUSDC;
+        totalSponsoredAvailableCreditUSDC += lines[agent].availableCreditUSDC;
+
+        emit SponsoredLineOpened(
+            msg.sender, agent, provider, reserveUSDC, endpointHash, maxPerRequestUSDC, dailyLimitUSDC
+        );
+        emit LineProviderMandateSet(
+            agent, msg.sender, provider, endpointHash, maxPerRequestUSDC, dailyLimitUSDC, providerExpiry, true
+        );
+        emit DeterministicFloatScored(
+            agent,
+            label,
+            score,
+            creditLimitUSDC,
+            behaviorStats[agent].paidBound,
+            behaviorStats[agent].signedExternalPaid,
+            behaviorStats[agent].repaid,
+            behaviorStats[agent].blocked,
+            behaviorStats[agent].denied,
+            behaviorStats[agent].errorCount
+        );
+    }
+
+    function setSponsoredProviderMandate(
+        address agent,
+        address provider,
+        bytes32 endpointHash,
+        uint256 maxPerRequestUSDC,
+        uint256 dailyLimitUSDC,
+        uint64 expiry,
+        bool active
+    ) external {
+        if (provider == address(0)) revert ZeroAddress();
+        LineSponsor memory sponsor = lineSponsors[agent];
+        if (sponsor.sponsor == address(0) || msg.sender != sponsor.sponsor) revert NotSponsor();
+        lineProviderMandates[agent][provider] = ProviderMandate({
+            endpointHash: endpointHash,
+            maxPerRequestUSDC: maxPerRequestUSDC,
+            dailyLimitUSDC: dailyLimitUSDC,
+            expiry: expiry,
+            active: active
+        });
+        lineProviderMandateEpoch[agent][provider] = lineSponsorEpoch[agent];
+        emit LineProviderMandateSet(
+            agent, msg.sender, provider, endpointHash, maxPerRequestUSDC, dailyLimitUSDC, expiry, active
+        );
+    }
+
+    function closeSponsoredLine(address agent, address recipient, bytes32 requestHash)
+        external
+        nonReentrant
+        returns (bytes32 receiptHash)
+    {
+        if (recipient == address(0)) revert ZeroAddress();
+        LineSponsor memory sponsor = lineSponsors[agent];
+        if (sponsor.sponsor == address(0) || msg.sender != sponsor.sponsor) revert NotSponsor();
+        AgentLine storage line = lines[agent];
+        if (line.activeDebtUSDC != 0) revert ActiveDebt();
+
+        uint256 creditBefore = line.availableCreditUSDC;
+        bytes32 mandateId = line.mandateId;
+        _setLineAvailableCredit(agent, line, 0);
+        line.wallet = address(0);
+        line.score = 0;
+        line.creditLimitUSDC = 0;
+        line.status = AgentStatus.REVOKED;
+        line.lastReview = uint64(block.timestamp);
+        line.mandateId = bytes32(0);
+        lineExpiries[agent] = 0;
+
+        delete lineSponsors[agent];
+        delete lineLabels[agent];
+        delete behaviorStats[agent];
+        totalSponsoredReserveUSDC -= sponsor.reserveUSDC;
+
+        receiptHash = _writeReceipt(
+            ReceiptType.LIMIT_REVOKED,
+            agent,
+            address(0),
+            bytes32(0),
+            sponsor.reserveUSDC,
+            creditBefore,
+            0,
+            0,
+            0,
+            BlockReason.REVOKED,
+            mandateId,
+            requestHash
+        );
+
+        if (!usdc.transfer(recipient, sponsor.reserveUSDC)) revert TransferFailed();
+        emit SponsoredLineClosed(msg.sender, agent, recipient, sponsor.reserveUSDC);
+    }
+
+    function defaultSponsoredLine(address agent, address recipient, bytes32 requestHash)
+        external
+        nonReentrant
+        returns (bytes32 receiptHash)
+    {
+        if (recipient == address(0)) revert ZeroAddress();
+        LineSponsor memory sponsor = lineSponsors[agent];
+        if (sponsor.sponsor == address(0) || (msg.sender != sponsor.sponsor && msg.sender != owner)) revert NotSponsor();
+        if (msg.sender == owner && recipient != sponsor.sponsor) revert NotSponsor();
+        AgentLine storage line = lines[agent];
+        if (line.activeDebtUSDC == 0) revert NoDebt();
+
+        uint256 creditBefore = line.availableCreditUSDC;
+        uint256 debtBefore = line.activeDebtUSDC;
+        bytes32 mandateId = line.mandateId;
+        uint256 returnedReserveUSDC = sponsor.reserveUSDC > debtBefore ? sponsor.reserveUSDC - debtBefore : 0;
+
+        _setLineAvailableCredit(agent, line, 0);
+        line.wallet = address(0);
+        line.score = 0;
+        line.creditLimitUSDC = 0;
+        line.activeDebtUSDC = 0;
+        line.status = AgentStatus.DEFAULTED;
+        line.lastReview = uint64(block.timestamp);
+        line.mandateId = bytes32(0);
+        lineExpiries[agent] = 0;
+
+        delete lineSponsors[agent];
+        delete lineLabels[agent];
+        delete behaviorStats[agent];
+        totalSponsoredReserveUSDC -= sponsor.reserveUSDC;
+        totalDefaultedUSDC += debtBefore;
+        defaultedDebtUSDC[agent] += debtBefore;
+
+        receiptHash = _writeReceipt(
+            ReceiptType.DEFAULTED,
+            agent,
+            address(0),
+            bytes32(0),
+            debtBefore,
+            creditBefore,
+            0,
+            debtBefore,
+            0,
+            BlockReason.DEFAULTED,
+            mandateId,
+            requestHash
+        );
+
+        if (returnedReserveUSDC > 0 && !usdc.transfer(recipient, returnedReserveUSDC)) revert TransferFailed();
+        emit SponsoredLineDefaulted(sponsor.sponsor, agent, recipient, debtBefore, returnedReserveUSDC);
+    }
+
+    function refreshSponsoredLineFromBehavior(address agent, bytes32 requestHash)
+        external
+        returns (bytes32 receiptHash)
+    {
+        AgentLine storage line = lines[agent];
+        if (lineSponsors[agent].sponsor == address(0)) revert NotSponsor();
+        receiptHash = _refreshSponsoredLineFromBehavior(agent, line, requestHash);
+    }
+
+    function autonomousLineScore(address agent)
+        external
+        view
+        returns (uint16 score, uint256 recommendedLimitUSDC_, uint256 cappedLimitUSDC)
+    {
+        score = _autonomousScore(agent, lineLabels[agent]);
+        recommendedLimitUSDC_ = recommendedLimitUSDC(score);
+        LineSponsor memory sponsor = lineSponsors[agent];
+        cappedLimitUSDC = sponsor.reserveUSDC == 0 ? recommendedLimitUSDC_ : _minUint(sponsor.reserveUSDC, recommendedLimitUSDC_);
     }
 
     function setFeeBps(uint16 newFeeBps) external onlyOwner {
@@ -328,6 +635,7 @@ contract ShadowFloat {
 
     function markDefault(address agent, bytes32 requestHash) external onlyOwner returns (bytes32 receiptHash) {
         AgentLine storage line = lines[agent];
+        if (lineSponsors[agent].sponsor != address(0)) revert SponsoredLineExists();
         if (line.status == AgentStatus.DEFAULTED) revert AlreadyDefaulted();
         if (line.activeDebtUSDC == 0) revert NoDebt();
         uint256 creditBefore = line.availableCreditUSDC;
@@ -393,7 +701,9 @@ contract ShadowFloat {
         uint64 expiry
     ) internal returns (bytes32 receiptHash) {
         if (agent == address(0) || wallet == address(0)) revert ZeroAddress();
+        if (wallet != agent) revert AgentWalletMismatch();
         AgentLine storage line = lines[agent];
+        if (lineSponsors[agent].sponsor != address(0)) revert SponsoredLineExists();
         if (line.status == AgentStatus.DEFAULTED) revert AlreadyDefaulted();
         uint256 creditBefore = line.availableCreditUSDC;
         uint256 debtBefore = line.activeDebtUSDC;
@@ -431,6 +741,7 @@ contract ShadowFloat {
     {
         if (agent == address(0) || wallet == address(0)) revert ZeroAddress();
         AgentLine storage line = lines[agent];
+        if (lineSponsors[agent].sponsor != address(0)) revert SponsoredLineExists();
         if (line.status == AgentStatus.DEFAULTED) revert AlreadyDefaulted();
         uint256 creditBefore = line.availableCreditUSDC;
         uint256 debtBefore = line.activeDebtUSDC;
@@ -459,6 +770,7 @@ contract ShadowFloat {
 
     function reduceLimit(address agent, uint256 newLimitUSDC, bytes32 requestHash) external onlyOwner returns (bytes32) {
         AgentLine storage line = lines[agent];
+        if (lineSponsors[agent].sponsor != address(0)) revert SponsoredLineExists();
         if (line.status == AgentStatus.DEFAULTED) revert AlreadyDefaulted();
         if (newLimitUSDC > line.creditLimitUSDC) revert LimitIncreaseNotAllowed();
         uint256 creditBefore = line.availableCreditUSDC;
@@ -485,6 +797,7 @@ contract ShadowFloat {
 
     function revoke(address agent, bytes32 requestHash) external onlyOwner returns (bytes32) {
         AgentLine storage line = lines[agent];
+        if (lineSponsors[agent].sponsor != address(0)) revert SponsoredLineExists();
         if (line.status == AgentStatus.DEFAULTED) revert AlreadyDefaulted();
         uint256 creditBefore = line.availableCreditUSDC;
         uint256 debtBefore = line.activeDebtUSDC;
@@ -514,8 +827,9 @@ contract ShadowFloat {
         bytes32 endpointHash,
         uint256 amountUSDC,
         bytes32 requestHash
-    ) external returns (bytes32 receiptHash, bool allowed, BlockReason reason) {
+    ) external nonReentrant returns (bytes32 receiptHash, bool allowed, BlockReason reason) {
         if (requestHash == bytes32(0)) revert MissingRequestHash();
+        if (lineSponsors[agent].sponsor != address(0)) revert SignedIntentRequired();
         AgentLine storage line = lines[agent];
         if (!_isAuthorized(line, agent)) revert NotAuthorized();
         _refreshDay(line);
@@ -528,7 +842,8 @@ contract ShadowFloat {
             requestHash: requestHash,
             creditBeforeUSDC: line.availableCreditUSDC,
             debtBeforeUSDC: line.activeDebtUSDC,
-            mandateId: line.mandateId
+            mandateId: line.mandateId,
+            signedIntent: false
         });
         (allowed, reason) = _evaluateSpend(line, agent, provider, endpointHash, amountUSDC, requestHash);
 
@@ -546,6 +861,7 @@ contract ShadowFloat {
 
     function requestSignedSpend(FloatSpendIntent calldata intent, bytes calldata signature)
         external
+        nonReentrant
         returns (bytes32 receiptHash, bool allowed, BlockReason reason)
     {
         (AgentLine storage line, SpendContext memory ctx,) = _consumeSignedIntent(intent, signature);
@@ -563,41 +879,15 @@ contract ShadowFloat {
     }
 
     function recordX402Spend(
-        address agent,
-        address provider,
-        bytes32 endpointHash,
-        uint256 amountUSDC,
-        bytes32 requestHash,
-        bytes32 x402Hash,
-        address facilitator
-    ) external onlyOperator returns (bytes32 receiptHash, bool allowed, BlockReason reason) {
-        if (requestHash == bytes32(0)) revert MissingRequestHash();
-        AgentLine storage line = lines[agent];
-        _refreshDay(line);
-
-        SpendContext memory ctx = SpendContext({
-            agent: agent,
-            provider: provider,
-            endpointHash: endpointHash,
-            amountUSDC: amountUSDC,
-            requestHash: requestHash,
-            creditBeforeUSDC: line.availableCreditUSDC,
-            debtBeforeUSDC: line.activeDebtUSDC,
-            mandateId: line.mandateId
-        });
-        (allowed, reason) = _evaluateSpend(line, agent, provider, endpointHash, amountUSDC, requestHash);
-
-        if (!allowed) {
-            if (reason == BlockReason.DUPLICATE_REQUEST && requestHash != bytes32(0)) revert DuplicateRequest();
-            receiptHash = _recordBlockedSpend(ctx, reason);
-            return (receiptHash, false, reason);
-        }
-        if (x402Hash == bytes32(0)) revert MissingX402Payment();
-        if (facilitator == address(0)) revert ZeroAddress();
-        if (facilitator != msg.sender) revert NotAuthorized();
-
-        receiptHash = _executeAllowedX402Spend(line, ctx, x402Hash, facilitator);
-        return (receiptHash, true, BlockReason.NONE);
+        address,
+        address,
+        bytes32,
+        uint256,
+        bytes32,
+        bytes32,
+        address
+    ) external pure returns (bytes32, bool, BlockReason) {
+        revert SignedIntentRequired();
     }
 
     function recordSignedX402Spend(
@@ -605,9 +895,10 @@ contract ShadowFloat {
         bytes32 x402Hash,
         address facilitator,
         bytes calldata signature
-    ) external onlyOperator returns (bytes32 receiptHash, bool allowed, BlockReason reason) {
+    ) external onlyOperator nonReentrant returns (bytes32 receiptHash, bool allowed, BlockReason reason) {
         if (facilitator == address(0)) revert ZeroAddress();
         if (facilitator != msg.sender) revert NotAuthorized();
+        if (lineSponsors[intent.agent].sponsor != address(0)) revert SignedIntentRequired();
 
         (AgentLine storage line, SpendContext memory ctx,) = _consumeSignedIntent(intent, signature);
         _refreshDay(line);
@@ -645,12 +936,63 @@ contract ShadowFloat {
                 intent.provider,
                 intent.endpointHash,
                 intent.amountUSDC,
+                intent.maxDebtUSDC,
                 intent.nonce,
                 intent.expiry,
+                intent.executor,
                 keccak256(bytes(intent.reason))
             )
         );
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator(), structHash));
+    }
+
+    function hashProviderDelivery(ProviderDeliveryReceipt calldata delivery) public view returns (bytes32) {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                PROVIDER_DELIVERY_TYPEHASH,
+                delivery.requestHash,
+                delivery.agent,
+                delivery.provider,
+                delivery.endpointHash,
+                delivery.amountUSDC,
+                delivery.responseHash,
+                delivery.deliveredAt
+            )
+        );
+        return keccak256(abi.encodePacked("\x19\x01", domainSeparator(), structHash));
+    }
+
+    function recordProviderDelivery(ProviderDeliveryReceipt calldata delivery, bytes calldata signature)
+        external
+        nonReentrant
+        returns (bytes32 deliveryHash)
+    {
+        if (delivery.requestHash == bytes32(0) || delivery.responseHash == bytes32(0)) revert InvalidIntent();
+        if (delivery.agent == address(0) || delivery.provider == address(0)) revert ZeroAddress();
+        if (delivery.amountUSDC == 0 || delivery.deliveredAt == 0) revert ZeroAmount();
+        if (delivery.deliveredAt > block.timestamp) revert InvalidIntent();
+        if (providerDeliveryByRequestHash[delivery.requestHash] != bytes32(0)) revert DeliveryAlreadyConfirmed();
+
+        bytes32 paidCommitment = paidSpendCommitments[delivery.requestHash];
+        if (paidCommitment == bytes32(0)) revert DeliveryRequestMissing();
+        bytes32 deliveryCommitment =
+            keccak256(abi.encode(delivery.agent, delivery.provider, delivery.endpointHash, delivery.amountUSDC));
+        if (deliveryCommitment != paidCommitment) revert DeliveryMismatch();
+
+        deliveryHash = hashProviderDelivery(delivery);
+        providerDeliveryByRequestHash[delivery.requestHash] = deliveryHash;
+        if (!_isValidIntentSignature(delivery.provider, deliveryHash, signature)) revert InvalidSignature();
+
+        emit ProviderDeliveryConfirmed(
+            delivery.requestHash,
+            delivery.agent,
+            delivery.provider,
+            delivery.endpointHash,
+            delivery.amountUSDC,
+            delivery.responseHash,
+            delivery.deliveredAt,
+            deliveryHash
+        );
     }
 
     function _consumeSignedIntent(FloatSpendIntent calldata intent, bytes calldata signature)
@@ -659,17 +1001,20 @@ contract ShadowFloat {
     {
         if (intent.agent == address(0) || intent.provider == address(0)) revert ZeroAddress();
         if (intent.amountUSDC == 0) revert ZeroAmount();
+        if (intent.maxDebtUSDC < intent.amountUSDC + _feeFor(intent.amountUSDC)) revert FeeExceedsIntent();
         if (intent.expiry < block.timestamp) revert IntentExpired();
+        if (intent.executor != address(0) && intent.executor != msg.sender) revert NotAuthorized();
         if (intentNonceUsed[intent.agent][intent.nonce]) revert IntentNonceUsed();
         if (intentNonceCancelled[intent.agent][intent.nonce]) revert IntentCancelled();
 
         line = lines[intent.agent];
+        if (line.activeDebtUSDC + intent.amountUSDC + _feeFor(intent.amountUSDC) > intent.maxDebtUSDC) revert ExceedsMaxDebt();
         address signer = _intentSigner(line, intent.agent);
         requestHash = hashFloatSpendIntent(intent);
-        if (!_isValidIntentSignature(signer, requestHash, signature)) revert InvalidSignature();
         if (receiptByRequestHash[requestHash] != bytes32(0)) revert DuplicateRequest();
 
         intentNonceUsed[intent.agent][intent.nonce] = true;
+        if (!_isValidIntentSignature(signer, requestHash, signature)) revert InvalidSignature();
         emit FloatIntentConsumed(intent.agent, signer, intent.nonce, requestHash);
 
         ctx = SpendContext({
@@ -680,7 +1025,8 @@ contract ShadowFloat {
             requestHash: requestHash,
             creditBeforeUSDC: line.availableCreditUSDC,
             debtBeforeUSDC: line.activeDebtUSDC,
-            mandateId: line.mandateId
+            mandateId: line.mandateId,
+            signedIntent: true
         });
     }
 
@@ -744,12 +1090,13 @@ contract ShadowFloat {
         if (ctx.requestHash != bytes32(0)) {
             receiptByRequestHash[ctx.requestHash] = receiptHash;
         }
+        _recordBlockedBehavior(ctx.agent, lineSponsors[ctx.agent].sponsor != address(0), ctx.requestHash);
     }
 
     function _executeAllowedSpend(AgentLine storage line, SpendContext memory ctx) internal returns (bytes32 receiptHash) {
         uint256 feeUSDC = _feeFor(ctx.amountUSDC);
         uint256 debitUSDC = ctx.amountUSDC + feeUSDC;
-        _setAvailableCredit(line, ctx.creditBeforeUSDC - debitUSDC);
+        _setLineAvailableCredit(ctx.agent, line, ctx.creditBeforeUSDC - debitUSDC);
         line.activeDebtUSDC = ctx.debtBeforeUSDC + debitUSDC;
         line.spentTodayUSDC += ctx.amountUSDC;
         _markDebtActive(line);
@@ -769,6 +1116,7 @@ contract ShadowFloat {
         );
 
         if (!usdc.transfer(ctx.provider, ctx.amountUSDC)) revert TransferFailed();
+        paidSpendCommitments[ctx.requestHash] = _spendCommitment(ctx);
         totalProviderPaidUSDC += ctx.amountUSDC;
         _writeReceipt(
             ReceiptType.PROVIDER_PAID,
@@ -818,6 +1166,7 @@ contract ShadowFloat {
             ctx.mandateId,
             ctx.requestHash
         );
+        _recordPaidBehavior(ctx.agent, ctx.signedIntent, ctx.requestHash);
     }
 
     function _executeAllowedX402Spend(
@@ -828,7 +1177,7 @@ contract ShadowFloat {
     ) internal returns (bytes32 receiptHash) {
         uint256 feeUSDC = _feeFor(ctx.amountUSDC);
         uint256 debitUSDC = ctx.amountUSDC + feeUSDC;
-        _setAvailableCredit(line, ctx.creditBeforeUSDC - debitUSDC);
+        _setLineAvailableCredit(ctx.agent, line, ctx.creditBeforeUSDC - debitUSDC);
         line.activeDebtUSDC = ctx.debtBeforeUSDC + debitUSDC;
         line.spentTodayUSDC += ctx.amountUSDC;
         _markDebtActive(line);
@@ -851,6 +1200,7 @@ contract ShadowFloat {
         receiptByRequestHash[ctx.requestHash] = allowedReceiptHash;
 
         if (!usdc.transfer(facilitator, ctx.amountUSDC)) revert TransferFailed();
+        paidSpendCommitments[ctx.requestHash] = _spendCommitment(ctx);
         totalProviderPaidUSDC += ctx.amountUSDC;
         emit X402PaymentBound(allowedReceiptId, ctx.requestHash, x402Hash, ctx.provider, ctx.amountUSDC, facilitator);
         _writeReceipt(
@@ -901,9 +1251,14 @@ contract ShadowFloat {
             ctx.mandateId,
             ctx.requestHash
         );
+        _recordPaidBehavior(ctx.agent, true, ctx.requestHash);
     }
 
-    function repay(address agent, uint256 amountUSDC, bytes32 requestHash) external returns (bytes32 receiptHash) {
+    function _spendCommitment(SpendContext memory ctx) internal pure returns (bytes32) {
+        return keccak256(abi.encode(ctx.agent, ctx.provider, ctx.endpointHash, ctx.amountUSDC));
+    }
+
+    function repay(address agent, uint256 amountUSDC, bytes32 requestHash) external nonReentrant returns (bytes32 receiptHash) {
         if (amountUSDC == 0) revert ZeroAmount();
         AgentLine storage line = lines[agent];
         if (line.activeDebtUSDC == 0) revert NoDebt();
@@ -916,10 +1271,10 @@ contract ShadowFloat {
 
         line.activeDebtUSDC = debtBefore - amountUSDC;
         if (wasDefaulted) {
-            _setAvailableCredit(line, 0);
+            _setLineAvailableCredit(agent, line, 0);
         } else {
             uint256 refreshed = line.availableCreditUSDC + amountUSDC;
-            _setAvailableCredit(line, refreshed > line.creditLimitUSDC ? line.creditLimitUSDC : refreshed);
+            _setLineAvailableCredit(agent, line, refreshed > line.creditLimitUSDC ? line.creditLimitUSDC : refreshed);
         }
         _assertTreasurySolvent();
         if (wasDefaulted) {
@@ -943,6 +1298,100 @@ contract ShadowFloat {
             BlockReason.NONE,
             line.mandateId,
             requestHash
+        );
+        _recordRepaidBehavior(agent, requestHash);
+    }
+
+    function _recordPaidBehavior(address agent, bool signedIntent, bytes32 requestHash) internal {
+        if (lineSponsors[agent].sponsor == address(0)) return;
+        BehaviorStats storage stats = behaviorStats[agent];
+        if (signedIntent) {
+            stats.signedExternalPaid = _inc(stats.signedExternalPaid);
+        } else {
+            stats.paidBound = _inc(stats.paidBound);
+        }
+        _refreshSponsoredLineFromBehavior(agent, lines[agent], requestHash);
+    }
+
+    function _recordBlockedBehavior(address agent, bool sponsored, bytes32 requestHash) internal {
+        if (!sponsored) return;
+        BehaviorStats storage stats = behaviorStats[agent];
+        stats.blocked = _inc(stats.blocked);
+        _refreshSponsoredLineFromBehavior(agent, lines[agent], requestHash);
+    }
+
+    function _recordRepaidBehavior(address agent, bytes32 requestHash) internal {
+        if (lineSponsors[agent].sponsor == address(0)) return;
+        BehaviorStats storage stats = behaviorStats[agent];
+        stats.repaid = _inc(stats.repaid);
+        _refreshSponsoredLineFromBehavior(agent, lines[agent], requestHash);
+    }
+
+    function _refreshSponsoredLineFromBehavior(address agent, AgentLine storage line, bytes32 requestHash)
+        internal
+        returns (bytes32 receiptHash)
+    {
+        LineSponsor memory sponsor = lineSponsors[agent];
+        if (sponsor.sponsor == address(0)) return bytes32(0);
+        uint8 label = lineLabels[agent];
+        uint16 score = _autonomousScore(agent, label);
+        uint256 previousLimit = line.creditLimitUSDC;
+        uint256 newLimit = _minUint(sponsor.reserveUSDC, recommendedLimitUSDC(score));
+
+        emit DeterministicFloatScored(
+            agent,
+            label,
+            score,
+            newLimit,
+            behaviorStats[agent].paidBound,
+            behaviorStats[agent].signedExternalPaid,
+            behaviorStats[agent].repaid,
+            behaviorStats[agent].blocked,
+            behaviorStats[agent].denied,
+            behaviorStats[agent].errorCount
+        );
+        emit AutonomousLineReviewed(agent, label, score, previousLimit, newLimit, requestHash);
+
+        line.score = score;
+        if (newLimit == previousLimit) {
+            line.lastReview = uint64(block.timestamp);
+            return bytes32(0);
+        }
+
+        uint256 creditBefore = line.availableCreditUSDC;
+        uint256 debtBefore = line.activeDebtUSDC;
+        line.creditLimitUSDC = newLimit;
+        _setLineAvailableCredit(agent, line, newLimit > line.activeDebtUSDC ? newLimit - line.activeDebtUSDC : 0);
+        _assertTreasurySolvent();
+        line.status = line.activeDebtUSDC > 0 ? AgentStatus.LIMITED : (newLimit == 0 ? AgentStatus.LIMITED : AgentStatus.REPAID);
+        line.lastReview = uint64(block.timestamp);
+
+        receiptHash = _writeReceipt(
+            newLimit > previousLimit ? ReceiptType.FLOAT_GRANTED : ReceiptType.LIMIT_REDUCED,
+            agent,
+            address(0),
+            bytes32(0),
+            newLimit,
+            creditBefore,
+            line.availableCreditUSDC,
+            debtBefore,
+            line.activeDebtUSDC,
+            BlockReason.NONE,
+            line.mandateId,
+            requestHash
+        );
+    }
+
+    function _autonomousScore(address agent, uint8 label) internal view returns (uint16) {
+        BehaviorStats memory stats = behaviorStats[agent];
+        return deterministicScore(
+            label,
+            stats.paidBound,
+            stats.signedExternalPaid,
+            stats.repaid,
+            stats.blocked,
+            stats.denied,
+            stats.errorCount
         );
     }
 
@@ -994,7 +1443,7 @@ contract ShadowFloat {
         uint64 expiry = lineExpiries[agent];
         if (expiry != 0 && block.timestamp > expiry) return (false, BlockReason.EXPIRED);
 
-        ProviderMandate memory mandate = providerMandates[provider];
+        ProviderMandate memory mandate = _providerMandateFor(agent, provider);
         if (!mandate.active || provider == address(0)) return (false, BlockReason.PROVIDER_NOT_ALLOWED);
         if (mandate.endpointHash != endpointHash) return (false, BlockReason.ENDPOINT_NOT_ALLOWED);
         if (mandate.expiry != 0 && block.timestamp > mandate.expiry) return (false, BlockReason.EXPIRED);
@@ -1009,11 +1458,25 @@ contract ShadowFloat {
     }
 
     function _isAuthorized(AgentLine storage line, address agent) internal view returns (bool) {
-        return operators[msg.sender] || msg.sender == line.wallet || (line.wallet == address(0) && msg.sender == agent);
+        return msg.sender == line.wallet || (line.wallet == address(0) && msg.sender == agent);
+    }
+
+    function _providerMandateFor(address agent, address provider)
+        internal
+        view
+        returns (ProviderMandate memory mandate)
+    {
+        if (lineSponsors[agent].sponsor != address(0)) {
+            if (lineProviderMandateEpoch[agent][provider] != lineSponsorEpoch[agent]) {
+                return mandate;
+            }
+            return lineProviderMandates[agent][provider];
+        }
+        return providerMandates[provider];
     }
 
     function _markDebtActive(AgentLine storage line) internal {
-        if (line.activeDebtUSDC > 0 && line.status == AgentStatus.REPAID) {
+        if (line.activeDebtUSDC > 0 && (line.status == AgentStatus.ELIGIBLE || line.status == AgentStatus.REPAID)) {
             line.status = AgentStatus.LIMITED;
         }
     }
@@ -1021,6 +1484,17 @@ contract ShadowFloat {
     function _feeFor(uint256 amountUSDC) internal view returns (uint256) {
         if (feeBps == 0) return 0;
         return (amountUSDC * feeBps) / 10_000;
+    }
+
+    function _setLineAvailableCredit(address agent, AgentLine storage line, uint256 newAvailableCreditUSDC) internal {
+        uint256 previous = line.availableCreditUSDC;
+        _setAvailableCredit(line, newAvailableCreditUSDC);
+        if (lineSponsors[agent].sponsor == address(0)) return;
+        if (newAvailableCreditUSDC > previous) {
+            totalSponsoredAvailableCreditUSDC += newAvailableCreditUSDC - previous;
+        } else if (previous > newAvailableCreditUSDC) {
+            totalSponsoredAvailableCreditUSDC -= previous - newAvailableCreditUSDC;
+        }
     }
 
     function _setAvailableCredit(AgentLine storage line, uint256 newAvailableCreditUSDC) internal {
@@ -1058,6 +1532,14 @@ contract ShadowFloat {
 
     function _min(uint16 value, uint16 maxValue) internal pure returns (uint16) {
         return value < maxValue ? value : maxValue;
+    }
+
+    function _minUint(uint256 value, uint256 maxValue) internal pure returns (uint256) {
+        return value < maxValue ? value : maxValue;
+    }
+
+    function _inc(uint16 value) internal pure returns (uint16) {
+        return value == type(uint16).max ? value : value + 1;
     }
 
     function _writeReceipt(

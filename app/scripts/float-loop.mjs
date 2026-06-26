@@ -26,6 +26,7 @@ const env = {
 const CHAIN_ID = 5_042_002;
 const RPC = clean(env.ARC_RPC_URL || env.VITE_ARC_RPC_URL);
 const FLOAT = clean(env.SHADOW_FLOAT || env.VITE_SHADOW_FLOAT);
+const LEGACY_FLOAT = getAddress("0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
 const USDC = clean(env.ARC_USDC || env.VITE_ARC_USDC || "0x3600000000000000000000000000000000000000");
 const FACILITATOR_KEY = normalizeKey(
   clean(env.FLOAT_FACILITATOR_PRIVATE_KEY || env.CAT_AGENT_PRIVATE_KEY || env.PRIVATE_KEY),
@@ -39,6 +40,11 @@ const DRY_RUN = clean(env.FLOAT_LOOP_DRY_RUN) === "1";
 
 if (!RPC) throw new Error("missing ARC_RPC_URL or VITE_ARC_RPC_URL");
 if (!FLOAT) throw new Error("missing SHADOW_FLOAT or VITE_SHADOW_FLOAT");
+if (clean(env.ALLOW_LEGACY_FLOAT) !== "1" || getAddress(FLOAT) !== LEGACY_FLOAT) {
+  throw new Error(
+    "float-loop.mjs is a V1 legacy runner that calls recordX402Spend. Use the V2 signed-intent proof path for new permissionless runs, or set SHADOW_FLOAT to the known V1 address and ALLOW_LEGACY_FLOAT=1 for V1 loop reproduction.",
+  );
+}
 if (!FACILITATOR_KEY) throw new Error("missing FLOAT_FACILITATOR_PRIVATE_KEY or CAT_AGENT_PRIVATE_KEY");
 
 const facilitator = privateKeyToAccount(FACILITATOR_KEY);
