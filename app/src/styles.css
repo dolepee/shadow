@@ -1040,6 +1040,173 @@ html {
   padding: 12px;
 }
 
+.floatCreditPanel {
+  background:
+    linear-gradient(135deg, rgba(77, 240, 168, 0.065), rgba(52, 229, 255, 0.025)),
+    rgba(7, 17, 31, 0.6);
+  border: 1px solid rgba(77, 240, 168, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  margin-top: 14px;
+  padding: 16px;
+}
+
+.floatCreditIntro {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.floatCreditIntro strong {
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.floatCreditIntro p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 5px 0 0;
+  max-width: 860px;
+}
+
+.floatCreditIntro a {
+  border: 1px solid rgba(77, 240, 168, 0.24);
+  border-radius: 999px;
+  color: var(--copy);
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 11px;
+  text-decoration: none;
+}
+
+.floatCreditMetrics {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.floatCreditRows {
+  display: grid;
+  gap: 9px;
+}
+
+.floatCreditRow {
+  align-items: stretch;
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--ink);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(145px, 0.86fr) minmax(110px, 0.55fr) minmax(120px, 0.65fr) minmax(180px, 1fr) minmax(122px, 0.62fr);
+  padding: 12px;
+  text-decoration: none;
+}
+
+.floatCreditRow.allow {
+  border-color: rgba(77, 240, 168, 0.24);
+}
+
+.floatCreditRow.block {
+  border-color: rgba(255, 95, 126, 0.28);
+}
+
+.floatCreditRow.pending {
+  border-color: rgba(255, 209, 102, 0.24);
+}
+
+.floatCreditIdentity,
+.floatCreditScore,
+.floatCreditEvidence,
+.floatCreditAction {
+  min-width: 0;
+}
+
+.floatCreditIdentity small,
+.floatCreditScore small,
+.floatCreditEvidence small,
+.floatCreditAction small {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.floatCreditIdentity strong,
+.floatCreditScore strong,
+.floatCreditEvidence strong,
+.floatCreditAction strong {
+  color: var(--ink);
+  display: block;
+  font-size: 13px;
+  line-height: 1.35;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+
+.floatCreditRow.allow .floatCreditAction strong {
+  color: var(--copy);
+}
+
+.floatCreditRow.block .floatCreditAction strong {
+  color: var(--danger);
+}
+
+.floatCreditRow.pending .floatCreditAction strong {
+  color: var(--warn);
+}
+
+.floatCreditCommand {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.floatCreditCommand span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.floatCreditCommand code {
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(184, 211, 255, 0.14);
+  border-radius: 999px;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  padding: 7px 10px;
+}
+
+.floatCreditEmpty {
+  background: rgba(7, 17, 31, 0.56);
+  border: 1px dashed rgba(77, 240, 168, 0.25);
+  border-radius: 12px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  padding: 12px;
+}
+
+.floatCreditNote {
+  color: var(--warn);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 10px 0 0;
+}
+
 .floatProofRail {
   display: grid;
   gap: 10px;
@@ -1857,7 +2024,8 @@ html {
   .floatHeadlineStats,
   .floatProofRail,
   .floatProofCheckGrid,
-  .floatEconomicsGrid {
+  .floatEconomicsGrid,
+  .floatCreditMetrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1884,6 +2052,10 @@ html {
   .floatReceiptList,
   .floatExternalRow {
     grid-template-columns: 1fr;
+  }
+
+  .floatCreditRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .floatLoopStats,
@@ -1993,6 +2165,15 @@ html {
     text-align: center;
   }
 
+  .floatCreditIntro {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .floatCreditIntro a {
+    text-align: center;
+  }
+
   .floatHeadlineStats,
   .floatProofRail,
   .floatProofCheckGrid,
@@ -2011,10 +2192,15 @@ html {
   .floatLineStats,
   .floatProviderFacts,
   .floatWalletProofGrid,
+  .floatCreditMetrics,
   .floatMetricGrid,
   .floatLoopStats,
   .floatLoopSplit {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .floatCreditRow {
+    grid-template-columns: 1fr;
   }
 
   .floatRunwayRow {

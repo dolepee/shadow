@@ -301,6 +301,48 @@ type FloatStandingBoard = {
   agents?: FloatStandingAgent[];
 };
 
+type FloatScoreResponse = {
+  configured?: boolean;
+  agent: Address;
+  label?: FloatStandingAgent["label"] | string;
+  evidenceMode?: string;
+  evidence?: {
+    runs?: number;
+    paidBound?: number;
+    signedExternalPaidBound?: number;
+    repaid?: number;
+    blocked?: number;
+    denied?: number;
+    error?: number;
+    requestHashes?: string[];
+    receiptHashes?: string[];
+  };
+  evidenceCompleteness?: {
+    logFetchComplete?: boolean;
+    indexedReceiptCountMatchesChain?: boolean;
+    receiptLogsIndexed?: number;
+  };
+  computed?: {
+    score?: number;
+    recommendedLimitUSDC?: string;
+    recommendedLimitFormatted?: string;
+  };
+  currentLine?: {
+    wallet?: Address;
+    score?: number;
+    creditLimitUSDC?: string;
+    availableCreditUSDC?: string;
+    activeDebtUSDC?: string;
+    status?: string;
+  };
+  supportCheck?: {
+    currentLineSupportedByComputedV0?: boolean;
+    scoreSupported?: boolean;
+    limitSupported?: boolean;
+  };
+  trustAssumption?: string;
+};
+
 type FloatState = {
   configured: boolean;
   testnet: true;
@@ -2416,6 +2458,7 @@ function FloatPanel({
 
       <FloatStandingBoardPanel board={standingBoard} alpha={state?.alpha} beta={state?.beta} compact={compact} />
       {!compact && <FloatExternalSignedPanel state={state} />}
+      {!compact && <FloatCreditFlywheelPanel board={standingBoard} />}
 
       {!compact && (
         <div className="floatProofRail" aria-label="Shadow Float proof path">
@@ -2920,6 +2963,204 @@ function FloatStandingBoardPanel({
       </div>
     </article>
   );
+}
+
+function FloatCreditFlywheelPanel({ board }: { board?: FloatStandingBoard }) {
+  const agents = useMemo(() => (board?.agents || []).slice(0, 10), [board?.agents]);
+  const agentKey = useMemo(() => agents.map((agent) => agent.agent).join(","), [agents]);
+  const [scores, setScores] = useState<FloatScoreResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!agentKey) {
+      setScores([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setLoading(true);
+    setError(null);
+    Promise.allSettled(
+      agents.map(async (agent) => {
+        const response = await fetch(`/api/float-tools?action=score&address=${agent.agent}`);
+        if (!response.ok) throw new Error(`score ${response.status}`);
+        return (await response.json()) as FloatScoreResponse;
+      }),
+    )
+      .then((results) => {
+        if (cancelled) return;
+        const fulfilled = results
+          .filter((result): result is PromiseFulfilledResult<FloatScoreResponse> => result.status === "fulfilled")
+          .map((result) => result.value);
+        setScores(fulfilled);
+        const rejected = results.length - fulfilled.length;
+        setError(rejected ? `${rejected} score read${rejected === 1 ? "" : "s"} did not return` : null);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setScores([]);
+          setError(err instanceof Error ? err.message : "score reads failed");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [agentKey, agents]);
+
+  const orderedScores = useMemo(
+    () => [...scores].sort((a, b) => floatScorePriority(a) - floatScorePriority(b)).slice(0, 6),
+    [scores],
+  );
+  const receiptDerivedCount = scores.filter((score) => score.evidenceMode === "receipt-derived").length;
+  const completeCount = scores.filter((score) => floatScoreEvidenceComplete(score)).length;
+  const externalRepaidCount = scores.filter(
+    (score) => score.label === "invited" && (score.evidence?.repaid || 0) > 0,
+  ).length;
+  const deferredRaiseCount = scores.filter((score) => classifyFloatScoreAction(score).label === "raise after repay").length;
+  const readyActionCount = scores.filter((score) => {
+    const action = classifyFloatScoreAction(score).label;
+    return action === "raise ready" || action === "cut ready";
+  }).length;
+  const scoreApiHref = agents[0]?.agent
+    ? `/api/float-tools?action=score&address=${agents[0].agent}`
+    : "/api/float";
+
+  return (
+    <article className="floatCreditPanel" aria-label="Receipt-derived Float credit flywheel">
+      <div className="floatBoxHeader">
+        <span>receipt-derived credit flywheel</span>
+        <small>{loading ? "reading scores" : `${receiptDerivedCount}/${scores.length || 0} receipt-derived`}</small>
+      </div>
+      <div className="floatCreditIntro">
+        <div>
+          <strong>Receipts now recompute capacity.</strong>
+          <p>
+            The v0 score reads Float receipts, mirrors the contract formula, and produces the next line action. Execution is
+            still owner/operator-controlled; the evidence path is no longer a manually written score sheet.
+          </p>
+        </div>
+        <a href={scoreApiHref} target="_blank" rel="noreferrer">
+          Score API
+        </a>
+      </div>
+      <div className="floatCreditMetrics">
+        <FloatFact label="score mode" value={receiptDerivedCount ? "receipt-derived" : loading ? "syncing" : "pending"} />
+        <FloatFact label="complete reads" value={`${completeCount}/${scores.length || 0}`} />
+        <FloatFact label="external repaid" value={`${externalRepaidCount}`} />
+        <FloatFact label="deferred raises" value={`${deferredRaiseCount}`} />
+        <FloatFact label="ready actions" value={`${readyActionCount}`} />
+      </div>
+      <div className="floatCreditRows">
+        {orderedScores.length ? (
+          orderedScores.map((score) => {
+            const action = classifyFloatScoreAction(score);
+            const evidence = score.evidence || {};
+            const agent = score.agent || score.currentLine?.wallet;
+            return (
+              <a
+                className={`floatCreditRow ${action.tone}`}
+                href={agent ? `/api/float-tools?action=score&address=${agent}` : "/api/float-tools?action=score"}
+                target="_blank"
+                rel="noreferrer"
+                key={agent || `${score.label}-${score.currentLine?.score}`}
+              >
+                <span className="floatCreditIdentity">
+                  <strong>{agent ? shortAddress(agent) : "agent pending"}</strong>
+                  <small>
+                    {score.label || "unlabeled"} · {score.currentLine?.status || "line pending"}
+                  </small>
+                </span>
+                <span className="floatCreditScore">
+                  <small>score</small>
+                  <strong>
+                    {score.currentLine?.score ?? "?"} -&gt; {score.computed?.score ?? "?"}
+                  </strong>
+                </span>
+                <span className="floatCreditScore">
+                  <small>line</small>
+                  <strong>
+                    {formatFloatUSDC(score.currentLine?.creditLimitUSDC)} -&gt;{" "}
+                    {formatFloatUSDC(score.computed?.recommendedLimitUSDC)}
+                  </strong>
+                </span>
+                <span className="floatCreditEvidence">
+                  <small>evidence</small>
+                  <strong>
+                    paid {evidence.paidBound || 0} · signed {evidence.signedExternalPaidBound || 0} · repaid {evidence.repaid || 0}
+                  </strong>
+                </span>
+                <span className="floatCreditAction">
+                  <small>{action.detail}</small>
+                  <strong>{action.label}</strong>
+                </span>
+              </a>
+            );
+          })
+        ) : (
+          <div className="floatCreditEmpty">{loading ? "Reading receipt-derived scores..." : "Score rows appear after the standing board loads."}</div>
+        )}
+      </div>
+      <div className="floatCreditCommand">
+        <span>read-only proof</span>
+        <code>npm run float:score-proof</code>
+        <span>owner-controlled runner</span>
+        <code>npm run float:autounderwrite</code>
+      </div>
+      {error && <p className="floatCreditNote">{error}</p>}
+    </article>
+  );
+}
+
+function floatScoreEvidenceComplete(score: FloatScoreResponse): boolean {
+  return Boolean(
+    score.evidenceMode === "receipt-derived" &&
+      score.evidenceCompleteness?.logFetchComplete &&
+      score.evidenceCompleteness?.indexedReceiptCountMatchesChain,
+  );
+}
+
+function asAtomicUSDC(value?: string | null): bigint {
+  if (!value) return 0n;
+  try {
+    return BigInt(value);
+  } catch {
+    return 0n;
+  }
+}
+
+function classifyFloatScoreAction(score: FloatScoreResponse): { label: string; detail: string; tone: "allow" | "block" | "pending" } {
+  if (!floatScoreEvidenceComplete(score)) return { label: "evidence syncing", detail: "index check", tone: "pending" };
+  const currentLimit = asAtomicUSDC(score.currentLine?.creditLimitUSDC);
+  const recommendedLimit = asAtomicUSDC(score.computed?.recommendedLimitUSDC);
+  const activeDebt = asAtomicUSDC(score.currentLine?.activeDebtUSDC);
+  const currentScore = score.currentLine?.score ?? 0;
+  const computedScore = score.computed?.score ?? currentScore;
+
+  if (recommendedLimit > currentLimit && activeDebt > 0n) {
+    return { label: "raise after repay", detail: "debt open", tone: "pending" };
+  }
+  if (recommendedLimit > currentLimit) return { label: "raise ready", detail: "capacity earned", tone: "allow" };
+  if (recommendedLimit < currentLimit) return { label: "cut ready", detail: "capacity reduced", tone: "block" };
+  if (computedScore !== currentScore) return { label: "score refresh", detail: "same band", tone: "pending" };
+  return { label: "current", detail: "line supported", tone: "allow" };
+}
+
+function floatScorePriority(score: FloatScoreResponse): number {
+  const action = classifyFloatScoreAction(score).label;
+  if (score.label === "invited" && (score.evidence?.repaid || 0) > 0) return 0;
+  if (score.label === "invited" && action === "raise after repay") return 1;
+  if (score.label === "invited") return 2;
+  if (action === "raise ready" || action === "cut ready") return 3;
+  if (score.label === "lab") return 4;
+  if (score.label === "demo") return 6;
+  return 5;
 }
 
 function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
