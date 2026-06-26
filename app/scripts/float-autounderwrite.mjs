@@ -5,6 +5,7 @@ import {
   createPublicClient,
   createWalletClient,
   defineChain,
+  erc20Abi,
   formatUnits,
   getAddress,
   http,
@@ -37,9 +38,11 @@ const BASE_URL = (clean(env.SHADOW_APP_URL || env.FLOAT_APP_URL || env.VITE_APP_
 const RPC = clean(env.ARC_RPC_URL || env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
 const FLOAT = getAddress(clean(env.SHADOW_FLOAT || env.VITE_SHADOW_FLOAT) || "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
 const APPLY = clean(env.FLOAT_AUTOUNDERWRITE_APPLY) === "1";
+const AUTO_FUND = clean(env.FLOAT_AUTOUNDERWRITE_AUTO_FUND) === "1";
 const ALLOW_ACTIVE_DEBT_RAISE = clean(env.FLOAT_AUTOUNDERWRITE_ALLOW_ACTIVE_DEBT_RAISE) === "1";
 const APPLY_SCORE_REFRESH = clean(env.FLOAT_AUTOUNDERWRITE_APPLY_SCORE_REFRESH) === "1";
 const OWNER_KEY = normalizeKey(clean(env.FLOAT_ADMIN_PRIVATE_KEY || env.PRIVATE_KEY || env.FLOAT_OWNER_PRIVATE_KEY));
+const USDC = getAddress(clean(env.ARC_USDC || env.VITE_ARC_USDC) || "0x3600000000000000000000000000000000000000");
 const REQUEST_SALT = clean(env.FLOAT_AUTOUNDERWRITE_SALT) || Date.now().toString();
 const explicitAgents = parseAgents(process.argv.slice(2).join(" ") || clean(env.FLOAT_AUTOUNDERWRITE_AGENTS));
 
@@ -53,6 +56,8 @@ const publicClient = createPublicClient({ chain, transport: http(RPC, { timeout:
 
 const abi = parseAbi([
   "function owner() view returns (address)",
+  "function fund(uint256 amountUSDC)",
+  "function totalAvailableCreditUSDC() view returns (uint256)",
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
   "function grantFloatFromScore(address agent, address wallet, uint8 label, uint16 paidBound, uint16 signedExternalPaid, uint16 repaid, uint16 blocked, uint16 denied, uint16 errorCount, bytes32 mandateId, uint64 expiry) returns (bytes32)",
   "function reduceLimit(address agent, uint256 newLimitUSDC, bytes32 requestHash) returns (bytes32)",
@@ -83,7 +88,12 @@ for (const agent of unique(agents)) {
   const line = await readLine(agent);
   const row = await planAgent(agent, score, line);
   rows.push(row);
-  if (APPLY && row.action !== "none" && row.action !== "defer") {
+}
+
+if (APPLY) {
+  await ensureGrantReserve(rows);
+  for (const row of rows) {
+    if (row.action === "none" || row.action === "defer") continue;
     await applyAction(row);
   }
 }
@@ -110,7 +120,10 @@ async function planAgent(agent, score, line) {
   const currentScore = Number(score.currentLine?.score || line.score || 0);
   const currentStatus = String(score.currentLine?.status || statusName(line.status));
   const activeDebt = BigInt(score.currentLine?.activeDebtUSDC || line.activeDebtUSDC || 0n);
+  const currentAvailable = BigInt(score.currentLine?.availableCreditUSDC || line.availableCreditUSDC || 0n);
   const recommendedLimit = BigInt(score.computed?.recommendedLimitUSDC || 0);
+  const recommendedAvailable = recommendedLimit > activeDebt ? recommendedLimit - activeDebt : 0n;
+  const reserveIncrease = recommendedAvailable > currentAvailable ? recommendedAvailable - currentAvailable : 0n;
   const computedScore = Number(score.computed?.score || 0);
   const evidence = score.evidence || {};
   const safe =
@@ -127,9 +140,15 @@ async function planAgent(agent, score, line) {
     currentScore,
     computedScore,
     currentLimitUSDC: currentLimit.toString(),
+    currentAvailableUSDC: currentAvailable.toString(),
     recommendedLimitUSDC: recommendedLimit.toString(),
+    recommendedAvailableUSDC: recommendedAvailable.toString(),
+    reserveIncreaseUSDC: reserveIncrease.toString(),
     currentLimitFormatted: formatUnits(currentLimit, 6),
+    currentAvailableFormatted: formatUnits(currentAvailable, 6),
     recommendedLimitFormatted: formatUnits(recommendedLimit, 6),
+    recommendedAvailableFormatted: formatUnits(recommendedAvailable, 6),
+    reserveIncreaseFormatted: formatUnits(reserveIncrease, 6),
     activeDebtUSDC: activeDebt.toString(),
     activeDebtFormatted: formatUnits(activeDebt, 6),
     evidence: {
@@ -163,6 +182,54 @@ async function planAgent(agent, score, line) {
     return { ...base, action: "none", reason: "score_changed_but_limit_band_is_unchanged" };
   }
   return { ...base, action: "none", reason: "current_line_matches_receipt_derived_score_band" };
+}
+
+async function ensureGrantReserve(rows) {
+  const required = rows
+    .filter((row) => row.action === "grant_from_score")
+    .reduce((sum, row) => sum + BigInt(row.reserveIncreaseUSDC || "0"), 0n);
+  if (required === 0n) return;
+
+  const [balance, totalAvailable] = await Promise.all([
+    publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [FLOAT] }),
+    publicClient.readContract({ address: FLOAT, abi, functionName: "totalAvailableCreditUSDC" }),
+  ]);
+  const freeReserve = balance > totalAvailable ? balance - totalAvailable : 0n;
+  if (freeReserve >= required) return;
+
+  const shortfall = required - freeReserve;
+  if (!AUTO_FUND) {
+    throw new Error(
+      `receipt-derived raises need ${formatUnits(required, 6)} USDC free reserve; only ${formatUnits(freeReserve, 6)} available. Set FLOAT_AUTOUNDERWRITE_AUTO_FUND=1 to fund ${formatUnits(shortfall, 6)} USDC before applying.`,
+    );
+  }
+
+  const ownerBalance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [account.address] });
+  if (ownerBalance < shortfall) {
+    throw new Error(`owner needs ${formatUnits(shortfall, 6)} USDC to fund Float reserve, has ${formatUnits(ownerBalance, 6)}`);
+  }
+
+  const approveTx = await wallet.writeContract({
+    address: USDC,
+    abi: erc20Abi,
+    functionName: "approve",
+    args: [FLOAT, shortfall],
+    account,
+    chain,
+  });
+  const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: approveTx });
+  if (approveReceipt.status !== "success") throw new Error(`USDC approve reverted: ${approveTx}`);
+
+  const fundTx = await wallet.writeContract({
+    address: FLOAT,
+    abi,
+    functionName: "fund",
+    args: [shortfall],
+    account,
+    chain,
+  });
+  const fundReceipt = await publicClient.waitForTransactionReceipt({ hash: fundTx });
+  if (fundReceipt.status !== "success") throw new Error(`Float fund reverted: ${fundTx}`);
 }
 
 async function applyAction(row) {

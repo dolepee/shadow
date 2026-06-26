@@ -80,7 +80,7 @@ The verifier returns `supportCheck.scoreSupported` and `supportCheck.limitSuppor
 - `ShadowFloat.deterministicScore(...)` and `ShadowFloat.recommendedLimitUSDC(...)` expose the v0 formula onchain.
 - `ShadowFloat.grantFloatFromScore(...)` grants a line from the deterministic formula once receipt-derived evidence counts are submitted.
 - `npm run float:score-proof` checks score evidence across the standing board.
-- `npm run float:autounderwrite` dry-runs line updates from receipt-derived evidence; `FLOAT_AUTOUNDERWRITE_APPLY=1` applies them with the owner key.
+- `npm run float:autounderwrite` dry-runs line updates from receipt-derived evidence; `FLOAT_AUTOUNDERWRITE_APPLY=1` applies them with the owner key, and `FLOAT_AUTOUNDERWRITE_AUTO_FUND=1` can pre-fund any reserve shortfall.
 
 ## Next Step
 
