@@ -2520,6 +2520,7 @@ input:focus-visible {
 }
 
 .roadmapGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 10px;
 }
 
@@ -2561,6 +2562,12 @@ input:focus-visible {
   .roadmapCard {
     min-height: auto;
     padding: 16px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .roadmapGrid {
+    grid-template-columns: 1fr;
   }
 }
 

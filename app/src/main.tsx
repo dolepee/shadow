@@ -1410,6 +1410,11 @@ function App() {
       <CircleStackPanel />
       <section className="roadmapGrid" aria-label="Shadow Float roadmap">
         <article className="roadmapCard">
+          <span>M1 v2 hardening</span>
+          <strong>Production-grade mandate custody</strong>
+          <p>Turn the approved-adapter proof into an escrow-release or custodial enforcer with withdrawable vault support and stronger slashing.</p>
+        </article>
+        <article className="roadmapCard">
           <span>interop</span>
           <strong>Gateway-batched x402</strong>
           <p>Bridge the current EIP-3009 path into the Gateway-batched dialect Obol and Archer surfaced.</p>
