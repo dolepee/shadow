@@ -20,6 +20,7 @@ Supporting proof: https://shadow-arc.vercel.app/treasury
 | No-secret verifier | `npm run float:verify-live` |
 | Score proof verifier | `npm run float:score-proof` |
 | Autonomous underwriting runner | `npm run float:autounderwrite` |
+| Builder typed-data intent | `GET /api/float-tools?action=intent&agent=0x...&reason=...` |
 | Signed intent verifier | `GET /api/float-tools?action=verify&hash=0x...` |
 
 The live API exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The verifier command independently checks the live contract, receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys. The score verifier and underwriting runner show how receipt-derived behavior becomes a computed score and a proposed line update.
@@ -261,6 +262,7 @@ Shadow is a protocol first and a dashboard second. The dashboard uses the same c
 | `GET /api/float` | Browser-readable Float receipt chain, treasury, agent lines, blocked/denied totals, x402 binding txs, and the `standingBoard` | Live on `shadow-arc.vercel.app/float` |
 | `GET /api/float-tools?action=agent&address=0x…` | Composable standing read for any agent: line limit, available capacity, active debt, status, behavior score, and Lab/Invited/Self-test/Demo label | Live; the read other agents and protocols call |
 | `GET /api/float-tools?action=rationale&hash=0x…` | Publishes the rationale preimage for a receipt's `requestHash` so anyone re-hashes it to confirm the agent's on-chain reasoning | Live; `requestHash = keccak256(preimage)` |
+| `GET /api/float-tools?action=intent&agent=0x…&reason=…` | Returns the exact EIP-712 `FloatSpendIntent` typed data and digest a builder can sign with their own wallet tooling | Live; no Shadow script or private key env required |
 | `GET /api/float-tools?action=verify&hash=0x…` | Verifies an external builder's signed Float x402 intent against current-contract onchain receipt state and the matching `X402PaymentBound` bind tx | Live; signed external usage only |
 | `GET /api/float-tools?action=score&address=0x…` | Deterministic v0 underwriting verifier: recomputes suggested score and line from public Float evidence | Live; mirrors the contract formula |
 | `ShadowFloat.deterministicScore` / `grantFloatFromScore` | Onchain v0 formula and deterministic line grant once receipt-derived evidence counts are submitted | Contract path for behavior-backed lines |

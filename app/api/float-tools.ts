@@ -208,14 +208,16 @@ export default async function handler(req: Req, res: Res) {
   if (action === "rationale") return handleRationale(req, res);
   if (action === "verify") return handleVerify(req, res);
   if (action === "score") return handleScore(req, res);
+  if (action === "intent") return handleIntent(req, res);
 
   res.status(400).json({
-    error: "pass ?action=agent|rationale|verify|score",
+    error: "pass ?action=agent|rationale|verify|score|intent",
     examples: [
       "/api/float-tools?action=agent&address=0x...",
       "/api/float-tools?action=rationale&hash=0x...",
       "/api/float-tools?action=verify&hash=0x...",
       "/api/float-tools?action=score&address=0x...",
+      "/api/float-tools?action=intent&agent=0x...&reason=one%20true%20sentence",
     ],
   });
 }
@@ -599,6 +601,104 @@ async function handleScore(req: Req, res: Res) {
     res.setHeader("Cache-Control", "no-store");
     res.status(503).json({ configured: true, degraded: true, error: sanitize(error) });
   }
+}
+
+async function handleIntent(req: Req, res: Res) {
+  const agentParam = readParam(req, "agent") || readParam(req, "address");
+  const reason = clean(readParam(req, "reason"));
+  if (!agentParam || !isAddress(agentParam)) {
+    res.status(400).json({ error: "pass ?action=intent&agent=0x... (the agent address that will sign)" });
+    return;
+  }
+  if (!reason) {
+    res.status(400).json({ error: "pass a truthful reason=... sentence that the agent will sign" });
+    return;
+  }
+
+  const floatRaw = clean(process.env.SHADOW_FLOAT || process.env.VITE_SHADOW_FLOAT);
+  if (!floatRaw || !isAddress(floatRaw)) {
+    res.status(200).json({ configured: false, testnet: true, network: "arc-testnet" });
+    return;
+  }
+
+  const providerRaw = clean(readParam(req, "provider")) || clean(process.env.FLOAT_PROVIDER || process.env.VITE_FLOAT_PROVIDER) || "0x8ddf06fE8985988d3e0883F945E891BD57084937";
+  const endpointHash = clean(readParam(req, "endpointHash")) || clean(process.env.FLOAT_ENDPOINT_HASH || process.env.VITE_FLOAT_ENDPOINT_HASH) || "0x54f180bcd31ab4c3401b23bc78cb3eeb89f85d42a3b43e3d06a692b91d941160";
+  const amountUSDC = clean(readParam(req, "amountUSDC")) || "10000";
+  const nonce = clean(readParam(req, "nonce")) || Date.now().toString();
+  const ttlSeconds = BigInt(clean(readParam(req, "ttl")) || `${7 * 24 * 3600}`);
+  const expiry = clean(readParam(req, "expiry")) || (BigInt(Math.floor(Date.now() / 1000)) + ttlSeconds).toString();
+
+  if (!providerRaw || !isAddress(providerRaw)) {
+    res.status(400).json({ error: "provider must be a valid address" });
+    return;
+  }
+  if (!/^0x[0-9a-fA-F]{64}$/.test(endpointHash)) {
+    res.status(400).json({ error: "endpointHash must be bytes32" });
+    return;
+  }
+  if (!/^\d+$/.test(amountUSDC) || BigInt(amountUSDC) <= 0n) {
+    res.status(400).json({ error: "amountUSDC must be a positive integer in 6-decimal atomic units" });
+    return;
+  }
+  if (!/^\d+$/.test(nonce) || !/^\d+$/.test(expiry)) {
+    res.status(400).json({ error: "nonce and expiry must be integer strings" });
+    return;
+  }
+
+  const float = getAddress(floatRaw);
+  const agent = getAddress(agentParam);
+  const provider = getAddress(providerRaw);
+  const domain = { name: "ShadowFloat", version: "1", chainId: ARC_CHAIN_ID, verifyingContract: float };
+  const message = {
+    agent,
+    provider,
+    endpointHash: endpointHash as `0x${string}`,
+    amountUSDC: BigInt(amountUSDC),
+    nonce: BigInt(nonce),
+    expiry: BigInt(expiry),
+    reason,
+  };
+  const digest = hashTypedData({ domain, types: intentTypes, primaryType: "FloatSpendIntent", message });
+
+  res.status(200).json({
+    configured: true,
+    testnet: true,
+    network: "arc-testnet",
+    purpose:
+      "Sign this EIP-712 typed data with your own agent signer. Do not share a private key. Return { intent, signature, digest }.",
+    typedData: {
+      domain,
+      types: intentTypes,
+      primaryType: "FloatSpendIntent",
+      message: {
+        ...message,
+        amountUSDC: amountUSDC,
+        nonce,
+        expiry,
+      },
+    },
+    intent: {
+      agent,
+      provider,
+      endpointHash,
+      amountUSDC,
+      nonce,
+      expiry,
+      reason,
+      float,
+      chainId: ARC_CHAIN_ID,
+    },
+    digest,
+    requestHash: digest,
+    signingNotes: [
+      "The digest is the requestHash Shadow will bind onchain.",
+      "A signature authorizes only this provider, endpoint hash, amount, nonce, expiry, and reason.",
+      "No transaction, approval, or USDC movement is required from the builder to sign typed data.",
+    ],
+    verifyBeforeBinding:
+      "Shadow will recover the signer from this typed data and signature before fronting x402 or submitting recordX402Spend.",
+    fetchedAt: Date.now(),
+  });
 }
 
 async function readLoopRuns(): Promise<LoopRun[]> {

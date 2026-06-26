@@ -1424,6 +1424,11 @@ function App() {
           <p>Read line limit, available capacity, active debt, status, and behavior score.</p>
         </article>
         <article className="builderReferenceCard">
+          <span>typed-data intent</span>
+          <code>/api/float-tools?action=intent&amp;agent=0x...&amp;reason=...</code>
+          <p>Returns the exact EIP-712 payload a builder can sign with their own wallet tooling. No Shadow script or private key env is required.</p>
+        </article>
+        <article className="builderReferenceCard">
           <span>intent verifier</span>
           <code>/api/float-tools?action=verify&amp;hash=0x...</code>
           <p>Verify signer, request hash, onchain receipt, and matching x402 bind event.</p>
