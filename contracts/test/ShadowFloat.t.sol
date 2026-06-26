@@ -152,6 +152,11 @@ contract ShadowFloatTest {
     bytes32 constant ENDPOINT = keccak256("x402://provider.market-signal.v1");
     bytes32 constant ALPHA_MANDATE = keccak256("alpha-approved-x402-market-data");
     bytes32 constant BETA_MANDATE = keccak256("beta-denied-slash-history");
+    bytes32 constant EIP712_DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 constant PROVIDER_DELIVERY_TYPEHASH = keccak256(
+        "ProviderDeliveryReceipt(bytes32 requestHash,address agent,address provider,bytes32 endpointHash,uint256 amountUSDC,bytes32 responseHash,uint256 deliveredAt)"
+    );
 
     MockAsset usdc;
     ShadowFloat shadowFloat;
@@ -236,9 +241,34 @@ contract ShadowFloatTest {
         internal
         returns (bytes memory signature)
     {
-        bytes32 digest = shadowFloat.hashProviderDelivery(delivery);
+        bytes32 digest = _hashDelivery(delivery);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
         signature = bytes.concat(r, s, bytes1(v));
+    }
+
+    function _hashDelivery(ShadowFloat.ProviderDeliveryReceipt memory delivery) internal view returns (bytes32) {
+        bytes32 domainSeparator = keccak256(
+            abi.encode(
+                EIP712_DOMAIN_TYPEHASH,
+                keccak256("ShadowFloat"),
+                keccak256("1"),
+                block.chainid,
+                address(shadowFloat)
+            )
+        );
+        bytes32 structHash = keccak256(
+            abi.encode(
+                PROVIDER_DELIVERY_TYPEHASH,
+                delivery.requestHash,
+                delivery.agent,
+                delivery.provider,
+                delivery.endpointHash,
+                delivery.amountUSDC,
+                delivery.responseHash,
+                delivery.deliveredAt
+            )
+        );
+        return keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
     }
 
     function setUp() public {
@@ -595,7 +625,7 @@ contract ShadowFloatTest {
 
         ShadowFloat.ProviderDeliveryReceipt memory delivery =
             _deliveryFor(requestHash, agent, address(providerSigner), ENDPOINT, 100_000, keccak256("erc1271-response"));
-        bytes32 deliveryHash = shadowFloat.hashProviderDelivery(delivery);
+        bytes32 deliveryHash = _hashDelivery(delivery);
         providerSigner.setValidHash(deliveryHash);
         require(shadowFloat.recordProviderDelivery(delivery, hex"c0ffee") == deliveryHash, "erc1271 delivery");
 

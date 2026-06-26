@@ -255,14 +255,6 @@ contract ShadowFloat {
     );
     event FloatIntentCancelled(address indexed agent, address indexed signer, uint256 indexed nonce);
     event FloatIntentConsumed(address indexed agent, address indexed signer, uint256 indexed nonce, bytes32 requestHash);
-    event AutonomousLineReviewed(
-        address indexed agent,
-        uint8 label,
-        uint16 score,
-        uint256 previousLimitUSDC,
-        uint256 newLimitUSDC,
-        bytes32 indexed requestHash
-    );
     event ProviderDeliveryConfirmed(
         bytes32 indexed requestHash,
         address indexed agent,
@@ -924,7 +916,7 @@ contract ShadowFloat {
         emit FloatIntentCancelled(agent, signer, nonce);
     }
 
-    function domainSeparator() public view returns (bytes32) {
+    function _domainSeparator() internal view returns (bytes32) {
         return keccak256(abi.encode(EIP712_DOMAIN_TYPEHASH, NAME_HASH, VERSION_HASH, block.chainid, address(this)));
     }
 
@@ -943,10 +935,10 @@ contract ShadowFloat {
                 keccak256(bytes(intent.reason))
             )
         );
-        return keccak256(abi.encodePacked("\x19\x01", domainSeparator(), structHash));
+        return keccak256(abi.encodePacked("\x19\x01", _domainSeparator(), structHash));
     }
 
-    function hashProviderDelivery(ProviderDeliveryReceipt calldata delivery) public view returns (bytes32) {
+    function _hashProviderDelivery(ProviderDeliveryReceipt calldata delivery) internal view returns (bytes32) {
         bytes32 structHash = keccak256(
             abi.encode(
                 PROVIDER_DELIVERY_TYPEHASH,
@@ -959,7 +951,7 @@ contract ShadowFloat {
                 delivery.deliveredAt
             )
         );
-        return keccak256(abi.encodePacked("\x19\x01", domainSeparator(), structHash));
+        return keccak256(abi.encodePacked("\x19\x01", _domainSeparator(), structHash));
     }
 
     function recordProviderDelivery(ProviderDeliveryReceipt calldata delivery, bytes calldata signature)
@@ -979,7 +971,7 @@ contract ShadowFloat {
             keccak256(abi.encode(delivery.agent, delivery.provider, delivery.endpointHash, delivery.amountUSDC));
         if (deliveryCommitment != paidCommitment) revert DeliveryMismatch();
 
-        deliveryHash = hashProviderDelivery(delivery);
+        deliveryHash = _hashProviderDelivery(delivery);
         providerDeliveryByRequestHash[delivery.requestHash] = deliveryHash;
         if (!_isValidIntentSignature(delivery.provider, deliveryHash, signature)) revert InvalidSignature();
 
@@ -1350,8 +1342,6 @@ contract ShadowFloat {
             behaviorStats[agent].denied,
             behaviorStats[agent].errorCount
         );
-        emit AutonomousLineReviewed(agent, label, score, previousLimit, newLimit, requestHash);
-
         line.score = score;
         if (newLimit == previousLimit) {
             line.lastReview = uint64(block.timestamp);
