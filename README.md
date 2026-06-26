@@ -14,18 +14,22 @@ Supporting proof: https://shadow-arc.vercel.app/treasury
 
 | Surface | What to check |
 | --- | --- |
-| Current deployed Float contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
-| Live state API | `GET https://shadow-arc.vercel.app/api/float` |
-| Live proof page | https://shadow-arc.vercel.app/float |
-| No-secret verifier | `npm run float:verify-live` |
+| Current Float V2 contract | `0x20dcA96B0C487D94De885c726c956ffaF38b12C2` |
+| V2 no-secret verifier | `npm run float:v2-verify-live` |
+| V2 sponsored proof runner | `npm run float:v2-sponsored-proof` |
+| V1 historical/live receipt board | https://shadow-arc.vercel.app/float |
+| V1 state API | `GET https://shadow-arc.vercel.app/api/float` |
+| V1 no-secret verifier | `npm run float:verify-live` |
 | Score proof verifier | `npm run float:score-proof` |
 | Autonomous underwriting runner | `npm run float:autounderwrite` |
 | Builder typed-data intent | `GET /api/float-tools?action=intent&agent=0x...&reason=...` |
 | Signed intent verifier | `GET /api/float-tools?action=verify&hash=0x...` |
 
-The live API exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The verifier command independently checks the deployed V1 contract, receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys. The score verifier and underwriting runner show how receipt-derived behavior becomes a computed score and a proposed line update.
+The V2 verifier independently checks the new contract deployment, EIP-170-sized bytecode, sponsor-funded reserve, contract-enforced EIP-712 intent consumption, direct provider payment from `ShadowFloat`, blocked overrun with no provider transfer, repayment, restored capacity, and receipt anchors without private keys.
 
-V2 status: the repo contains pre-deploy hardening for permissionless sponsored lines. V2 keeps the V1 receipt proof as historical/current deployed evidence, then adds contract-enforced signed intents, nonce cancellation, direct provider payment, provider delivery receipts, sponsor-funded reserves, and bad-debt cleanup. Do not treat `0xf305...1057` receipts as V2 receipts until a V2 contract is deployed and freshly proven.
+The V1 live API remains the rich historical receipt board. It exposes `proofChecks`, receipt rows, treasury reserve, x402 binding txs, debt, repayment, block, denial, source breakdowns, and the current standing board. The V1 verifier independently checks receipt count, reserve backing, x402 transfer, `X402PaymentBound` event, debt math, repayment, block, and denial without private keys. The score verifier and underwriting runner show how receipt-derived behavior becomes a computed score and a proposed line update.
+
+V2 status: deployed and freshly proven on Arc testnet. V1 proved the economic loop and external signed usage; V2 removes the blind-signature trust gap for sponsor-funded lines by adding contract-enforced signed intents, nonce cancellation, direct provider payment, provider delivery receipts, sponsor-funded reserves, and bad-debt cleanup.
 
 ## Supporting Treasury / M1 Proof
 
@@ -78,12 +82,12 @@ Post-hackathon hardening is explicit:
 
 1. An agent has a behavior-backed spending line but does not need to pre-fund the x402 call.
 2. The x402 provider requires USDC.
-3. In the V2 hardening branch, the agent signs a bounded `FloatSpendIntent` and `ShadowFloat.requestSignedSpend` pays the signed provider directly from the reserved Float treasury.
+3. In V2, the agent signs a bounded `FloatSpendIntent` and `ShadowFloat.requestSignedSpend` pays the signed provider directly from the reserved Float treasury.
 4. The contract opens fee-inclusive debt against the agent and can record a provider-signed delivery receipt for the same paid request.
 5. Repayment reduces debt and restores available capacity.
 6. Oversized or denied spends emit receipts without moving treasury funds.
 
-What is proven now on the deployed V1 contract:
+What is proven on the deployed V1 contract:
 
 - A Float line can be granted from reviewed onchain behavior.
 - A deterministic v0 score/limit formula now exists in `ShadowFloat.deterministicScore`, `recommendedLimitUSDC`, and `grantFloatFromScore`.
@@ -96,12 +100,13 @@ What is proven now on the deployed V1 contract:
 - Optional line expiry, default marking, reserve-safe treasury withdrawals, and fee-accrued debt are covered in the contract test suite.
 - The live verifier can be run without secrets: `npm run float:verify-live`.
 
-What the pre-deploy V2 hardening adds:
+What the deployed V2 contract adds:
 
 - `requestSignedSpend` verifies signer, nonce, expiry, executor, provider, endpoint, amount, and maximum cumulative debt before USDC moves.
 - Sponsored V2 lines use direct provider payment instead of operator-assisted x402 reimbursement.
 - Provider delivery receipts let a paid provider sign a response hash for the exact paid request.
 - Sponsors can cleanly close repaid lines or default unrepaid lines and recover only reserve minus written-off debt.
+- The fresh V2 proof at `0x20dcA96B0C487D94De885c726c956ffaF38b12C2` opened a `0.05` USDC sponsor-funded line, paid `0.01` USDC directly to the provider, blocked a `0.1` USDC overrun with no provider transfer, repaid to zero debt, and restored full capacity.
 
 What is not claimed yet:
 
@@ -305,9 +310,10 @@ const floatAbi = parseAbi([
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
 ]);
 
-// ShadowFloat on Arc testnet
+// Current ShadowFloat V2 on Arc testnet.
+// Use 0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057 for the historical V1 receipt board.
 const standing = await client.readContract({
-  address: "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057",
+  address: "0x20dcA96B0C487D94De885c726c956ffaF38b12C2",
   abi: floatAbi,
   functionName: "lines",
   args: ["0xYOURAGENT"],

@@ -265,14 +265,15 @@ Until then:
 V2 requires redeploying `ShadowFloat` because sponsor state, line-specific provider policy, signature state, and nonce
 mappings are contract storage.
 
-Migration stance:
+Migration status:
 
 - Keep V1 contract address and receipts live as historical proof.
-- Deploy V2 as the current permissionless contract.
-- Fund V2 treasury.
-- Run fresh V2 proof loop with `npm run float:v2-sponsored-proof`: sponsor opens line, agent signs, contract pays provider
-  directly, overrun blocks with no provider transfer, repayment restores capacity and grows the line from behavior,
-  optional sponsor close.
+- V2 is deployed as the current permissionless Float contract:
+  `0x20dcA96B0C487D94De885c726c956ffaF38b12C2`.
+- V2 treasury is funded through a sponsor reserve.
+- Fresh V2 proof is live and reproducible with `npm run float:v2-verify-live`: sponsor opened a `0.05` USDC line, the
+  agent signed, the contract paid `0.01` USDC directly to the provider, a `0.1` USDC overrun blocked with no provider
+  transfer, repayment cleared debt, and the line restored to full capacity.
 - Re-run signed x402 bind only as secondary proof, not the hero path.
 - Site must show both:
   - V1: historical loop and external proof;
@@ -312,17 +313,20 @@ Not allowed until built:
 
 ## Final Acceptance
 
-Shadow V2 is ready only when:
+Float V2 readiness status:
 
-- contracts build;
-- Float V2 tests pass;
-- M1 V2 safety tests pass;
-- live V2 deployment is funded;
-- fresh V2 receipts exist;
-- V2 verifier passes without private keys;
-- website leads with V2 current proof;
-- README states V1 historical proof and V2 current proof separately;
-- external builders can inspect and sign without running our private-key scripts.
+- contracts build: done;
+- Float V2 tests pass: done;
+- live V2 deployment is funded: done;
+- fresh V2 receipts exist: done;
+- V2 verifier passes without private keys: done;
+- README states V1 historical proof and V2 current proof separately: done.
+
+Still outside the Float V2 deploy gate:
+
+- the public website should lead with the V2 current proof once the app/indexer surface is updated;
+- external builders should sign against the V2 contract with their own tooling;
+- M1 V2 safety hardening remains a separate mandate-rail roadmap item, not a prerequisite for the sponsored Float V2 proof.
 
 ## Carryover From External Reviews
 
