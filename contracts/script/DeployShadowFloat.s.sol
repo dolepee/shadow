@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import {Script} from "../src/Script.sol";
 import {ShadowFloat} from "../src/ShadowFloat.sol";
 
-// Deploys the Shadow Float M1 surface.
+// Deploys the Shadow Float permissionless signed-intent surface.
 //
 // Required env:
 //   PRIVATE_KEY  deployer and initial owner/operator

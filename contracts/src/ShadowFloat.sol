@@ -3,6 +3,10 @@ pragma solidity ^0.8.24;
 
 import {IERC20} from "./interfaces/IERC20.sol";
 
+interface IERC1271 {
+    function isValidSignature(bytes32 hash, bytes memory signature) external view returns (bytes4 magicValue);
+}
+
 /// @notice Behavior-backed USDC spending lines for autonomous agents.
 /// @dev Intentionally compact for Lepton: registry, treasury, and receipts in
 /// one contract so the proof path is small and auditable.
@@ -84,6 +88,27 @@ contract ShadowFloat {
         bytes32 mandateId;
     }
 
+    struct FloatSpendIntent {
+        address agent;
+        address provider;
+        bytes32 endpointHash;
+        uint256 amountUSDC;
+        uint256 nonce;
+        uint256 expiry;
+        string reason;
+    }
+
+    bytes32 public constant EIP712_DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 public constant FLOAT_SPEND_INTENT_TYPEHASH = keccak256(
+        "FloatSpendIntent(address agent,address provider,bytes32 endpointHash,uint256 amountUSDC,uint256 nonce,uint256 expiry,string reason)"
+    );
+    bytes32 public constant NAME_HASH = keccak256("ShadowFloat");
+    bytes32 public constant VERSION_HASH = keccak256("1");
+    bytes4 internal constant ERC1271_MAGIC_VALUE = 0x1626ba7e;
+    uint256 internal constant SECP256K1_N_DIV_2 =
+        0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
+
     IERC20 public immutable usdc;
     address public owner;
     uint256 public nextReceiptId = 1;
@@ -104,6 +129,8 @@ contract ShadowFloat {
     mapping(address => uint256) public defaultedDebtUSDC;
     mapping(address => ProviderMandate) public providerMandates;
     mapping(bytes32 => bytes32) public receiptByRequestHash;
+    mapping(address => mapping(uint256 => bool)) public intentNonceUsed;
+    mapping(address => mapping(uint256 => bool)) public intentNonceCancelled;
 
     event OwnerChanged(address indexed previousOwner, address indexed newOwner);
     event OperatorSet(address indexed operator, bool allowed);
@@ -157,6 +184,8 @@ contract ShadowFloat {
         uint256 amountUSDC,
         address facilitator
     );
+    event FloatIntentCancelled(address indexed agent, address indexed signer, uint256 indexed nonce);
+    event FloatIntentConsumed(address indexed agent, address indexed signer, uint256 indexed nonce, bytes32 requestHash);
 
     error NotOwner();
     error NotAuthorized();
@@ -172,6 +201,11 @@ contract ShadowFloat {
     error InsolventTreasury();
     error FeeTooHigh();
     error AlreadyDefaulted();
+    error InvalidSignature();
+    error IntentExpired();
+    error IntentNonceUsed();
+    error IntentCancelled();
+    error InvalidIntent();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -510,6 +544,24 @@ contract ShadowFloat {
         return (receiptHash, true, BlockReason.NONE);
     }
 
+    function requestSignedSpend(FloatSpendIntent calldata intent, bytes calldata signature)
+        external
+        returns (bytes32 receiptHash, bool allowed, BlockReason reason)
+    {
+        (AgentLine storage line, SpendContext memory ctx,) = _consumeSignedIntent(intent, signature);
+        _refreshDay(line);
+        (allowed, reason) =
+            _evaluateSpend(line, intent.agent, intent.provider, intent.endpointHash, intent.amountUSDC, ctx.requestHash);
+
+        if (!allowed) {
+            receiptHash = _recordBlockedSpend(ctx, reason);
+            return (receiptHash, false, reason);
+        }
+
+        receiptHash = _executeAllowedSpend(line, ctx);
+        return (receiptHash, true, BlockReason.NONE);
+    }
+
     function recordX402Spend(
         address agent,
         address provider,
@@ -546,6 +598,125 @@ contract ShadowFloat {
 
         receiptHash = _executeAllowedX402Spend(line, ctx, x402Hash, facilitator);
         return (receiptHash, true, BlockReason.NONE);
+    }
+
+    function recordSignedX402Spend(
+        FloatSpendIntent calldata intent,
+        bytes32 x402Hash,
+        address facilitator,
+        bytes calldata signature
+    ) external onlyOperator returns (bytes32 receiptHash, bool allowed, BlockReason reason) {
+        if (facilitator == address(0)) revert ZeroAddress();
+        if (facilitator != msg.sender) revert NotAuthorized();
+
+        (AgentLine storage line, SpendContext memory ctx,) = _consumeSignedIntent(intent, signature);
+        _refreshDay(line);
+        (allowed, reason) =
+            _evaluateSpend(line, intent.agent, intent.provider, intent.endpointHash, intent.amountUSDC, ctx.requestHash);
+
+        if (!allowed) {
+            receiptHash = _recordBlockedSpend(ctx, reason);
+            return (receiptHash, false, reason);
+        }
+        if (x402Hash == bytes32(0)) revert MissingX402Payment();
+
+        receiptHash = _executeAllowedX402Spend(line, ctx, x402Hash, facilitator);
+        return (receiptHash, true, BlockReason.NONE);
+    }
+
+    function cancelIntent(address agent, uint256 nonce) external {
+        AgentLine storage line = lines[agent];
+        address signer = _intentSigner(line, agent);
+        if (msg.sender != signer) revert NotAuthorized();
+        if (intentNonceUsed[agent][nonce]) revert IntentNonceUsed();
+        intentNonceCancelled[agent][nonce] = true;
+        emit FloatIntentCancelled(agent, signer, nonce);
+    }
+
+    function domainSeparator() public view returns (bytes32) {
+        return keccak256(abi.encode(EIP712_DOMAIN_TYPEHASH, NAME_HASH, VERSION_HASH, block.chainid, address(this)));
+    }
+
+    function hashFloatSpendIntent(FloatSpendIntent calldata intent) public view returns (bytes32) {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                FLOAT_SPEND_INTENT_TYPEHASH,
+                intent.agent,
+                intent.provider,
+                intent.endpointHash,
+                intent.amountUSDC,
+                intent.nonce,
+                intent.expiry,
+                keccak256(bytes(intent.reason))
+            )
+        );
+        return keccak256(abi.encodePacked("\x19\x01", domainSeparator(), structHash));
+    }
+
+    function _consumeSignedIntent(FloatSpendIntent calldata intent, bytes calldata signature)
+        internal
+        returns (AgentLine storage line, SpendContext memory ctx, bytes32 requestHash)
+    {
+        if (intent.agent == address(0) || intent.provider == address(0)) revert ZeroAddress();
+        if (intent.amountUSDC == 0) revert ZeroAmount();
+        if (intent.expiry < block.timestamp) revert IntentExpired();
+        if (intentNonceUsed[intent.agent][intent.nonce]) revert IntentNonceUsed();
+        if (intentNonceCancelled[intent.agent][intent.nonce]) revert IntentCancelled();
+
+        line = lines[intent.agent];
+        address signer = _intentSigner(line, intent.agent);
+        requestHash = hashFloatSpendIntent(intent);
+        if (!_isValidIntentSignature(signer, requestHash, signature)) revert InvalidSignature();
+        if (receiptByRequestHash[requestHash] != bytes32(0)) revert DuplicateRequest();
+
+        intentNonceUsed[intent.agent][intent.nonce] = true;
+        emit FloatIntentConsumed(intent.agent, signer, intent.nonce, requestHash);
+
+        ctx = SpendContext({
+            agent: intent.agent,
+            provider: intent.provider,
+            endpointHash: intent.endpointHash,
+            amountUSDC: intent.amountUSDC,
+            requestHash: requestHash,
+            creditBeforeUSDC: line.availableCreditUSDC,
+            debtBeforeUSDC: line.activeDebtUSDC,
+            mandateId: line.mandateId
+        });
+    }
+
+    function _intentSigner(AgentLine storage line, address agent) internal view returns (address) {
+        if (line.wallet != address(0)) return line.wallet;
+        return agent;
+    }
+
+    function _isValidIntentSignature(address signer, bytes32 digest, bytes calldata signature)
+        internal
+        view
+        returns (bool)
+    {
+        if (signer.code.length > 0) {
+            try IERC1271(signer).isValidSignature(digest, signature) returns (bytes4 magicValue) {
+                return magicValue == ERC1271_MAGIC_VALUE;
+            } catch {
+                return false;
+            }
+        }
+        return _recover(digest, signature) == signer;
+    }
+
+    function _recover(bytes32 digest, bytes calldata signature) internal pure returns (address) {
+        if (signature.length != 65) return address(0);
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        assembly {
+            r := calldataload(signature.offset)
+            s := calldataload(add(signature.offset, 0x20))
+            v := byte(0, calldataload(add(signature.offset, 0x40)))
+        }
+        if (uint256(s) > SECP256K1_N_DIV_2) return address(0);
+        if (v != 27 && v != 28) return address(0);
+        return ecrecover(digest, v, r, s);
     }
 
     function _recordBlockedSpend(SpendContext memory ctx, BlockReason reason) internal returns (bytes32 receiptHash) {

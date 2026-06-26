@@ -41,6 +41,7 @@ const FLOAT = getAddress(clean(env.SHADOW_FLOAT || env.VITE_SHADOW_FLOAT) || "0x
 const USDC = getAddress(clean(env.ARC_USDC || env.VITE_ARC_USDC) || "0x3600000000000000000000000000000000000000");
 const FACILITATOR_KEY = normalizeKey(clean(env.FLOAT_FACILITATOR_PRIVATE_KEY || env.CAT_AGENT_PRIVATE_KEY || env.PRIVATE_KEY));
 const PROVIDER_URL = clean(env.FLOAT_X402_PROVIDER_URL) || "https://shadow-arc.vercel.app/api/reasoning-x402";
+const BIND_MODE = clean(env.FLOAT_BIND_MODE) || "legacy-v1";
 const maxRuns = Number(clean(env.FLOAT_LOOP_MAX_RUNS) || "120");
 const args = process.argv.slice(2);
 const VERIFY_ONLY = args.includes("--verify-only");
@@ -68,6 +69,7 @@ const wallet = facilitator
 const floatAbi = parseAbi([
   "function previewSpend(address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, bytes32 requestHash) view returns (bool allowed, uint8 reason)",
   "function recordX402Spend(address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, bytes32 requestHash, bytes32 x402Hash, address facilitator) returns (bytes32 receiptHash, bool allowed, uint8 reason)",
+  "function recordSignedX402Spend((address agent,address provider,bytes32 endpointHash,uint256 amountUSDC,uint256 nonce,uint256 expiry,string reason) intent, bytes32 x402Hash, address facilitator, bytes signature) returns (bytes32 receiptHash, bool allowed, uint8 reason)",
   "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
 ]);
 const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
@@ -118,6 +120,7 @@ if (digest && digest.toLowerCase() !== requestHash.toLowerCase()) {
 
 console.log("Shadow Float signed external x402 spend");
 console.log(`mode           ${VERIFY_ONLY ? "verify-only" : "bind"}`);
+console.log(`bind mode      ${BIND_MODE}`);
 console.log(`agent (signer) ${agent}`);
 console.log(`provider       ${provider}`);
 console.log(`amount         ${formatUnits(amount, 6)} USDC (Shadow fronts it; debt opens on the agent's line)`);
@@ -169,7 +172,7 @@ if (facilitatorUsdc < amount) {
 }
 
 const x402 = await payProviderX402(PROVIDER_URL, provider, amount);
-const bindTxHash = await recordX402Spend(agent, provider, intent.endpointHash, amount, requestHash, x402.txHash);
+const bindTxHash = await recordFloatBind(agent, provider, intent.endpointHash, amount, requestHash, x402.txHash);
 
 const run = {
   version: 1,
@@ -197,8 +200,18 @@ console.log(`bind tx         ${bindTxHash}`);
 console.log(`verify          https://shadow-arc.vercel.app/api/float-tools?action=verify&hash=${requestHash}`);
 console.log(JSON.stringify(run, null, 2));
 
+async function recordFloatBind(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_) {
+  if (BIND_MODE === "signed-v2") {
+    return recordSignedX402Spend(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_);
+  }
+  if (BIND_MODE !== "legacy-v1") {
+    throw new Error(`unknown FLOAT_BIND_MODE ${BIND_MODE}; expected legacy-v1 or signed-v2`);
+  }
+  return recordX402Spend(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_);
+}
+
 async function recordX402Spend(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_) {
-  console.log("binding recordX402Spend...");
+  console.log("binding legacy recordX402Spend...");
   const duplicateCheck = await readFloat("receiptByRequestHash", [requestHash_]);
   if (duplicateCheck && duplicateCheck !== zeroHash()) {
     throw new Error(`intent was consumed before bind; refusing to persist x402 as bound (receipt ${duplicateCheck})`);
@@ -217,6 +230,39 @@ async function recordX402Spend(agent_, provider_, endpointHash_, amount_, reques
   const boundReceipt = await readFloat("receiptByRequestHash", [requestHash_]);
   if (!boundReceipt || boundReceipt === zeroHash()) {
     throw new Error(`recordX402Spend succeeded but receiptByRequestHash stayed empty: ${txHash}`);
+  }
+  return txHash;
+}
+
+async function recordSignedX402Spend(agent_, provider_, endpointHash_, amount_, requestHash_, x402Hash_) {
+  console.log("binding signed-v2 recordSignedX402Spend...");
+  const duplicateCheck = await readFloat("receiptByRequestHash", [requestHash_]);
+  if (duplicateCheck && duplicateCheck !== zeroHash()) {
+    throw new Error(`intent was consumed before bind; refusing to persist x402 as bound (receipt ${duplicateCheck})`);
+  }
+  const signedIntent = {
+    agent: agent_,
+    provider: provider_,
+    endpointHash: endpointHash_,
+    amountUSDC: amount_,
+    nonce: BigInt(intent.nonce),
+    expiry: BigInt(intent.expiry),
+    reason: intent.reason,
+  };
+  const txHash = await wallet.writeContract({
+    address: FLOAT,
+    abi: floatAbi,
+    functionName: "recordSignedX402Spend",
+    args: [signedIntent, x402Hash_, facilitator.address, signature],
+    account: facilitator,
+    chain,
+  });
+  const rcpt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 60_000 });
+  if (rcpt.status !== "success") throw new Error(`recordSignedX402Spend reverted: ${txHash}`);
+  assertX402BoundReceipt(rcpt, { requestHash: requestHash_, x402Hash: x402Hash_, provider: provider_, amount: amount_ });
+  const boundReceipt = await readFloat("receiptByRequestHash", [requestHash_]);
+  if (!boundReceipt || boundReceipt === zeroHash()) {
+    throw new Error(`recordSignedX402Spend succeeded but receiptByRequestHash stayed empty: ${txHash}`);
   }
   return txHash;
 }

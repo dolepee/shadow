@@ -67,12 +67,16 @@ const floatAbi = parseAbi([
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
   "function receiptCount() view returns (uint256)",
   "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
+  "function intentNonceUsed(address agent, uint256 nonce) view returns (bool)",
 ]);
 const floatReceiptEvent = parseAbiItem(
   "event FloatReceipt(uint256 indexed receiptId, bytes32 indexed receiptHash, uint8 indexed receiptType, address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, uint256 creditBeforeUSDC, uint256 creditAfterUSDC, uint256 debtBeforeUSDC, uint256 debtAfterUSDC, uint8 reason, bytes32 mandateId, bytes32 requestHash, bytes32 prevChecksum, bytes32 checksum)",
 );
 const x402PaymentBoundEvent = parseAbiItem(
   "event X402PaymentBound(uint256 indexed receiptId, bytes32 indexed requestHash, bytes32 x402Hash, address indexed provider, uint256 amountUSDC, address facilitator)",
+);
+const floatIntentConsumedEvent = parseAbiItem(
+  "event FloatIntentConsumed(address indexed agent, address indexed signer, uint256 indexed nonce, bytes32 requestHash)",
 );
 
 type Req = { method?: string; url?: string; query?: Record<string, string | string[] | undefined> };
@@ -150,6 +154,13 @@ type X402PaymentBoundArgs = {
 };
 
 type DecodedX402PaymentBoundLog = { args: X402PaymentBoundArgs };
+type FloatIntentConsumedArgs = {
+  agent: Address;
+  signer: Address;
+  nonce: bigint;
+  requestHash: `0x${string}`;
+};
+type DecodedFloatIntentConsumedLog = { args: FloatIntentConsumedArgs };
 
 type LoopRun = {
   source?: string;
@@ -374,6 +385,8 @@ async function handleVerify(req: Req, res: Res) {
       requestHash: hash,
       bindTxHash: match.bindTxHash,
       x402Hash: match.x402Hash,
+      agent: getAddress(intent.agent),
+      nonce: BigInt(intent.nonce),
       provider: getAddress(intent.provider),
       amountUSDC: BigInt(intent.amountUSDC),
     });
@@ -401,12 +414,16 @@ async function handleVerify(req: Req, res: Res) {
       signerMatchesAgent,
       digestMatchesRequestHash,
       onchainVerified: true,
+      contractEnforcedIntent: Boolean(onchain.contractEnforcedIntent),
+      intentNonceUsed: onchain.intentNonceUsed ?? null,
       receiptHash: onchain.receiptHash,
       intent,
       signature: match.signature,
       x402Hash: match.x402Hash,
       bindTxHash: match.bindTxHash,
-      note: "Recompute: hashTypedData(intent) must equal requestHash, recoverTypedDataAddress(intent, signature) must equal agent, receiptByRequestHash must be nonzero, and bindTxHash must emit the matching X402PaymentBound event.",
+      note: onchain.contractEnforcedIntent
+        ? "V2 proof: hashTypedData(intent) equals requestHash, the signature recovers to the agent, receiptByRequestHash is nonzero, the bind tx emitted matching FloatIntentConsumed and X402PaymentBound events, and the contract nonce is marked used."
+        : "V1 proof: hashTypedData(intent) equals requestHash, the signature recovers to the agent, receiptByRequestHash is nonzero, and bindTxHash emits the matching X402PaymentBound event. V1 signature verification happened before bind; V2 additionally proves contract-side nonce consumption.",
       fetchedAt: Date.now(),
     });
   } catch (error) {
@@ -421,6 +438,8 @@ async function verifyOnchainExternalProof(
     requestHash: `0x${string}`;
     bindTxHash?: string;
     x402Hash?: string;
+    agent: string;
+    nonce: bigint;
     provider: string;
     amountUSDC: bigint;
   },
@@ -443,6 +462,27 @@ async function verifyOnchainExternalProof(
     }
     const bindReceipt = await client.getTransactionReceipt({ hash: expected.bindTxHash as `0x${string}` });
     if (bindReceipt.status !== "success") return { ok: false, receiptHash, reason: "bind transaction failed" };
+    let intentNonceUsed: boolean | null = null;
+    try {
+      intentNonceUsed = (await client.readContract({
+        address: expected.float,
+        abi: floatAbi,
+        functionName: "intentNonceUsed",
+        args: [expected.agent, expected.nonce],
+      })) as boolean;
+    } catch {
+      intentNonceUsed = null;
+    }
+    const intentConsumed = bindReceipt.logs.some((log) => {
+      if (getAddress(log.address) !== expected.float) return false;
+      const decoded = decodeFloatIntentConsumedLog(log);
+      return Boolean(
+        decoded &&
+          getAddress(decoded.args.agent) === getAddress(expected.agent) &&
+          decoded.args.nonce === expected.nonce &&
+          decoded.args.requestHash?.toLowerCase() === expected.requestHash.toLowerCase(),
+      );
+    });
     const matched = bindReceipt.logs.some((log) => {
       if (getAddress(log.address) !== expected.float) return false;
       const decoded = decodeX402PaymentBoundLog(log);
@@ -454,8 +494,9 @@ async function verifyOnchainExternalProof(
           decoded.args.amountUSDC === expected.amountUSDC,
       );
     });
+    const contractEnforcedIntent = intentNonceUsed === true && intentConsumed;
     return matched
-      ? { ok: true, receiptHash, bindTxHash: expected.bindTxHash }
+      ? { ok: true, receiptHash, bindTxHash: expected.bindTxHash, intentNonceUsed, intentConsumed, contractEnforcedIntent }
       : { ok: false, receiptHash, reason: "bind transaction missing matching X402PaymentBound event" };
   } catch (error) {
     return { ok: false, reason: sanitize(error) };
@@ -469,6 +510,18 @@ function decodeX402PaymentBoundLog(log: { data: `0x${string}`; topics: readonly 
       data: log.data,
       topics: log.topics as any,
     }) as unknown as DecodedX402PaymentBoundLog;
+  } catch {
+    return null;
+  }
+}
+
+function decodeFloatIntentConsumedLog(log: { data: `0x${string}`; topics: readonly `0x${string}`[] }): DecodedFloatIntentConsumedLog | null {
+  try {
+    return decodeEventLog({
+      abi: [floatIntentConsumedEvent] as any,
+      data: log.data,
+      topics: log.topics as any,
+    }) as unknown as DecodedFloatIntentConsumedLog;
   } catch {
     return null;
   }

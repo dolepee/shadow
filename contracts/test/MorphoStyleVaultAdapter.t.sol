@@ -25,6 +25,10 @@ contract MorphoAdapterActor {
     {
         return adapter.depositWithMandate(action);
     }
+
+    function withdraw(MandateVaultSink sink, uint256 amountUSDC, address recipient) external {
+        sink.withdraw(amountUSDC, recipient);
+    }
 }
 
 contract MorphoStyleVaultAdapterTest {
@@ -106,6 +110,29 @@ contract MorphoStyleVaultAdapterTest {
         require(vaultAccount == address(circleWallet), "vault account");
         require(vaultAmount == 2 * USDC, "vault amount");
         _assertAllowReceipt(receiptHash, vaultActionHash);
+    }
+
+    function testCircleAccountCanWithdrawRecordedVaultDeposit() public {
+        MandateRegistry.Action memory action = _action(2 * USDC, address(usdc), 2, 9_950, "morpho-withdraw");
+        circleWallet.run(adapter, action);
+        uint256 circleBefore = usdc.balanceOf(address(circleWallet));
+
+        circleWallet.withdraw(vaultSink, 1 * USDC, address(circleWallet));
+
+        require(usdc.balanceOf(address(circleWallet)) == circleBefore + 1 * USDC, "withdrawn to circle wallet");
+        require(usdc.balanceOf(address(vaultSink)) == 1 * USDC, "vault balance reduced");
+        require(vaultSink.totalDepositedUSDC() == 1 * USDC, "vault total reduced");
+        require(vaultSink.depositsByAccountUSDC(address(circleWallet)) == 1 * USDC, "account ledger reduced");
+
+        bool reverted = false;
+        try circleWallet.withdraw(vaultSink, 2 * USDC, address(circleWallet)) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+
+        require(reverted, "cannot withdraw more than recorded deposit");
+        require(usdc.balanceOf(address(vaultSink)) == 1 * USDC, "failed withdraw unchanged");
     }
 
     function testBlockedDepositWritesReceiptAndDoesNotMoveUSDC() public {

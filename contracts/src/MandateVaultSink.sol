@@ -28,12 +28,16 @@ contract MandateVaultSink {
         uint256 amountUSDC,
         uint256 totalDepositedUSDC
     );
+    event VaultWithdrawal(address indexed circleAccount, address indexed recipient, uint256 amountUSDC);
 
     error NotOwner();
     error NotAdapter();
     error ZeroAddress();
+    error ZeroAmount();
     error DuplicateReceipt();
     error DepositNotFunded();
+    error InsufficientDeposit();
+    error TransferFailed();
 
     constructor(address usdc_) {
         if (usdc_ == address(0)) revert ZeroAddress();
@@ -64,5 +68,17 @@ contract MandateVaultSink {
         });
 
         emit VaultDepositRecorded(receiptHash, actionHash, circleAccount, amountUSDC, totalDepositedUSDC);
+    }
+
+    function withdraw(uint256 amountUSDC, address recipient) external {
+        if (recipient == address(0)) revert ZeroAddress();
+        if (amountUSDC == 0) revert ZeroAmount();
+        uint256 balance = depositsByAccountUSDC[msg.sender];
+        if (amountUSDC > balance) revert InsufficientDeposit();
+
+        depositsByAccountUSDC[msg.sender] = balance - amountUSDC;
+        totalDepositedUSDC -= amountUSDC;
+        if (!usdc.transfer(recipient, amountUSDC)) revert TransferFailed();
+        emit VaultWithdrawal(msg.sender, recipient, amountUSDC);
     }
 }

@@ -7,6 +7,9 @@ import {IERC20} from "../src/interfaces/IERC20.sol";
 
 interface Vm {
     function warp(uint256) external;
+    function prank(address) external;
+    function addr(uint256 privateKey) external returns (address);
+    function sign(uint256 privateKey, bytes32 digest) external returns (uint8 v, bytes32 r, bytes32 s);
 }
 
 contract FloatActor {
@@ -50,10 +53,25 @@ contract FloatActor {
     }
 }
 
+contract Mock1271Signer {
+    bytes4 constant MAGIC_VALUE = 0x1626ba7e;
+    bytes32 public validHash;
+
+    function setValidHash(bytes32 hash) external {
+        validHash = hash;
+    }
+
+    function isValidSignature(bytes32 hash, bytes calldata) external view returns (bytes4) {
+        return hash == validHash ? MAGIC_VALUE : bytes4(0xffffffff);
+    }
+}
+
 contract ShadowFloatTest {
     Vm constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     uint256 constant USDC = 1e6;
+    uint256 constant SIGNED_AGENT_PK = 0xA11CE;
+    uint256 constant OTHER_SIGNER_PK = 0xB0B;
     bytes32 constant ENDPOINT = keccak256("x402://provider.market-signal.v1");
     bytes32 constant ALPHA_MANDATE = keccak256("alpha-approved-x402-market-data");
     bytes32 constant BETA_MANDATE = keccak256("beta-denied-slash-history");
@@ -65,6 +83,36 @@ contract ShadowFloatTest {
     FloatActor beta;
     FloatActor outsider;
     address provider = address(0xBEEF);
+
+    function _grantSignedAgent() internal returns (address agent) {
+        agent = vm.addr(SIGNED_AGENT_PK);
+        shadowFloat.grantFloat(agent, agent, 1 * USDC, 9300, keccak256("signed-agent-v2"));
+    }
+
+    function _intent(address agent, uint256 amountUSDC, uint256 nonce, uint256 expiry)
+        internal
+        view
+        returns (ShadowFloat.FloatSpendIntent memory)
+    {
+        return ShadowFloat.FloatSpendIntent({
+            agent: agent,
+            provider: provider,
+            endpointHash: ENDPOINT,
+            amountUSDC: amountUSDC,
+            nonce: nonce,
+            expiry: expiry,
+            reason: "signed v2 spend intent"
+        });
+    }
+
+    function _sign(uint256 privateKey, ShadowFloat.FloatSpendIntent memory intent)
+        internal
+        returns (bytes memory signature)
+    {
+        bytes32 digest = shadowFloat.hashFloatSpendIntent(intent);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+        signature = bytes.concat(r, s, bytes1(v));
+    }
 
     function setUp() public {
         usdc = new MockAsset("Arc Test USDC", "USDC", 6);
@@ -381,6 +429,208 @@ contract ShadowFloatTest {
 
         require(reverted, "facilitator must submit bind");
         require(shadowFloat.totalProviderPaidUSDC() == 0, "not reimbursed");
+    }
+
+    function testSignedSpendVerifiesOnchainAndPaysProvider() public {
+        address agent = _grantSignedAgent();
+        ShadowFloat.FloatSpendIntent memory intent = _intent(agent, 100_000, 1, block.timestamp + 1 hours);
+        bytes memory signature = _sign(SIGNED_AGENT_PK, intent);
+        bytes32 requestHash = shadowFloat.hashFloatSpendIntent(intent);
+        uint256 providerBefore = usdc.balanceOf(provider);
+
+        (bytes32 receiptHash, bool allowed, ShadowFloat.BlockReason reason) =
+            shadowFloat.requestSignedSpend(intent, signature);
+
+        require(receiptHash != bytes32(0), "receipt");
+        require(allowed, "allowed");
+        require(reason == ShadowFloat.BlockReason.NONE, "reason");
+        require(shadowFloat.intentNonceUsed(agent, 1), "nonce used");
+        require(shadowFloat.receiptByRequestHash(requestHash) != bytes32(0), "request bound");
+        require(usdc.balanceOf(provider) == providerBefore + 100_000, "provider paid");
+
+        (,,, uint256 availableCreditUSDC, uint256 activeDebtUSDC,,,,,) = shadowFloat.lines(agent);
+        require(availableCreditUSDC == 900_000, "available reduced");
+        require(activeDebtUSDC == 100_000, "debt opened");
+    }
+
+    function testSignedX402SpendVerifiesOnchainBeforeReimbursement() public {
+        address agent = _grantSignedAgent();
+        ShadowFloat.FloatSpendIntent memory intent = _intent(agent, 100_000, 2, block.timestamp + 1 hours);
+        bytes memory signature = _sign(SIGNED_AGENT_PK, intent);
+        bytes32 requestHash = shadowFloat.hashFloatSpendIntent(intent);
+        bytes32 x402Hash = keccak256("signed-v2-x402-settlement");
+        uint256 facilitatorBefore = usdc.balanceOf(address(this));
+
+        (bytes32 receiptHash, bool allowed, ShadowFloat.BlockReason reason) =
+            shadowFloat.recordSignedX402Spend(intent, x402Hash, address(this), signature);
+
+        require(receiptHash != bytes32(0), "receipt");
+        require(allowed, "allowed");
+        require(reason == ShadowFloat.BlockReason.NONE, "reason");
+        require(shadowFloat.intentNonceUsed(agent, 2), "nonce used");
+        require(shadowFloat.receiptByRequestHash(requestHash) != bytes32(0), "request bound");
+        require(usdc.balanceOf(address(this)) == facilitatorBefore + 100_000, "facilitator reimbursed");
+    }
+
+    function testSignedSpendRejectsWrongSigner() public {
+        address agent = _grantSignedAgent();
+        ShadowFloat.FloatSpendIntent memory intent = _intent(agent, 100_000, 3, block.timestamp + 1 hours);
+        bytes memory signature = _sign(OTHER_SIGNER_PK, intent);
+
+        bool reverted = false;
+        try shadowFloat.requestSignedSpend(intent, signature) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+
+        require(reverted, "wrong signer rejected");
+        require(!shadowFloat.intentNonceUsed(agent, 3), "nonce remains unused");
+        require(usdc.balanceOf(provider) == 0, "provider unpaid");
+    }
+
+    function testSignedSpendRejectsTamperedIntentFields() public {
+        address agent = _grantSignedAgent();
+        ShadowFloat.FloatSpendIntent memory signedIntent = _intent(agent, 100_000, 31, block.timestamp + 1 hours);
+        bytes memory signature = _sign(SIGNED_AGENT_PK, signedIntent);
+        ShadowFloat.FloatSpendIntent memory tampered = signedIntent;
+        tampered.amountUSDC = 101_000;
+
+        bool amountReverted = false;
+        try shadowFloat.requestSignedSpend(tampered, signature) {
+            amountReverted = false;
+        } catch {
+            amountReverted = true;
+        }
+
+        require(amountReverted, "tampered amount rejected");
+        require(!shadowFloat.intentNonceUsed(agent, 31), "amount tamper nonce unused");
+
+        tampered = signedIntent;
+        tampered.provider = address(0xCAFE);
+        bool providerReverted = false;
+        try shadowFloat.requestSignedSpend(tampered, signature) {
+            providerReverted = false;
+        } catch {
+            providerReverted = true;
+        }
+
+        require(providerReverted, "tampered provider rejected");
+        require(!shadowFloat.intentNonceUsed(agent, 31), "provider tamper nonce unused");
+        require(usdc.balanceOf(provider) == 0, "provider unpaid");
+    }
+
+    function testSignedSpendRejectsExpiredIntent() public {
+        address agent = _grantSignedAgent();
+        ShadowFloat.FloatSpendIntent memory intent = _intent(agent, 100_000, 4, block.timestamp - 1);
+        bytes memory signature = _sign(SIGNED_AGENT_PK, intent);
+
+        bool reverted = false;
+        try shadowFloat.requestSignedSpend(intent, signature) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+
+        require(reverted, "expired intent rejected");
+        require(!shadowFloat.intentNonceUsed(agent, 4), "nonce remains unused");
+    }
+
+    function testSignedSpendRejectsCancelledIntent() public {
+        address agent = _grantSignedAgent();
+        ShadowFloat.FloatSpendIntent memory intent = _intent(agent, 100_000, 5, block.timestamp + 1 hours);
+        bytes memory signature = _sign(SIGNED_AGENT_PK, intent);
+
+        bool cancelReverted = false;
+        try shadowFloat.cancelIntent(agent, 5) {
+            cancelReverted = false;
+        } catch {
+            cancelReverted = true;
+        }
+        require(cancelReverted, "only signer can cancel");
+
+        vm.prank(agent);
+        shadowFloat.cancelIntent(agent, 5);
+
+        bool spendReverted = false;
+        try shadowFloat.requestSignedSpend(intent, signature) {
+            spendReverted = false;
+        } catch {
+            spendReverted = true;
+        }
+
+        require(spendReverted, "cancelled intent rejected");
+        require(shadowFloat.intentNonceCancelled(agent, 5), "nonce cancelled");
+        require(!shadowFloat.intentNonceUsed(agent, 5), "nonce remains unused");
+    }
+
+    function testConsumedSignedIntentCannotBeCancelled() public {
+        address agent = _grantSignedAgent();
+        ShadowFloat.FloatSpendIntent memory intent = _intent(agent, 100_000, 51, block.timestamp + 1 hours);
+        bytes memory signature = _sign(SIGNED_AGENT_PK, intent);
+        shadowFloat.requestSignedSpend(intent, signature);
+
+        vm.prank(agent);
+        bool reverted = false;
+        try shadowFloat.cancelIntent(agent, 51) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+
+        require(reverted, "used nonce cannot be cancelled");
+        require(shadowFloat.intentNonceUsed(agent, 51), "nonce used");
+        require(!shadowFloat.intentNonceCancelled(agent, 51), "nonce not cancelled");
+    }
+
+    function testSignedSpendRejectsReplay() public {
+        address agent = _grantSignedAgent();
+        ShadowFloat.FloatSpendIntent memory intent = _intent(agent, 100_000, 6, block.timestamp + 1 hours);
+        bytes memory signature = _sign(SIGNED_AGENT_PK, intent);
+
+        shadowFloat.requestSignedSpend(intent, signature);
+
+        bool reverted = false;
+        try shadowFloat.requestSignedSpend(intent, signature) {
+            reverted = false;
+        } catch {
+            reverted = true;
+        }
+
+        require(reverted, "replay rejected");
+        require(usdc.balanceOf(provider) == 100_000, "paid once");
+    }
+
+    function testBlockedSignedSpendConsumesNonceAndMovesNoFunds() public {
+        address agent = _grantSignedAgent();
+        ShadowFloat.FloatSpendIntent memory intent = _intent(agent, 5 * USDC, 7, block.timestamp + 1 hours);
+        bytes memory signature = _sign(SIGNED_AGENT_PK, intent);
+        uint256 treasuryBefore = usdc.balanceOf(address(shadowFloat));
+
+        (, bool allowed, ShadowFloat.BlockReason reason) = shadowFloat.requestSignedSpend(intent, signature);
+
+        require(!allowed, "blocked");
+        require(reason == ShadowFloat.BlockReason.AMOUNT_TOO_HIGH, "reason");
+        require(shadowFloat.intentNonceUsed(agent, 7), "nonce consumed");
+        require(usdc.balanceOf(provider) == 0, "provider unpaid");
+        require(usdc.balanceOf(address(shadowFloat)) == treasuryBefore, "treasury unchanged");
+    }
+
+    function testSignedSpendSupportsERC1271Signer() public {
+        Mock1271Signer signer = new Mock1271Signer();
+        address agent = address(signer);
+        shadowFloat.grantFloat(agent, agent, 1 * USDC, 9300, keccak256("erc1271-agent-v2"));
+        ShadowFloat.FloatSpendIntent memory intent = _intent(agent, 100_000, 8, block.timestamp + 1 hours);
+        signer.setValidHash(shadowFloat.hashFloatSpendIntent(intent));
+
+        (bytes32 receiptHash, bool allowed, ShadowFloat.BlockReason reason) =
+            shadowFloat.requestSignedSpend(intent, hex"c0ffee");
+
+        require(receiptHash != bytes32(0), "receipt");
+        require(allowed, "allowed");
+        require(reason == ShadowFloat.BlockReason.NONE, "reason");
+        require(shadowFloat.intentNonceUsed(agent, 8), "nonce used");
+        require(usdc.balanceOf(provider) == 100_000, "provider paid");
     }
 
     function testOversizedSpendBlocksBeforeFundsMove() public {
