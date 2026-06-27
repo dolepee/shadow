@@ -1525,7 +1525,7 @@ function App() {
     <div className="routePage">
       <section className="pageHead">
         <p className="pageEyebrow">builders · agent access</p>
-        <h1 className="pageTitle">Give your agent sponsor-backed capacity without hot-funding it first.</h1>
+        <h1 className="pageTitle">Give your agent sponsor-backed capacity without pre-funding it first.</h1>
         <p className="pageLede">
           Shadow Float is for buyer agents that need paid data, compute, or API calls under strict policy. The agent signs
           a bounded intent; V2 verifies it onchain, pays the named provider from sponsor reserve, and records the debt trail.
@@ -2268,7 +2268,7 @@ function TreasuryValidationPanel() {
           <span>external Float usage</span>
           <strong>V2 signed intents live</strong>
           <p>
-            External agents can authorize a bounded Float spend without hot-funding the provider payment first. The contract
+            External agents can authorize a bounded Float spend without pre-funding the provider payment first. The contract
             verifies the signature and pays the provider from sponsor reserve.
           </p>
           <Link to="/float">Open Float →</Link>
@@ -2442,7 +2442,7 @@ function FloatPanel({
             <h1>Signed agents draw reserved USDC, then repay the debt.</h1>
           )}
           <p className="floatLede">
-            Shadow Float V2 gives autonomous agents sponsor-backed Arc USDC capacity without hot-funding every wallet. The
+            Shadow Float V2 gives autonomous agents sponsor-backed Arc USDC capacity without pre-funding every wallet. The
             agent signs one bounded intent; the contract verifies it onchain, pays the named provider from reserve, opens
             debt, restores capacity on repayment, and blocks overreach before funds move.
           </p>
@@ -2737,7 +2737,7 @@ function FloatV2CurrentPanel({
       <div className="floatHeroShell">
         <div className="floatHeroCopy">
           <p className="eyebrow">Shadow Float V2 · live on Arc</p>
-          <h1>Give agents spend capacity without hot-funding every wallet.</h1>
+          <h1>Let agents pay providers without pre-funding every wallet.</h1>
           <p className="floatLede">
             Shadow Float lets a sponsor reserve Arc USDC for an agent. The agent signs a bounded spend intent, the contract
             pays the named provider from that reserve, and the line is restored when the agent repays.
@@ -2784,9 +2784,9 @@ function FloatV2CurrentPanel({
       </div>
 
       <div className="floatMetricGrid">
-        <FloatMetric label="V2 signed intents" value={`${state?.summary?.signedIntents ?? "syncing"}`} tone="allow" />
+        <FloatMetric label="V2 signed intents" value={`${state?.summary?.signedIntents ?? "reading"}`} tone="allow" />
         <FloatMetric label="provider paid" value={`${formatFloatUSDC(state?.summary?.providerPaidUSDC)} USDC`} tone="allow" />
-        <FloatMetric label="lifecycles closed" value={`${state?.summary?.repaidLifecycles ?? "syncing"}`} tone="allow" />
+        <FloatMetric label="lifecycles closed" value={`${state?.summary?.repaidLifecycles ?? "reading"}`} tone="allow" />
         <FloatMetric label="open debt" value={`${formatFloatUSDC(state?.summary?.activeDebtUSDC)} USDC`} tone={state?.summary?.openDebtAgents ? "block" : "allow"} />
       </div>
 
@@ -2818,7 +2818,7 @@ function FloatV2UseCasePanel() {
     <section className="floatV2UseCase" aria-label="Shadow Float V2 users">
       <div>
         <span>why Float exists</span>
-        <strong>Autonomous agents need paid services, but funding every wallet in advance is operationally brittle.</strong>
+        <strong>Autonomous agents need paid services, but pre-funding every wallet is hard to manage at scale.</strong>
       </div>
       <div className="floatV2UseCaseGrid">
         {items.map((item) => (
@@ -2913,7 +2913,7 @@ function FloatV2ActivityBoard({
   const checkedAt = state?.checkedAt
     ? new Date(state.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : null;
-  const statusLabel = error ? "V2 read needs review" : loading && !state ? "syncing V2 activity" : "live V2 activity";
+  const statusLabel = error ? "V2 read needs review" : loading && !state ? "reading V2 activity" : "live V2 activity";
 
   return (
     <section className="floatV2ActivityBoard" id="v2-activity" aria-label="Shadow Float V2 external activity">
@@ -2923,9 +2923,9 @@ function FloatV2ActivityBoard({
       </div>
 
       <div className="floatV2ActivityStats">
-        <FloatFact label="registered lines" value={`${state?.summary?.registeredExternalLines ?? "syncing"}`} />
-        <FloatFact label="paid spends" value={`${state?.summary?.paidSpends ?? "syncing"}`} />
-        <FloatFact label="repaid" value={`${state?.summary?.repaidLifecycles ?? "syncing"}`} />
+        <FloatFact label="registered lines" value={`${state?.summary?.registeredExternalLines ?? "reading"}`} />
+        <FloatFact label="paid spends" value={`${state?.summary?.paidSpends ?? "reading"}`} />
+        <FloatFact label="repaid" value={`${state?.summary?.repaidLifecycles ?? "reading"}`} />
         <FloatFact label="active debt" value={`${formatFloatUSDC(state?.summary?.activeDebtUSDC)} USDC`} />
       </div>
 

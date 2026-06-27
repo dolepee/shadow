@@ -56,9 +56,9 @@
     <div id="root">
       <noscript>
         <p>
-          Shadow Float is independently browsable on Arc testnet; the app adds live receipt and verifier views when
-          JavaScript is available. Float V2: 0x20dcA96B0C487D94De885c726c956ffaF38b12C2. Bonded enforcer:
-          0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e.
+          Shadow Float V2 is live on Arc testnet. Sponsors reserve USDC capacity for agents, agents sign bounded spend
+          intents, and the contract pays approved providers from reserve. Float V2:
+          0x20dcA96B0C487D94De885c726c956ffaF38b12C2.
         </p>
       </noscript>
       <main data-prerender="shell" style="font-family:'Bricolage Grotesque',system-ui,sans-serif;max-width:860px;margin:48px auto;padding:24px;color:#f3f7ff;background:#07111f;border:1px solid rgba(184,211,255,.14);border-radius:22px">
@@ -83,21 +83,18 @@
             <li><strong>Float debt</strong> · debt opens onchain and repayment restores available capacity</li>
             <li><strong>M1 allocation</strong> · a vault-style deposit moves only after an ALLOW receipt</li>
             <li><strong>Overreach block</strong> · oversized Float and M1 actions move no funds</li>
-            <li><strong>Read-only verifier</strong> · Float and M1 receipts are checked with one command</li>
           </ul>
           <p style="font-size:14px;color:#8fb4d9;margin:8px 0 0">
-            Onchain anchors are below; the full app adds the Float runway, standing board, M1 transaction path, and verifier panels.
+            Onchain anchors are below; the full app adds current Float activity, builder onboarding, and the M1 transaction path.
           </p>
         </section>
         <section>
-          <h2 style="font-size:18px;margin:28px 0 8px">Verification</h2>
+          <h2 style="font-size:18px;margin:28px 0 8px">Live records</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#d5e5fb">
-            <li>· <strong style="color:#4df0a8">/treasury</strong> shows the combined Treasury rail</li>
-            <li>· <strong style="color:#4df0a8">/api/treasury</strong> returns the 25-check live verifier JSON</li>
-            <li>· <strong style="color:#4df0a8">/float</strong> shows the Float runway and standing board</li>
-            <li>· <strong style="color:#4df0a8">/api/float</strong> exposes historical receipt checks and receipt data</li>
-            <li>· <strong style="color:#ff5f7e">npm run float:v2-verify-live</strong> verifies the current V2 loop without secrets</li>
-            <li>· <strong style="color:#ff5f7e">npm run treasury:verify-live</strong> verifies the supporting M1 rail without secrets</li>
+            <li>· <strong style="color:#4df0a8">/float</strong> shows current sponsored Float activity</li>
+            <li>· <strong style="color:#4df0a8">/builders</strong> shows the external agent onboarding flow</li>
+            <li>· <strong style="color:#4df0a8">/treasury</strong> shows the supporting M1 mandate rail</li>
+            <li>· <strong style="color:#4df0a8">GitHub</strong> contains the contract checks and reproducible commands</li>
           </ul>
         </section>
         <section>
