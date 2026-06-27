@@ -1308,7 +1308,6 @@ function App() {
           use on Arc testnet. The next phase is deeper settlement interop and production-grade capital.
         </p>
       </section>
-      <FloatEconomicsPanel />
       <CircleStackPanel />
       <section className="roadmapGrid" aria-label="Shadow Float roadmap">
         <article className="roadmapCard">
