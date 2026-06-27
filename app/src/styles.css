@@ -873,6 +873,93 @@ html {
   color: var(--block);
 }
 
+.floatV2ActivityBoard {
+  background:
+    linear-gradient(135deg, rgba(50, 215, 255, 0.075), rgba(77, 240, 168, 0.04)),
+    rgba(7, 17, 31, 0.58);
+  border: 1px solid rgba(50, 215, 255, 0.18);
+  border-radius: 16px;
+  margin-top: 14px;
+  padding: 14px;
+}
+
+.floatV2ActivityStats {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.floatV2ActivityRows {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.floatV2ActivityRow {
+  align-items: center;
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid rgba(184, 211, 255, 0.12);
+  border-radius: 12px;
+  color: var(--ink);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(150px, 1.3fr) repeat(4, minmax(76px, 0.7fr));
+  min-height: 66px;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.floatV2ActivityRow:hover {
+  border-color: rgba(50, 215, 255, 0.34);
+}
+
+.floatV2ActivityRow.repaid {
+  background: linear-gradient(90deg, rgba(77, 240, 168, 0.1), rgba(184, 211, 255, 0.04));
+}
+
+.floatV2ActivityRow.limited {
+  background: linear-gradient(90deg, rgba(255, 192, 92, 0.1), rgba(184, 211, 255, 0.04));
+}
+
+.floatV2ActivityIdentity strong,
+.floatV2ActivityMetric strong {
+  color: var(--ink);
+  display: block;
+  font-family: var(--mono);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.floatV2ActivityIdentity small,
+.floatV2ActivityMetric span {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.floatV2ActivityMetric strong {
+  color: var(--copy);
+  margin-top: 5px;
+}
+
+.floatV2ActivityEmpty {
+  background: rgba(7, 17, 31, 0.56);
+  border: 1px dashed rgba(50, 215, 255, 0.25);
+  border-radius: 12px;
+  color: var(--ink-soft);
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.floatV2ActivityEmpty strong {
+  color: var(--ink);
+}
+
 .floatStandingBoard {
   background:
     linear-gradient(135deg, rgba(50, 215, 255, 0.075), rgba(77, 240, 168, 0.04)),
@@ -2164,7 +2251,8 @@ html {
   .floatHeroGrid,
   .floatGrid,
   .floatReceiptList,
-  .floatExternalRow {
+  .floatExternalRow,
+  .floatV2ActivityRow {
     grid-template-columns: 1fr;
   }
 
@@ -2183,6 +2271,10 @@ html {
 
   .floatStandingMetric:nth-last-child(-n + 2) {
     display: none;
+  }
+
+  .floatV2ActivityStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .floatMetricGrid {
@@ -2297,6 +2389,18 @@ html {
 
   .floatStandingMetric:nth-last-child(-n + 2) {
     display: block;
+  }
+
+  .floatV2ActivityStats {
+    grid-template-columns: 1fr;
+  }
+
+  .floatV2ActivityRow {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .floatV2ActivityIdentity {
+    grid-column: 1 / -1;
   }
 
   .floatExternalIntro {

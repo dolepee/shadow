@@ -453,6 +453,57 @@ type FloatState = {
   error?: string;
 };
 
+type FloatV2AgentState = {
+  label: string;
+  category: "external" | "self-test";
+  agent: Address;
+  wallet: Address;
+  score: number;
+  creditLimitUSDC: string;
+  availableCreditUSDC: string;
+  activeDebtUSDC: string;
+  status: number;
+  statusName: string;
+  sponsor: Address;
+  sponsorReserveUSDC: string;
+  signedIntents: number;
+  providerPaidCount: number;
+  repaidCount: number;
+  blockedCount: number;
+  providerPaidUSDC: string;
+  repaidUSDC: string;
+  blockedUSDC: string;
+  spendTx?: Hash;
+  repayTx?: Hash;
+  latestTxHash?: Hash;
+};
+
+type FloatV2ActivityState = {
+  ok?: boolean;
+  mode?: string;
+  checkedAt?: string;
+  chainId?: number;
+  float?: Address;
+  latestBlock?: string;
+  treasuryBalanceUSDC?: string;
+  totalAvailableCreditUSDC?: string;
+  totalSponsoredReserveUSDC?: string;
+  summary?: {
+    registeredExternalLines: number;
+    signedIntents: number;
+    paidSpends: number;
+    repaidLifecycles: number;
+    openDebtAgents: number;
+    providerPaidUSDC: string;
+    repaidUSDC: string;
+    activeDebtUSDC: string;
+    blockedUSDC: string;
+  };
+  agents?: FloatV2AgentState[];
+  selfTestAgents?: FloatV2AgentState[];
+  error?: string;
+};
+
 type TreasuryCheck = {
   check: string;
   status: "PASS" | "FAIL";
@@ -540,6 +591,9 @@ function App() {
   const [floatState, setFloatState] = useState<FloatState | null>(null);
   const [floatLoading, setFloatLoading] = useState(false);
   const [floatError, setFloatError] = useState<string | null>(null);
+  const [floatV2State, setFloatV2State] = useState<FloatV2ActivityState | null>(null);
+  const [floatV2Loading, setFloatV2Loading] = useState(false);
+  const [floatV2Error, setFloatV2Error] = useState<string | null>(null);
   const [treasuryState, setTreasuryState] = useState<TreasuryState | null>(null);
   const [treasuryLoading, setTreasuryLoading] = useState(false);
   const [treasuryError, setTreasuryError] = useState<string | null>(null);
@@ -619,6 +673,29 @@ function App() {
   useEffect(() => {
     refreshFloat();
     const interval = setInterval(refreshFloat, 20_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function refreshFloatV2() {
+    setFloatV2Loading(true);
+    try {
+      const response = await fetch("/api/float-v2");
+      const data = (await response.json()) as FloatV2ActivityState;
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `Float V2 read failed with ${response.status}`);
+      }
+      setFloatV2State(data);
+      setFloatV2Error(null);
+    } catch (error) {
+      setFloatV2Error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setFloatV2Loading(false);
+    }
+  }
+
+  useEffect(() => {
+    refreshFloatV2();
+    const interval = setInterval(refreshFloatV2, 20_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -1226,7 +1303,7 @@ function App() {
   const floatPage = (
     <>
       <FloatV2ProofStrip />
-      <FloatV2CurrentPanel />
+      <FloatV2CurrentPanel state={floatV2State} loading={floatV2Loading} error={floatV2Error} />
       <CircleStackPanel />
     </>
   );
@@ -2491,7 +2568,15 @@ function FloatV2ProofStrip({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function FloatV2CurrentPanel() {
+function FloatV2CurrentPanel({
+  state,
+  loading,
+  error,
+}: {
+  state: FloatV2ActivityState | null;
+  loading: boolean;
+  error: string | null;
+}) {
   const anchors = [
     { label: "V2 contract source", href: FLOAT_V2_PROOF.sourcify, value: shortAddress(FLOAT_V2_CONTRACT) },
     { label: "signed provider payment", href: txUrl(FLOAT_V2_PROOF.directSpendTx), value: shortAddress(FLOAT_V2_PROOF.directSpendTx) },
@@ -2554,11 +2639,13 @@ function FloatV2CurrentPanel() {
       </div>
 
       <div className="floatMetricGrid">
-        <FloatMetric label="provider paid" value="0.01 USDC" tone="allow" />
-        <FloatMetric label="overrun blocked" value="0.10 USDC" tone="block" />
-        <FloatMetric label="external lifecycle" value="Crux repaid" tone="allow" />
-        <FloatMetric label="independent signer" value="Obol bound" tone="allow" />
+        <FloatMetric label="V2 signed intents" value={`${state?.summary?.signedIntents ?? "syncing"}`} tone="allow" />
+        <FloatMetric label="provider paid" value={`${formatFloatUSDC(state?.summary?.providerPaidUSDC)} USDC`} tone="allow" />
+        <FloatMetric label="lifecycles closed" value={`${state?.summary?.repaidLifecycles ?? "syncing"}`} tone="allow" />
+        <FloatMetric label="open debt" value={`${formatFloatUSDC(state?.summary?.activeDebtUSDC)} USDC`} tone={state?.summary?.openDebtAgents ? "block" : "allow"} />
       </div>
+
+      <FloatV2ActivityBoard state={state} loading={loading} error={error} />
 
       <section className="floatBox" aria-label="Shadow Float V2 onchain anchors">
         <div className="floatBoxHeader">
@@ -2584,6 +2671,89 @@ function FloatV2CurrentPanel() {
           <code>npm run float:v2-verify-live</code>
         </div>
       </section>
+    </section>
+  );
+}
+
+function FloatV2ActivityBoard({
+  state,
+  loading,
+  error,
+}: {
+  state: FloatV2ActivityState | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  const agents = state?.agents || [];
+  const checkedAt = state?.checkedAt
+    ? new Date(state.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : null;
+  const statusLabel = error ? "V2 read needs review" : loading && !state ? "syncing V2 activity" : "live V2 activity";
+
+  return (
+    <section className="floatV2ActivityBoard" aria-label="Shadow Float V2 external activity">
+      <div className="floatBoxHeader">
+        <span>external V2 activity</span>
+        <small>{checkedAt ? `updated ${checkedAt}` : statusLabel}</small>
+      </div>
+
+      <div className="floatV2ActivityStats">
+        <FloatFact label="registered lines" value={`${state?.summary?.registeredExternalLines ?? "syncing"}`} />
+        <FloatFact label="paid spends" value={`${state?.summary?.paidSpends ?? "syncing"}`} />
+        <FloatFact label="repaid" value={`${state?.summary?.repaidLifecycles ?? "syncing"}`} />
+        <FloatFact label="active debt" value={`${formatFloatUSDC(state?.summary?.activeDebtUSDC)} USDC`} />
+      </div>
+
+      {error ? (
+        <div className="floatV2ActivityEmpty">
+          <strong>V2 activity read failed</strong>
+          <span>{error}</span>
+        </div>
+      ) : agents.length ? (
+        <div className="floatV2ActivityRows">
+          {agents.map((agent) => {
+            const href = agent.latestTxHash || agent.repayTx || agent.spendTx;
+            const row = (
+              <>
+                <div className="floatV2ActivityIdentity">
+                  <strong>{agent.label}</strong>
+                  <small>{shortAddress(agent.agent)}</small>
+                </div>
+                <div className="floatV2ActivityMetric">
+                  <span>status</span>
+                  <strong>{agent.statusName}</strong>
+                </div>
+                <div className="floatV2ActivityMetric">
+                  <span>paid</span>
+                  <strong>{formatFloatUSDC(agent.providerPaidUSDC)}</strong>
+                </div>
+                <div className="floatV2ActivityMetric">
+                  <span>debt</span>
+                  <strong>{formatFloatUSDC(agent.activeDebtUSDC)}</strong>
+                </div>
+                <div className="floatV2ActivityMetric">
+                  <span>available</span>
+                  <strong>{formatFloatUSDC(agent.availableCreditUSDC)}</strong>
+                </div>
+              </>
+            );
+            return href ? (
+              <a className={`floatV2ActivityRow ${agent.statusName.toLowerCase()}`} href={txUrl(href)} target="_blank" rel="noreferrer" key={agent.agent}>
+                {row}
+              </a>
+            ) : (
+              <div className={`floatV2ActivityRow ${agent.statusName.toLowerCase()}`} key={agent.agent}>
+                {row}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="floatV2ActivityEmpty">
+          <strong>{loading ? "Reading V2 lines" : "No V2 external lines yet"}</strong>
+          <span>Rows appear after registered external agents sign or repay on Float V2.</span>
+        </div>
+      )}
     </section>
   );
 }
