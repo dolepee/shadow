@@ -10,7 +10,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { createWalletClient, custom, keccak256, parseUnits, stringToBytes, type Address, type Hash, type Hex } from "viem";
+import { createWalletClient, custom, getAddress, keccak256, parseAbi, parseAbiItem, parseUnits, stringToBytes, type Address, type Hash, type Hex } from "viem";
 import {
   toCircleSmartAccount,
   toModularTransport,
@@ -130,6 +130,48 @@ const FLOAT_V2_PROOF = {
   cruxRepayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
   obolSpendTx: "0x78567fc68238c6b309aa26916bbf3f456d4da20de27ecb4e9e6a7d3a245acc8a" as Hash,
 };
+const FLOAT_V2_DEPLOY_BLOCK = 48_837_320n;
+const FLOAT_V2_LOG_CHUNK_SIZE = 9_000n;
+
+type FloatV2TrackedExternalAgent = {
+  label: string;
+  agent: Address;
+  spendTx?: Hash;
+  repayTx?: Hash;
+};
+
+const FLOAT_V2_TRACKED_EXTERNAL_AGENTS: readonly FloatV2TrackedExternalAgent[] = [
+  { label: "Forum", agent: "0x13585c6004fbA9D7D49219a6435B68348fD30770" as Address },
+  { label: "CitePay", agent: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address },
+  {
+    label: "Crux",
+    agent: "0x9972fF27a2EADBDB8414072736395236E0BF0092" as Address,
+    spendTx: "0x6fd0e59360decc8fdecd56c8bf1a448569d72e6e5706d862e50c816d50b29a7d" as Hash,
+    repayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
+  },
+  { label: "Argus", agent: "0x5c0b33b209f510868E07792Edc46c3792B0b92EC" as Address },
+  {
+    label: "Obol",
+    agent: "0xd39AcD18d4aB66f31e3f1931953374d4a546ABA3" as Address,
+    spendTx: FLOAT_V2_PROOF.obolSpendTx,
+  },
+  { label: "Driplet", agent: "0x7dF8C7ab755A62a5ea3356372Ad875d8C88084BF" as Address },
+] as const;
+
+const FLOAT_V2_STATUS_NAMES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"] as const;
+const floatV2Abi = parseAbi([
+  "function lines(address agent) view returns (address wallet,uint16 score,uint256 creditLimitUSDC,uint256 availableCreditUSDC,uint256 activeDebtUSDC,uint8 status,uint64 lastReview,bytes32 mandateId,uint64 day,uint256 spentTodayUSDC)",
+  "function lineSponsors(address agent) view returns (address sponsor,uint256 reserveUSDC)",
+  "function treasuryBalanceUSDC() view returns (uint256)",
+  "function totalAvailableCreditUSDC() view returns (uint256)",
+  "function totalSponsoredReserveUSDC() view returns (uint256)",
+]);
+const floatV2IntentConsumedEvent = parseAbiItem(
+  "event FloatIntentConsumed(address indexed agent, address indexed signer, uint256 indexed nonce, bytes32 requestHash)",
+);
+const floatV2ReceiptEvent = parseAbiItem(
+  "event FloatReceipt(uint256 indexed receiptId, bytes32 indexed receiptHash, uint8 indexed receiptType, address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, uint256 creditBeforeUSDC, uint256 creditAfterUSDC, uint256 debtBeforeUSDC, uint256 debtAfterUSDC, uint8 reason, bytes32 mandateId, bytes32 requestHash, bytes32 prevChecksum, bytes32 checksum)",
+);
 
 declare global {
   interface Window {
@@ -561,6 +603,184 @@ const TREASURY_PROOF = {
   },
 };
 
+async function fetchFloatV2Activity(): Promise<FloatV2ActivityState> {
+  const client: any = createClient({
+    chain: arcTestnet,
+    transport: http(import.meta.env.VITE_ARC_RPC_URL || "https://rpc.testnet.arc.network"),
+  });
+  const latestBlock = BigInt(await client.getBlockNumber());
+  const float = getAddress(FLOAT_V2_CONTRACT);
+  const [intentLogs, receiptLogs] = await Promise.all([
+    getFloatV2Logs(client, float, floatV2IntentConsumedEvent, FLOAT_V2_DEPLOY_BLOCK, latestBlock),
+    getFloatV2Logs(client, float, floatV2ReceiptEvent, FLOAT_V2_DEPLOY_BLOCK, latestBlock),
+  ]);
+  const [treasuryBalance, totalAvailableCredit, totalSponsoredReserve] = await Promise.all([
+    readFloatV2(client, "treasuryBalanceUSDC"),
+    readFloatV2(client, "totalAvailableCreditUSDC"),
+    readFloatV2(client, "totalSponsoredReserveUSDC"),
+  ]);
+
+  type AgentStats = {
+    label: string;
+    category: "external" | "self-test";
+    agent: Address;
+    spendTx?: Hash;
+    repayTx?: Hash;
+    latestTxHash?: Hash;
+    signedIntents: number;
+    providerPaidCount: number;
+    repaidCount: number;
+    blockedCount: number;
+    providerPaidUSDC: bigint;
+    repaidUSDC: bigint;
+    blockedUSDC: bigint;
+  };
+
+  const tracked = new Map(FLOAT_V2_TRACKED_EXTERNAL_AGENTS.map((entry) => [getAddress(entry.agent).toLowerCase(), entry]));
+  const statsByAgent = new Map<string, AgentStats>();
+  const ensureStats = (address: Address): AgentStats => {
+    const agent = getAddress(address);
+    const key = agent.toLowerCase();
+    const existing = statsByAgent.get(key);
+    if (existing) return existing;
+    const trackedEntry = tracked.get(key);
+    const stats: AgentStats = {
+      label: trackedEntry?.label || "V2 proof agent",
+      category: trackedEntry ? "external" : "self-test",
+      agent,
+      spendTx: trackedEntry?.spendTx,
+      repayTx: trackedEntry?.repayTx,
+      signedIntents: 0,
+      providerPaidCount: 0,
+      repaidCount: 0,
+      blockedCount: 0,
+      providerPaidUSDC: 0n,
+      repaidUSDC: 0n,
+      blockedUSDC: 0n,
+    };
+    statsByAgent.set(key, stats);
+    return stats;
+  };
+
+  for (const entry of FLOAT_V2_TRACKED_EXTERNAL_AGENTS) {
+    ensureStats(entry.agent);
+  }
+
+  for (const log of intentLogs) {
+    const stats = ensureStats(getAddress(String((log as any).args.agent)));
+    stats.signedIntents += 1;
+    stats.latestTxHash = (log as any).transactionHash;
+  }
+
+  for (const log of receiptLogs) {
+    const args = (log as any).args;
+    const stats = ensureStats(getAddress(String(args.agent)));
+    const receiptType = Number(args.receiptType);
+    const amount = BigInt(args.amountUSDC || 0);
+    if (receiptType === 3) {
+      stats.blockedCount += 1;
+      stats.blockedUSDC += amount;
+      stats.latestTxHash = (log as any).transactionHash;
+    }
+    if (receiptType === 4) {
+      stats.providerPaidCount += 1;
+      stats.providerPaidUSDC += amount;
+      stats.latestTxHash = (log as any).transactionHash;
+    }
+    if (receiptType === 6) {
+      stats.repaidCount += 1;
+      stats.repaidUSDC += amount;
+      stats.latestTxHash = (log as any).transactionHash;
+    }
+  }
+
+  const agents = await Promise.all(
+    [...statsByAgent.values()].map(async (stats): Promise<FloatV2AgentState> => {
+      const [line, sponsorLine] = await Promise.all([
+        readFloatV2(client, "lines", [stats.agent]),
+        readFloatV2(client, "lineSponsors", [stats.agent]),
+      ]);
+      const status = Number(line[5]);
+      return {
+        label: stats.label,
+        category: stats.category,
+        agent: stats.agent,
+        wallet: line[0],
+        score: Number(line[1]),
+        creditLimitUSDC: line[2].toString(),
+        availableCreditUSDC: line[3].toString(),
+        activeDebtUSDC: line[4].toString(),
+        status,
+        statusName: FLOAT_V2_STATUS_NAMES[status] || "UNKNOWN",
+        sponsor: sponsorLine[0],
+        sponsorReserveUSDC: sponsorLine[1].toString(),
+        signedIntents: stats.signedIntents,
+        providerPaidCount: stats.providerPaidCount,
+        repaidCount: stats.repaidCount,
+        blockedCount: stats.blockedCount,
+        providerPaidUSDC: stats.providerPaidUSDC.toString(),
+        repaidUSDC: stats.repaidUSDC.toString(),
+        blockedUSDC: stats.blockedUSDC.toString(),
+        spendTx: stats.spendTx,
+        repayTx: stats.repayTx,
+        latestTxHash: stats.latestTxHash,
+      };
+    }),
+  );
+
+  const visibleAgents = agents
+    .filter((agent) => agent.category === "external")
+    .sort((a, b) => {
+      const aDebt = BigInt(a.activeDebtUSDC) > 0n ? 1 : 0;
+      const bDebt = BigInt(b.activeDebtUSDC) > 0n ? 1 : 0;
+      if (a.statusName === "REPAID" && b.statusName !== "REPAID") return -1;
+      if (b.statusName === "REPAID" && a.statusName !== "REPAID") return 1;
+      if (aDebt !== bDebt) return bDebt - aDebt;
+      return a.label.localeCompare(b.label);
+    });
+  const summary = {
+    registeredExternalLines: visibleAgents.filter((agent) => BigInt(agent.sponsorReserveUSDC) > 0n).length,
+    signedIntents: visibleAgents.reduce((sum, agent) => sum + agent.signedIntents, 0),
+    paidSpends: visibleAgents.reduce((sum, agent) => sum + agent.providerPaidCount, 0),
+    repaidLifecycles: visibleAgents.filter((agent) => BigInt(agent.repaidUSDC) > 0n && BigInt(agent.activeDebtUSDC) === 0n).length,
+    openDebtAgents: visibleAgents.filter((agent) => BigInt(agent.activeDebtUSDC) > 0n).length,
+    providerPaidUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.providerPaidUSDC), 0n).toString(),
+    repaidUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.repaidUSDC), 0n).toString(),
+    activeDebtUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.activeDebtUSDC), 0n).toString(),
+    blockedUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.blockedUSDC), 0n).toString(),
+  };
+
+  return {
+    ok: true,
+    mode: "shadow-float-v2-activity",
+    checkedAt: new Date().toISOString(),
+    chainId: arcTestnet.id,
+    float,
+    latestBlock: latestBlock.toString(),
+    treasuryBalanceUSDC: treasuryBalance.toString(),
+    totalAvailableCreditUSDC: totalAvailableCredit.toString(),
+    totalSponsoredReserveUSDC: totalSponsoredReserve.toString(),
+    summary,
+    agents: visibleAgents,
+    selfTestAgents: agents.filter((agent) => agent.category === "self-test"),
+  };
+}
+
+async function getFloatV2Logs(client: any, address: Address, event: ReturnType<typeof parseAbiItem>, fromBlock: bigint, toBlock: bigint) {
+  const logs: any[] = [];
+  let cursor = fromBlock;
+  while (cursor <= toBlock) {
+    const chunkEnd = cursor + FLOAT_V2_LOG_CHUNK_SIZE > toBlock ? toBlock : cursor + FLOAT_V2_LOG_CHUNK_SIZE;
+    logs.push(...(await client.getLogs({ address, event: event as any, fromBlock: cursor, toBlock: chunkEnd })));
+    cursor = chunkEnd + 1n;
+  }
+  return logs;
+}
+
+async function readFloatV2(client: any, functionName: string, args: unknown[] = []) {
+  return client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName, args });
+}
+
 function App() {
   const [state, setState] = useState<ShadowState | null>(null);
   const [loading, setLoading] = useState(false);
@@ -679,11 +899,7 @@ function App() {
   async function refreshFloatV2() {
     setFloatV2Loading(true);
     try {
-      const response = await fetch("/api/float-v2");
-      const data = (await response.json()) as FloatV2ActivityState;
-      if (!response.ok || data.error) {
-        throw new Error(data.error || `Float V2 read failed with ${response.status}`);
-      }
+      const data = await fetchFloatV2Activity();
       setFloatV2State(data);
       setFloatV2Error(null);
     } catch (error) {
