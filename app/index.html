@@ -56,7 +56,7 @@
     <div id="root">
       <noscript>
         <p>
-          Shadow Float proof is independently browsable on Arc testnet; the app adds live receipt and verifier views when
+          Shadow Float is independently browsable on Arc testnet; the app adds live receipt and verifier views when
           JavaScript is available. Float V2: 0x20dcA96B0C487D94De885c726c956ffaF38b12C2. Bonded enforcer:
           0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e.
         </p>
@@ -69,39 +69,39 @@
             Shadow Float lets a sponsor reserve Arc USDC for an agent. The agent signs a bounded intent, the contract pays the provider from custody, opens debt, restores capacity on repayment, and blocks overruns before funds move.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:0 0 4px">
-            Treasury/M1 is the supporting mandate extension: approved adapters allocate vault-style USDC only after an ALLOW receipt, and the over-limit proof moves no vault funds.
+            Treasury/M1 is the supporting mandate extension: approved adapters allocate vault-style USDC only after an ALLOW receipt, and over-limit actions move no vault funds.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:8px 0 0">
-            External Float usage is live, and both proof surfaces are anchored by public contract and transaction links.
+            External Float usage is live, and both rails are anchored by public contract and transaction links.
           </p>
         </header>
         <section>
-          <h2 style="font-size:18px;margin:28px 0 8px">What the app proves</h2>
+          <h2 style="font-size:18px;margin:28px 0 8px">What the app shows</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#d5e5fb">
             <li><strong>Signed intent</strong> · the contract verifies signer, nonce, expiry, provider, amount, executor, and max debt</li>
             <li><strong>Provider payment</strong> · ShadowFloat pays approved providers from sponsor-backed Arc USDC custody</li>
             <li><strong>Float debt</strong> · debt opens onchain and repayment restores available capacity</li>
             <li><strong>M1 allocation</strong> · a vault-style deposit moves only after an ALLOW receipt</li>
             <li><strong>Overreach block</strong> · oversized Float and M1 actions move no funds</li>
-            <li><strong>No-secret verifier</strong> · Float and M1 proof are checked with one read-only command</li>
+            <li><strong>Read-only verifier</strong> · Float and M1 receipts are checked with one command</li>
           </ul>
           <p style="font-size:14px;color:#8fb4d9;margin:8px 0 0">
-            Proof anchors are below; the full app adds the Float runway, standing board, M1 proof path, and verifier panels.
+            Onchain anchors are below; the full app adds the Float runway, standing board, M1 transaction path, and verifier panels.
           </p>
         </section>
         <section>
           <h2 style="font-size:18px;margin:28px 0 8px">Verification</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#d5e5fb">
-            <li>· <strong style="color:#4df0a8">/treasury</strong> shows the combined Treasury proof</li>
+            <li>· <strong style="color:#4df0a8">/treasury</strong> shows the combined Treasury rail</li>
             <li>· <strong style="color:#4df0a8">/api/treasury</strong> returns the 25-check live verifier JSON</li>
             <li>· <strong style="color:#4df0a8">/float</strong> shows the Float runway and standing board</li>
-            <li>· <strong style="color:#4df0a8">/api/float</strong> exposes historical proof checks and receipt data</li>
+            <li>· <strong style="color:#4df0a8">/api/float</strong> exposes historical receipt checks and receipt data</li>
             <li>· <strong style="color:#ff5f7e">npm run float:v2-verify-live</strong> verifies the current V2 loop without secrets</li>
-            <li>· <strong style="color:#ff5f7e">npm run treasury:verify-live</strong> verifies the supporting M1 proof without secrets</li>
+            <li>· <strong style="color:#ff5f7e">npm run treasury:verify-live</strong> verifies the supporting M1 rail without secrets</li>
           </ul>
         </section>
         <section>
-          <h2 style="font-size:18px;margin:28px 0 8px">Onchain proof anchors</h2>
+          <h2 style="font-size:18px;margin:28px 0 8px">Onchain anchors</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:14px;line-height:1.75;color:#d5e5fb;font-family:'IBM Plex Mono',monospace;overflow-wrap:anywhere">
             <li>Float V2 contract · <a style="color:#4df0a8" href="https://testnet.arcscan.app/address/0x20dcA96B0C487D94De885c726c956ffaF38b12C2">0x20dcA96B0C487D94De885c726c956ffaF38b12C2</a></li>
             <li>Float V2 source match · <a style="color:#4df0a8" href="https://sourcify.dev/server/v2/contract/5042002/0x20dcA96B0C487D94De885c726c956ffaF38b12C2">Sourcify full match</a></li>

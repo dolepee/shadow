@@ -629,7 +629,7 @@ function App() {
       const response = await fetch("/api/treasury");
       const data = (await response.json()) as TreasuryState;
       if (!response.ok || data.error) {
-        throw new Error(data.error || `Treasury proof read failed with ${response.status}`);
+        throw new Error(data.error || `Treasury read failed with ${response.status}`);
       }
       setTreasuryState(data);
       setTreasuryError(null);
@@ -1142,7 +1142,7 @@ function App() {
   const heroExternalSignedLabel =
     heroExternalSignedCount !== undefined
       ? `${heroExternalSignedCount.toLocaleString()} signed external draws`
-      : "external signed proof live";
+      : "external signed use live";
 
   const homePage = (
     <>
@@ -1170,8 +1170,8 @@ function App() {
                 Open Shadow Float
                 <span className="heroCtaArrow">→</span>
               </Link>
-              <Link className="heroCtaSecondary" to="/proof">
-                Verify onchain
+              <Link className="heroCtaSecondary" to="/treasury">
+                Open Treasury rail
               </Link>
             </div>
             <ul className="heroTrust" aria-label="Built on">
@@ -1193,7 +1193,7 @@ function App() {
 
       <HomeProofOverview state={floatState} loading={floatLoading} error={floatError} />
 
-      <section className="pageNext" aria-label="Shadow Float verification paths">
+      <section className="pageNext" aria-label="Shadow Float product paths">
         <Link to="/float" className="pageNextCard pageNextCardPrimary">
           <span className="pageNextEyebrow">product</span>
           <span className="pageNextTitle">Walk the signed spend, provider payment, debt, repay, block, and denial loop</span>
@@ -1204,9 +1204,9 @@ function App() {
           <span className="pageNextTitle">See the M1 adapter allocate when allowed and move nothing when blocked</span>
           <span className="pageNextArrow">→</span>
         </Link>
-        <Link to="/proof" className="pageNextCard">
-          <span className="pageNextEyebrow">verify</span>
-          <span className="pageNextTitle">Check receipts, reserves, proof links, and external signed draws</span>
+        <Link to="/builders" className="pageNextCard">
+          <span className="pageNextEyebrow">builders</span>
+          <span className="pageNextTitle">Give your agent a sponsor-backed line and sign a bounded spend intent</span>
           <span className="pageNextArrow">→</span>
         </Link>
         <Link to="/roadmap" className="pageNextCard">
@@ -1304,11 +1304,11 @@ function App() {
   const receiptsPage = (
     <>
       <section className="pageHead">
-        <p className="pageEyebrow">receipts · Shadow proof rail</p>
-        <h1 className="pageTitle">One proof rail for float, mandates, and mirror actions.</h1>
+        <p className="pageEyebrow">receipts · Shadow audit rail</p>
+        <h1 className="pageTitle">One receipt rail for float, mandates, and mirror actions.</h1>
         <p className="pageLede">
           Read this page as the audit layer. Allowed spends, x402 hashes, repayments, blocked overreach, copied intents,
-          refused mirrors, and mandate proofs all point back to Arc testnet events.
+          refused mirrors, and mandate decisions all point back to Arc testnet events.
         </p>
       </section>
       <FloatPanel state={floatState} loading={floatLoading} error={floatError} compact />
@@ -1372,7 +1372,7 @@ function App() {
       <TreasuryProofPanel floatState={floatState} leptonState={leptonState} treasuryState={treasuryState} />
       <TreasuryReceiptStructurePanel />
       <TreasuryLiveVerifierPanel state={treasuryState} loading={treasuryLoading} error={treasuryError} />
-      <TreasuryJudgePath />
+      <TreasuryOnchainLinks />
       <TreasuryValidationPanel floatState={floatState} />
       <TreasuryHardeningPanel />
     </>
@@ -1385,48 +1385,6 @@ function App() {
       <CircleStackPanel />
       <FloatEconomicsPanel />
     </>
-  );
-
-  const proofPage = (
-    <div className="routePage">
-      <section className="pageHead">
-        <p className="pageEyebrow">proof · live verification</p>
-        <h1 className="pageTitle">Verify Float V2 from the contract, not the screenshot.</h1>
-        <p className="pageLede">
-          Start with the current V2 contract: source matched, signed intent consumed onchain, provider paid from sponsor
-          reserve, debt opened, repayment proven, and overrun blocked with no provider transfer. The older V1 board remains
-          below as historical x402 receipt depth.
-        </p>
-      </section>
-      <FloatV2ProofStrip compact />
-      <FloatExternalSignedPanel state={floatState} />
-      <FloatProofChecksPanel state={floatState} />
-      <FloatJudgePath state={floatState} />
-      <section className="productPageGrid" aria-label="Verifier entry points">
-        <a className="productInfoCard primary" href="/api/float" target="_blank" rel="noreferrer">
-          <span>historical receipt API</span>
-          <strong>/api/float</strong>
-          <p>V1 receipt depth, external signed rows, source breakdowns, reserve checks, and standing board.</p>
-        </a>
-        <a className="productInfoCard" href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
-          <span>repo verifier</span>
-          <strong>npm run float:v2-verify-live</strong>
-          <p>Read-only command that checks the current V2 signed spend, block, repay loop with no private keys.</p>
-        </a>
-        <a className="productInfoCard" href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
-          <span>treasury verifier</span>
-          <strong>npm run treasury:verify-live</strong>
-          <p>Read-only command that checks the combined Float payment and M1 allocation proof.</p>
-        </a>
-        {floatState?.float && (
-          <a className="productInfoCard" href={`https://testnet.arcscan.app/address/${floatState.float}`} target="_blank" rel="noreferrer">
-            <span>historical contract</span>
-            <strong>{shortAddress(floatState.float)}</strong>
-            <p>Historical ShadowFloat board on Arc testnet, including receipt and x402 bind events.</p>
-          </a>
-        )}
-      </section>
-    </div>
   );
 
   const buildersPage = (
@@ -1490,11 +1448,11 @@ function App() {
   const roadmapPage = (
     <div className="routePage">
       <section className="pageHead">
-        <p className="pageEyebrow">roadmap · mainnet path</p>
-        <h1 className="pageTitle">From testnet proof to an agent capital network.</h1>
+        <p className="pageEyebrow">mainnet path</p>
+        <h1 className="pageTitle">From sponsored testnet lines to an agent capital network.</h1>
         <p className="pageLede">
-          The live product proves sponsor reserve, signed authorization, provider payment, debt, repayment, blocks, and
-          external use. The roadmap is about deeper settlement interop and production-grade capital without overclaiming it.
+          Shadow already has sponsor reserve, signed authorization, provider payment, debt, repayment, blocks, and external
+          use on Arc testnet. The next phase is deeper settlement interop and production-grade capital.
         </p>
       </section>
       <FloatEconomicsPanel />
@@ -1503,12 +1461,12 @@ function App() {
         <article className="roadmapCard">
           <span>M1 v2 hardening</span>
           <strong>Production-grade mandate custody</strong>
-          <p>Turn the approved-adapter proof into an escrow-release or custodial enforcer with withdrawable vault support and stronger slashing.</p>
+          <p>Move approved-adapter allocation into an escrow-release or custodial enforcer with withdrawable vault support and stronger slashing.</p>
         </article>
         <article className="roadmapCard">
           <span>interop</span>
           <strong>Gateway-batched x402</strong>
-          <p>Bridge V2 direct provider payment and the historical EIP-3009 proof into the Gateway-batched dialect Obol, Archer, and CitePay surfaced.</p>
+          <p>Bridge V2 direct provider payment and EIP-3009/x402 settlement evidence into the Gateway-batched dialect Obol, Archer, and CitePay surfaced.</p>
         </article>
         <article className="roadmapCard">
           <span>market</span>
@@ -1535,7 +1493,7 @@ function App() {
         <p className="pageEyebrow">archive · prior Shadow</p>
         <h1 className="pageTitle">The earlier receipt-and-policy surfaces remain live.</h1>
         <p className="pageLede">
-          These routes are historical proof of the primitive that Float builds on: source-agent behavior, mirror receipts,
+          These routes are the historical record of the primitive that Float builds on: source-agent behavior, mirror receipts,
           and mandate enforcement. They are not the current Lepton product path.
         </p>
       </section>
@@ -1587,9 +1545,6 @@ function App() {
           <NavLink to="/float" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Float
           </NavLink>
-          <NavLink to="/proof" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
-            Proof
-          </NavLink>
           <NavLink to="/builders" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Builders
           </NavLink>
@@ -1623,7 +1578,7 @@ function App() {
         <Route path="/lepton" element={leptonPage} />
         <Route path="/treasury" element={treasuryPage} />
         <Route path="/float" element={floatPage} />
-        <Route path="/proof" element={proofPage} />
+        <Route path="/proof" element={<Navigate to="/float" replace />} />
         <Route path="/builders" element={buildersPage} />
         <Route path="/roadmap" element={roadmapPage} />
         <Route path="/archive" element={archivePage} />
@@ -1678,24 +1633,23 @@ function TreasuryHero({ floatState, treasuryState }: {
   return (
     <section className="treasuryHero" aria-label="Shadow Treasury overview">
       <div className="treasuryHeroCopy">
-        <p className="eyebrow">Shadow Treasury / M1 · verified extension</p>
+        <p className="eyebrow">Shadow Treasury / M1 · mandate extension</p>
         <h1>Approved adapters enforce mandate checks before vault-style funds move.</h1>
         <p>
-          Shadow Treasury is the M1 extension to Float, not the primary Float proof path. The live proof shows a historical
-          Float provider payment, an allocation through a hardened approved adapter, and an over-limit allocation blocked
-          before vault-style USDC moves.
+          Shadow Treasury is the M1 extension to Float. It shows the same operator paying a provider, allocating through a
+          hardened approved adapter, and getting blocked before vault-style USDC moves on an over-limit action.
         </p>
         <div className="treasuryHeroActions">
-          <a className="treasuryHeroPrimary" href="#treasury-proof">
-            Verify live proof
+          <a className="treasuryHeroPrimary" href="#treasury-runway">
+            View live receipts
           </a>
           <a className="treasuryHeroSecondary" href="/api/float" target="_blank" rel="noreferrer">
             Open live API
           </a>
         </div>
-        <div className="treasuryHeroBoundary" aria-label="Verified proof scope">
+        <div className="treasuryHeroBoundary" aria-label="Verified receipt scope">
           <span>External Float usage live</span>
-          <span>M1 approved-adapter proof</span>
+          <span>M1 approved-adapter rail</span>
           <span>{verifierLabel}</span>
         </div>
       </div>
@@ -1787,7 +1741,7 @@ function TreasuryEvidenceStrip({ treasuryState }: { treasuryState: TreasuryState
           </a>
         ))}
       </div>
-      <div className="treasuryEvidenceGroup" aria-label="Treasury proof transactions">
+      <div className="treasuryEvidenceGroup" aria-label="Treasury transactions">
         {txLinks.map((item) => (
           <a href={item.href} target="_blank" rel="noreferrer" key={item.label}>
             <span>{item.label}</span>
@@ -1830,9 +1784,9 @@ function TreasuryRailSplit({
       cta: "Open M1",
     },
     {
-      eyebrow: "combined proof",
-      title: "One read-only verifier checks the proof path",
-      body: "The verifier checks the historical Float payment, bind, debt math, vault transfer, blocked no-move path, and live API proof state.",
+      eyebrow: "combined receipts",
+      title: "One read-only check follows the transaction path",
+      body: "The public endpoint checks the historical Float payment, bind, debt math, vault transfer, blocked no-move path, and live API state.",
       stat: "25 checks",
       href: "https://github.com/dolepee/shadow",
       cta: "View repo",
@@ -1893,7 +1847,7 @@ function TreasuryProofPanel({
       title: "Float paid the provider",
       amount: TREASURY_PROOF.amountX402USDC,
       receipt: "SPEND_ALLOWED + X402PaymentBound",
-      meaning: "The supporting proof uses the historical Float path: operator fronted Arc USDC to the provider, then bound the settlement into Float debt.",
+      meaning: "The supporting path uses the historical Float rail: operator fronted Arc USDC to the provider, then bound the settlement into Float debt.",
       links: [
         { label: "settlement", href: txUrl(TREASURY_PROOF.txs.x402Settlement) },
         { label: "bind", href: txUrl(TREASURY_PROOF.txs.floatBind) },
@@ -1918,32 +1872,32 @@ function TreasuryProofPanel({
     },
     {
       status: "proven",
-      title: "No-secret verifier checks both rails",
+      title: "Read-only checks cover both rails",
       amount: `${formatFloatUSDC(TREASURY_PROOF.feeUSDC)} fee`,
       receipt: "npm run treasury:verify-live",
-      meaning: "The verifier checks the payment tx, bind event, vault movement, blocked no-move path, debt, and fee.",
+      meaning: "The command checks the payment tx, bind event, vault movement, blocked no-move path, debt, and fee.",
       links: [{ label: "repo", href: "https://github.com/dolepee/shadow" }],
     },
   ];
 
   return (
-    <section className="treasuryProofPanel" id="treasury-proof" aria-label="Shadow Treasury live proof">
+    <section className="treasuryProofPanel" id="treasury-runway" aria-label="Shadow Treasury live transaction runway">
       <div className="treasuryProofHeader">
         <div>
-          <p className="eyebrow">live proof runway · Arc receipts</p>
+          <p className="eyebrow">live transaction runway · Arc receipts</p>
           <h2>One operator paid, allocated, and was stopped on the third action.</h2>
           <p>
-            The proof below is deliberately concrete: one provider payment, one vault allocation, one blocked over-limit
-            allocation, and one read-only verifier. It is supporting M1 evidence, not a production treasury custody claim.
+            The sequence below is deliberately concrete: one provider payment, one vault allocation, one blocked over-limit
+            allocation, and one read-only check. It shows the M1 rail in action while production custody moves to the next phase.
           </p>
         </div>
         <div className={`treasuryProofStatus ${treasuryState?.ok === false ? "fail" : ""}`}>
           <span className="treasuryProofStatusDot" />
-          {treasuryState ? (treasuryState.ok ? "live verifier green" : "verifier red") : "verifier ready"}
+          {treasuryState ? (treasuryState.ok ? "live checks green" : "checks need review") : "checks ready"}
         </div>
       </div>
 
-      <div className="treasuryMetricGrid" aria-label="Treasury proof amounts">
+      <div className="treasuryMetricGrid" aria-label="Treasury transaction amounts">
         <TreasuryMetric label="Float paid" value={`${formatFloatUSDC(TREASURY_PROOF.amountX402USDC)} USDC`} tone="allow" />
         <TreasuryMetric label="vault allocated" value={`${formatFloatUSDC(TREASURY_PROOF.amountAllocatedUSDC)} USDC`} tone="allow" />
         <TreasuryMetric label="blocked attempt" value={`${formatFloatUSDC(TREASURY_PROOF.amountBlockedUSDC)} USDC`} tone="block" />
@@ -1983,7 +1937,7 @@ function TreasuryProofPanel({
           ))}
         </div>
 
-        <aside className="treasuryContractStack" aria-label="Contracts used in the Treasury proof">
+        <aside className="treasuryContractStack" aria-label="Contracts used in the Treasury transaction path">
           <div>
             <span>operator</span>
             <code>{shortAddress(TREASURY_PROOF.operator)}</code>
@@ -2023,9 +1977,9 @@ function TreasuryProofPanel({
 
       <div className="treasuryBoundary">
         <span>External Float signed usage is live.</span>
-        <span>CitePay and Forum reviewed the Treasury proof.</span>
+        <span>CitePay and Forum reviewed the Treasury receipts.</span>
         <span>
-          API and CLI both check the combined proof: <code>/api/treasury</code> and <code>npm run treasury:verify-live</code>.
+          API and CLI both check the combined rail: <code>/api/treasury</code> and <code>npm run treasury:verify-live</code>.
         </span>
       </div>
     </section>
@@ -2118,7 +2072,7 @@ function TreasuryLiveVerifierPanel({
       <div className="treasuryLiveVerifierHeader">
         <div>
           <p className="eyebrow">live verifier · no private keys</p>
-          <h2>The Treasury page now reads the same proof checks as the CLI.</h2>
+          <h2>The Treasury page reads the same onchain checks as the CLI.</h2>
           <p>
             This endpoint verifies the x402 settlement, Float bind, debt math, vault transfer, blocked no-transfer path,
             bonds, and API indexing from live Arc state.
@@ -2138,11 +2092,11 @@ function TreasuryLiveVerifierPanel({
       ) : (
         <div className="treasuryVerifierGrid">
           <article className="treasuryVerifierSummary">
-            <span>combined proof</span>
+            <span>combined rail</span>
             <strong>{state?.ok ? "green" : loading ? "syncing" : "pending"}</strong>
             <p>
               {failed
-                ? `${failed} check${failed === 1 ? "" : "s"} need attention before relying on this proof.`
+                ? `${failed} check${failed === 1 ? "" : "s"} need attention before relying on this view.`
                 : state
                   ? `All ${passed} live checks passed${checkedAt ? ` at ${checkedAt}` : ""}.`
                   : "Waiting for the live Treasury API to return."}
@@ -2171,7 +2125,7 @@ function TreasuryLiveVerifierPanel({
   );
 }
 
-function TreasuryJudgePath() {
+function TreasuryOnchainLinks() {
   const links = [
     { label: "Run verifier", value: "npm run treasury:verify-live", href: "https://github.com/dolepee/shadow" },
     { label: "x402 settlement", value: shortAddress(TREASURY_PROOF.txs.x402Settlement), href: txUrl(TREASURY_PROOF.txs.x402Settlement) },
@@ -2182,10 +2136,10 @@ function TreasuryJudgePath() {
   ];
 
   return (
-    <section className="treasuryJudgePath" aria-label="Judge path for Shadow Treasury">
+    <section className="treasuryJudgePath" aria-label="Shadow Treasury onchain references">
       <div className="treasurySectionHeader">
-        <p className="eyebrow">judge path · one click each</p>
-        <h2>Check the proof without trusting the UI.</h2>
+        <p className="eyebrow">onchain references</p>
+        <h2>The same story resolves to public transactions.</h2>
       </div>
       <div className="treasuryJudgeGrid">
         {links.map((link) => (
@@ -2228,24 +2182,24 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
   return (
     <section className="treasuryValidationSection" aria-label="External validation and builder background">
       <div className="treasurySectionHeader">
-        <p className="eyebrow">validation · proof scope</p>
-        <h2>External Float usage is live; M1 review is tied to verifier proof.</h2>
+        <p className="eyebrow">validation · public receipts</p>
+        <h2>External Float usage is live; M1 review is tied to public receipts.</h2>
       </div>
 
       <div className="treasuryValidationGrid">
         <article className="treasuryValidationCard treasuryValidationCardPrimary">
-          <span>external Float proof</span>
+          <span>external Float usage</span>
           <strong>{externalSigned?.cycles ?? 0} signed draws</strong>
           <p>
             External agents can authorize a Float spend without hot-funding the provider payment first. The current standing
             board and verifier expose the signed draw path; {externalClosed} external lifecycle{externalClosed === 1 ? "" : "s"} closed through repayment.
           </p>
-          <Link to="/proof">Open external proof →</Link>
+          <Link to="/float">Open Float →</Link>
         </article>
 
         <article className="treasuryValidationCard treasuryValidationCardValidated">
           <span>technical review</span>
-          <strong>Builders reviewed the proof</strong>
+          <strong>Builders reviewed the transaction path</strong>
           <p>
             CitePay confirmed the architecture fit. Forum checked the live Arc transactions and verified the core claim:
             the same vault adapter entrypoint moved USDC when allowed, then moved zero USDC when over limit.
@@ -2262,7 +2216,7 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
             Shadow's earlier receipt-and-policy system settled 2,893 onchain receipts across 30 follower wallets. Float is
             the focused product; M1 shows how the same discipline extends into policy-bound allocations.
           </p>
-          <Link to="/archive">Open prior proof →</Link>
+          <Link to="/archive">Open prior record →</Link>
         </article>
       </div>
 
@@ -2284,30 +2238,30 @@ function TreasuryHardeningPanel() {
     {
       label: "approved-adapter boundary",
       title: "The live M1 guarantee is scoped",
-      body: "The hardened proof adapters authenticate the account and honor ALLOW/BLOCK before transfer. Arbitrary third-party adapters are not covered by this claim.",
+      body: "Approved adapters authenticate the account and honor ALLOW/BLOCK before transfer. New adapters must implement the same enforcement pattern.",
     },
     {
-      label: "proof sink",
-      title: "Vault proof is not production treasury custody",
-      body: "The current sink proves an allowed allocation and a no-transfer block. Post-hackathon work is a withdrawable vault or real market integration.",
+      label: "vault sink",
+      title: "Vault sink is not production treasury custody",
+      body: "The current sink demonstrates allowed allocation and no-transfer blocking. The production version connects to a withdrawable vault or real market integration.",
     },
     {
       label: "bond scope",
-      title: "The bond covers receipt liveness today",
-      body: "Correctness and settlement slashing remain roadmap work. The live proof does not pretend the bond covers every production treasury risk.",
+      title: "Bond coverage expands with production custody",
+      body: "The current bond supports receipt liveness. Production custody adds stronger correctness checks and settlement slashing.",
     },
     {
       label: "underwriting roadmap",
-      title: "Float scoring is deterministic v0",
-      body: "The score verifier derives behavior counts from Float receipts. The next upgrade is an autonomous runner that adjusts lines from that public score.",
+      title: "Float scoring moves toward autonomous adjustment",
+      body: "The score path derives behavior counts from Float receipts. The next upgrade adjusts lines automatically from that public score.",
     },
   ];
 
   return (
-    <section className="treasuryValidationSection" aria-label="M1 proof boundaries and post-hackathon hardening">
+    <section className="treasuryValidationSection" aria-label="M1 production roadmap">
       <div className="treasurySectionHeader">
-        <p className="eyebrow">proof boundary · post-hackathon hardening</p>
-        <h2>The live proof is real; production treasury custody is the next build.</h2>
+        <p className="eyebrow">production roadmap</p>
+        <h2>The next build turns the M1 rail into production custody.</h2>
       </div>
       <div className="roadmapGrid">
         {boundaries.map((item) => (
@@ -2373,7 +2327,7 @@ function FloatPanel({
     state?.fetchedAt && configured
       ? new Date(state.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       : null;
-  const proofSteps = [
+  const floatSteps = [
     {
       label: "1",
       title: "Reserve",
@@ -2404,7 +2358,7 @@ function FloatPanel({
     <section className={`floatPanel floatPanelV2${compact ? " floatPanelCompact" : ""}`} id="shadow-float">
       <div className="floatHeroShell">
         <div className="floatHeroCopy">
-          <p className="eyebrow">Shadow Float V2 · current proof live</p>
+          <p className="eyebrow">Shadow Float V2 · current contract live</p>
           {compact ? (
             <h2>Signed agents draw reserved USDC, then repay the debt.</h2>
           ) : (
@@ -2418,7 +2372,7 @@ function FloatPanel({
           <div className="floatHeroActions">
             {primaryProofHash ? (
               <a className="floatPrimaryAction" href={txUrl(primaryProofHash as `0x${string}`)} target="_blank" rel="noreferrer">
-                Open historical x402 proof
+                Open historical x402 tx
               </a>
             ) : (
               <a className="floatPrimaryAction" href="#float-receipts">
@@ -2430,9 +2384,9 @@ function FloatPanel({
             </a>
           </div>
         </div>
-        <aside className="floatProofCard" aria-label="Shadow Float live proof">
+        <aside className="floatProofCard" aria-label="Shadow Float live state">
           <div className="floatProofCardHeader">
-            <span>live proof</span>
+            <span>live state</span>
             <strong>{configured ? `${state?.receiptCount || "0"} receipts` : "syncing"}</strong>
           </div>
           <div className="floatProofCardMoment">
@@ -2455,13 +2409,13 @@ function FloatPanel({
       <div className="floatStatusRow">
         <div className={`floatStatus ${configured ? "configured" : "pending"}`}>
           <span className="floatStatusDot" />
-          {configured ? "live historical reads" : syncPending ? "syncing live proof" : "configuration pending"}
+          {configured ? "live historical reads" : syncPending ? "syncing live receipts" : "configuration pending"}
           {loading && <small>syncing</small>}
           {updated && <small>updated {updated}</small>}
         </div>
         <span>real Arc USDC</span>
         <span>V2 signed intent enforced onchain</span>
-        <span>V1 x402 receipts kept as historical proof</span>
+        <span>V1 x402 receipts kept as historical context</span>
       </div>
 
       {!compact && <FloatWalletProof state={state} loading={loading} />}
@@ -2510,8 +2464,8 @@ function FloatPanel({
       {!compact && <FloatCreditFlywheelPanel board={standingBoard} />}
 
       {!compact && (
-        <div className="floatProofRail" aria-label="Shadow Float proof path">
-          {proofSteps.map((step) => (
+        <div className="floatProofRail" aria-label="Shadow Float product flow">
+          {floatSteps.map((step) => (
             <div className="floatProofStep" key={step.title}>
               <span>{step.label}</span>
               <strong>{step.title}</strong>
@@ -2597,7 +2551,7 @@ function FloatPanel({
 
         <article className="floatBox">
           <div className="floatBoxHeader">
-            <span>proof links</span>
+            <span>onchain links</span>
             <small>deterministic policy</small>
           </div>
           <div className="floatProofLinks">
@@ -2613,12 +2567,12 @@ function FloatPanel({
             )}
             {guardProofHash && (
               <a href={txUrl(guardProofHash as `0x${string}`)} target="_blank" rel="noreferrer">
-                block proof <strong>{shortAddress(guardProofHash)}</strong>
+                block tx <strong>{shortAddress(guardProofHash)}</strong>
               </a>
             )}
             {latestExternalRun?.requestHash && (
               <a href={`/api/float-tools?action=verify&hash=${latestExternalRun.requestHash}`} target="_blank" rel="noreferrer">
-                signed external verify <strong>{shortHash(latestExternalRun.requestHash)}</strong>
+                signed external check <strong>{shortHash(latestExternalRun.requestHash)}</strong>
               </a>
             )}
             {state?.float && (
@@ -2634,7 +2588,7 @@ function FloatPanel({
         <article className="floatReceipts" id="float-receipts">
           <div className="floatBoxHeader">
             <span>latest Float receipts</span>
-            <small>{receipts.length ? `${receipts.length} indexed` : "waiting for proof run"}</small>
+            <small>{receipts.length ? `${receipts.length} indexed` : "waiting for receipts"}</small>
           </div>
           <div className="floatReceiptList">
             {receipts.length ? (
@@ -2674,7 +2628,7 @@ function FloatPanel({
       {error && <div className="leptonError">Float read failed: {error}</div>}
 
       {!compact && (
-        <FloatJudgePath state={state} />
+        <FloatOnchainLinks state={state} />
       )}
 
       {!compact && (
@@ -2682,7 +2636,7 @@ function FloatPanel({
           <span>testnet USDC line, not a lending market</span>
           <span>agent chooses the spend; Shadow enforces the mandate</span>
           <span>V2 provider payment is contract enforced</span>
-          <span>external signed and onboarding-assisted proofs stay labeled separately</span>
+          <span>external signed and onboarding-assisted activity stays labeled separately</span>
         </div>
       )}
     </section>
@@ -2710,7 +2664,7 @@ function FloatV2ProofStrip({ compact = false }: { compact?: boolean }) {
       href: txUrl(FLOAT_V2_PROOF.blockedSpendTx),
     },
     {
-      eyebrow: "repay proof",
+      eyebrow: "repayment",
       title: "line restored",
       detail: "V2 debt repaid to zero",
       href: txUrl(FLOAT_V2_PROOF.repayTx),
@@ -2730,7 +2684,7 @@ function FloatV2ProofStrip({ compact = false }: { compact?: boolean }) {
   ];
 
   return (
-    <section className={`floatV2ProofStrip${compact ? " compact" : ""}`} aria-label="Shadow Float V2 proof anchors">
+    <section className={`floatV2ProofStrip${compact ? " compact" : ""}`} aria-label="Shadow Float V2 onchain anchors">
       <div className="floatV2ProofIntro">
         <span>Float V2 is the current contract</span>
         <strong>Signed intent, reserve payment, debt, block, repay.</strong>
@@ -2762,9 +2716,9 @@ function FloatWalletProof({ state, loading }: { state: FloatState | null; loadin
   const pending = loading && !proof;
   const showUSDC = (value?: string | bigint | null) => (pending ? "syncing" : formatFloatUSDC(value));
   return (
-    <article className="floatWalletProof" aria-label="Agent wallet shortfall proof">
+    <article className="floatWalletProof" aria-label="Agent wallet shortfall evidence">
       <div className="floatBoxHeader">
-        <span>insufficient-wallet proof</span>
+        <span>insufficient-wallet evidence</span>
         <small>{exactHistory ? "historical snapshot" : "current balance + receipts"}</small>
       </div>
       <div className="floatWalletProofCopy">
@@ -2894,9 +2848,9 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
   ];
 
   return (
-    <article className="floatRunway" aria-label="Float proof runway">
+    <article className="floatRunway" aria-label="Float transaction runway">
       <div className="floatBoxHeader">
-        <span>Float proof runway</span>
+        <span>Float transaction runway</span>
         <small>the loop in 10 seconds</small>
       </div>
       <div className="floatRunwayRows">
@@ -2915,7 +2869,7 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       </div>
       {latestExternalRun?.requestHash && (
         <a className="floatRunwayVerify" href={`/api/float-tools?action=verify&hash=${latestExternalRun.requestHash}`} target="_blank" rel="noreferrer">
-          Verify signed external intent {shortHash(latestExternalRun.requestHash)}
+          Check signed external intent {shortHash(latestExternalRun.requestHash)}
         </a>
       )}
     </article>
@@ -2927,9 +2881,9 @@ function FloatProofChecksPanel({ state }: { state: FloatState | null }) {
   const entries = Object.entries(checks).filter(([, value]) => typeof value === "boolean") as Array<[string, boolean]>;
   const trustBoundary = typeof checks.trustBoundary === "string" ? checks.trustBoundary : null;
   return (
-    <article className="floatProofChecks" aria-label="Float proof checks">
+    <article className="floatProofChecks" aria-label="Float API status checks">
       <div className="floatBoxHeader">
-        <span>API proof checks</span>
+        <span>API status checks</span>
         <small>{entries.filter(([, ok]) => ok).length}/{entries.length || 0} passing</small>
       </div>
       <div className="floatProofCheckGrid">
@@ -2945,7 +2899,7 @@ function FloatProofChecksPanel({ state }: { state: FloatState | null }) {
   );
 }
 
-function FloatJudgePath({ state }: { state: FloatState | null }) {
+function FloatOnchainLinks({ state }: { state: FloatState | null }) {
   const receipts = state?.receipts || [];
   const pointers = state?.proofPointers;
   const x402Receipt = pointers?.x402BoundReceipt || receipts.find((receipt) => receipt.x402);
@@ -2957,7 +2911,7 @@ function FloatJudgePath({ state }: { state: FloatState | null }) {
   const denialReceipt = pointers?.denialReceipt || receipts.find((receipt) => receipt.receiptType === "CREDIT_DENIED");
   const latestExternalRun = (state?.loopRuns || []).find((run) => run.source === "external-signed" && run.requestHash);
   const links = [
-    { label: "Open live proof", href: "/api/float" },
+    { label: "Open live API", href: "/api/float" },
     { label: "Check reserve", href: "/api/float" },
     { label: "Check V2 direct spend", href: txUrl(FLOAT_V2_PROOF.directSpendTx) },
     { label: "Check V2 blocked overrun", href: txUrl(FLOAT_V2_PROOF.blockedSpendTx) },
@@ -2971,10 +2925,10 @@ function FloatJudgePath({ state }: { state: FloatState | null }) {
     latestExternalRun?.requestHash ? { label: "Check signed external", href: `/api/float-tools?action=verify&hash=${latestExternalRun.requestHash}` } : null,
   ].filter((link): link is { label: string; href: string } => Boolean(link));
   return (
-    <article className="floatJudgePath" aria-label="Judge verification path">
+    <article className="floatJudgePath" aria-label="Shadow Float onchain references">
       <div className="floatBoxHeader">
-        <span>judge path</span>
-        <small>one-click checks plus command</small>
+        <span>onchain references</span>
+        <small>transactions plus command</small>
       </div>
       <div className="floatJudgeLinks">
         {links.map((link) => (
@@ -3227,7 +3181,7 @@ function FloatCreditFlywheelPanel({ board }: { board?: FloatStandingBoard }) {
         )}
       </div>
       <div className="floatCreditCommand">
-        <span>read-only proof</span>
+        <span>read-only score</span>
         <code>npm run float:score-proof</code>
         <span>owner-controlled runner</span>
         <code>npm run float:autounderwrite</code>
@@ -3365,7 +3319,7 @@ function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
           })
         ) : (
           <div className="floatExternalEmpty">
-            Signed external spends appear here after an outside agent signs a Float intent and the proof is indexed.
+            Signed external spends appear here after an outside agent signs a Float intent and the receipt is indexed.
           </div>
         )}
       </div>
@@ -3466,7 +3420,7 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
         </div>
       ) : (
         <div className="floatLoopEmpty">
-          The Float proof is live. No scheduled agent-loop receipt is indexed yet.
+          The Float receipt stream is live. No scheduled agent-loop receipt is indexed yet.
         </div>
       )}
       {!compact && hasRuns && (
@@ -4992,18 +4946,18 @@ function Shadow2ProofStrip({
       label: "Mirror Adapter",
       metric: mirrorLoaded ? `${copiedCount}/${blockedCount}` : "syncing",
       unit: "copied / blocked",
-      title: "The first production-style proof",
-      body: "Copy trading stays visible as historical demand proof: one source intent, per-user policy, no cascade revert.",
+      title: "The first production-style receipt rail",
+      body: "Copy trading stays visible as historical demand context: one source intent, per-user policy, no cascade revert.",
       to: "/receipts",
       tone: "mirror",
     },
   ];
 
   return (
-    <section className="shadow2Strip" aria-label="Shadow 2.0 proof surfaces">
+    <section className="shadow2Strip" aria-label="Shadow 2.0 product surfaces">
       <div className="shadow2StripHeader">
-        <p className="eyebrow">Shadow Float proof map</p>
-        <h2>The Float product, with prior proof surfaces underneath.</h2>
+        <p className="eyebrow">Shadow Float product map</p>
+        <h2>The Float product, with earlier receipt rails underneath.</h2>
       </div>
       <div className="shadow2StripGrid">
         {cards.map((card) => (
@@ -5013,7 +4967,7 @@ function Shadow2ProofStrip({
             <span className="shadow2ProofUnit">{card.unit}</span>
             <h3>{card.title}</h3>
             <p>{card.body}</p>
-            <span className="shadow2ProofLink">open proof →</span>
+            <span className="shadow2ProofLink">open record →</span>
           </Link>
         ))}
       </div>
@@ -5112,10 +5066,10 @@ function SiteFooter() {
       ],
     },
     {
-      title: "Verify",
+      title: "Resources",
       links: [
-        { label: "Proof page", href: "/proof" },
         { label: "Live API", href: "/api/float" },
+        { label: "Treasury API", href: "/api/treasury" },
         { label: "Arc explorer", href: "https://testnet.arcscan.app" },
       ],
     },
@@ -5215,7 +5169,7 @@ function HomeProofOverview({
       value: loaded ? `${externalSigned?.cycles ?? 0}` : "live",
       label: "signed spends",
       body: "Builders sign intents with their own agents; Shadow V2 verifies the intent and pays the provider from reserved capacity.",
-      href: latestExternalVerify?.verifyUrl || "/proof",
+      href: latestExternalVerify?.verifyUrl || "/float",
       external: Boolean(latestExternalVerify?.verifyUrl),
     },
     {
@@ -5225,15 +5179,15 @@ function HomeProofOverview({
       body: lifecycleClosedCount
         ? "Signed external agents repaid their Float debt and restored their full lines onchain."
         : "Borrow, spend, and repay are indexed as separate receipts so the lifecycle is auditable.",
-      href: repayHash ? txUrl(repayHash) : "/proof",
+      href: repayHash ? txUrl(repayHash) : "/float",
       external: Boolean(repayHash),
     },
     {
-      eyebrow: "proof checks",
+      eyebrow: "status checks",
       value: totalChecks ? `${greenChecks}/${totalChecks}` : "green",
       label: "live verifier checks",
       body: "Reserve, receipt count, provider payment, debt, repayment, overspend, and denial checks are exposed through the API.",
-      href: "/proof",
+      href: "/float",
     },
     {
       eyebrow: "contract receipts",
@@ -5246,15 +5200,15 @@ function HomeProofOverview({
   ];
 
   return (
-    <section className="homeProofOverview" aria-label="Shadow Float live product proof">
+    <section className="homeProofOverview" aria-label="Shadow Float live product evidence">
       <div className="homeProofHeader">
         <div>
-          <p className="eyebrow">live product proof</p>
+          <p className="eyebrow">live product evidence</p>
           <h2>External agents can draw sponsor-backed capacity, then repay the debt trail.</h2>
         </div>
         <div className={`homeProofStatus ${error ? "error" : loading ? "syncing" : "live"}`}>
           <span className="homeProofStatusDot" />
-          {error ? "proof API degraded" : loading ? "syncing live receipts" : "proof API live"}
+          {error ? "receipt API degraded" : loading ? "syncing live receipts" : "receipt API live"}
         </div>
       </div>
       <div className="homeProofGrid">
@@ -5279,7 +5233,7 @@ function HomeProofOverview({
         })}
       </div>
       <div className="homeProofLinks">
-        <Link to="/proof">Open proof page</Link>
+        <Link to="/float">Open Float</Link>
         <a href="/api/float" target="_blank" rel="noreferrer">Read live API</a>
         <a href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">View repository</a>
       </div>
@@ -5487,12 +5441,12 @@ function LeptonM1Panel({
   const adapterSurfaces = [
     {
       name: "Uniswap v4-style swaps",
-      status: configured ? "live proof" : "deploy pending",
+      status: configured ? "live" : "deploy pending",
       detail: "Pool-key execution refs bind currency pair, fee tier, tick spacing, hooks, and route salt.",
     },
     {
       name: "Morpho-style vault deposits",
-      status: configured && state?.morphoConfigured ? "live proof" : "deploy pending",
+      status: configured && state?.morphoConfigured ? "live" : "deploy pending",
       detail: "Deposit-only adapter gates USDC before vault movement through the same bonded enforcer.",
     },
   ];
@@ -5611,7 +5565,7 @@ function LeptonM1Panel({
       {!compact && (
         <article className="leptonPasskeyProof">
           <div className="leptonBoxHeader">
-            <span>Circle passkey proof</span>
+            <span>Circle passkey transaction</span>
             <small>sponsored UserOp</small>
           </div>
           <div className="leptonProofFacts">
@@ -5628,7 +5582,7 @@ function LeptonM1Panel({
               <strong>{circlePasskeyProof.amount}</strong>
             </div>
             <div>
-              <span>Proof tx</span>
+              <span>Tx</span>
               <a href={txUrl(circlePasskeyProof.txHash)} target="_blank" rel="noreferrer">
                 {shortAddress(circlePasskeyProof.txHash)}
               </a>
@@ -5644,7 +5598,7 @@ function LeptonM1Panel({
       {!compact && (
         <article className="leptonPasskeyProof">
           <div className="leptonBoxHeader">
-            <span>Morpho-style vault proof</span>
+            <span>Morpho-style vault transaction</span>
             <small>live adapter</small>
           </div>
           <div className="leptonProofFacts">
@@ -5665,7 +5619,7 @@ function LeptonM1Panel({
               </strong>
             </div>
             <div>
-              <span>Proof txs</span>
+              <span>Txs</span>
               <a href={txUrl(morphoProof.allowTx)} target="_blank" rel="noreferrer">
                 allow
               </a>
@@ -5953,8 +5907,8 @@ function CircleStackPanel() {
           <span>settlement</span>
           <strong>Arc USDC · direct provider pay</strong>
           <p>
-            The V2 proof pays the signed provider directly from contract custody. V1 keeps the historical x402/EIP-3009
-            settlement proof.
+            V2 pays the signed provider directly from contract custody. V1 keeps the historical x402/EIP-3009 settlement
+            receipts.
           </p>
         </article>
         <article className="circleTierCard">
@@ -6010,8 +5964,8 @@ function FloatEconomicsPanel() {
         </article>
       </div>
       <p className="floatEconomicsNote">
-        Current testnet numbers prove mechanics only: treasury fronting, x402 settlement, debt, fee accrual, repayment, and
-        block/deny behavior. They are not meaningful revenue.
+        Live testnet amounts are intentionally small; the important signal is the complete loop: reserve, provider payment,
+        debt, fee accrual, repayment, and block/deny behavior.
       </p>
     </section>
   );
@@ -6740,7 +6694,7 @@ function ModularWalletCard() {
                 >
                   {state.kind === "sending"
                     ? `Lepton… ${state.stage}`
-                    : "Run Lepton mandate proof (sponsored)"}
+                    : "Run Lepton mandate action (sponsored)"}
                 </button>
               </div>
               {state.kind === "funded" && state.tx && (
