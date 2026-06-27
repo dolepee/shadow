@@ -873,6 +873,56 @@ html {
   color: var(--block);
 }
 
+.floatV2Workflow {
+  background:
+    linear-gradient(135deg, rgba(184, 211, 255, 0.045), rgba(52, 229, 255, 0.02)),
+    rgba(7, 17, 31, 0.62);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-top: 14px;
+  padding: 16px;
+}
+
+.floatV2WorkflowGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.floatV2WorkflowGrid article {
+  background: rgba(7, 17, 31, 0.54);
+  border: 1px solid rgba(184, 211, 255, 0.12);
+  border-radius: 10px;
+  min-height: 172px;
+  padding: 14px;
+}
+
+.floatV2WorkflowGrid span,
+.floatV2VerificationFooter span {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.floatV2WorkflowGrid strong {
+  color: var(--ink);
+  display: block;
+  font-size: 18px;
+  letter-spacing: 0;
+  line-height: 1.1;
+  margin-top: 22px;
+}
+
+.floatV2WorkflowGrid p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+
 .floatV2ActivityBoard {
   background:
     linear-gradient(135deg, rgba(50, 215, 255, 0.075), rgba(77, 240, 168, 0.04)),
@@ -958,6 +1008,52 @@ html {
 
 .floatV2ActivityEmpty strong {
   color: var(--ink);
+}
+
+.floatV2VerificationFooter {
+  align-items: start;
+  background: rgba(7, 17, 31, 0.38);
+  border: 1px solid rgba(184, 211, 255, 0.1);
+  border-radius: 14px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+  margin-top: 14px;
+  padding: 14px;
+}
+
+.floatV2VerificationFooter p {
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 6px 0 0;
+}
+
+.floatV2VerificationLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.floatV2VerificationLinks a {
+  border: 1px solid rgba(184, 211, 255, 0.13);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 7px 9px;
+  text-decoration: none;
+}
+
+.floatV2VerificationLinks a:hover {
+  border-color: rgba(50, 215, 255, 0.28);
+  color: var(--accent);
+}
+
+.floatV2VerificationLinks strong {
+  color: var(--ink);
+  font-weight: 800;
 }
 
 .floatStandingBoard {
@@ -2260,6 +2356,10 @@ html {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .floatV2WorkflowGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .floatLoopStats,
   .floatLoopSplit {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2393,6 +2493,15 @@ html {
 
   .floatV2ActivityStats {
     grid-template-columns: 1fr;
+  }
+
+  .floatV2WorkflowGrid,
+  .floatV2VerificationFooter {
+    grid-template-columns: 1fr;
+  }
+
+  .floatV2VerificationLinks {
+    justify-content: flex-start;
   }
 
   .floatV2ActivityRow {

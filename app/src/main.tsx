@@ -1475,8 +1475,6 @@ function App() {
         <HeroMetrics />
       </section>
 
-      <FloatV2ProofStrip />
-
       <HomeProofOverview />
 
       <section className="pageNext" aria-label="Shadow Float product paths">
@@ -1518,7 +1516,6 @@ function App() {
 
   const floatPage = (
     <>
-      <FloatV2ProofStrip />
       <FloatV2CurrentPanel state={floatV2State} loading={floatV2Loading} error={floatV2Error} />
       <CircleStackPanel />
     </>
@@ -2717,73 +2714,6 @@ function FloatPanel({
   );
 }
 
-function FloatV2ProofStrip({ compact = false }: { compact?: boolean }) {
-  const items = [
-    {
-      eyebrow: "current contract",
-      title: shortAddress(FLOAT_V2_CONTRACT),
-      detail: "Sourcify full match, current V2 Float",
-      href: FLOAT_V2_PROOF.sourcify,
-    },
-    {
-      eyebrow: "signed spend",
-      title: "0.01 USDC paid",
-      detail: "provider paid from contract reserve",
-      href: txUrl(FLOAT_V2_PROOF.directSpendTx),
-    },
-    {
-      eyebrow: "overrun block",
-      title: "0.10 USDC blocked",
-      detail: "signed overrun consumed, no provider transfer",
-      href: txUrl(FLOAT_V2_PROOF.blockedSpendTx),
-    },
-    {
-      eyebrow: "repayment",
-      title: "line restored",
-      detail: "V2 debt repaid to zero",
-      href: txUrl(FLOAT_V2_PROOF.repayTx),
-    },
-    {
-      eyebrow: "external lifecycle",
-      title: "Crux closed",
-      detail: "external signer spent and repaid on V2",
-      href: txUrl(FLOAT_V2_PROOF.cruxRepayTx),
-    },
-    {
-      eyebrow: "external signed spend",
-      title: "Obol bound",
-      detail: "independent buyer agent signed V2 intent",
-      href: txUrl(FLOAT_V2_PROOF.obolSpendTx),
-    },
-  ];
-
-  return (
-    <section className={`floatV2ProofStrip${compact ? " compact" : ""}`} aria-label="Shadow Float V2 onchain anchors">
-      <div className="floatV2ProofIntro">
-        <span>Float V2 is the current contract</span>
-        <strong>Signed intent, reserve payment, debt, block, repay.</strong>
-        <p>
-          V2 is live at {shortAddress(FLOAT_V2_CONTRACT)}. This page counts the current sponsored-line path: signed intent,
-          direct provider payment, debt, repayment, and blocked overrun.
-        </p>
-      </div>
-      <div className="floatV2ProofCards">
-        {items.map((item) => (
-          <a href={item.href} target="_blank" rel="noreferrer" className="floatV2ProofCard" key={item.eyebrow}>
-            <span>{item.eyebrow}</span>
-            <strong>{item.title}</strong>
-            <small>{item.detail}</small>
-          </a>
-        ))}
-      </div>
-      <div className="floatV2ProofCommand">
-        <span>read-only verifier</span>
-        <code>npm run float:v2-verify-live</code>
-      </div>
-    </section>
-  );
-}
-
 function FloatV2CurrentPanel({
   state,
   loading,
@@ -2814,11 +2744,11 @@ function FloatV2CurrentPanel({
             reserve.
           </p>
           <div className="floatHeroActions">
-            <a className="floatPrimaryAction" href={txUrl(FLOAT_V2_PROOF.directSpendTx)} target="_blank" rel="noreferrer">
-              Open V2 spend tx
+            <a className="floatPrimaryAction" href="#v2-activity">
+              View live activity
             </a>
-            <a className="floatSecondaryAction" href={FLOAT_V2_PROOF.sourcify} target="_blank" rel="noreferrer">
-              View source match
+            <a className="floatSecondaryAction" href={txUrl(FLOAT_V2_PROOF.directSpendTx)} target="_blank" rel="noreferrer">
+              Open spend tx
             </a>
           </div>
         </div>
@@ -2861,32 +2791,77 @@ function FloatV2CurrentPanel({
         <FloatMetric label="open debt" value={`${formatFloatUSDC(state?.summary?.activeDebtUSDC)} USDC`} tone={state?.summary?.openDebtAgents ? "block" : "allow"} />
       </div>
 
+      <FloatV2WorkflowPanel />
       <FloatV2ActivityBoard state={state} loading={loading} error={error} />
+      <FloatV2VerificationFooter anchors={anchors} />
+    </section>
+  );
+}
 
-      <section className="floatBox" aria-label="Shadow Float V2 onchain anchors">
-        <div className="floatBoxHeader">
-          <span>V2 onchain anchors</span>
-          <small>current contract only</small>
-        </div>
-        <div className="floatProofLinks">
-          {anchors.map((anchor) => (
-            <a href={anchor.href} target="_blank" rel="noreferrer" key={anchor.label}>
-              {anchor.label} <strong>{anchor.value}</strong>
-            </a>
-          ))}
-        </div>
-      </section>
+function FloatV2WorkflowPanel() {
+  const steps = [
+    {
+      label: "Sponsor",
+      title: "Reserve capacity",
+      body: "A sponsor backs a specific agent line with Arc USDC. The contract will not promise more spendable capacity than the reserve can support.",
+    },
+    {
+      label: "Agent",
+      title: "Sign bounded spend",
+      body: "The agent signs provider, endpoint, amount, max debt, nonce, expiry, and executor. The key stays with the builder.",
+    },
+    {
+      label: "Provider",
+      title: "Get paid directly",
+      body: "If the signed intent is valid and inside the line policy, Float pays the named provider from contract custody.",
+    },
+    {
+      label: "Line",
+      title: "Repay or block",
+      body: "Repayment restores capacity. Oversized attempts are recorded and refused before provider funds move.",
+    },
+  ];
 
-      <section className="floatBox" aria-label="Shadow Float V2 verifier">
-        <div className="floatBoxHeader">
-          <span>read-only verifier</span>
-          <small>no private keys</small>
-        </div>
-        <div className="floatCreditCommand">
-          <span>current V2 loop</span>
-          <code>npm run float:v2-verify-live</code>
-        </div>
-      </section>
+  return (
+    <section className="floatV2Workflow" aria-label="Shadow Float V2 workflow">
+      <div className="floatBoxHeader">
+        <span>how Float V2 works</span>
+        <small>sponsor backed, signature enforced</small>
+      </div>
+      <div className="floatV2WorkflowGrid">
+        {steps.map((step, index) => (
+          <article key={step.label}>
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <strong>{step.title}</strong>
+            <p>{step.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FloatV2VerificationFooter({
+  anchors,
+}: {
+  anchors: Array<{ label: string; href: string; value: string }>;
+}) {
+  return (
+    <section className="floatV2VerificationFooter" aria-label="Shadow Float V2 verification links">
+      <div>
+        <span>verification</span>
+        <p>Source match, transaction anchors, and the local check command remain available without dominating the product view.</p>
+      </div>
+      <div className="floatV2VerificationLinks">
+        {anchors.map((anchor) => (
+          <a href={anchor.href} target="_blank" rel="noreferrer" key={anchor.label}>
+            {anchor.label} <strong>{anchor.value}</strong>
+          </a>
+        ))}
+        <a href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
+          local check <strong>float:v2-verify-live</strong>
+        </a>
+      </div>
     </section>
   );
 }
@@ -2907,7 +2882,7 @@ function FloatV2ActivityBoard({
   const statusLabel = error ? "V2 read needs review" : loading && !state ? "syncing V2 activity" : "live V2 activity";
 
   return (
-    <section className="floatV2ActivityBoard" aria-label="Shadow Float V2 external activity">
+    <section className="floatV2ActivityBoard" id="v2-activity" aria-label="Shadow Float V2 external activity">
       <div className="floatBoxHeader">
         <span>external V2 activity</span>
         <small>{checkedAt ? `updated ${checkedAt}` : statusLabel}</small>
