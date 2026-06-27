@@ -2736,36 +2736,35 @@ function FloatV2CurrentPanel({
     <section className="floatPanel floatPanelV2" id="shadow-float" aria-label="Shadow Float V2 current product">
       <div className="floatHeroShell">
         <div className="floatHeroCopy">
-          <p className="eyebrow">Shadow Float V2 · current contract live</p>
-          <h1>Signed agents draw reserved USDC, then repay the debt.</h1>
+          <p className="eyebrow">Shadow Float V2 · live on Arc</p>
+          <h1>Give agents spend capacity without hot-funding every wallet.</h1>
           <p className="floatLede">
-            The current Float path is V2 only: the agent signs a bounded EIP-712 intent, the contract verifies signer,
-            nonce, expiry, provider, amount, executor, and max debt onchain, then pays the named provider from sponsor
-            reserve.
+            Shadow Float lets a sponsor reserve Arc USDC for an agent. The agent signs a bounded spend intent, the contract
+            pays the named provider from that reserve, and the line is restored when the agent repays.
           </p>
           <div className="floatHeroActions">
             <a className="floatPrimaryAction" href="#v2-activity">
-              View live activity
+              View activity
             </a>
-            <a className="floatSecondaryAction" href={txUrl(FLOAT_V2_PROOF.directSpendTx)} target="_blank" rel="noreferrer">
-              Open spend tx
-            </a>
+            <Link className="floatSecondaryAction" to="/builders">
+              Add an agent
+            </Link>
           </div>
         </div>
         <aside className="floatProofCard" aria-label="Shadow Float V2 live state">
           <div className="floatProofCardHeader">
-            <span>current V2 state</span>
+            <span>current line behavior</span>
             <strong>contract enforced</strong>
           </div>
           <div className="floatProofCardMoment">
-            <span>signed intent</span>
+            <span>approved request</span>
             <strong>provider paid</strong>
-            <small>{shortAddress(FLOAT_V2_PROOF.directSpendTx)}</small>
+            <small>from sponsor reserve</small>
           </div>
           <div className="floatProofCardMoment blocked">
-            <span>overrun</span>
+            <span>oversized request</span>
             <strong>blocked first</strong>
-            <small>{shortAddress(FLOAT_V2_PROOF.blockedSpendTx)}</small>
+            <small>no provider transfer</small>
           </div>
           <div className="floatProofCardFooter">
             <span>chain 5042002</span>
@@ -2777,11 +2776,11 @@ function FloatV2CurrentPanel({
       <div className="floatStatusRow">
         <div className="floatStatus configured">
           <span className="floatStatusDot" />
-          V2 tx anchors live
+          V2 active
         </div>
-        <span>sponsor reserve pays provider</span>
-        <span>nonce and max debt enforced onchain</span>
-        <span>external V2 lifecycle captured</span>
+        <span>sponsor reserve pays providers</span>
+        <span>nonce and max debt checked onchain</span>
+        <span>external agent lines active</span>
       </div>
 
       <div className="floatMetricGrid">
@@ -2791,9 +2790,44 @@ function FloatV2CurrentPanel({
         <FloatMetric label="open debt" value={`${formatFloatUSDC(state?.summary?.activeDebtUSDC)} USDC`} tone={state?.summary?.openDebtAgents ? "block" : "allow"} />
       </div>
 
+      <FloatV2UseCasePanel />
       <FloatV2WorkflowPanel />
       <FloatV2ActivityBoard state={state} loading={loading} error={error} />
       <FloatV2VerificationFooter anchors={anchors} />
+    </section>
+  );
+}
+
+function FloatV2UseCasePanel() {
+  const items = [
+    {
+      title: "For buyer agents",
+      body: "Call paid APIs or data providers before every agent wallet has to be manually topped up.",
+    },
+    {
+      title: "For sponsors",
+      body: "Set bounded capacity per agent, keep reserves capped, and let repayment restore the line.",
+    },
+    {
+      title: "For providers",
+      body: "Receive Arc USDC directly from contract custody when the signed request is inside policy.",
+    },
+  ];
+
+  return (
+    <section className="floatV2UseCase" aria-label="Shadow Float V2 users">
+      <div>
+        <span>why Float exists</span>
+        <strong>Autonomous agents need paid services, but funding every wallet in advance is operationally brittle.</strong>
+      </div>
+      <div className="floatV2UseCaseGrid">
+        {items.map((item) => (
+          <article key={item.title}>
+            <strong>{item.title}</strong>
+            <p>{item.body}</p>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
@@ -2825,8 +2859,8 @@ function FloatV2WorkflowPanel() {
   return (
     <section className="floatV2Workflow" aria-label="Shadow Float V2 workflow">
       <div className="floatBoxHeader">
-        <span>how Float V2 works</span>
-        <small>sponsor backed, signature enforced</small>
+        <span>how it works</span>
+        <small>sponsor backed capacity</small>
       </div>
       <div className="floatV2WorkflowGrid">
         {steps.map((step, index) => (
@@ -2849,8 +2883,8 @@ function FloatV2VerificationFooter({
   return (
     <section className="floatV2VerificationFooter" aria-label="Shadow Float V2 verification links">
       <div>
-        <span>verification</span>
-        <p>Source match, transaction anchors, and the local check command remain available without dominating the product view.</p>
+        <span>inspectable records</span>
+        <p>Source match, transaction anchors, and the local check command are available for builders who want to inspect the line.</p>
       </div>
       <div className="floatV2VerificationLinks">
         {anchors.map((anchor) => (
@@ -5409,12 +5443,12 @@ function HomeProofOverview() {
     <section className="homeProofOverview" aria-label="Shadow Float live product evidence">
       <div className="homeProofHeader">
         <div>
-          <p className="eyebrow">live product evidence</p>
+          <p className="eyebrow">live Float activity</p>
           <h2>V2 verifies the signed spend before sponsor-backed USDC moves.</h2>
         </div>
         <div className="homeProofStatus live">
           <span className="homeProofStatusDot" />
-          V2 tx anchors live
+          Float V2 live
         </div>
       </div>
       <div className="homeProofGrid">

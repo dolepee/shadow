@@ -873,6 +873,7 @@ html {
   color: var(--block);
 }
 
+.floatV2UseCase,
 .floatV2Workflow {
   background:
     linear-gradient(135deg, rgba(184, 211, 255, 0.045), rgba(52, 229, 255, 0.02)),
@@ -881,6 +882,34 @@ html {
   border-radius: 14px;
   margin-top: 14px;
   padding: 16px;
+}
+
+.floatV2UseCase {
+  align-items: stretch;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+}
+
+.floatV2UseCase > div:first-child {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 176px;
+}
+
+.floatV2UseCaseGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.floatV2UseCaseGrid article {
+  background: rgba(7, 17, 31, 0.54);
+  border: 1px solid rgba(184, 211, 255, 0.12);
+  border-radius: 10px;
+  min-height: 176px;
+  padding: 14px;
 }
 
 .floatV2WorkflowGrid {
@@ -897,6 +926,7 @@ html {
   padding: 14px;
 }
 
+.floatV2UseCase span,
 .floatV2WorkflowGrid span,
 .floatV2VerificationFooter span {
   color: var(--ink-faint);
@@ -905,6 +935,30 @@ html {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.floatV2UseCase > div:first-child strong {
+  color: var(--ink);
+  display: block;
+  font-size: clamp(24px, 2.2vw, 34px);
+  letter-spacing: 0;
+  line-height: 1.08;
+  max-width: 620px;
+}
+
+.floatV2UseCaseGrid strong {
+  color: var(--copy);
+  display: block;
+  font-size: 17px;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+.floatV2UseCaseGrid p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 14px 0 0;
 }
 
 .floatV2WorkflowGrid strong {
@@ -2356,6 +2410,15 @@ html {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .floatV2UseCase {
+    grid-template-columns: 1fr;
+  }
+
+  .floatV2UseCase > div:first-child {
+    min-height: 0;
+  }
+
+  .floatV2UseCaseGrid,
   .floatV2WorkflowGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2495,6 +2558,7 @@ html {
     grid-template-columns: 1fr;
   }
 
+  .floatV2UseCaseGrid,
   .floatV2WorkflowGrid,
   .floatV2VerificationFooter {
     grid-template-columns: 1fr;
