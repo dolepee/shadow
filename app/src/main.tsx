@@ -129,6 +129,7 @@ const FLOAT_V2_PROOF = {
   blockedRequestHash: "0x03c1655ba18fd886d6b4bcaa2b190fb47dfb5df79528bad58490da93a892e0f5",
   cruxSpendTx: "0x6fd0e59360decc8fdecd56c8bf1a448569d72e6e5706d862e50c816d50b29a7d" as Hash,
   cruxRepayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
+  obolSpendTx: "0x78567fc68238c6b309aa26916bbf3f456d4da20de27ecb4e9e6a7d3a245acc8a" as Hash,
 };
 
 declare global {
@@ -1387,13 +1388,14 @@ function App() {
   );
 
   const proofPage = (
-    <>
+    <div className="routePage">
       <section className="pageHead">
         <p className="pageEyebrow">proof · live verification</p>
-        <h1 className="pageTitle">Verify Float V2 without trusting the screenshot.</h1>
+        <h1 className="pageTitle">Verify Float V2 from the contract, not the screenshot.</h1>
         <p className="pageLede">
-          Start with the current V2 contract, signed spend, provider payment, repayment, and blocked overrun. The V1 receipt
-          board remains below as historical x402 depth, with every link pointing to live data or Arc testnet transactions.
+          Start with the current V2 contract: source matched, signed intent consumed onchain, provider paid from sponsor
+          reserve, debt opened, repayment proven, and overrun blocked with no provider transfer. The older V1 board remains
+          below as historical x402 receipt depth.
         </p>
       </section>
       <FloatV2ProofStrip compact />
@@ -1402,9 +1404,9 @@ function App() {
       <FloatJudgePath state={floatState} />
       <section className="productPageGrid" aria-label="Verifier entry points">
         <a className="productInfoCard primary" href="/api/float" target="_blank" rel="noreferrer">
-          <span>live API</span>
+          <span>historical receipt API</span>
           <strong>/api/float</strong>
-          <p>Receipts, source breakdowns, proof checks, treasury reserve, and standing board.</p>
+          <p>V1 receipt depth, external signed rows, source breakdowns, reserve checks, and standing board.</p>
         </a>
         <a className="productInfoCard" href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
           <span>repo verifier</span>
@@ -1418,17 +1420,17 @@ function App() {
         </a>
         {floatState?.float && (
           <a className="productInfoCard" href={`https://testnet.arcscan.app/address/${floatState.float}`} target="_blank" rel="noreferrer">
-            <span>contract</span>
+            <span>historical contract</span>
             <strong>{shortAddress(floatState.float)}</strong>
-          <p>Historical ShadowFloat board on Arc testnet, including receipt and x402 bind events.</p>
+            <p>Historical ShadowFloat board on Arc testnet, including receipt and x402 bind events.</p>
           </a>
         )}
       </section>
-    </>
+    </div>
   );
 
   const buildersPage = (
-    <>
+    <div className="routePage">
       <section className="pageHead">
         <p className="pageEyebrow">builders · agent access</p>
         <h1 className="pageTitle">Give your agent sponsor-backed capacity without hot-funding it first.</h1>
@@ -1482,11 +1484,11 @@ function App() {
         </article>
       </section>
       <FloatStandingBoardPanel board={floatState?.standingBoard} alpha={floatState?.alpha} beta={floatState?.beta} compact={false} />
-    </>
+    </div>
   );
 
   const roadmapPage = (
-    <>
+    <div className="routePage">
       <section className="pageHead">
         <p className="pageEyebrow">roadmap · mainnet path</p>
         <h1 className="pageTitle">From testnet proof to an agent capital network.</h1>
@@ -1511,7 +1513,7 @@ function App() {
         <article className="roadmapCard">
           <span>market</span>
           <strong>Independent providers</strong>
-          <p>Let Float-funded buyer agents purchase from third-party x402 sellers, not only Shadow&apos;s provider.</p>
+          <p>Let Float-funded buyer agents purchase from third-party sellers, with x402 service evidence kept separate from the V2 payment primitive.</p>
         </article>
         <article className="roadmapCard">
           <span>risk</span>
@@ -1524,7 +1526,7 @@ function App() {
           <p>Give operators and LPs a reserve, fee, and default framework for funding agent spending lines.</p>
         </article>
       </section>
-    </>
+    </div>
   );
 
   const archivePage = (
@@ -2718,6 +2720,12 @@ function FloatV2ProofStrip({ compact = false }: { compact?: boolean }) {
       title: "Crux closed",
       detail: "external signer spent and repaid on V2",
       href: txUrl(FLOAT_V2_PROOF.cruxRepayTx),
+    },
+    {
+      eyebrow: "external signed spend",
+      title: "Obol bound",
+      detail: "independent buyer agent signed V2 intent",
+      href: txUrl(FLOAT_V2_PROOF.obolSpendTx),
     },
   ];
 

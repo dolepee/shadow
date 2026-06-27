@@ -572,7 +572,7 @@ html {
 .floatV2ProofCards {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   min-width: 0;
 }
 
@@ -2566,10 +2566,14 @@ input:focus-visible {
   color: var(--ink);
 }
 
+.routePage {
+  --route-inset: clamp(18px, 2.2vw, 30px);
+}
+
 .pageHead {
   isolation: isolate;
   overflow: clip;
-  padding: 58px 0 38px;
+  padding: 58px var(--route-inset, 0) 38px;
   position: relative;
 }
 
@@ -2577,7 +2581,7 @@ input:focus-visible {
   background: linear-gradient(90deg, var(--accent), var(--copy), transparent);
   content: "";
   height: 2px;
-  left: 0;
+  left: var(--route-inset, 0);
   position: absolute;
   top: 30px;
   width: 132px;
@@ -2589,7 +2593,7 @@ input:focus-visible {
     linear-gradient(90deg, rgba(52, 229, 255, 0.035), transparent 64%);
   content: "";
   height: 220px;
-  left: -32px;
+  left: 0;
   pointer-events: none;
   position: absolute;
   top: 6px;
@@ -2638,6 +2642,10 @@ input:focus-visible {
 }
 
 @media (max-width: 720px) {
+  .routePage {
+    --route-inset: 0px;
+  }
+
   .pageHead {
     padding: 40px 0 28px;
   }
@@ -2736,6 +2744,21 @@ input:focus-visible {
   gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
   margin: 28px 0 0;
+}
+
+.routePage > .floatV2ProofStrip,
+.routePage > .floatExternalPanel,
+.routePage > .floatProofChecks,
+.routePage > .floatJudgePath,
+.routePage > .productPageGrid,
+.routePage > .builderFlowGrid,
+.routePage > .builderReferenceGrid,
+.routePage > .floatStandingBoard,
+.routePage > .floatEconomicsPanel,
+.routePage > .circleStackPanel,
+.routePage > .roadmapGrid {
+  margin-left: var(--route-inset);
+  margin-right: var(--route-inset);
 }
 
 .productInfoCard,
