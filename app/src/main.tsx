@@ -119,7 +119,6 @@ const EXTERNAL_SIGNER_LABELS: Record<string, ExternalSignedLabel> = {
 };
 
 const FLOAT_V2_CONTRACT = "0x20dcA96B0C487D94De885c726c956ffaF38b12C2" as const;
-const FLOAT_V1_HISTORICAL_CONTRACT = "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057" as const;
 const FLOAT_V2_PROOF = {
   sourcify: "https://sourcify.dev/server/v2/contract/5042002/0x20dcA96B0C487D94De885c726c956ffaF38b12C2",
   directSpendTx: "0xf2615a12b11d42d6509bc2baaafbc81fd31e4d5b54751c3686c55458252d9b03" as Hash,
@@ -1138,12 +1137,6 @@ function App() {
     navigate("/follow");
   };
 
-  const heroExternalSignedCount = floatState?.sourceBreakdown?.externalSigned?.cycles;
-  const heroExternalSignedLabel =
-    heroExternalSignedCount !== undefined
-      ? `${heroExternalSignedCount.toLocaleString()} signed external draws`
-      : "external signed use live";
-
   const homePage = (
     <>
       <section className="hero" id="top">
@@ -1180,18 +1173,18 @@ function App() {
               <li><span className="heroTrustDot heroTrustDot--proof" />contract-enforced intents</li>
               <li>
                 <span className="heroTrustDot heroTrustDot--signal" />
-                {heroExternalSignedLabel}
+                external V2 intents live
               </li>
             </ul>
           </div>
           <HeroDiagram />
         </div>
-        <HeroMetrics state={floatState} />
+        <HeroMetrics />
       </section>
 
       <FloatV2ProofStrip />
 
-      <HomeProofOverview state={floatState} loading={floatLoading} error={floatError} />
+      <HomeProofOverview />
 
       <section className="pageNext" aria-label="Shadow Float product paths">
         <Link to="/float" className="pageNextCard pageNextCardPrimary">
@@ -1220,14 +1213,12 @@ function App() {
 
   const treasuryPage = (
     <>
-      <TreasuryHero floatState={floatState} treasuryState={treasuryState} />
+      <TreasuryHero treasuryState={treasuryState} />
       <TreasuryEvidenceStrip treasuryState={treasuryState} />
-      <TreasuryRailSplit floatState={floatState} leptonState={leptonState} />
-      <TreasuryProofPanel floatState={floatState} leptonState={leptonState} treasuryState={treasuryState} />
-      <TreasuryReceiptStructurePanel />
+      <TreasuryRailSplit leptonState={leptonState} />
       <TreasuryLiveVerifierPanel state={treasuryState} loading={treasuryLoading} error={treasuryError} />
       <TreasuryOnchainLinks />
-      <TreasuryValidationPanel floatState={floatState} />
+      <TreasuryValidationPanel />
       <TreasuryHardeningPanel />
     </>
   );
@@ -1235,7 +1226,7 @@ function App() {
   const floatPage = (
     <>
       <FloatV2ProofStrip />
-      <FloatPanel state={floatState} loading={floatLoading} error={floatError} />
+      <FloatV2CurrentPanel />
       <CircleStackPanel />
     </>
   );
@@ -1274,9 +1265,9 @@ function App() {
       </section>
       <section className="builderReferenceGrid" aria-label="Builder references">
         <article className="builderReferenceCard">
-          <span>standing API</span>
+          <span>line state lookup</span>
           <code>/api/float-tools?action=agent&amp;address=0x...</code>
-          <p>Read line limit, available capacity, active debt, status, and behavior score.</p>
+          <p>Read the current line limit, available capacity, active debt, and status for a registered agent.</p>
         </article>
         <article className="builderReferenceCard">
           <span>typed-data intent</span>
@@ -1286,7 +1277,7 @@ function App() {
         <article className="builderReferenceCard">
           <span>intent verifier</span>
           <code>/api/float-tools?action=verify&amp;hash=0x...</code>
-          <p>Verify signer, request hash, onchain receipt, V2 direct provider payment, or legacy x402 bind event.</p>
+          <p>Verify signer, request hash, onchain receipt, V2 direct provider payment, and nonce use.</p>
         </article>
         <article className="builderReferenceCard">
           <span>local scripts</span>
@@ -1294,7 +1285,6 @@ function App() {
           <p>Reference helpers for local signing and repayment. Builders can also construct calls with their own signer.</p>
         </article>
       </section>
-      <FloatStandingBoardPanel board={floatState?.standingBoard} alpha={floatState?.alpha} beta={floatState?.beta} compact={false} />
     </div>
   );
 
@@ -1318,7 +1308,7 @@ function App() {
         <article className="roadmapCard">
           <span>interop</span>
           <strong>Gateway-batched x402</strong>
-          <p>Bridge V2 direct provider payment and EIP-3009/x402 settlement evidence into the Gateway-batched dialect Obol, Archer, and CitePay surfaced.</p>
+          <p>Bridge V2 direct provider payment and service-payment evidence into the Gateway-batched dialect Obol, Archer, and CitePay surfaced.</p>
         </article>
         <article className="roadmapCard">
           <span>market</span>
@@ -1418,28 +1408,20 @@ function RouteScroll() {
   return null;
 }
 
-function TreasuryHero({ floatState, treasuryState }: {
-  floatState: FloatState | null;
+function TreasuryHero({ treasuryState }: {
   treasuryState: TreasuryState | null;
 }) {
-  const externalSigned = floatState?.sourceBreakdown?.externalSigned;
-  const checks = floatState?.proofChecks || {};
-  const greenChecks = Object.values(checks).filter((value) => value === true).length;
-  const totalChecks = Object.values(checks).filter((value) => typeof value === "boolean").length;
-  const externalDrawsLabel = floatState ? `${externalSigned?.cycles ?? 0}` : "syncing";
   const railStats = [
-    { label: "Float payment", value: `${formatFloatUSDC(TREASURY_PROOF.amountX402USDC)} USDC`, tone: "allow" },
+    { label: "V2 provider paid", value: "0.01 USDC", tone: "allow" },
     { label: "vault allocated", value: `${formatFloatUSDC(TREASURY_PROOF.amountAllocatedUSDC)} USDC`, tone: "allow" },
     { label: "blocked first", value: `${formatFloatUSDC(TREASURY_PROOF.amountBlockedUSDC)} USDC`, tone: "block" },
-    { label: "external Float draws", value: externalDrawsLabel, tone: "neutral" },
+    { label: "external V2 lifecycle", value: "Crux repaid", tone: "neutral" },
   ];
   const verifierLabel = treasuryState
     ? treasuryState.ok
       ? `${treasuryState.checks?.filter((check) => check.ok).length || 0}/${treasuryState.checks?.length || 0} Treasury checks`
       : "Treasury verifier red"
-    : totalChecks
-      ? `${greenChecks}/${totalChecks} Float checks`
-      : "syncing verifier";
+    : "M1 verifier ready";
 
   return (
     <section className="treasuryHero" aria-label="Shadow Treasury overview">
@@ -1451,11 +1433,11 @@ function TreasuryHero({ floatState, treasuryState }: {
           hardened approved adapter, and getting blocked before vault-style USDC moves on an over-limit action.
         </p>
         <div className="treasuryHeroActions">
-          <a className="treasuryHeroPrimary" href="#treasury-runway">
-            View live receipts
-          </a>
-          <a className="treasuryHeroSecondary" href="/api/float" target="_blank" rel="noreferrer">
-            Open live API
+          <Link className="treasuryHeroPrimary" to="/float">
+            Open Float V2
+          </Link>
+          <a className="treasuryHeroSecondary" href={FLOAT_V2_PROOF.sourcify} target="_blank" rel="noreferrer">
+            View V2 source
           </a>
         </div>
         <div className="treasuryHeroBoundary" aria-label="Verified receipt scope">
@@ -1473,8 +1455,8 @@ function TreasuryHero({ floatState, treasuryState }: {
         <div className="treasuryFlowBranch allow">
           <span>Float rail</span>
           <strong>Provider paid</strong>
-          <a href={txUrl(TREASURY_PROOF.txs.x402Settlement)} target="_blank" rel="noreferrer">
-            {shortAddress(TREASURY_PROOF.txs.x402Settlement)}
+          <a href={txUrl(FLOAT_V2_PROOF.directSpendTx)} target="_blank" rel="noreferrer">
+            {shortAddress(FLOAT_V2_PROOF.directSpendTx)}
           </a>
         </div>
         <div className="treasuryFlowBranch allow">
@@ -1492,8 +1474,8 @@ function TreasuryHero({ floatState, treasuryState }: {
           </a>
         </div>
         <div className="treasuryFlowFooter">
-          <span>combined verifier</span>
-          <code>npm run treasury:verify-live</code>
+          <span>current verifier</span>
+          <code>npm run float:v2-verify-live</code>
         </div>
       </aside>
 
@@ -1513,7 +1495,7 @@ function TreasuryEvidenceStrip({ treasuryState }: { treasuryState: TreasuryState
   const passed = treasuryState?.checks?.filter((check) => check.ok).length;
   const total = treasuryState?.checks?.length;
   const contractLinks = [
-    { label: "Float", value: TREASURY_PROOF.float, href: `https://testnet.arcscan.app/address/${TREASURY_PROOF.float}` },
+    { label: "Float V2", value: FLOAT_V2_CONTRACT, href: `https://testnet.arcscan.app/address/${FLOAT_V2_CONTRACT}` },
     {
       label: "MandateRegistry",
       value: TREASURY_PROOF.mandateRegistry,
@@ -1531,8 +1513,8 @@ function TreasuryEvidenceStrip({ treasuryState }: { treasuryState: TreasuryState
     },
   ];
   const txLinks = [
-    { label: "x402 settlement", value: TREASURY_PROOF.txs.x402Settlement, href: txUrl(TREASURY_PROOF.txs.x402Settlement) },
-    { label: "Float bind", value: TREASURY_PROOF.txs.floatBind, href: txUrl(TREASURY_PROOF.txs.floatBind) },
+    { label: "V2 provider payment", value: FLOAT_V2_PROOF.directSpendTx, href: txUrl(FLOAT_V2_PROOF.directSpendTx) },
+    { label: "V2 blocked spend", value: FLOAT_V2_PROOF.blockedSpendTx, href: txUrl(FLOAT_V2_PROOF.blockedSpendTx) },
     { label: "vault allocation", value: TREASURY_PROOF.txs.allocation, href: txUrl(TREASURY_PROOF.txs.allocation) },
     { label: "blocked allocation", value: TREASURY_PROOF.txs.blocked, href: txUrl(TREASURY_PROOF.txs.blocked) },
   ];
@@ -1542,7 +1524,7 @@ function TreasuryEvidenceStrip({ treasuryState }: { treasuryState: TreasuryState
       <div className="treasuryEvidenceIntro">
         <span>onchain evidence</span>
         <strong>{treasuryState?.ok ? `${passed}/${total} live checks pass` : "contracts and txs visible"}</strong>
-        <p>Contract addresses, ArcScan transactions, and verifier JSON are visible before any narrative section.</p>
+        <p>Contract addresses and ArcScan transactions are visible from the product surface.</p>
       </div>
       <div className="treasuryEvidenceGroup" aria-label="Treasury contracts">
         {contractLinks.map((item) => (
@@ -1569,20 +1551,16 @@ function TreasuryEvidenceStrip({ treasuryState }: { treasuryState: TreasuryState
 }
 
 function TreasuryRailSplit({
-  floatState,
   leptonState,
 }: {
-  floatState: FloatState | null;
   leptonState: LeptonState | null;
 }) {
-  const externalSigned = floatState?.sourceBreakdown?.externalSigned;
-  const externalDrawsLabel = floatState ? `${externalSigned?.cycles ?? 0} signed draws` : "syncing signed draws";
   const railCards = [
     {
       eyebrow: "payment rail",
       title: "Float pays before the agent is funded",
       body: "Signed agents authorize a spend, Float pays the approved provider from reserved capacity, fee-inclusive debt opens, and repayment restores capacity.",
-      stat: externalDrawsLabel,
+      stat: "V2 signed intent live",
       href: "/float",
       cta: "Open Float",
     },
@@ -1597,8 +1575,8 @@ function TreasuryRailSplit({
     {
       eyebrow: "combined receipts",
       title: "One read-only check follows the transaction path",
-      body: "The public endpoint checks the historical Float payment, bind, debt math, vault transfer, blocked no-move path, and live API state.",
-      stat: "25 checks",
+      body: "The current product surface separates Float V2 payments from the M1 adapter path, while keeping every anchor public.",
+      stat: "Arc tx anchors",
       href: "https://github.com/dolepee/shadow",
       cta: "View repo",
     },
@@ -1885,8 +1863,8 @@ function TreasuryLiveVerifierPanel({
           <p className="eyebrow">live verifier · no private keys</p>
           <h2>The Treasury page reads the same onchain checks as the CLI.</h2>
           <p>
-            This endpoint verifies the x402 settlement, Float bind, debt math, vault transfer, blocked no-transfer path,
-            bonds, and API indexing from live Arc state.
+            This endpoint verifies the mandate adapter path from live Arc state. The current Float V2 payment anchors are
+            shown on the Float page.
           </p>
         </div>
         <a href="/api/treasury" target="_blank" rel="noreferrer" className={`treasuryVerifierBadge ${state?.ok ? "pass" : error ? "fail" : ""}`}>
@@ -1938,12 +1916,12 @@ function TreasuryLiveVerifierPanel({
 
 function TreasuryOnchainLinks() {
   const links = [
-    { label: "Run verifier", value: "npm run treasury:verify-live", href: "https://github.com/dolepee/shadow" },
-    { label: "x402 settlement", value: shortAddress(TREASURY_PROOF.txs.x402Settlement), href: txUrl(TREASURY_PROOF.txs.x402Settlement) },
-    { label: "Float bind", value: shortAddress(TREASURY_PROOF.txs.floatBind), href: txUrl(TREASURY_PROOF.txs.floatBind) },
+    { label: "Run V2 verifier", value: "npm run float:v2-verify-live", href: "https://github.com/dolepee/shadow" },
+    { label: "V2 provider payment", value: shortAddress(FLOAT_V2_PROOF.directSpendTx), href: txUrl(FLOAT_V2_PROOF.directSpendTx) },
+    { label: "V2 blocked spend", value: shortAddress(FLOAT_V2_PROOF.blockedSpendTx), href: txUrl(FLOAT_V2_PROOF.blockedSpendTx) },
     { label: "Vault allocation", value: shortAddress(TREASURY_PROOF.txs.allocation), href: txUrl(TREASURY_PROOF.txs.allocation) },
     { label: "Blocked allocation", value: shortAddress(TREASURY_PROOF.txs.blocked), href: txUrl(TREASURY_PROOF.txs.blocked) },
-    { label: "Live Float API", value: "/api/float", href: "/api/float" },
+    { label: "V2 source match", value: shortAddress(FLOAT_V2_CONTRACT), href: FLOAT_V2_PROOF.sourcify },
   ];
 
   return (
@@ -1964,9 +1942,7 @@ function TreasuryOnchainLinks() {
   );
 }
 
-function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null }) {
-  const externalSigned = floatState?.sourceBreakdown?.externalSigned;
-  const externalClosed = externalSigned?.lifecycleClosedCount ?? 0;
+function TreasuryValidationPanel() {
   const validationRows = [
     {
       label: "Obol",
@@ -2000,10 +1976,10 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
       <div className="treasuryValidationGrid">
         <article className="treasuryValidationCard treasuryValidationCardPrimary">
           <span>external Float usage</span>
-          <strong>{externalSigned?.cycles ?? 0} signed draws</strong>
+          <strong>V2 signed intents live</strong>
           <p>
-            External agents can authorize a Float spend without hot-funding the provider payment first. The current standing
-            board and verifier expose the signed draw path; {externalClosed} external lifecycle{externalClosed === 1 ? "" : "s"} closed through repayment.
+            External agents can authorize a bounded Float spend without hot-funding the provider payment first. The contract
+            verifies the signature and pays the provider from sponsor reserve.
           </p>
           <Link to="/float">Open Float →</Link>
         </article>
@@ -2494,8 +2470,8 @@ function FloatV2ProofStrip({ compact = false }: { compact?: boolean }) {
         <span>Float V2 is the current contract</span>
         <strong>Signed intent, reserve payment, debt, block, repay.</strong>
         <p>
-          V2 is live at {shortAddress(FLOAT_V2_CONTRACT)}. The older {shortAddress(FLOAT_V1_HISTORICAL_CONTRACT)} board
-          remains useful as historical x402 and receipt depth, but the current sponsored line path is contract enforced.
+          V2 is live at {shortAddress(FLOAT_V2_CONTRACT)}. This page counts the current sponsored-line path: signed intent,
+          direct provider payment, debt, repayment, and blocked overrun.
         </p>
       </div>
       <div className="floatV2ProofCards">
@@ -2511,6 +2487,103 @@ function FloatV2ProofStrip({ compact = false }: { compact?: boolean }) {
         <span>read-only verifier</span>
         <code>npm run float:v2-verify-live</code>
       </div>
+    </section>
+  );
+}
+
+function FloatV2CurrentPanel() {
+  const anchors = [
+    { label: "V2 contract source", href: FLOAT_V2_PROOF.sourcify, value: shortAddress(FLOAT_V2_CONTRACT) },
+    { label: "signed provider payment", href: txUrl(FLOAT_V2_PROOF.directSpendTx), value: shortAddress(FLOAT_V2_PROOF.directSpendTx) },
+    { label: "overrun blocked", href: txUrl(FLOAT_V2_PROOF.blockedSpendTx), value: shortAddress(FLOAT_V2_PROOF.blockedSpendTx) },
+    { label: "repayment restored line", href: txUrl(FLOAT_V2_PROOF.repayTx), value: shortAddress(FLOAT_V2_PROOF.repayTx) },
+    { label: "Crux external lifecycle", href: txUrl(FLOAT_V2_PROOF.cruxRepayTx), value: shortAddress(FLOAT_V2_PROOF.cruxRepayTx) },
+    { label: "Obol signed spend", href: txUrl(FLOAT_V2_PROOF.obolSpendTx), value: shortAddress(FLOAT_V2_PROOF.obolSpendTx) },
+  ];
+
+  return (
+    <section className="floatPanel floatPanelV2" id="shadow-float" aria-label="Shadow Float V2 current product">
+      <div className="floatHeroShell">
+        <div className="floatHeroCopy">
+          <p className="eyebrow">Shadow Float V2 · current contract live</p>
+          <h1>Signed agents draw reserved USDC, then repay the debt.</h1>
+          <p className="floatLede">
+            The current Float path is V2 only: the agent signs a bounded EIP-712 intent, the contract verifies signer,
+            nonce, expiry, provider, amount, executor, and max debt onchain, then pays the named provider from sponsor
+            reserve.
+          </p>
+          <div className="floatHeroActions">
+            <a className="floatPrimaryAction" href={txUrl(FLOAT_V2_PROOF.directSpendTx)} target="_blank" rel="noreferrer">
+              Open V2 spend tx
+            </a>
+            <a className="floatSecondaryAction" href={FLOAT_V2_PROOF.sourcify} target="_blank" rel="noreferrer">
+              View source match
+            </a>
+          </div>
+        </div>
+        <aside className="floatProofCard" aria-label="Shadow Float V2 live state">
+          <div className="floatProofCardHeader">
+            <span>current V2 state</span>
+            <strong>contract enforced</strong>
+          </div>
+          <div className="floatProofCardMoment">
+            <span>signed intent</span>
+            <strong>provider paid</strong>
+            <small>{shortAddress(FLOAT_V2_PROOF.directSpendTx)}</small>
+          </div>
+          <div className="floatProofCardMoment blocked">
+            <span>overrun</span>
+            <strong>blocked first</strong>
+            <small>{shortAddress(FLOAT_V2_PROOF.blockedSpendTx)}</small>
+          </div>
+          <div className="floatProofCardFooter">
+            <span>chain 5042002</span>
+            <span>Arc USDC</span>
+          </div>
+        </aside>
+      </div>
+
+      <div className="floatStatusRow">
+        <div className="floatStatus configured">
+          <span className="floatStatusDot" />
+          V2 tx anchors live
+        </div>
+        <span>sponsor reserve pays provider</span>
+        <span>nonce and max debt enforced onchain</span>
+        <span>external V2 lifecycle captured</span>
+      </div>
+
+      <div className="floatMetricGrid">
+        <FloatMetric label="provider paid" value="0.01 USDC" tone="allow" />
+        <FloatMetric label="overrun blocked" value="0.10 USDC" tone="block" />
+        <FloatMetric label="external lifecycle" value="Crux repaid" tone="allow" />
+        <FloatMetric label="independent signer" value="Obol bound" tone="allow" />
+      </div>
+
+      <section className="floatBox" aria-label="Shadow Float V2 onchain anchors">
+        <div className="floatBoxHeader">
+          <span>V2 onchain anchors</span>
+          <small>current contract only</small>
+        </div>
+        <div className="floatProofLinks">
+          {anchors.map((anchor) => (
+            <a href={anchor.href} target="_blank" rel="noreferrer" key={anchor.label}>
+              {anchor.label} <strong>{anchor.value}</strong>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section className="floatBox" aria-label="Shadow Float V2 verifier">
+        <div className="floatBoxHeader">
+          <span>read-only verifier</span>
+          <small>no private keys</small>
+        </div>
+        <div className="floatCreditCommand">
+          <span>current V2 loop</span>
+          <code>npm run float:v2-verify-live</code>
+        </div>
+      </section>
     </section>
   );
 }
@@ -4873,8 +4946,8 @@ function SiteFooter() {
     {
       title: "Resources",
       links: [
-        { label: "Live API", href: "/api/float" },
-        { label: "Treasury API", href: "/api/treasury" },
+        { label: "V2 source match", href: FLOAT_V2_PROOF.sourcify },
+        { label: "V2 spend tx", href: txUrl(FLOAT_V2_PROOF.directSpendTx) },
         { label: "Arc explorer", href: "https://testnet.arcscan.app" },
       ],
     },
@@ -4882,7 +4955,7 @@ function SiteFooter() {
       title: "Builders",
       links: [
         { label: "Builder guide", href: "/builders" },
-        { label: "Standing API", href: "/api/float" },
+        { label: "V2 verifier command", href: "https://github.com/dolepee/shadow" },
         { label: "Source on GitHub", href: "https://github.com/dolepee/shadow" },
       ],
     },
@@ -4935,64 +5008,39 @@ function SiteFooter() {
   );
 }
 
-function HomeProofOverview({
-  state,
-  loading,
-  error,
-}: {
-  state: FloatState | null;
-  loading: boolean;
-  error: string | null;
-}) {
-  const externalSigned = state?.sourceBreakdown?.externalSigned;
-  const externalRepay = state?.receipts?.find(
-    (receipt) =>
-      receipt.receiptType === "REPAID" &&
-      receipt.agent?.toLowerCase() !== state.alpha?.toLowerCase() &&
-      receipt.agent?.toLowerCase() !== state.beta?.toLowerCase(),
-  );
-  const proofChecks = state?.proofChecks || {};
-  const greenChecks = Object.values(proofChecks).filter((value) => value === true).length;
-  const totalChecks = Object.values(proofChecks).filter((value) => typeof value === "boolean").length;
-  const latestExternalVerify = state?.proofPointers?.latestExternalVerify;
-  const x402Hash = state?.proofPointers?.x402BoundReceipt?.x402?.x402Hash || state?.walletProof?.x402Hash;
-  const repayHash = externalRepay?.transactionHash || state?.proofPointers?.repaymentReceipt?.transactionHash;
-  const lifecycleClosedCount = externalSigned?.lifecycleClosedCount ?? (externalRepay ? 1 : 0);
-  const loaded = Boolean(state?.configured);
-
+function HomeProofOverview() {
   const cards = [
     {
-      eyebrow: "external signed use",
-      value: loaded ? `${externalSigned?.cycles ?? 0}` : "live",
-      label: "signed spends",
-      body: "Builders sign intents with their own agents; Shadow V2 verifies the intent and pays the provider from reserved capacity.",
-      href: latestExternalVerify?.verifyUrl || "/float",
-      external: Boolean(latestExternalVerify?.verifyUrl),
+      eyebrow: "current contract",
+      value: shortAddress(FLOAT_V2_CONTRACT),
+      label: "Sourcify matched",
+      body: "V2 source is matched to the deployed Arc bytecode, so the signed-intent checks are inspectable.",
+      href: FLOAT_V2_PROOF.sourcify,
+      external: true,
     },
     {
-      eyebrow: "repay lifecycle",
-      value: loaded ? `${lifecycleClosedCount}` : "syncing",
-      label: lifecycleClosedCount === 1 ? "external lifecycle closed" : "external lifecycles closed",
-      body: lifecycleClosedCount
-        ? "Signed external agents repaid their Float debt and restored their full lines onchain."
-        : "Borrow, spend, and repay are indexed as separate receipts so the lifecycle is auditable.",
-      href: repayHash ? txUrl(repayHash) : "/float",
-      external: Boolean(repayHash),
+      eyebrow: "signed spend",
+      value: "0.01",
+      label: "USDC paid",
+      body: "The V2 contract consumed a signed intent and paid the named provider from sponsor reserve.",
+      href: txUrl(FLOAT_V2_PROOF.directSpendTx),
+      external: true,
     },
     {
-      eyebrow: "status checks",
-      value: totalChecks ? `${greenChecks}/${totalChecks}` : "green",
-      label: "live verifier checks",
-      body: "Reserve, receipt count, provider payment, debt, repayment, overspend, and denial checks are exposed through the API.",
-      href: "/float",
+      eyebrow: "overrun block",
+      value: "0.10",
+      label: "USDC refused",
+      body: "A signed overrun was consumed, recorded, and blocked without a provider transfer.",
+      href: txUrl(FLOAT_V2_PROOF.blockedSpendTx),
+      external: true,
     },
     {
-      eyebrow: "contract receipts",
-      value: loaded ? state?.receiptCount || "0" : "syncing",
-      label: "indexed receipts",
-      body: "Every grant, spend, fee, debt, block, denial, and repayment is read from Arc testnet logs.",
-      href: x402Hash ? txUrl(x402Hash) : "/api/float",
-      external: Boolean(x402Hash),
+      eyebrow: "external lifecycle",
+      value: "Crux",
+      label: "spent and repaid",
+      body: "An external builder signer completed the V2 spend and repayment loop.",
+      href: txUrl(FLOAT_V2_PROOF.cruxRepayTx),
+      external: true,
     },
   ];
 
@@ -5001,11 +5049,11 @@ function HomeProofOverview({
       <div className="homeProofHeader">
         <div>
           <p className="eyebrow">live product evidence</p>
-          <h2>External agents can draw sponsor-backed capacity, then repay the debt trail.</h2>
+          <h2>V2 verifies the signed spend before sponsor-backed USDC moves.</h2>
         </div>
-        <div className={`homeProofStatus ${error ? "error" : loading ? "syncing" : "live"}`}>
+        <div className="homeProofStatus live">
           <span className="homeProofStatusDot" />
-          {error ? "receipt API degraded" : loading ? "syncing live receipts" : "receipt API live"}
+          V2 tx anchors live
         </div>
       </div>
       <div className="homeProofGrid">
@@ -5031,36 +5079,23 @@ function HomeProofOverview({
       </div>
       <div className="homeProofLinks">
         <Link to="/float">Open Float</Link>
-        <a href="/api/float" target="_blank" rel="noreferrer">Read live API</a>
+        <a href={FLOAT_V2_PROOF.sourcify} target="_blank" rel="noreferrer">View source match</a>
         <a href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">View repository</a>
       </div>
     </section>
   );
 }
 
-function HeroMetrics({ state }: { state: FloatState | null }) {
-  const externalSigned = state?.sourceBreakdown?.externalSigned;
+function HeroMetrics() {
   const items: Array<{ label: string; value: string }> = [
-    { label: "signed external draws", value: (externalSigned?.cycles || 0).toLocaleString() },
-    { label: "provider paid", value: `${formatFloatUSDC(state?.totalProviderPaidUSDC)} USDC` },
-    { label: "active debt", value: `${formatFloatUSDC(state?.totalDebtOpenedUSDC ? BigInt(state.totalDebtOpenedUSDC) - BigInt(state.totalRepaidUSDC || "0") : undefined)} USDC` },
-    { label: "Float receipts", value: state?.receiptCount?.toString() ?? "0" },
+    { label: "V2 contract", value: shortAddress(FLOAT_V2_CONTRACT) },
+    { label: "provider payment", value: "0.01 USDC" },
+    { label: "overrun blocked", value: "0.10 USDC" },
+    { label: "external V2 lifecycle", value: "Crux" },
   ];
 
-  const hasLiveData = Boolean(state?.configured) && Boolean(state?.receiptCount && Number(state.receiptCount) > 0);
-
-  if (!hasLiveData) {
-    return (
-      <div className="heroMetrics heroMetrics--syncing" role="group" aria-label="Syncing live Arc data">
-        <span className="heroMetricsSyncDot" />
-        <span className="heroMetricsSyncLabel">Live Float receipts</span>
-        <span className="heroMetricsSyncHint">syncing provider payment, debt, block, and repayment receipts on chain 5042002</span>
-      </div>
-    );
-  }
-
   return (
-    <div className="heroMetricsWrap" role="group" aria-label="Live Shadow Float numbers from Arc testnet">
+    <div className="heroMetricsWrap" role="group" aria-label="Current Shadow Float V2 anchors on Arc testnet">
       <div className="heroMetrics">
         {items.map((m) => (
           <div className="heroMetric" key={m.label}>
@@ -5070,7 +5105,7 @@ function HeroMetrics({ state }: { state: FloatState | null }) {
         ))}
       </div>
       <span className="heroMetricsNote">
-        live from the ShadowFloat contract and Arc receipt logs; testnet fee mechanics, not revenue claims
+        current V2 anchors only; historical V1 receipt totals are not counted in these homepage numbers
       </span>
     </div>
   );
@@ -5697,8 +5732,8 @@ function CircleStackPanel() {
       <div className="circleStackGrid">
         <article className="circleTierCard primary">
           <span>identity</span>
-          <strong>Agent signer · standing API</strong>
-          <p>The V2 line is bound to the wallet that signs the EIP-712 intent; standing is queryable by other agents.</p>
+          <strong>Agent signer · bounded intent</strong>
+          <p>The V2 line is bound to the wallet that signs the EIP-712 intent; capacity is visible before a sponsor pays.</p>
         </article>
         <article className="circleTierCard">
           <span>settlement</span>
