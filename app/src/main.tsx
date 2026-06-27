@@ -1218,152 +1218,6 @@ function App() {
     </>
   );
 
-  const agentsPage = (
-    <>
-      <section className="pageHead">
-        <p className="pageEyebrow">agents · behavior history</p>
-        <h1 className="pageTitle">Agent behavior is the reputation layer.</h1>
-        <p className="pageLede">
-          Shadow 2.0 does not trust a profile badge. It reads receipts: who got copied, who got blocked, who repaid, and
-          which behavior earns an agent a float line or a stricter mandate.
-        </p>
-      </section>
-      <EarnedReputationPanel
-        rows={state ? computeEarnedReputation(state) : []}
-        onFollow={followFromAgents}
-      />
-      <HowItWorks />
-    </>
-  );
-
-  const followPage = (
-    <>
-      <section className="pageHead">
-        <p className="pageEyebrow">follow · adapter one</p>
-        <h1 className="pageTitle">The mirror adapter proves policy enforcement.</h1>
-        <p className="pageLede">
-          This is Shadow&apos;s first working adapter: a follower sets size, slippage, daily cap, and risk limits; the router
-          either executes or records the refusal. Float and protocol mandates reuse the same enforcement discipline.
-        </p>
-      </section>
-      <FollowFlow
-        sources={state?.sources || []}
-        selectedSource={selectedSource}
-        onSelectSource={setSelectedSource}
-        selectedPreset={selectedPreset}
-        onSelectPreset={setSelectedPreset}
-        depositAmount={depositAmount}
-        onDepositChange={setDepositAmount}
-        onFollow={followWithPreset}
-        following={following}
-        action={action}
-        account={account}
-        userBalance={userBalance}
-        userFollows={userFollows}
-        connectWallet={connectWallet}
-      />
-      {account && userFollows.size > 0 && state && (
-        <PilotMonitor
-          state={state}
-          account={account}
-          userFollows={userFollows}
-          plan={pilotPlan}
-          onRerun={runPilot}
-          loading={pilotLoading}
-        />
-      )}
-      {account && (userBalance > 0n || userFollows.size > 0) && (
-        <ManagePanel
-          sources={state?.sources || []}
-          userBalance={userBalance}
-          userFollows={userFollows}
-          withdrawAmount={withdrawAmount}
-          onWithdrawChange={setWithdrawAmount}
-          onWithdraw={withdraw}
-          onUnfollow={unfollow}
-          managing={managing}
-        />
-      )}
-      <PilotCard
-        amount={pilotAmount}
-        onAmountChange={setPilotAmount}
-        risk={pilotRisk}
-        onRiskChange={setPilotRisk}
-        plan={pilotPlan}
-        loading={pilotLoading}
-        error={pilotError}
-        executing={pilotExecuting}
-        onRun={runPilot}
-        onExecute={executePilot}
-        sourcesCount={state?.sources.length || 0}
-      />
-      <CircleStackPanel />
-    </>
-  );
-
-  const receiptsPage = (
-    <>
-      <section className="pageHead">
-        <p className="pageEyebrow">receipts · Shadow audit rail</p>
-        <h1 className="pageTitle">One receipt rail for float, mandates, and mirror actions.</h1>
-        <p className="pageLede">
-          Read this page as the audit layer. Allowed spends, x402 hashes, repayments, blocked overreach, copied intents,
-          refused mirrors, and mandate decisions all point back to Arc testnet events.
-        </p>
-      </section>
-      <FloatPanel state={floatState} loading={floatLoading} error={floatError} compact />
-      {state && (
-        <LiveFeed
-          receipts={feedReceipts}
-          intents={state.intents}
-          closes={state.positionCloses}
-          sourceNameByAddress={sourceNameByAddress}
-          reasoning={reasoning}
-          latestBlock={state.latestBlock}
-          fetchedAt={state.fetchedAt}
-          loading={loading}
-          totalReceipts={state.recentWindow.receipts}
-          account={account}
-          closingIntentId={closingIntentId}
-          onClosePosition={closePosition}
-        />
-      )}
-
-      <LatestReasoningPanel data={reasoning} />
-
-      <section className="grid">
-        <Stat label="registered agents" value={String(state?.sources.length || 0)} />
-        <Stat label="recent receipts" value={String(state?.recentWindow.receipts || 0)} />
-        <Stat label="recent USDC mirrored" value={formatUSDC(totalMirrored(copiedReceipts))} />
-        <Stat label="recent blocked copies" value={String(blockedReceipts.length)} />
-        <Stat label="source fees paid" value={formatUSDC(totalKickbacks(state))} />
-        <Stat label="1 USDC quote" value={`${formatAsset(state?.quoteForOneUSDC || 0n)} ARCETH`} />
-      </section>
-
-      <section className="panel">
-        <Header eyebrow="controlled AMM" title="Real onchain exchange path, intentionally small" />
-        <div className="reserveGrid">
-          <Stat label="USDC reserve" value={formatUSDC(state?.reserves.usdc || 0n)} />
-          <Stat label="ARCETH reserve" value={formatAsset(state?.reserves.asset || 0n)} />
-          <Stat label="next intent id" value={String(state?.nextIntentId || 1n)} />
-        </div>
-      </section>
-
-      <BuilderFeesBanner state={state} />
-
-      <LeptonM1Panel state={leptonState} loading={leptonLoading} error={leptonError} compact />
-
-      <TechnicalPrimitive state={state} />
-    </>
-  );
-
-  const leptonPage = (
-    <>
-      <LeptonM1Panel state={leptonState} loading={leptonLoading} error={leptonError} />
-      <CircleStackPanel />
-    </>
-  );
-
   const treasuryPage = (
     <>
       <TreasuryHero floatState={floatState} treasuryState={treasuryState} />
@@ -1383,7 +1237,6 @@ function App() {
       <FloatV2ProofStrip />
       <FloatPanel state={floatState} loading={floatLoading} error={floatError} />
       <CircleStackPanel />
-      <FloatEconomicsPanel />
     </>
   );
 
@@ -1487,47 +1340,6 @@ function App() {
     </div>
   );
 
-  const archivePage = (
-    <>
-      <section className="pageHead">
-        <p className="pageEyebrow">archive · prior Shadow</p>
-        <h1 className="pageTitle">The earlier receipt-and-policy surfaces remain live.</h1>
-        <p className="pageLede">
-          These routes are the historical record of the primitive that Float builds on: source-agent behavior, mirror receipts,
-          and mandate enforcement. They are not the current Lepton product path.
-        </p>
-      </section>
-      <Shadow2ProofStrip
-        floatState={floatState}
-        leptonState={leptonState}
-        copiedCount={copiedReceipts.length}
-        blockedCount={blockedReceipts.length}
-      />
-      <section className="pageNext" aria-label="Prior Shadow routes">
-        <Link to="/agents" className="pageNextCard">
-          <span className="pageNextEyebrow">agents</span>
-          <span className="pageNextTitle">Source-agent history that feeds reputation</span>
-          <span className="pageNextArrow">→</span>
-        </Link>
-        <Link to="/follow" className="pageNextCard">
-          <span className="pageNextEyebrow">follow</span>
-          <span className="pageNextTitle">The original mirror adapter and policy controls</span>
-          <span className="pageNextArrow">→</span>
-        </Link>
-        <Link to="/lepton" className="pageNextCard">
-          <span className="pageNextEyebrow">mandates</span>
-          <span className="pageNextTitle">Protocol-facing mandate enforcement</span>
-          <span className="pageNextArrow">→</span>
-        </Link>
-        <Link to="/receipts" className="pageNextCard">
-          <span className="pageNextEyebrow">receipts</span>
-          <span className="pageNextTitle">The full historical receipt rail</span>
-          <span className="pageNextArrow">→</span>
-        </Link>
-      </section>
-    </>
-  );
-
   return (
     <main className="shell">
       <nav className="nav">
@@ -1572,16 +1384,16 @@ function App() {
 
       <Routes>
         <Route path="/" element={homePage} />
-        <Route path="/agents" element={agentsPage} />
-        <Route path="/follow" element={followPage} />
-        <Route path="/receipts" element={receiptsPage} />
-        <Route path="/lepton" element={leptonPage} />
+        <Route path="/agents" element={<Navigate to="/float" replace />} />
+        <Route path="/follow" element={<Navigate to="/builders" replace />} />
+        <Route path="/receipts" element={<Navigate to="/float" replace />} />
+        <Route path="/lepton" element={<Navigate to="/treasury" replace />} />
         <Route path="/treasury" element={treasuryPage} />
         <Route path="/float" element={floatPage} />
         <Route path="/proof" element={<Navigate to="/float" replace />} />
         <Route path="/builders" element={buildersPage} />
         <Route path="/roadmap" element={roadmapPage} />
-        <Route path="/archive" element={archivePage} />
+        <Route path="/archive" element={<Navigate to="/float" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
@@ -2210,13 +2022,13 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
         </article>
 
         <article className="treasuryValidationCard">
-          <span>builder background</span>
-          <strong>Receipt rails before Treasury</strong>
+          <span>current usage</span>
+          <strong>External agents are signing V2 intents</strong>
           <p>
-            Shadow's earlier receipt-and-policy system settled 2,893 onchain receipts across 30 follower wallets. Float is
-            the focused product; M1 shows how the same discipline extends into policy-bound allocations.
+            Forum, CitePay, Obol, Crux, and Argus-style agents are the relevant surface now: bounded intents, provider
+            payment, debt, repayment, and overrun blocks on the V2 rail.
           </p>
-          <Link to="/archive">Open prior record →</Link>
+          <Link to="/float">Open Float →</Link>
         </article>
       </div>
 
@@ -2349,7 +2161,7 @@ function FloatPanel({
       detail: "Oversized or risky spends are refused before treasury USDC moves.",
     },
   ];
-  const primaryProofHash = latestPaidRun?.x402Hash || latestPaidReceipt?.x402?.x402Hash;
+  const historicalX402Hash = latestPaidRun?.x402Hash || latestPaidReceipt?.x402?.x402Hash;
   const bindProofHash = latestPaidRun?.bindTxHash || latestPaidReceipt?.x402?.bindingTxHash || latestPaidReceipt?.transactionHash;
   const guardProofHash = latestGuardRun?.txHash || latestGuardReceipt?.transactionHash;
   const syncPending = loading && !configured;
@@ -2370,15 +2182,9 @@ function FloatPanel({
             debt, restores capacity on repayment, and blocks overreach before funds move.
           </p>
           <div className="floatHeroActions">
-            {primaryProofHash ? (
-              <a className="floatPrimaryAction" href={txUrl(primaryProofHash as `0x${string}`)} target="_blank" rel="noreferrer">
-                Open historical x402 tx
-              </a>
-            ) : (
-              <a className="floatPrimaryAction" href="#float-receipts">
-                Open receipt rail
-              </a>
-            )}
+            <a className="floatPrimaryAction" href={txUrl(FLOAT_V2_PROOF.directSpendTx)} target="_blank" rel="noreferrer">
+              Open V2 spend tx
+            </a>
             <a className="floatSecondaryAction" href="#float-loop">
               Watch autonomous loop
             </a>
@@ -2415,7 +2221,7 @@ function FloatPanel({
         </div>
         <span>real Arc USDC</span>
         <span>V2 signed intent enforced onchain</span>
-        <span>V1 x402 receipts kept as historical context</span>
+        <span>sponsor reserve pays the named provider</span>
       </div>
 
       {!compact && <FloatWalletProof state={state} loading={loading} />}
@@ -2555,9 +2361,9 @@ function FloatPanel({
             <small>deterministic policy</small>
           </div>
           <div className="floatProofLinks">
-            {primaryProofHash && (
-              <a href={txUrl(primaryProofHash as `0x${string}`)} target="_blank" rel="noreferrer">
-                historical x402 settlement <strong>{shortAddress(primaryProofHash)}</strong>
+            {historicalX402Hash && (
+              <a href={txUrl(historicalX402Hash as `0x${string}`)} target="_blank" rel="noreferrer">
+                historical x402 settlement <strong>{shortAddress(historicalX402Hash)}</strong>
               </a>
             )}
             {bindProofHash && (
@@ -5081,14 +4887,6 @@ function SiteFooter() {
         { label: "Source on GitHub", href: "https://github.com/dolepee/shadow" },
       ],
     },
-    {
-      title: "Prior Shadow",
-      links: [
-        { label: "Archive", href: "/archive" },
-        { label: "Agent history", href: "/agents" },
-        { label: "Mandate engine", href: "/lepton" },
-      ],
-    },
   ];
 
   return (
@@ -5907,8 +5705,8 @@ function CircleStackPanel() {
           <span>settlement</span>
           <strong>Arc USDC · direct provider pay</strong>
           <p>
-            V2 pays the signed provider directly from contract custody. V1 keeps the historical x402/EIP-3009 settlement
-            receipts.
+            V2 pays the signed provider directly from contract custody. The payment rail is Arc USDC, with x402-style
+            provider workflows layered above it.
           </p>
         </article>
         <article className="circleTierCard">
@@ -5922,9 +5720,6 @@ function CircleStackPanel() {
           <p>Shadow&apos;s delta is reserved capacity: draw against sponsor-backed USDC, open debt, repay, or get blocked.</p>
         </article>
       </div>
-      <div className="circleStackGrid circleStackGridSolo">
-        <ModularWalletCard />
-      </div>
     </section>
   );
 }
@@ -5932,7 +5727,7 @@ function CircleStackPanel() {
 function FloatEconomicsPanel() {
   return (
     <section className="floatEconomicsPanel" aria-label="Shadow Float treasury economics roadmap">
-      <Header eyebrow="treasury economics · roadmap" title="Mainnet Float needs reserved capital, not hot-funded agents" />
+      <Header eyebrow="capital model" title="Mainnet Float needs reserved capital, not hot-funded agents" />
       <div className="floatEconomicsGrid">
         <article>
           <span>treasury capital</span>
@@ -5944,8 +5739,8 @@ function FloatEconomicsPanel() {
         <article>
           <span>defaults</span>
           <p>
-            Defaults reduce or freeze future capacity and route the agent back through review. The live testnet proves
-            default accounting; the mainnet bad-debt model is roadmap.
+            Defaults reduce or freeze future capacity and route the agent back through review. Sponsor-funded V2 lines
+            already include reserve recovery for bad debt.
           </p>
         </article>
         <article>
