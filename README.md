@@ -1,8 +1,8 @@
 # Shadow
 
-**Shadow Float lets autonomous agents buy x402 services before their own wallet is funded.**
+**Shadow Float is sponsor-backed USDC capacity for agents that transact under rules on Arc.**
 
-Shadow fronts Arc USDC for approved x402 purchases, records fee-inclusive debt onchain, restores capacity on repayment, and blocks unsafe spends before treasury funds move. That Float loop is the primary proof path.
+Arc's agentic workflow lane is identity, settlement, and programmable controls. Shadow adds the capital layer: a sponsor reserves Arc USDC for an agent, the agent signs a bounded spend intent, `ShadowFloat` verifies the signer, nonce, expiry, provider, amount, executor, and max debt onchain, pays the provider from contract custody, opens debt, restores capacity on repayment, and blocks overruns before funds move. That Float loop is the primary proof path.
 
 Shadow Treasury / M1 is the supporting mandate extension: approved adapters authenticate the account, read a bonded enforcer's ALLOW/BLOCK decision, and only move vault-style USDC on ALLOW. It is a verified design extension over live Arc receipts, not a claimed production treasury customer or real Morpho deployment.
 
@@ -31,6 +31,17 @@ The V1 live API remains the rich historical receipt board. It exposes `proofChec
 
 V2 status: deployed and freshly proven on Arc testnet. V1 proved the economic loop and external signed usage; V2 removes the blind-signature trust gap for sponsor-funded lines by adding contract-enforced signed intents, nonce cancellation, direct provider payment, implemented provider delivery receipts, sponsor-funded reserves, and bad-debt cleanup. Provider delivery receipts are implemented and tested; the canonical live V2 proof loop does not include a provider-signed delivery tx yet.
 
+## Arc Agentic Workflow Fit
+
+Arc's current ecosystem framing for agentic financial workflows is: agents need identity, settlement, and programmable controls so they can transact under rules, not just send funds. Shadow fits that frame without pretending to ship every workflow primitive.
+
+| Arc workflow layer | Shadow's current role |
+| --- | --- |
+| Identity | The V2 line is bound to the agent wallet that signs the EIP-712 `FloatSpendIntent`. The public standing API exposes line limit, available capacity, active debt, status, score, and receipt evidence. Full ERC-8004 registry writes are not claimed for Float V2. |
+| Settlement | Arc USDC is the unit of account. V2 pays the signed provider directly from sponsor-backed contract custody; V1 historical proof binds x402/EIP-3009 settlement hashes for the legacy assisted path. |
+| Programmable controls | The contract enforces provider, endpoint hash, amount, max cumulative debt, nonce, expiry, executor, reserve backing, and sponsor policy before USDC moves. M1 shows the same ALLOW/BLOCK discipline on a vault-style adapter. |
+| Capital layer | This is Shadow's delta: agents do not only spend their own hot wallet balance. A sponsor can reserve USDC capacity, the agent can draw against it, debt opens onchain, repayment restores capacity, and bad debt can be written off against the sponsor reserve. |
+
 ## Supporting Treasury / M1 Proof
 
 | Surface | What to check |
@@ -38,14 +49,14 @@ V2 status: deployed and freshly proven on Arc testnet. V1 proved the economic lo
 | Treasury page | https://shadow-arc.vercel.app/treasury |
 | Live Treasury API | `GET https://shadow-arc.vercel.app/api/treasury` |
 | Combined verifier | `npm run treasury:verify-live` |
-| Float contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
+| Historical Float proof contract | `0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057` |
 | Mandate registry | `0xe3cf1a4d54f627f599255142cef4bf9b8c361a4c` |
 | Bonded enforcer | `0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e` |
 | Morpho-style adapter | `0xba9f134f7b13dadd45dcf16b09c5121a7555e2c5` |
 
 The live Treasury API and verifier check that one operator:
 
-1. Paid an x402 provider through Float and bound the settlement onchain.
+1. Paid a provider through the historical Float path and bound the settlement onchain.
 2. Opened fee-inclusive Float debt for that provider payment.
 3. Allocated `0.1` Arc testnet USDC through the M1 vault adapter after an `ALLOW` receipt.
 4. Attempted a `0.3` USDC over-limit allocation that emitted `BLOCK / AMOUNT_TOO_HIGH` without moving vault funds.
@@ -80,8 +91,8 @@ Post-hackathon hardening is explicit:
 
 ## Float Economic Loop
 
-1. An agent has a behavior-backed spending line but does not need to pre-fund the x402 call.
-2. The x402 provider requires USDC.
+1. An agent has sponsor-backed spending capacity and does not need to pre-fund every provider call.
+2. The provider requires Arc USDC.
 3. In V2, the agent signs a bounded `FloatSpendIntent` and `ShadowFloat.requestSignedSpend` pays the signed provider directly from the reserved Float treasury.
 4. The contract opens fee-inclusive debt against the agent and can record a provider-signed delivery receipt for the same paid request.
 5. Repayment reduces debt and restores available capacity.
@@ -92,8 +103,8 @@ What is proven on the deployed V1 contract:
 - A Float line can be granted from reviewed onchain behavior.
 - A deterministic v0 score/limit formula now exists in `ShadowFloat.deterministicScore`, `recommendedLimitUSDC`, and `grantFloatFromScore`.
 - `npm run float:autounderwrite` can dry-run receipt-derived line raises/cuts, and can apply them only when explicitly run with `FLOAT_AUTOUNDERWRITE_APPLY=1` by the contract owner.
-- A signed agent intent can be verified against the current contract proof path and bound to a treasury-funded provider payment.
-- Operator-assisted x402 reimbursement remains the current deployed path.
+- A signed agent intent can be verified against the V1 historical proof path and bound to a treasury-funded provider payment.
+- Operator-assisted x402 reimbursement remains the historical deployed path.
 - Debt and available capacity update onchain.
 - Oversized spends and denied agents produce receipts without moving treasury USDC.
 - Repayment restores capacity.
@@ -116,12 +127,12 @@ What is not claimed yet:
 - Legacy operators are trusted owner-approved executors: they front x402 payments, verify USDC transfers offchain, and bind settlement hashes onchain for non-sponsored lines.
 - Invited builder signatures are external usage tests, not partnerships.
 
-## Circle Integration
+## Circle / Arc Integration
 
 | Tier | Role |
 | --- | --- |
 | Load-bearing in Float today | Arc USDC is the settlement asset. V1 historical proof uses x402/EIP-3009 binding; V2's current hero proof uses direct Arc USDC provider payment after contract-enforced signed authorization. |
-| Next milestone | Circle Gateway-batched x402. In lab, Shadow paid an independent Gateway-batched Arc x402 seller, but per-transfer onchain settlement binding into Float receipts remains roadmap work. Float's current judged proof stays on the live EIP-3009 path. |
+| Next milestone | Circle Gateway-batched x402. In lab, Shadow paid an independent Gateway-batched Arc x402 seller, but per-transfer onchain settlement binding into Float receipts remains roadmap work. Float's current judged proof stays on V2 direct provider payment plus the historical V1 x402/EIP-3009 proof. |
 | Proven onboarding capability | Shadow has demonstrated Circle Modular Wallets and Gas Station for passkey-based, gas-sponsored onboarding. This can onboard Float agents, but it is not core to the current Float draw. |
 
 ## Treasury Economics and Mainnet Roadmap
@@ -163,11 +174,12 @@ npm run app:typecheck
 npm run app:build
 npm run agent:typecheck
 curl -s https://shadow-arc.vercel.app/api/treasury
+npm run float:v2-verify-live
 npm run float:verify-live
 npm run treasury:verify-live
 ```
 
-The app, Float proof, and Treasury proof can be reviewed without private keys at https://shadow-arc.vercel.app. `GET /api/treasury`, `npm run float:verify-live`, and `npm run treasury:verify-live` are read-only and use the public Arc RPC by default. `npm run verify:slippage` is an optional live-write verifier for the older copy-capital rail and requires `ARC_RPC_URL` plus the deployment/operator environment.
+The app, Float proof, and Treasury proof can be reviewed without private keys at https://shadow-arc.vercel.app. `npm run float:v2-verify-live` checks the current V2 proof loop. `GET /api/treasury`, `npm run float:verify-live`, and `npm run treasury:verify-live` are read-only and use the public Arc RPC by default. `npm run verify:slippage` is an optional live-write verifier for the older copy-capital rail and requires `ARC_RPC_URL` plus the deployment/operator environment.
 
 ## Historical Copy-Capital Archive
 

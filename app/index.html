@@ -12,19 +12,19 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
     />
-    <title>Shadow Float: x402 spending lines for agents on Arc</title>
+    <title>Shadow Float: sponsor-backed agent credit on Arc</title>
     <meta
       name="description"
-      content="Shadow Float lets agents buy approved x402 services before their wallet is funded. Treasury/M1 is the verified mandate extension."
+      content="Shadow Float gives agents sponsor-backed Arc USDC capacity with on-chain signed intents, direct provider payment, debt, repayment, and overrun blocks."
     />
     <link rel="canonical" href="https://shadow-arc.vercel.app/float" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Shadow" />
-    <meta property="og:title" content="Shadow Float: x402 spending lines for agents on Arc" />
+    <meta property="og:title" content="Shadow Float: sponsor-backed agent credit on Arc" />
     <meta
       property="og:description"
-      content="Shadow fronts Arc USDC for approved x402 spends, records debt, restores capacity on repayment, and blocks unsafe spends before funds move."
+      content="Agents transact under rules with reserved Arc USDC capacity: signed intent, provider payment, debt, repayment, and overrun blocks."
     />
     <meta property="og:url" content="https://shadow-arc.vercel.app/float" />
     <meta property="og:image" content="https://shadow-arc.vercel.app/og-shadow-float.png" />
@@ -32,10 +32,10 @@
     <meta property="og:image:height" content="675" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Shadow Float: x402 spending lines for agents on Arc" />
+    <meta name="twitter:title" content="Shadow Float: sponsor-backed agent credit on Arc" />
     <meta
       name="twitter:description"
-      content="Agents can buy approved x402 resources before their wallet is funded. Every draw, debt, repayment, and block is verifiable on Arc."
+      content="Sponsor-backed USDC lines for agents on Arc. Every signed draw, debt, repayment, and block is verifiable."
     />
     <meta name="twitter:image" content="https://shadow-arc.vercel.app/og-shadow-float.png" />
 
@@ -46,7 +46,7 @@
         "name": "Shadow",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
-        "description": "Behavior-backed x402 spending lines for autonomous agents on Arc, with a verified Treasury/M1 mandate extension.",
+        "description": "Sponsor-backed USDC capacity for autonomous agents on Arc, with signed intents, direct provider payment, repayment, and a verified Treasury/M1 mandate extension.",
         "url": "https://shadow-arc.vercel.app/float",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
@@ -57,16 +57,16 @@
       <noscript>
         <p>
           Shadow Float proof is independently browsable on Arc testnet; the app adds live receipt and verifier views when
-          JavaScript is available. Float: 0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057. Bonded enforcer:
+          JavaScript is available. Float V2: 0x20dcA96B0C487D94De885c726c956ffaF38b12C2. Bonded enforcer:
           0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e.
         </p>
       </noscript>
       <main data-prerender="shell" style="font-family:'Bricolage Grotesque',system-ui,sans-serif;max-width:860px;margin:48px auto;padding:24px;color:#f3f7ff;background:#07111f;border:1px solid rgba(184,211,255,.14);border-radius:22px">
         <header>
-          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow Float · live on Arc testnet</p>
-          <h1 style="font-size:40px;margin:0 0 12px;line-height:1.05;letter-spacing:0">Agents buy x402 services before their wallet is funded.</h1>
+          <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow Float V2 · live on Arc testnet</p>
+          <h1 style="font-size:40px;margin:0 0 12px;line-height:1.05;letter-spacing:0">Agents transact under rules with sponsor-backed USDC capacity.</h1>
           <p style="font-size:17px;line-height:1.55;color:#c0cce0;margin:0 0 18px">
-            Shadow Float fronts approved Arc USDC payments to x402 providers, opens debt, restores capacity on repayment, and blocks unsafe spends before treasury funds move.
+            Shadow Float lets a sponsor reserve Arc USDC for an agent. The agent signs a bounded intent, the contract pays the provider from custody, opens debt, restores capacity on repayment, and blocks overruns before funds move.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:0 0 4px">
             Treasury/M1 is the supporting mandate extension: approved adapters allocate vault-style USDC only after an ALLOW receipt, and the over-limit proof moves no vault funds.
@@ -78,7 +78,8 @@
         <section>
           <h2 style="font-size:18px;margin:28px 0 8px">What the app proves</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#d5e5fb">
-            <li><strong>Float payment</strong> · Shadow fronts an approved x402 provider payment in Arc USDC</li>
+            <li><strong>Signed intent</strong> · the contract verifies signer, nonce, expiry, provider, amount, executor, and max debt</li>
+            <li><strong>Provider payment</strong> · ShadowFloat pays approved providers from sponsor-backed Arc USDC custody</li>
             <li><strong>Float debt</strong> · debt opens onchain and repayment restores available capacity</li>
             <li><strong>M1 allocation</strong> · a vault-style deposit moves only after an ALLOW receipt</li>
             <li><strong>Overreach block</strong> · oversized Float and M1 actions move no funds</li>
@@ -94,14 +95,20 @@
             <li>· <strong style="color:#4df0a8">/treasury</strong> shows the combined Treasury proof</li>
             <li>· <strong style="color:#4df0a8">/api/treasury</strong> returns the 25-check live verifier JSON</li>
             <li>· <strong style="color:#4df0a8">/float</strong> shows the Float runway and standing board</li>
-            <li>· <strong style="color:#4df0a8">/api/float</strong> exposes proof checks and receipt data</li>
-            <li>· <strong style="color:#ff5f7e">npm run treasury:verify-live</strong> verifies both rails without secrets</li>
+            <li>· <strong style="color:#4df0a8">/api/float</strong> exposes historical proof checks and receipt data</li>
+            <li>· <strong style="color:#ff5f7e">npm run float:v2-verify-live</strong> verifies the current V2 loop without secrets</li>
+            <li>· <strong style="color:#ff5f7e">npm run treasury:verify-live</strong> verifies the supporting M1 proof without secrets</li>
           </ul>
         </section>
         <section>
           <h2 style="font-size:18px;margin:28px 0 8px">Onchain proof anchors</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:14px;line-height:1.75;color:#d5e5fb;font-family:'IBM Plex Mono',monospace;overflow-wrap:anywhere">
-            <li>Float contract · <a style="color:#4df0a8" href="https://testnet.arcscan.app/address/0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057">0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057</a></li>
+            <li>Float V2 contract · <a style="color:#4df0a8" href="https://testnet.arcscan.app/address/0x20dcA96B0C487D94De885c726c956ffaF38b12C2">0x20dcA96B0C487D94De885c726c956ffaF38b12C2</a></li>
+            <li>Float V2 source match · <a style="color:#4df0a8" href="https://sourcify.dev/server/v2/contract/5042002/0x20dcA96B0C487D94De885c726c956ffaF38b12C2">Sourcify full match</a></li>
+            <li>V2 direct spend tx · <a style="color:#4df0a8" href="https://testnet.arcscan.app/tx/0xf2615a12b11d42d6509bc2baaafbc81fd31e4d5b54751c3686c55458252d9b03">0xf2615a12b11d42d6509bc2baaafbc81fd31e4d5b54751c3686c55458252d9b03</a></li>
+            <li>V2 blocked overrun tx · <a style="color:#4df0a8" href="https://testnet.arcscan.app/tx/0x81d02cba62577eaff7f6b4bbf6233111d3372ee7cc6bc074d04030d0b41f0314">0x81d02cba62577eaff7f6b4bbf6233111d3372ee7cc6bc074d04030d0b41f0314</a></li>
+            <li>V2 repay tx · <a style="color:#4df0a8" href="https://testnet.arcscan.app/tx/0x854380129df5c5ca590a5d5a06a4120aa8b5190cc3053901b83da5c83963f126">0x854380129df5c5ca590a5d5a06a4120aa8b5190cc3053901b83da5c83963f126</a></li>
+            <li>Historical V1 contract · <a style="color:#4df0a8" href="https://testnet.arcscan.app/address/0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057">0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057</a></li>
             <li>MandateRegistry · <a style="color:#4df0a8" href="https://testnet.arcscan.app/address/0xe3cf1a4d54f627f599255142cef4bf9b8c361a4c">0xe3cf1a4d54f627f599255142cef4bf9b8c361a4c</a></li>
             <li>BondedEnforcer · <a style="color:#4df0a8" href="https://testnet.arcscan.app/address/0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e">0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e</a></li>
             <li>x402 settlement tx · <a style="color:#4df0a8" href="https://testnet.arcscan.app/tx/0x516d95ed55d61663c491f2cccb45d1d16d83967bdcc6fc66899d05426fea80ab">0x516d95ed55d61663c491f2cccb45d1d16d83967bdcc6fc66899d05426fea80ab</a></li>

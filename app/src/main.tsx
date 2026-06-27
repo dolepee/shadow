@@ -91,7 +91,45 @@ const PRESETS: Record<PresetKey, Preset> = {
   },
 };
 
+type ExternalSignedLabel = { kind: "obol" | "builder"; eyebrow: string; title: string };
+
 const OBOL_SIGNER = "0xd39AcD18d4aB66f31e3f1931953374d4a546ABA3".toLowerCase();
+const EXTERNAL_SIGNER_LABELS: Record<string, ExternalSignedLabel> = {
+  [OBOL_SIGNER]: { kind: "obol", eyebrow: "arms length buyer agent", title: "Obol signed Float intent" },
+  ["0x13585c6004fbA9D7D49219a6435B68348fD30770".toLowerCase()]: {
+    kind: "builder",
+    eyebrow: "Forum agent",
+    title: "Forum signed Float V2 intent",
+  },
+  ["0x5389688243328c26a92b301faEEAb5fbf9AFf105".toLowerCase()]: {
+    kind: "builder",
+    eyebrow: "CitePay agent",
+    title: "CitePay signed Float V2 intent",
+  },
+  ["0x9972fF27a2EADBDB8414072736395236E0BF0092".toLowerCase()]: {
+    kind: "builder",
+    eyebrow: "Crux agent",
+    title: "Crux signed Float V2 intent",
+  },
+  ["0x5c0b33b209f510868E07792Edc46c3792B0b92EC".toLowerCase()]: {
+    kind: "builder",
+    eyebrow: "Argus Agent Alpha",
+    title: "Argus signed Float V2 intent",
+  },
+};
+
+const FLOAT_V2_CONTRACT = "0x20dcA96B0C487D94De885c726c956ffaF38b12C2" as const;
+const FLOAT_V1_HISTORICAL_CONTRACT = "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057" as const;
+const FLOAT_V2_PROOF = {
+  sourcify: "https://sourcify.dev/server/v2/contract/5042002/0x20dcA96B0C487D94De885c726c956ffaF38b12C2",
+  directSpendTx: "0xf2615a12b11d42d6509bc2baaafbc81fd31e4d5b54751c3686c55458252d9b03" as Hash,
+  blockedSpendTx: "0x81d02cba62577eaff7f6b4bbf6233111d3372ee7cc6bc074d04030d0b41f0314" as Hash,
+  repayTx: "0x854380129df5c5ca590a5d5a06a4120aa8b5190cc3053901b83da5c83963f126" as Hash,
+  directRequestHash: "0xd53dbce76814360802c36fb03e5165759c1b383e5dfbdfb7e3f02d2426b6ccff",
+  blockedRequestHash: "0x03c1655ba18fd886d6b4bcaa2b190fb47dfb5df79528bad58490da93a892e0f5",
+  cruxSpendTx: "0x6fd0e59360decc8fdecd56c8bf1a448569d72e6e5706d862e50c816d50b29a7d" as Hash,
+  cruxRepayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
+};
 
 declare global {
   interface Window {
@@ -1118,27 +1156,27 @@ function App() {
           <div className="heroCopy">
             <div className="heroBadge">
               <span className="heroBadgeDot" />
-              Shadow Float · live on Arc testnet
+              Shadow Float V2 · live on Arc testnet
             </div>
-            <h1>Agents buy x402 services before their wallet is funded.</h1>
+            <h1>Agents transact under rules with sponsor-backed USDC capacity.</h1>
             <p className="lede">
-              Shadow Float fronts approved Arc USDC payments to x402 providers, opens fee-inclusive debt, restores capacity
-              on repayment, and blocks unsafe spends before treasury funds move. Treasury/M1 is the supporting mandate
-              extension, not the primary Float proof path.
+              Arc&apos;s agentic workflow stack needs identity, settlement, and programmable controls. Shadow adds the
+              capital layer: a sponsor reserves Arc USDC, the agent signs a bounded intent, the contract pays the provider,
+              debt opens, repayment restores capacity, and overruns move no funds.
             </p>
             <div className="heroActions">
               <Link to="/float" className="heroCtaPrimary">
                 Open Shadow Float
                 <span className="heroCtaArrow">→</span>
               </Link>
-              <Link className="heroCtaSecondary" to="/treasury">
-                View Treasury extension
+              <Link className="heroCtaSecondary" to="/proof">
+                Verify onchain
               </Link>
             </div>
             <ul className="heroTrust" aria-label="Built on">
               <li><span className="heroTrustDot heroTrustDot--signal" />Arc testnet</li>
               <li><span className="heroTrustDot heroTrustDot--proof" />Arc USDC</li>
-              <li><span className="heroTrustDot heroTrustDot--proof" />x402 bound onchain</li>
+              <li><span className="heroTrustDot heroTrustDot--proof" />contract-enforced intents</li>
               <li>
                 <span className="heroTrustDot heroTrustDot--signal" />
                 {heroExternalSignedLabel}
@@ -1150,12 +1188,14 @@ function App() {
         <HeroMetrics state={floatState} />
       </section>
 
+      <FloatV2ProofStrip />
+
       <HomeProofOverview state={floatState} loading={floatLoading} error={floatError} />
 
       <section className="pageNext" aria-label="Shadow Float verification paths">
         <Link to="/float" className="pageNextCard pageNextCardPrimary">
           <span className="pageNextEyebrow">product</span>
-          <span className="pageNextTitle">Walk the signed x402 spend, debt, repay, block, and denial loop</span>
+          <span className="pageNextTitle">Walk the signed spend, provider payment, debt, repay, block, and denial loop</span>
           <span className="pageNextArrow">→</span>
         </Link>
         <Link to="/treasury" className="pageNextCard">
@@ -1170,7 +1210,7 @@ function App() {
         </Link>
         <Link to="/roadmap" className="pageNextCard">
           <span className="pageNextEyebrow">roadmap</span>
-          <span className="pageNextTitle">Permissionless underwriting, Gateway-batched x402, and production-grade M1 custody</span>
+          <span className="pageNextTitle">Gateway-batched x402, production-grade M1 custody, and external capital</span>
           <span className="pageNextArrow">→</span>
         </Link>
       </section>
@@ -1339,6 +1379,7 @@ function App() {
 
   const floatPage = (
     <>
+      <FloatV2ProofStrip />
       <FloatPanel state={floatState} loading={floatLoading} error={floatError} />
       <CircleStackPanel />
       <FloatEconomicsPanel />
@@ -1349,12 +1390,13 @@ function App() {
     <>
       <section className="pageHead">
         <p className="pageEyebrow">proof · live verification</p>
-        <h1 className="pageTitle">Verify the Float loop without trusting the screenshot.</h1>
+        <h1 className="pageTitle">Verify Float V2 without trusting the screenshot.</h1>
         <p className="pageLede">
-          Start with the external signed spends, then check the contract, reserve, x402 bind, debt, repayment, overspend
-          block, and denial. Every link below points to live data or Arc testnet transactions.
+          Start with the current V2 contract, signed spend, provider payment, repayment, and blocked overrun. The V1 receipt
+          board remains below as historical x402 depth, with every link pointing to live data or Arc testnet transactions.
         </p>
       </section>
+      <FloatV2ProofStrip compact />
       <FloatExternalSignedPanel state={floatState} />
       <FloatProofChecksPanel state={floatState} />
       <FloatJudgePath state={floatState} />
@@ -1366,8 +1408,8 @@ function App() {
         </a>
         <a className="productInfoCard" href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
           <span>repo verifier</span>
-          <strong>npm run float:verify-live</strong>
-          <p>Read-only command that checks the live Float deployment with no private keys.</p>
+          <strong>npm run float:v2-verify-live</strong>
+          <p>Read-only command that checks the current V2 signed spend, block, repay loop with no private keys.</p>
         </a>
         <a className="productInfoCard" href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
           <span>treasury verifier</span>
@@ -1378,7 +1420,7 @@ function App() {
           <a className="productInfoCard" href={`https://testnet.arcscan.app/address/${floatState.float}`} target="_blank" rel="noreferrer">
             <span>contract</span>
             <strong>{shortAddress(floatState.float)}</strong>
-            <p>ShadowFloat on Arc testnet, including receipt and x402 bind events.</p>
+          <p>Historical ShadowFloat board on Arc testnet, including receipt and x402 bind events.</p>
           </a>
         )}
       </section>
@@ -1389,17 +1431,17 @@ function App() {
     <>
       <section className="pageHead">
         <p className="pageEyebrow">builders · agent access</p>
-        <h1 className="pageTitle">Give your agent a spending line without hot-funding it first.</h1>
+        <h1 className="pageTitle">Give your agent sponsor-backed capacity without hot-funding it first.</h1>
         <p className="pageLede">
-          Shadow Float is for buyer agents that need paid data, compute, or API calls before their wallet is topped up. The
-          builder signs intent; Shadow fronts x402; the receipt proves what happened.
+          Shadow Float is for buyer agents that need paid data, compute, or API calls under strict policy. The agent signs
+          a bounded intent; V2 verifies it onchain, pays the named provider from sponsor reserve, and records the debt trail.
         </p>
       </section>
       <section className="builderFlowGrid" aria-label="Builder integration flow">
         <article className="builderFlowCard">
           <span>1</span>
           <strong>Request a line</strong>
-          <p>Share the Arc testnet wallet your agent actually controls. Shadow registers a bounded line for that signer.</p>
+          <p>Share the Arc testnet wallet your agent actually controls. A sponsor reserves bounded USDC capacity for that signer.</p>
         </article>
         <article className="builderFlowCard">
           <span>2</span>
@@ -1408,8 +1450,8 @@ function App() {
         </article>
         <article className="builderFlowCard">
           <span>3</span>
-          <strong>Shadow fronts x402</strong>
-          <p>Shadow verifies the signature, pays the x402 provider, and binds the settlement hash onchain.</p>
+          <strong>Contract pays provider</strong>
+          <p>ShadowFloat verifies the intent onchain, pays the named provider from custody, and opens debt against the line.</p>
         </article>
         <article className="builderFlowCard">
           <span>4</span>
@@ -1431,7 +1473,7 @@ function App() {
         <article className="builderReferenceCard">
           <span>intent verifier</span>
           <code>/api/float-tools?action=verify&amp;hash=0x...</code>
-          <p>Verify signer, request hash, onchain receipt, and matching x402 bind event.</p>
+          <p>Verify signer, request hash, onchain receipt, V2 direct provider payment, or legacy x402 bind event.</p>
         </article>
         <article className="builderReferenceCard">
           <span>local scripts</span>
@@ -1447,10 +1489,10 @@ function App() {
     <>
       <section className="pageHead">
         <p className="pageEyebrow">roadmap · mainnet path</p>
-        <h1 className="pageTitle">From testnet mechanics to an agent spending network.</h1>
+        <h1 className="pageTitle">From testnet proof to an agent capital network.</h1>
         <p className="pageLede">
-          The live product proves treasury fronting, x402 settlement, debt, repayment, blocks, and signed external use. The
-          roadmap is about opening the market without pretending those pieces are already complete.
+          The live product proves sponsor reserve, signed authorization, provider payment, debt, repayment, blocks, and
+          external use. The roadmap is about deeper settlement interop and production-grade capital without overclaiming it.
         </p>
       </section>
       <FloatEconomicsPanel />
@@ -1464,7 +1506,7 @@ function App() {
         <article className="roadmapCard">
           <span>interop</span>
           <strong>Gateway-batched x402</strong>
-          <p>Bridge the current EIP-3009 path into the Gateway-batched dialect Obol and Archer surfaced.</p>
+          <p>Bridge V2 direct provider payment and the historical EIP-3009 proof into the Gateway-batched dialect Obol, Archer, and CitePay surfaced.</p>
         </article>
         <article className="roadmapCard">
           <span>market</span>
@@ -1618,7 +1660,7 @@ function TreasuryHero({ floatState, treasuryState }: {
   const totalChecks = Object.values(checks).filter((value) => typeof value === "boolean").length;
   const externalDrawsLabel = floatState ? `${externalSigned?.cycles ?? 0}` : "syncing";
   const railStats = [
-    { label: "x402 paid", value: `${formatFloatUSDC(TREASURY_PROOF.amountX402USDC)} USDC`, tone: "allow" },
+    { label: "Float payment", value: `${formatFloatUSDC(TREASURY_PROOF.amountX402USDC)} USDC`, tone: "allow" },
     { label: "vault allocated", value: `${formatFloatUSDC(TREASURY_PROOF.amountAllocatedUSDC)} USDC`, tone: "allow" },
     { label: "blocked first", value: `${formatFloatUSDC(TREASURY_PROOF.amountBlockedUSDC)} USDC`, tone: "block" },
     { label: "external Float draws", value: externalDrawsLabel, tone: "neutral" },
@@ -1637,9 +1679,9 @@ function TreasuryHero({ floatState, treasuryState }: {
         <p className="eyebrow">Shadow Treasury / M1 · verified extension</p>
         <h1>Approved adapters enforce mandate checks before vault-style funds move.</h1>
         <p>
-          Shadow Treasury is the M1 extension to Float, not the primary Float proof path. The live proof shows an operator
-          paying an x402 provider through Float, allocating through a hardened approved adapter, and getting an over-limit
-          allocation blocked before vault-style USDC moves.
+          Shadow Treasury is the M1 extension to Float, not the primary Float proof path. The live proof shows a historical
+          Float provider payment, an allocation through a hardened approved adapter, and an over-limit allocation blocked
+          before vault-style USDC moves.
         </p>
         <div className="treasuryHeroActions">
           <a className="treasuryHeroPrimary" href="#treasury-proof">
@@ -1663,7 +1705,7 @@ function TreasuryHero({ floatState, treasuryState }: {
         </div>
         <div className="treasuryFlowBranch allow">
           <span>Float rail</span>
-          <strong>Pays x402 provider</strong>
+          <strong>Provider paid</strong>
           <a href={txUrl(TREASURY_PROOF.txs.x402Settlement)} target="_blank" rel="noreferrer">
             {shortAddress(TREASURY_PROOF.txs.x402Settlement)}
           </a>
@@ -1772,7 +1814,7 @@ function TreasuryRailSplit({
     {
       eyebrow: "payment rail",
       title: "Float pays before the agent is funded",
-      body: "Signed agents authorize a spend, Shadow fronts the approved x402 payment, fee-inclusive debt opens, and repayment restores capacity.",
+      body: "Signed agents authorize a spend, Float pays the approved provider from reserved capacity, fee-inclusive debt opens, and repayment restores capacity.",
       stat: externalDrawsLabel,
       href: "/float",
       cta: "Open Float",
@@ -1788,7 +1830,7 @@ function TreasuryRailSplit({
     {
       eyebrow: "combined proof",
       title: "One read-only verifier checks the proof path",
-      body: "The verifier checks the x402 transfer, Float bind, debt math, vault transfer, blocked no-move path, and live API proof state.",
+      body: "The verifier checks the historical Float payment, bind, debt math, vault transfer, blocked no-move path, and live API proof state.",
       stat: "25 checks",
       href: "https://github.com/dolepee/shadow",
       cta: "View repo",
@@ -1846,10 +1888,10 @@ function TreasuryProofPanel({
   const proofRows = [
     {
       status: indexedFloatReceipt ? "live" : "verifier",
-      title: "Float paid the x402 provider",
+      title: "Float paid the provider",
       amount: TREASURY_PROOF.amountX402USDC,
       receipt: "SPEND_ALLOWED + X402PaymentBound",
-      meaning: "The operator fronted Arc USDC to the provider, then bound the settlement into Float debt.",
+      meaning: "The supporting proof uses the historical Float path: operator fronted Arc USDC to the provider, then bound the settlement into Float debt.",
       links: [
         { label: "settlement", href: txUrl(TREASURY_PROOF.txs.x402Settlement) },
         { label: "bind", href: txUrl(TREASURY_PROOF.txs.floatBind) },
@@ -1889,8 +1931,8 @@ function TreasuryProofPanel({
           <p className="eyebrow">live proof runway · Arc receipts</p>
           <h2>One operator paid, allocated, and was stopped on the third action.</h2>
           <p>
-            The proof below is deliberately concrete: one x402 payment, one vault allocation, one blocked over-limit
-            allocation, and one read-only verifier.
+            The proof below is deliberately concrete: one provider payment, one vault allocation, one blocked over-limit
+            allocation, and one read-only verifier. It is supporting M1 evidence, not a production treasury custody claim.
           </p>
         </div>
         <div className={`treasuryProofStatus ${treasuryState?.ok === false ? "fail" : ""}`}>
@@ -1900,7 +1942,7 @@ function TreasuryProofPanel({
       </div>
 
       <div className="treasuryMetricGrid" aria-label="Treasury proof amounts">
-        <TreasuryMetric label="x402 paid" value={`${formatFloatUSDC(TREASURY_PROOF.amountX402USDC)} USDC`} tone="allow" />
+        <TreasuryMetric label="Float paid" value={`${formatFloatUSDC(TREASURY_PROOF.amountX402USDC)} USDC`} tone="allow" />
         <TreasuryMetric label="vault allocated" value={`${formatFloatUSDC(TREASURY_PROOF.amountAllocatedUSDC)} USDC`} tone="allow" />
         <TreasuryMetric label="blocked attempt" value={`${formatFloatUSDC(TREASURY_PROOF.amountBlockedUSDC)} USDC`} tone="block" />
         <TreasuryMetric label="Float fee" value={`${formatFloatUSDC(TREASURY_PROOF.feeUSDC)} USDC`} />
@@ -2018,7 +2060,7 @@ function TreasuryReceiptStructurePanel() {
     },
     {
       title: "Float debt receipt",
-      subtitle: "x402 payment",
+      subtitle: "historical Float payment",
       href: `/api/float-tools?action=verify&hash=${TREASURY_PROOF.hashes.floatRequest}`,
       fields: [
         "receipt = SPEND_ALLOWED + PROVIDER_PAID + FEE_ACCRUED + DEBT_OPENED",
@@ -2193,7 +2235,7 @@ function TreasuryValidationPanel({ floatState }: { floatState: FloatState | null
           <span>external Float proof</span>
           <strong>{externalSigned?.cycles ?? 0} signed draws</strong>
           <p>
-            External agents can authorize a Float spend without hot-funding the x402 payment first. The current standing
+            External agents can authorize a Float spend without hot-funding the provider payment first. The current standing
             board and verifier expose the signed draw path; {externalClosed} external lifecycle{externalClosed === 1 ? "" : "s"} closed through repayment.
           </p>
           <Link to="/proof">Open external proof →</Link>
@@ -2315,7 +2357,7 @@ function FloatPanel({
   const externalSigned = state?.sourceBreakdown?.externalSigned;
   const standingBoard = state?.standingBoard;
   const runs = state?.loopRuns || [];
-  const latestPaidRun = runs.find((run) => run.x402Hash || run.bindTxHash);
+  const latestPaidRun = runs.find((run) => run.x402Hash || run.bindTxHash || run.txHash);
   const latestGuardRun = runs.find(
     (run) => run.outcome?.includes("BLOCK") || run.outcome?.includes("DENIED") || run.action === "PREMIUM",
   );
@@ -2332,18 +2374,18 @@ function FloatPanel({
   const proofSteps = [
     {
       label: "1",
-      title: "Earn",
-      detail: "Alpha has verified Shadow receipts and receives a revocable 1 USDC spending line.",
+      title: "Reserve",
+      detail: "A sponsor locks Arc USDC capacity for an agent line.",
     },
     {
       label: "2",
-      title: "Pay",
-      detail: "The agent buys an approved x402 resource before its own wallet is funded.",
+      title: "Sign",
+      detail: "The agent signs provider, endpoint, amount, max debt, nonce, expiry, and executor.",
     },
     {
       label: "3",
-      title: "Bind",
-      detail: "The x402 settlement hash is bound into the Float receipt and debt opens.",
+      title: "Pay",
+      detail: "The contract verifies the intent, pays the provider from reserve, and opens debt.",
     },
     {
       label: "4",
@@ -2360,21 +2402,21 @@ function FloatPanel({
     <section className={`floatPanel floatPanelV2${compact ? " floatPanelCompact" : ""}`} id="shadow-float">
       <div className="floatHeroShell">
         <div className="floatHeroCopy">
-          <p className="eyebrow">Shadow Float · external proof live</p>
+          <p className="eyebrow">Shadow Float V2 · current proof live</p>
           {compact ? (
-            <h2>Signed agents spend first. Shadow records the debt.</h2>
+            <h2>Signed agents draw reserved USDC, then repay the debt.</h2>
           ) : (
-            <h1>Signed agents spend first. Shadow records the debt.</h1>
+            <h1>Signed agents draw reserved USDC, then repay the debt.</h1>
           )}
           <p className="floatLede">
-            Shadow Float gives autonomous agents a bounded revocable spending line backed by verified onchain behavior.
-            The agent signs what it wants to buy; Shadow fronts the approved x402 payment, opens debt, and blocks overreach
-            before treasury USDC moves.
+            Shadow Float V2 gives autonomous agents sponsor-backed Arc USDC capacity without hot-funding every wallet. The
+            agent signs one bounded intent; the contract verifies it onchain, pays the named provider from reserve, opens
+            debt, restores capacity on repayment, and blocks overreach before funds move.
           </p>
           <div className="floatHeroActions">
             {primaryProofHash ? (
               <a className="floatPrimaryAction" href={txUrl(primaryProofHash as `0x${string}`)} target="_blank" rel="noreferrer">
-                Open latest x402 proof
+                Open historical x402 proof
               </a>
             ) : (
               <a className="floatPrimaryAction" href="#float-receipts">
@@ -2392,9 +2434,9 @@ function FloatPanel({
             <strong>{configured ? `${state?.receiptCount || "0"} receipts` : "syncing"}</strong>
           </div>
           <div className="floatProofCardMoment">
-            <span>good agent</span>
-            <strong>pays x402</strong>
-            <small>{primaryProofHash ? shortAddress(primaryProofHash) : "waiting for settlement"}</small>
+            <span>V2 intent</span>
+            <strong>provider paid</strong>
+            <small>{shortAddress(FLOAT_V2_PROOF.directSpendTx)}</small>
           </div>
           <div className="floatProofCardMoment blocked">
             <span>overreach</span>
@@ -2411,13 +2453,13 @@ function FloatPanel({
       <div className="floatStatusRow">
         <div className={`floatStatus ${configured ? "configured" : "pending"}`}>
           <span className="floatStatusDot" />
-          {configured ? "live Float reads" : syncPending ? "syncing live proof" : "configuration pending"}
+          {configured ? "live historical reads" : syncPending ? "syncing live proof" : "configuration pending"}
           {loading && <small>syncing</small>}
           {updated && <small>updated {updated}</small>}
         </div>
         <span>real Arc USDC</span>
-        <span>x402 settlement bound onchain</span>
-        <span>operator, external, and onboarding proofs stay separated</span>
+        <span>V2 signed intent enforced onchain</span>
+        <span>V1 x402 receipts kept as historical proof</span>
       </div>
 
       {!compact && <FloatWalletProof state={state} loading={loading} />}
@@ -2425,7 +2467,7 @@ function FloatPanel({
 
       <div className="floatHeadlineStats">
         <FloatHeadlineStat
-          label="external signed x402"
+          label="external signed spends"
           value={`${externalSigned?.cycles || 0}`}
           detail={`${formatFloatUSDC(externalSigned?.providerPaidUSDC)} provider paid`}
           tone="allow"
@@ -2442,7 +2484,7 @@ function FloatPanel({
           detail={`${agentLoop?.paidCount || 0} paid · ${agentLoop?.skipCount || 0} skipped`}
         />
         <FloatHeadlineStat
-          label="operator loop settled"
+          label="historical loop settled"
           value={formatFloatUSDC(agentLoop?.providerPaidUSDC)}
           detail="separate from external signed usage"
           tone="allow"
@@ -2491,8 +2533,8 @@ function FloatPanel({
             <FloatFact label="score" value={alpha ? alpha.score.toString() : "9300"} />
           </div>
           <p>
-            Alpha can spend only through the approved x402 provider endpoint. A successful call binds the settlement hash,
-            opens debt, and repayment refreshes the available line.
+            The historical Alpha line shows the original receipt depth: approved provider payment, debt, repayment, and
+            overrun refusal. V2 moves the signed authorization checks into the contract.
           </p>
         </article>
 
@@ -2540,7 +2582,7 @@ function FloatPanel({
       <div className="floatGrid">
         <article className="floatBox">
           <div className="floatBoxHeader">
-            <span>approved x402 provider</span>
+            <span>approved provider endpoint</span>
             <small>{state?.provider ? shortAddress(state.provider) : "waiting"}</small>
           </div>
           <div className="floatProviderFacts">
@@ -2559,12 +2601,12 @@ function FloatPanel({
           <div className="floatProofLinks">
             {primaryProofHash && (
               <a href={txUrl(primaryProofHash as `0x${string}`)} target="_blank" rel="noreferrer">
-                x402 settlement <strong>{shortAddress(primaryProofHash)}</strong>
+                historical x402 settlement <strong>{shortAddress(primaryProofHash)}</strong>
               </a>
             )}
             {bindProofHash && (
               <a href={txUrl(bindProofHash as `0x${string}`)} target="_blank" rel="noreferrer">
-                Float bind <strong>{shortAddress(bindProofHash)}</strong>
+                historical Float bind <strong>{shortAddress(bindProofHash)}</strong>
               </a>
             )}
             {guardProofHash && (
@@ -2637,10 +2679,71 @@ function FloatPanel({
         <div className="floatBoundaries">
           <span>testnet USDC line, not a lending market</span>
           <span>agent chooses the spend; Shadow enforces the mandate</span>
-          <span>x402 settlement tx is bound on-chain</span>
+          <span>V2 provider payment is contract enforced</span>
           <span>external signed and onboarding-assisted proofs stay labeled separately</span>
         </div>
       )}
+    </section>
+  );
+}
+
+function FloatV2ProofStrip({ compact = false }: { compact?: boolean }) {
+  const items = [
+    {
+      eyebrow: "current contract",
+      title: shortAddress(FLOAT_V2_CONTRACT),
+      detail: "Sourcify full match, current V2 Float",
+      href: FLOAT_V2_PROOF.sourcify,
+    },
+    {
+      eyebrow: "signed spend",
+      title: "0.01 USDC paid",
+      detail: "provider paid from contract reserve",
+      href: txUrl(FLOAT_V2_PROOF.directSpendTx),
+    },
+    {
+      eyebrow: "overrun block",
+      title: "0.10 USDC blocked",
+      detail: "signed overrun consumed, no provider transfer",
+      href: txUrl(FLOAT_V2_PROOF.blockedSpendTx),
+    },
+    {
+      eyebrow: "repay proof",
+      title: "line restored",
+      detail: "V2 debt repaid to zero",
+      href: txUrl(FLOAT_V2_PROOF.repayTx),
+    },
+    {
+      eyebrow: "external lifecycle",
+      title: "Crux closed",
+      detail: "external signer spent and repaid on V2",
+      href: txUrl(FLOAT_V2_PROOF.cruxRepayTx),
+    },
+  ];
+
+  return (
+    <section className={`floatV2ProofStrip${compact ? " compact" : ""}`} aria-label="Shadow Float V2 proof anchors">
+      <div className="floatV2ProofIntro">
+        <span>Float V2 is the current contract</span>
+        <strong>Signed intent, reserve payment, debt, block, repay.</strong>
+        <p>
+          V2 is live at {shortAddress(FLOAT_V2_CONTRACT)}. The older {shortAddress(FLOAT_V1_HISTORICAL_CONTRACT)} board
+          remains useful as historical x402 and receipt depth, but the current sponsored line path is contract enforced.
+        </p>
+      </div>
+      <div className="floatV2ProofCards">
+        {items.map((item) => (
+          <a href={item.href} target="_blank" rel="noreferrer" className="floatV2ProofCard" key={item.eyebrow}>
+            <span>{item.eyebrow}</span>
+            <strong>{item.title}</strong>
+            <small>{item.detail}</small>
+          </a>
+        ))}
+      </div>
+      <div className="floatV2ProofCommand">
+        <span>read-only verifier</span>
+        <code>npm run float:v2-verify-live</code>
+      </div>
     </section>
   );
 }
@@ -2657,16 +2760,16 @@ function FloatWalletProof({ state, loading }: { state: FloatState | null; loadin
         <small>{exactHistory ? "historical snapshot" : "current balance + receipts"}</small>
       </div>
       <div className="floatWalletProofCopy">
-        <strong>The agent does not need to pre-fund the x402 spend.</strong>
+          <strong>The agent does not need to pre-fund the provider payment.</strong>
         <p>
-          Shadow fronts the provider payment from the Float path, then assigns debt to the agent&apos;s line. Historical
-          pre-spend wallet balance is not stored by the contract, so the page shows current wallet balance and the live
-          x402/debt receipts instead of inventing a before snapshot.
+          V2 pays the signed provider from sponsor-backed contract custody, then assigns debt to the agent&apos;s line.
+          Historical pre-spend wallet balance is not stored by the V1 contract, so this board shows current wallet balance
+          and live debt receipts instead of inventing a before snapshot.
         </p>
       </div>
       <div className="floatWalletProofGrid">
         <FloatFact label="agent wallet USDC" value={showUSDC(proof?.agentWalletUSDC)} />
-        <FloatFact label="x402 required" value={showUSDC(proof?.requiredX402AmountUSDC)} />
+        <FloatFact label="provider price" value={showUSDC(proof?.requiredX402AmountUSDC)} />
         <FloatFact label="current shortfall" value={showUSDC(proof?.walletShortfallUSDC)} />
         <FloatFact label="Float capacity" value={showUSDC(proof?.floatAvailableCapacityUSDC)} />
         <FloatFact label="facilitator paid" value={showUSDC(proof?.facilitatorPaidUSDC)} />
@@ -2675,12 +2778,12 @@ function FloatWalletProof({ state, loading }: { state: FloatState | null; loadin
       <div className="floatWalletProofLinks">
         {proof?.x402Hash && (
           <a href={txUrl(proof.x402Hash)} target="_blank" rel="noreferrer">
-            x402 settlement {shortAddress(proof.x402Hash)}
+            historical x402 settlement {shortAddress(proof.x402Hash)}
           </a>
         )}
         {proof?.bindTxHash && (
           <a href={txUrl(proof.bindTxHash)} target="_blank" rel="noreferrer">
-            Float bind {shortAddress(proof.bindTxHash)}
+            historical Float bind {shortAddress(proof.bindTxHash)}
           </a>
         )}
         <a href="/api/float" target="_blank" rel="noreferrer">
@@ -2725,12 +2828,12 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       meaning: "The line exists onchain and can be checked against receipt-derived behavior evidence.",
     },
     {
-      title: "x402 payment required",
+      title: "Provider payment required",
       status: state?.providerMandate?.active ? "live" : "pending",
       amount: formatFloatUSDC(walletProof?.requiredX402AmountUSDC),
       receipt: "HTTP_402",
       href: "/api/reasoning-x402",
-      meaning: "The provider endpoint demands USDC before returning the paid resource.",
+      meaning: "The provider endpoint requires USDC before returning the paid resource.",
     },
     {
       title: "Shadow pays provider",
@@ -2738,15 +2841,15 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       amount: formatFloatUSDC(providerPaidReceipt?.amountUSDC || x402Receipt?.x402?.amountUSDC),
       receipt: "PROVIDER_PAID",
       href: x402Receipt?.x402?.x402Hash ? txUrl(x402Receipt.x402.x402Hash) : providerPaidReceipt?.transactionHash ? txUrl(providerPaidReceipt.transactionHash) : "/api/float",
-      meaning: "The facilitator fronts real Arc USDC to the x402 provider.",
+      meaning: "V1 shows the facilitator fronting Arc USDC to the x402 provider. V2 pays directly from contract reserve.",
     },
     {
-      title: "Float binds settlement",
+      title: "Historical x402 bind",
       status: x402Receipt?.x402 ? "proven" : "pending",
       amount: formatFloatUSDC(x402Receipt?.x402?.amountUSDC),
       receipt: "X402PaymentBound",
       href: x402Receipt?.x402?.bindingTxHash ? txUrl(x402Receipt.x402.bindingTxHash) : "/api/float",
-      meaning: "The x402 settlement hash is bound to the Float request hash onchain.",
+      meaning: "The historical x402 settlement hash is bound to the Float request hash onchain.",
     },
     {
       title: "Debt opens",
@@ -2848,8 +2951,11 @@ function FloatJudgePath({ state }: { state: FloatState | null }) {
   const links = [
     { label: "Open live proof", href: "/api/float" },
     { label: "Check reserve", href: "/api/float" },
-    x402Receipt?.x402?.x402Hash ? { label: "Check x402 settlement", href: txUrl(x402Receipt.x402.x402Hash) } : null,
-    x402Receipt?.x402?.bindingTxHash ? { label: "Check x402 bind", href: txUrl(x402Receipt.x402.bindingTxHash) } : null,
+    { label: "Check V2 direct spend", href: txUrl(FLOAT_V2_PROOF.directSpendTx) },
+    { label: "Check V2 blocked overrun", href: txUrl(FLOAT_V2_PROOF.blockedSpendTx) },
+    { label: "Check V2 repayment", href: txUrl(FLOAT_V2_PROOF.repayTx) },
+    x402Receipt?.x402?.x402Hash ? { label: "Check historical x402 settlement", href: txUrl(x402Receipt.x402.x402Hash) } : null,
+    x402Receipt?.x402?.bindingTxHash ? { label: "Check historical x402 bind", href: txUrl(x402Receipt.x402.bindingTxHash) } : null,
     debtReceipt?.transactionHash ? { label: "Check debt", href: txUrl(debtReceipt.transactionHash) } : null,
     repayReceipt?.transactionHash ? { label: "Check repayment", href: txUrl(repayReceipt.transactionHash) } : null,
     overspendReceipt?.transactionHash ? { label: "Check overspend block", href: txUrl(overspendReceipt.transactionHash) } : null,
@@ -2869,7 +2975,7 @@ function FloatJudgePath({ state }: { state: FloatState | null }) {
           </a>
         ))}
       </div>
-      <code>npm run float:verify-live</code>
+      <code>npm run float:v2-verify-live</code>
     </article>
   );
 }
@@ -2901,7 +3007,7 @@ function FloatStandingBoardPanel({
       <div className="floatStandingIntro">
         <div>
           <strong>Behavior becomes queryable capacity.</strong>
-          <p>Other agents can read standing before asking Shadow to front USDC for an x402 call.</p>
+          <p>Other agents can read standing before asking a sponsor-backed line to pay a provider.</p>
         </div>
         <a href={alphaApi} target="_blank" rel="noreferrer">
           Standing API
@@ -3187,10 +3293,10 @@ function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
       </div>
       <div className="floatExternalIntro">
         <div>
-          <strong>Outside agents sign; Shadow fronts the x402 payment.</strong>
+          <strong>Outside agents sign; Shadow verifies before provider payment.</strong>
           <p>
-            These rows show spend intents signed against the live Float contract. Obol is shown separately as an arms-length
-            buyer agent; other builder agents are labeled without partner language.
+            These rows show spend intents signed against Float contracts. V2 signatures are contract-enforced direct
+            provider payments; older rows remain labeled as historical x402 binds.
           </p>
         </div>
         <a href="/api/float" target="_blank" rel="noreferrer">
@@ -3251,7 +3357,7 @@ function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
           })
         ) : (
           <div className="floatExternalEmpty">
-            Signed external spends appear here after an outside agent signs a Float intent and Shadow binds it onchain.
+            Signed external spends appear here after an outside agent signs a Float intent and the proof is indexed.
           </div>
         )}
       </div>
@@ -3259,11 +3365,21 @@ function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
   );
 }
 
-function classifyExternalSignedRun(run: FloatLoopRun): { kind: "obol" | "builder"; eyebrow: string; title: string } {
+function classifyExternalSignedRun(run: FloatLoopRun): ExternalSignedLabel {
   const agent = (run.agent || run.intent?.agent || "").toLowerCase();
   const reason = (run.intent?.reason || run.reason || "").toLowerCase();
+  const known = EXTERNAL_SIGNER_LABELS[agent];
+  if (known) return known;
   if (agent === OBOL_SIGNER || reason.includes("obol")) {
-    return { kind: "obol", eyebrow: "arms-length buyer agent", title: "Obol signed Float intent" };
+    return EXTERNAL_SIGNER_LABELS[OBOL_SIGNER];
+  }
+  if (reason.includes("forum")) return { kind: "builder", eyebrow: "Forum agent", title: "Forum signed Float V2 intent" };
+  if (reason.includes("citepay")) {
+    return { kind: "builder", eyebrow: "CitePay agent", title: "CitePay signed Float V2 intent" };
+  }
+  if (reason.includes("crux")) return { kind: "builder", eyebrow: "Crux agent", title: "Crux signed Float V2 intent" };
+  if (reason.includes("argus")) {
+    return { kind: "builder", eyebrow: "Argus Agent Alpha", title: "Argus signed Float V2 intent" };
   }
   return { kind: "builder", eyebrow: "invited builder agent", title: "External signed intent" };
 }
@@ -3294,11 +3410,11 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
           <strong>{formatFloatUSDC(summary?.providerPaidUSDC)}</strong>
         </div>
         <div>
-          <span>operator x402 settled</span>
+          <span>historical x402 settled</span>
           <strong>{formatFloatUSDC(state?.sourceBreakdown?.demoAdmin?.providerPaidUSDC)}</strong>
         </div>
         <div>
-          <span>signed external x402</span>
+          <span>signed external spends</span>
           <strong>{formatFloatUSDC(state?.sourceBreakdown?.externalSigned?.providerPaidUSDC)}</strong>
         </div>
         <div>
@@ -3342,7 +3458,7 @@ function FloatLoopPanel({ state, compact }: { state: FloatState | null; compact:
         </div>
       ) : (
         <div className="floatLoopEmpty">
-          The x402-bound proof is live. No scheduled agent-loop receipt is indexed yet.
+          The Float proof is live. No scheduled agent-loop receipt is indexed yet.
         </div>
       )}
       {!compact && hasRuns && (
@@ -4851,7 +4967,7 @@ function Shadow2ProofStrip({
       metric: agentLoop?.cycles !== undefined ? `${agentLoop.cycles}` : "syncing",
       unit: "agent-loop cycles",
       title: "Behavior becomes spending power",
-      body: "A verified agent receives a bounded USDC spending line, buys approved x402 resources, opens debt, and gets blocked when it overreaches.",
+      body: "A verified agent receives bounded USDC capacity, buys approved provider resources, opens debt, and gets blocked when it overreaches.",
       to: "/float",
       tone: "float",
     },
@@ -4917,16 +5033,16 @@ function HeroDiagram() {
         </span>
         <span className="heroLedgerLive">
           <span className="heroLedgerLiveDot" />
-          Arc · x402 bound
+          Arc · signed intent
         </span>
       </div>
 
       <div className="heroLedgerIntent">
-        <span className="heroLedgerIntentLabel">Agent request</span>
+        <span className="heroLedgerIntentLabel">Agent signed intent</span>
         <div className="heroLedgerIntentBody">
-          <span className="agentTag">Obol</span>
+          <span className="agentTag">Forum</span>
           <span className="heroLedgerIntentVerb">buy</span>
-          <span className="heroLedgerIntentNumber">x402 data</span>
+          <span className="heroLedgerIntentNumber">provider data</span>
           <span className="heroLedgerIntentArrow">→</span>
           <span className="heroLedgerIntentNumber">0.01&nbsp;USDC</span>
         </div>
@@ -4939,13 +5055,13 @@ function HeroDiagram() {
               <span className="heroLedgerCellDot" />
               PAID
             </span>
-            <span className="heroLedgerCellAddr">x402 provider</span>
+            <span className="heroLedgerCellAddr">approved provider</span>
           </div>
           <div className="heroLedgerCellMain">+0.01</div>
-          <div className="heroLedgerCellUnit">USDC settled to provider</div>
+          <div className="heroLedgerCellUnit">USDC paid from reserve</div>
           <div className="heroLedgerCellMeta">
             <span className="heroLedgerCellMetaLabel">receipt</span>
-            <span className="heroLedgerCellMetaValue">x402 hash bound · debt opened · mandate still valid</span>
+            <span className="heroLedgerCellMetaValue">intent consumed · debt opened · capacity reduced</span>
           </div>
         </div>
         <div className="heroLedgerCell blocked">
@@ -4967,7 +5083,7 @@ function HeroDiagram() {
 
       <div className="heroLedgerProof">
         <span className="heroLedgerProofLabel">Float receipt</span>
-        <span className="heroLedgerProofHash">external signature + x402 + debt</span>
+        <span className="heroLedgerProofHash">signature + provider payment + debt</span>
         <span className="heroLedgerProofSep" />
         <span className="heroLedgerProofChain">chain&nbsp;5042002</span>
         <span className="heroLedgerProofVerify">verified onchain</span>
@@ -5022,7 +5138,8 @@ function SiteFooter() {
             <span>Shadow</span>
           </Link>
           <p className="siteFooterTagline">
-            Behavior-backed x402 spending lines on Arc, with a verified Treasury/M1 mandate extension.
+            Sponsor-backed USDC capacity for agents on Arc, with signed intents, repayment, and a verified Treasury/M1
+            mandate extension.
           </p>
           <div className="siteFooterBadge">
             <span className="heroBadgeDot" />
@@ -5053,7 +5170,7 @@ function SiteFooter() {
       </div>
       <div className="siteFooterBottom">
         <span>Built for Canteen × Circle Lepton · 2026</span>
-        <span>Shadow Float · Treasury/M1 is the verified extension</span>
+        <span>Shadow Float V2 · credit, controls, and receipts on Arc</span>
       </div>
     </footer>
   );
@@ -5088,8 +5205,8 @@ function HomeProofOverview({
     {
       eyebrow: "external signed use",
       value: loaded ? `${externalSigned?.cycles ?? 0}` : "live",
-      label: "signed x402 spends",
-      body: "Builders sign intents with their own agents; Shadow fronts the provider payment and binds the receipt.",
+      label: "signed spends",
+      body: "Builders sign intents with their own agents; Shadow V2 verifies the intent and pays the provider from reserved capacity.",
       href: latestExternalVerify?.verifyUrl || "/proof",
       external: Boolean(latestExternalVerify?.verifyUrl),
     },
@@ -5107,7 +5224,7 @@ function HomeProofOverview({
       eyebrow: "proof checks",
       value: totalChecks ? `${greenChecks}/${totalChecks}` : "green",
       label: "live verifier checks",
-      body: "Reserve, receipt count, x402 bind, debt, repayment, overspend, and denial checks are exposed through the API.",
+      body: "Reserve, receipt count, provider payment, debt, repayment, overspend, and denial checks are exposed through the API.",
       href: "/proof",
     },
     {
@@ -5125,7 +5242,7 @@ function HomeProofOverview({
       <div className="homeProofHeader">
         <div>
           <p className="eyebrow">live product proof</p>
-          <h2>External agents can spend first, then settle the debt trail.</h2>
+          <h2>External agents can draw sponsor-backed capacity, then repay the debt trail.</h2>
         </div>
         <div className={`homeProofStatus ${error ? "error" : loading ? "syncing" : "live"}`}>
           <span className="homeProofStatusDot" />
@@ -5166,7 +5283,7 @@ function HeroMetrics({ state }: { state: FloatState | null }) {
   const externalSigned = state?.sourceBreakdown?.externalSigned;
   const items: Array<{ label: string; value: string }> = [
     { label: "signed external draws", value: (externalSigned?.cycles || 0).toLocaleString() },
-    { label: "x402 provider paid", value: `${formatFloatUSDC(state?.totalProviderPaidUSDC)} USDC` },
+    { label: "provider paid", value: `${formatFloatUSDC(state?.totalProviderPaidUSDC)} USDC` },
     { label: "active debt", value: `${formatFloatUSDC(state?.totalDebtOpenedUSDC ? BigInt(state.totalDebtOpenedUSDC) - BigInt(state.totalRepaidUSDC || "0") : undefined)} USDC` },
     { label: "Float receipts", value: state?.receiptCount?.toString() ?? "0" },
   ];
@@ -5178,7 +5295,7 @@ function HeroMetrics({ state }: { state: FloatState | null }) {
       <div className="heroMetrics heroMetrics--syncing" role="group" aria-label="Syncing live Arc data">
         <span className="heroMetricsSyncDot" />
         <span className="heroMetricsSyncLabel">Live Float receipts</span>
-        <span className="heroMetricsSyncHint">syncing x402, debt, block, and repayment receipts on chain 5042002</span>
+        <span className="heroMetricsSyncHint">syncing provider payment, debt, block, and repayment receipts on chain 5042002</span>
       </div>
     );
   }
@@ -5810,33 +5927,37 @@ function CircleStackPanel() {
   return (
     <section id="circle-stack" className="circleStackPanel">
       <Header
-        eyebrow="circle stack on arc"
-        title="Circle is tiered by its real role in Float"
+        eyebrow="arc agentic workflow stack"
+        title="Identity, settlement, controls, and the missing capital layer"
       />
       <p className="circleStackCaption">
-        Float&apos;s core draw path uses Arc USDC, x402, and EIP-3009 today. Gateway-batched x402 is the next interop
-        milestone: Shadow completed an interoperability test with an independent Gateway-batched Arc x402 seller, while
-        per-transfer onchain settlement binding into Float receipts remains the next milestone. Circle Modular Wallets and
-        Gas Station are proven onboarding capability, not the current Float draw path.
+        Arc&apos;s agentic workflow framing is agents that transact with identity, stablecoin settlement, and programmable
+        controls. Shadow fits that lane and adds the capital primitive: sponsor-backed USDC capacity that can be drawn,
+        repaid, blocked, and verified from receipts.
       </p>
       <div className="circleStackGrid">
         <article className="circleTierCard primary">
-          <span>load-bearing now</span>
-          <strong>Arc USDC · x402 · EIP-3009</strong>
-          <p>Every current Float draw settles on Arc USDC over x402 using EIP-3009 authorization.</p>
+          <span>identity</span>
+          <strong>Agent signer · standing API</strong>
+          <p>The V2 line is bound to the wallet that signs the EIP-712 intent; standing is queryable by other agents.</p>
         </article>
         <article className="circleTierCard">
-          <span>next milestone</span>
-          <strong>Gateway-batched x402</strong>
+          <span>settlement</span>
+          <strong>Arc USDC · direct provider pay</strong>
           <p>
-            Lab interop reached an independent Gateway-batched Arc x402 seller; the missing piece is a resolver that binds
-            per-transfer settlement into Float receipts.
+            The V2 proof pays the signed provider directly from contract custody. V1 keeps the historical x402/EIP-3009
+            settlement proof.
           </p>
         </article>
         <article className="circleTierCard">
-          <span>onboarding capability</span>
-          <strong>Modular Wallets · Gas Station</strong>
-          <p>Shadow has demonstrated passkey-based, gas-sponsored onboarding that can be applied to Float agents.</p>
+          <span>programmable controls</span>
+          <strong>Provider · endpoint · max debt</strong>
+          <p>Provider, endpoint hash, amount, max cumulative debt, nonce, expiry, and executor are enforced before funds move.</p>
+        </article>
+        <article className="circleTierCard">
+          <span>capital layer</span>
+          <strong>Sponsor reserve · debt · repay</strong>
+          <p>Shadow&apos;s delta is reserved capacity: draw against sponsor-backed USDC, open debt, repay, or get blocked.</p>
         </article>
       </div>
       <div className="circleStackGrid circleStackGridSolo">
