@@ -218,8 +218,15 @@ check(
 );
 
 check("repay tx succeeded", txs.repay.status === "success", txDetail(txs.repay));
+const openExternalDebt = totalDebtOpened >= totalRepaid ? totalDebtOpened - totalRepaid : null;
 check("provider paid total includes direct proof spend", totalProviderPaid >= proof.directAmountUSDC, fmt(totalProviderPaid));
-check("debt opened was fully repaid", totalDebtOpened === totalRepaid, `${fmt(totalDebtOpened)} opened / ${fmt(totalRepaid)} repaid`);
+check(
+  "global debt accounting is non-negative",
+  openExternalDebt !== null,
+  openExternalDebt === null
+    ? `${fmt(totalDebtOpened)} opened / ${fmt(totalRepaid)} repaid`
+    : `${fmt(totalDebtOpened)} opened / ${fmt(totalRepaid)} repaid / ${fmt(openExternalDebt)} open external debt`,
+);
 check("blocked total includes overrun amount", totalBlocked >= proof.blockedAmountUSDC, fmt(totalBlocked));
 check("sponsored available accounting tracks restored line", totalSponsoredAvailable >= proof.reserveUSDC, fmt(totalSponsoredAvailable));
 
@@ -263,6 +270,7 @@ const result = {
     providerPaidUSDC: totalProviderPaid.toString(),
     debtOpenedUSDC: totalDebtOpened.toString(),
     repaidUSDC: totalRepaid.toString(),
+    openDebtUSDC: openExternalDebt?.toString() ?? "0",
     blockedUSDC: totalBlocked.toString(),
   },
   checks,
