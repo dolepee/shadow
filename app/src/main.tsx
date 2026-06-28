@@ -616,6 +616,18 @@ const TREASURY_PROOF = {
 };
 
 async function fetchFloatV2Activity(): Promise<FloatV2ActivityState> {
+  try {
+    const res = await fetch(`/api/float-v2?ts=${Date.now()}`, { cache: "no-store" });
+    const data = await res.json();
+    if (res.ok && data?.ok) return data as FloatV2ActivityState;
+    throw new Error(data?.error || `V2 API returned ${res.status}`);
+  } catch (error) {
+    console.warn("Falling back to browser V2 read", error);
+  }
+  return fetchFloatV2ActivityFromRpc();
+}
+
+async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
   const client: any = createClient({
     chain: arcTestnet,
     transport: http(import.meta.env.VITE_ARC_RPC_URL || "https://rpc.testnet.arc.network"),
