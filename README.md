@@ -28,12 +28,12 @@ Live V2 activity currently shown on the site:
 | Metric | Count |
 | --- | ---: |
 | External lines | 8 |
-| Signed intents | 7 |
-| Provider paid spends | 7 |
-| Closed borrow-repay lifecycles | 6 |
+| Signed intents | 8 |
+| Provider paid spends | 8 |
+| Closed borrow-repay lifecycles | 7 |
 | Open debt lines | 1 |
 
-External V2 lines currently include Forum, CitePay, Crux, Argus Alpha, Argus Beta, Argus Gamma, Obol, and Driplet. Forum, CitePay, Crux, and all three Argus agents have closed the full signed spend and repay loop. Obol has a provider-paid V2 spend with repayment still open and labeled that way on the live board. Driplet is registered and ready.
+External V2 lines currently include Forum, CitePay, Crux, Driplet, Argus Alpha, Argus Beta, Argus Gamma, and Obol. Forum, CitePay, Crux, Driplet, and all three Argus agents have closed the full signed spend and repay loop. Obol has a provider-paid V2 spend with repayment still open and labeled that way on the live board.
 
 ## How Float Works
 
