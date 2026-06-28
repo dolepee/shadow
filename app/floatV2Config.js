@@ -1,19 +1,12 @@
-import { parseAbi, parseAbiItem, type Address, type Hash } from "viem";
+import { parseAbi, parseAbiItem } from "viem";
 
-export type FloatV2TrackedExternalAgent = {
-  label: string;
-  agent: Address;
-  spendTx?: Hash;
-  repayTx?: Hash;
-};
-
-export const FLOAT_V2_CONTRACT = "0x20dcA96B0C487D94De885c726c956ffaF38b12C2" as Address;
+export const FLOAT_V2_CONTRACT = "0x20dcA96B0C487D94De885c726c956ffaF38b12C2";
 export const FLOAT_V2_DEPLOY_BLOCK = 48_837_320n;
 export const FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE = 9_000n;
 
-export const FLOAT_V2_STATUS_NAMES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"] as const;
+export const FLOAT_V2_STATUS_NAMES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"];
 
-export const FLOAT_V2_TRACKED_EXTERNAL_AGENTS: readonly FloatV2TrackedExternalAgent[] = [
+export const FLOAT_V2_TRACKED_EXTERNAL_AGENTS = [
   { label: "Forum", agent: "0x13585c6004fbA9D7D49219a6435B68348fD30770" },
   { label: "CitePay", agent: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" },
   {
@@ -31,7 +24,7 @@ export const FLOAT_V2_TRACKED_EXTERNAL_AGENTS: readonly FloatV2TrackedExternalAg
     spendTx: "0x78567fc68238c6b309aa26916bbf3f456d4da20de27ecb4e9e6a7d3a245acc8a",
   },
   { label: "Driplet", agent: "0x7dF8C7ab755A62a5ea3356372Ad875d8C88084BF" },
-] as const;
+];
 
 export const floatV2Abi = parseAbi([
   "function lines(address agent) view returns (address wallet,uint16 score,uint256 creditLimitUSDC,uint256 availableCreditUSDC,uint256 activeDebtUSDC,uint8 status,uint64 lastReview,bytes32 mandateId,uint64 day,uint256 spentTodayUSDC)",

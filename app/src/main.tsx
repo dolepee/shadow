@@ -60,7 +60,7 @@ import {
   floatV2Abi,
   floatV2IntentConsumedEvent,
   floatV2ReceiptEvent,
-} from "./floatV2Config";
+} from "../floatV2Config.js";
 import "./styles.css";
 
 type PresetKey = "conservative" | "balanced" | "aggressive";
