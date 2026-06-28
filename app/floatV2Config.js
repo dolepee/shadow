@@ -23,7 +23,7 @@ export const FLOAT_V2_TRACKED_EXTERNAL_AGENTS = [
     agent: "0xd39AcD18d4aB66f31e3f1931953374d4a546ABA3",
     spendTx: "0x78567fc68238c6b309aa26916bbf3f456d4da20de27ecb4e9e6a7d3a245acc8a",
   },
-  { label: "Driplet", agent: "0x7dF8C7ab755A62a5ea3356372Ad875d8C88084BF" },
+  { label: "Driplet", agent: "0xb8C0297Bc883a5626424FFFf9ad1F860E0f64CCf" },
 ];
 
 export const floatV2Abi = parseAbi([
