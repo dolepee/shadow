@@ -617,7 +617,7 @@ const TREASURY_PROOF = {
 
 async function fetchFloatV2Activity(): Promise<FloatV2ActivityState> {
   try {
-    const res = await fetch(`/api/float-v2?ts=${Date.now()}`, { cache: "no-store" });
+    const res = await fetch(`/api/float?mode=v2&ts=${Date.now()}`, { cache: "no-store" });
     const data = await res.json();
     if (res.ok && data?.ok) return data as FloatV2ActivityState;
     throw new Error(data?.error || `V2 API returned ${res.status}`);
