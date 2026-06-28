@@ -116,6 +116,16 @@ const EXTERNAL_SIGNER_LABELS: Record<string, ExternalSignedLabel> = {
     eyebrow: "Argus Agent Alpha",
     title: "Argus signed Float V2 intent",
   },
+  ["0x7d4897489bfc663b90baaf5b0803d18ae0ca817c".toLowerCase()]: {
+    kind: "builder",
+    eyebrow: "Argus Agent Beta",
+    title: "Argus Beta V2 line",
+  },
+  ["0x43e0630025fd0339be1fa04d3d75daf355f50c89".toLowerCase()]: {
+    kind: "builder",
+    eyebrow: "Argus Agent Gamma",
+    title: "Argus Gamma V2 line",
+  },
 };
 
 const FLOAT_V2_CONTRACT = "0x20dcA96B0C487D94De885c726c956ffaF38b12C2" as const;
@@ -150,6 +160,8 @@ const FLOAT_V2_TRACKED_EXTERNAL_AGENTS: readonly FloatV2TrackedExternalAgent[] =
     repayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
   },
   { label: "Argus", agent: "0x5c0b33b209f510868E07792Edc46c3792B0b92EC" as Address },
+  { label: "Argus Beta", agent: "0x7d4897489bfc663b90baaf5b0803d18ae0ca817c" as Address },
+  { label: "Argus Gamma", agent: "0x43e0630025fd0339be1fa04d3d75daf355f50c89" as Address },
   {
     label: "Obol",
     agent: "0xd39AcD18d4aB66f31e3f1931953374d4a546ABA3" as Address,
@@ -5430,11 +5442,11 @@ function HomeProofOverview() {
       external: true,
     },
     {
-      eyebrow: "external lifecycle",
-      value: "Crux",
-      label: "spent and repaid",
-      body: "An external builder signer completed the V2 spend and repayment loop.",
-      href: txUrl(FLOAT_V2_PROOF.cruxRepayTx),
+      eyebrow: "external buyer agent",
+      value: "Obol",
+      label: "signed V2 spend",
+      body: "Obol signed a V2 Float intent; the contract verified it onchain and paid the provider from sponsor reserve.",
+      href: txUrl(FLOAT_V2_PROOF.obolSpendTx),
       external: true,
     },
   ];
@@ -5486,7 +5498,7 @@ function HeroMetrics() {
     { label: "V2 contract", value: shortAddress(FLOAT_V2_CONTRACT) },
     { label: "provider payment", value: "0.01 USDC" },
     { label: "overrun blocked", value: "0.10 USDC" },
-    { label: "external V2 lifecycle", value: "Crux" },
+    { label: "external buyer agent", value: "Obol" },
   ];
 
   return (
