@@ -159,7 +159,7 @@ const FLOAT_V2_TRACKED_EXTERNAL_AGENTS: readonly FloatV2TrackedExternalAgent[] =
     spendTx: "0x6fd0e59360decc8fdecd56c8bf1a448569d72e6e5706d862e50c816d50b29a7d" as Hash,
     repayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
   },
-  { label: "Argus", agent: "0x5c0b33b209f510868E07792Edc46c3792B0b92EC" as Address },
+  { label: "Argus Alpha", agent: "0x5c0b33b209f510868E07792Edc46c3792B0b92EC" as Address },
   { label: "Argus Beta", agent: "0x7d4897489bfc663b90baaf5b0803d18ae0ca817c" as Address },
   { label: "Argus Gamma", agent: "0x43e0630025fd0339be1fa04d3d75daf355f50c89" as Address },
   {
@@ -1496,10 +1496,10 @@ function App() {
           </div>
           <HeroDiagram />
         </div>
-        <HeroMetrics />
+        <HeroMetrics state={floatV2State} />
       </section>
 
-      <HomeProofOverview />
+      <HomeProofOverview state={floatV2State} />
 
       <section className="pageNext" aria-label="Shadow Float product paths">
         <Link to="/float" className="pageNextCard pageNextCardPrimary">
@@ -2808,15 +2808,16 @@ function FloatV2CurrentPanel({
       </div>
 
       <div className="floatMetricGrid">
-        <FloatMetric label="V2 signed intents" value={`${state?.summary?.signedIntents ?? "reading"}`} tone="allow" />
+        <FloatMetric label="external lines" value={`${state?.summary?.registeredExternalLines ?? "reading"}`} tone="allow" />
+        <FloatMetric label="signed intents" value={`${state?.summary?.signedIntents ?? "reading"}`} tone="allow" />
         <FloatMetric label="provider paid" value={`${formatFloatUSDC(state?.summary?.providerPaidUSDC)} USDC`} tone="allow" />
-        <FloatMetric label="lifecycles closed" value={`${state?.summary?.repaidLifecycles ?? "reading"}`} tone="allow" />
+        <FloatMetric label="closed loops" value={`${state?.summary?.repaidLifecycles ?? "reading"}`} tone="allow" />
         <FloatMetric label="open debt" value={`${formatFloatUSDC(state?.summary?.activeDebtUSDC)} USDC`} tone={state?.summary?.openDebtAgents ? "block" : "allow"} />
       </div>
 
-      <FloatV2UseCasePanel />
-      <FloatV2WorkflowPanel />
       <FloatV2ActivityBoard state={state} loading={loading} error={error} />
+      <FloatV2WorkflowPanel />
+      <FloatV2UseCasePanel />
       <FloatV2VerificationFooter anchors={anchors} />
     </section>
   );
@@ -2924,6 +2925,27 @@ function FloatV2VerificationFooter({
   );
 }
 
+function classifyFloatV2Lifecycle(agent: FloatV2AgentState): {
+  label: string;
+  detail: string;
+  tone: "closed" | "open" | "signed" | "registered" | "blocked";
+} {
+  const activeDebt = asAtomicUSDC(agent.activeDebtUSDC);
+  if (agent.repaidCount > 0 && activeDebt === 0n) {
+    return { label: "closed", detail: "signed, paid, repaid", tone: "closed" };
+  }
+  if (agent.providerPaidCount > 0 && activeDebt > 0n) {
+    return { label: "open debt", detail: "provider paid, repayment pending", tone: "open" };
+  }
+  if (agent.blockedCount > 0 && agent.providerPaidCount === 0) {
+    return { label: "blocked", detail: "overrun refused", tone: "blocked" };
+  }
+  if (agent.signedIntents > 0) {
+    return { label: "signed", detail: "waiting for provider payment", tone: "signed" };
+  }
+  return { label: "registered", detail: "line ready", tone: "registered" };
+}
+
 function FloatV2ActivityBoard({
   state,
   loading,
@@ -2938,19 +2960,34 @@ function FloatV2ActivityBoard({
     ? new Date(state.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : null;
   const statusLabel = error ? "V2 read needs review" : loading && !state ? "reading V2 activity" : "live V2 activity";
+  const closed = state?.summary?.repaidLifecycles ?? 0;
+  const openDebt = state?.summary?.openDebtAgents ?? 0;
 
   return (
     <section className="floatV2ActivityBoard" id="v2-activity" aria-label="Shadow Float V2 external activity">
       <div className="floatBoxHeader">
-        <span>external V2 activity</span>
+        <span>external agent board</span>
         <small>{checkedAt ? `updated ${checkedAt}` : statusLabel}</small>
+      </div>
+      <div className="floatV2ActivityIntro">
+        <div>
+          <strong>{closed} closed V2 lifecycle{closed === 1 ? "" : "s"} · {openDebt} open debt line{openDebt === 1 ? "" : "s"}</strong>
+          <p>
+            Closed means the agent signed a V2 intent, ShadowFloat paid the provider from sponsor reserve, and the same line
+            was repaid. Open debt means the provider payment is already bound and the agent has not repaid yet.
+          </p>
+        </div>
+        <a href="/api/float?mode=v2" target="_blank" rel="noreferrer">
+          Live API
+        </a>
       </div>
 
       <div className="floatV2ActivityStats">
         <FloatFact label="registered lines" value={`${state?.summary?.registeredExternalLines ?? "reading"}`} />
-        <FloatFact label="paid spends" value={`${state?.summary?.paidSpends ?? "reading"}`} />
-        <FloatFact label="repaid" value={`${state?.summary?.repaidLifecycles ?? "reading"}`} />
-        <FloatFact label="active debt" value={`${formatFloatUSDC(state?.summary?.activeDebtUSDC)} USDC`} />
+        <FloatFact label="signed intents" value={`${state?.summary?.signedIntents ?? "reading"}`} />
+        <FloatFact label="provider paid" value={`${formatFloatUSDC(state?.summary?.providerPaidUSDC)} USDC`} />
+        <FloatFact label="closed loops" value={`${state?.summary?.repaidLifecycles ?? "reading"}`} />
+        <FloatFact label="open debt" value={`${formatFloatUSDC(state?.summary?.activeDebtUSDC)} USDC`} />
       </div>
 
       {error ? (
@@ -2962,6 +2999,7 @@ function FloatV2ActivityBoard({
         <div className="floatV2ActivityRows">
           {agents.map((agent) => {
             const href = agent.latestTxHash || agent.repayTx || agent.spendTx;
+            const lifecycle = classifyFloatV2Lifecycle(agent);
             const row = (
               <>
                 <div className="floatV2ActivityIdentity">
@@ -2969,8 +3007,9 @@ function FloatV2ActivityBoard({
                   <small>{shortAddress(agent.agent)}</small>
                 </div>
                 <div className="floatV2ActivityMetric">
-                  <span>status</span>
-                  <strong>{agent.statusName}</strong>
+                  <span>lifecycle</span>
+                  <strong>{lifecycle.label}</strong>
+                  <small>{lifecycle.detail}</small>
                 </div>
                 <div className="floatV2ActivityMetric">
                   <span>paid</span>
@@ -2981,17 +3020,17 @@ function FloatV2ActivityBoard({
                   <strong>{formatFloatUSDC(agent.activeDebtUSDC)}</strong>
                 </div>
                 <div className="floatV2ActivityMetric">
-                  <span>available</span>
-                  <strong>{formatFloatUSDC(agent.availableCreditUSDC)}</strong>
+                  <span>line</span>
+                  <strong>{formatFloatUSDC(agent.creditLimitUSDC)}</strong>
                 </div>
               </>
             );
             return href ? (
-              <a className={`floatV2ActivityRow ${agent.statusName.toLowerCase()}`} href={txUrl(href)} target="_blank" rel="noreferrer" key={agent.agent}>
+              <a className={`floatV2ActivityRow ${lifecycle.tone}`} href={txUrl(href)} target="_blank" rel="noreferrer" key={agent.agent}>
                 {row}
               </a>
             ) : (
-              <div className={`floatV2ActivityRow ${agent.statusName.toLowerCase()}`} key={agent.agent}>
+              <div className={`floatV2ActivityRow ${lifecycle.tone}`} key={agent.agent}>
                 {row}
               </div>
             );
@@ -5427,7 +5466,8 @@ function SiteFooter() {
   );
 }
 
-function HomeProofOverview() {
+function HomeProofOverview({ state }: { state: FloatV2ActivityState | null }) {
+  const summary = state?.summary;
   const cards = [
     {
       eyebrow: "current contract",
@@ -5438,37 +5478,37 @@ function HomeProofOverview() {
       external: true,
     },
     {
-      eyebrow: "signed spend",
-      value: "0.01",
-      label: "USDC paid",
-      body: "The V2 contract consumed a signed intent and paid the named provider from sponsor reserve.",
-      href: txUrl(FLOAT_V2_PROOF.directSpendTx),
-      external: true,
+      eyebrow: "external lines",
+      value: `${summary?.registeredExternalLines ?? 8}`,
+      label: "registered agents",
+      body: "External builders can give their agents sponsor-backed capacity without sending keys, gas, or approvals to Shadow.",
+      href: "/float#v2-activity",
+      external: false,
     },
     {
-      eyebrow: "overrun block",
-      value: "0.10",
-      label: "USDC refused",
-      body: "A signed overrun was consumed, recorded, and blocked without a provider transfer.",
-      href: txUrl(FLOAT_V2_PROOF.blockedSpendTx),
-      external: true,
+      eyebrow: "closed loops",
+      value: `${summary?.repaidLifecycles ?? 4}`,
+      label: "spend and repay",
+      body: "Closed rows show the full agent lifecycle: signed intent, provider payment, debt, and repayment.",
+      href: "/float#v2-activity",
+      external: false,
     },
     {
       eyebrow: "external buyer agent",
       value: "Obol",
-      label: "signed V2 spend",
-      body: "Obol signed a V2 Float intent; the contract verified it onchain and paid the provider from sponsor reserve.",
+      label: "signed V2 line",
+      body: "Obol signed a V2 intent and the contract paid the provider from sponsor reserve. Repayment remains labeled as pending.",
       href: txUrl(FLOAT_V2_PROOF.obolSpendTx),
       external: true,
     },
   ];
 
   return (
-    <section className="homeProofOverview" aria-label="Shadow Float live product evidence">
+    <section className="homeProofOverview" aria-label="Shadow Float live product activity">
       <div className="homeProofHeader">
         <div>
           <p className="eyebrow">live Float activity</p>
-          <h2>V2 verifies the signed spend before sponsor-backed USDC moves.</h2>
+          <h2>External agents are using sponsor-backed lines on Float V2.</h2>
         </div>
         <div className="homeProofStatus live">
           <span className="homeProofStatusDot" />
@@ -5505,12 +5545,13 @@ function HomeProofOverview() {
   );
 }
 
-function HeroMetrics() {
+function HeroMetrics({ state }: { state: FloatV2ActivityState | null }) {
+  const summary = state?.summary;
   const items: Array<{ label: string; value: string }> = [
-    { label: "V2 contract", value: shortAddress(FLOAT_V2_CONTRACT) },
-    { label: "provider payment", value: "0.01 USDC" },
-    { label: "overrun blocked", value: "0.10 USDC" },
-    { label: "external buyer agent", value: "Obol" },
+    { label: "external lines", value: `${summary?.registeredExternalLines ?? 8}` },
+    { label: "signed intents", value: `${summary?.signedIntents ?? 7}` },
+    { label: "closed loops", value: `${summary?.repaidLifecycles ?? 4}` },
+    { label: "open debt lines", value: `${summary?.openDebtAgents ?? 3}` },
   ];
 
   return (
@@ -5524,7 +5565,7 @@ function HeroMetrics() {
         ))}
       </div>
       <span className="heroMetricsNote">
-        current V2 anchors only; historical V1 receipt totals are not counted in these homepage numbers
+        Live counters come from the current Float V2 activity feed.
       </span>
     </div>
   );

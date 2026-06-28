@@ -987,10 +987,54 @@ html {
   padding: 14px;
 }
 
+.floatV2ActivityIntro {
+  align-items: center;
+  background: rgba(7, 17, 31, 0.44);
+  border: 1px solid rgba(184, 211, 255, 0.1);
+  border-radius: 12px;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  margin: 12px 0;
+  padding: 12px;
+}
+
+.floatV2ActivityIntro strong {
+  color: var(--ink);
+  display: block;
+  font-size: 18px;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+.floatV2ActivityIntro p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 7px 0 0;
+  max-width: 760px;
+}
+
+.floatV2ActivityIntro a {
+  border: 1px solid rgba(50, 215, 255, 0.25);
+  border-radius: 999px;
+  color: var(--accent);
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 12px;
+  text-decoration: none;
+}
+
+.floatV2ActivityIntro a:hover {
+  background: rgba(50, 215, 255, 0.08);
+  border-color: rgba(50, 215, 255, 0.45);
+}
+
 .floatV2ActivityStats {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .floatV2ActivityRows {
@@ -1017,12 +1061,24 @@ html {
   border-color: rgba(50, 215, 255, 0.34);
 }
 
-.floatV2ActivityRow.repaid {
+.floatV2ActivityRow.closed {
   background: linear-gradient(90deg, rgba(77, 240, 168, 0.1), rgba(184, 211, 255, 0.04));
 }
 
-.floatV2ActivityRow.limited {
+.floatV2ActivityRow.open {
   background: linear-gradient(90deg, rgba(255, 192, 92, 0.1), rgba(184, 211, 255, 0.04));
+}
+
+.floatV2ActivityRow.signed {
+  background: linear-gradient(90deg, rgba(50, 215, 255, 0.09), rgba(184, 211, 255, 0.04));
+}
+
+.floatV2ActivityRow.registered {
+  background: rgba(184, 211, 255, 0.04);
+}
+
+.floatV2ActivityRow.blocked {
+  background: linear-gradient(90deg, rgba(255, 102, 102, 0.1), rgba(184, 211, 255, 0.04));
 }
 
 .floatV2ActivityIdentity strong,
@@ -1035,13 +1091,21 @@ html {
 }
 
 .floatV2ActivityIdentity small,
-.floatV2ActivityMetric span {
+.floatV2ActivityMetric span,
+.floatV2ActivityMetric small {
   color: var(--ink-faint);
   display: block;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.floatV2ActivityMetric small {
+  letter-spacing: 0;
+  line-height: 1.35;
+  margin-top: 3px;
+  text-transform: none;
 }
 
 .floatV2ActivityMetric strong {
@@ -2437,7 +2501,7 @@ html {
   }
 
   .floatV2ActivityStats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .floatMetricGrid {
@@ -2552,6 +2616,15 @@ html {
 
   .floatStandingMetric:nth-last-child(-n + 2) {
     display: block;
+  }
+
+  .floatV2ActivityIntro {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .floatV2ActivityIntro a {
+    text-align: center;
   }
 
   .floatV2ActivityStats {

@@ -183,7 +183,7 @@ const FLOAT_V2_TRACKED_EXTERNAL_AGENTS: readonly FloatV2TrackedAgent[] = [
     spendTx: "0x6fd0e59360decc8fdecd56c8bf1a448569d72e6e5706d862e50c816d50b29a7d",
     repayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368",
   },
-  { label: "Argus", agent: "0x5c0b33b209f510868E07792Edc46c3792B0b92EC" },
+  { label: "Argus Alpha", agent: "0x5c0b33b209f510868E07792Edc46c3792B0b92EC" },
   { label: "Argus Beta", agent: "0x7d4897489bfc663b90baaf5b0803d18ae0ca817c" },
   { label: "Argus Gamma", agent: "0x43e0630025fd0339be1fa04d3d75daf355f50c89" },
   {
