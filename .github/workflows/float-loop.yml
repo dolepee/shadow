@@ -1,8 +1,6 @@
-name: float-loop
+name: float-loop-legacy
 
 on:
-  schedule:
-    - cron: "17 */3 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -17,6 +15,7 @@ jobs:
       ARC_RPC_URL: ${{ secrets.ARC_RPC_URL }}
       ARC_USDC: ${{ secrets.ARC_USDC }}
       SHADOW_FLOAT: "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057"
+      ALLOW_LEGACY_FLOAT: "1"
       SHADOW_FLOAT_START_BLOCK: "48293937"
       CAT_AGENT_PRIVATE_KEY: ${{ secrets.CAT_AGENT_PRIVATE_KEY }}
       PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
