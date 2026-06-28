@@ -63,6 +63,7 @@ const proof = {
   reserveUSDC: bigintEnv("FLOAT_V2_VERIFY_RESERVE_ATOMIC", DEFAULT_PROOF.reserveUSDC),
   directAmountUSDC: bigintEnv("FLOAT_V2_VERIFY_DIRECT_AMOUNT_ATOMIC", DEFAULT_PROOF.directAmountUSDC),
   blockedAmountUSDC: bigintEnv("FLOAT_V2_VERIFY_BLOCKED_AMOUNT_ATOMIC", DEFAULT_PROOF.blockedAmountUSDC),
+  maxOpenExternalDebtUSDC: bigintEnv("FLOAT_V2_VERIFY_MAX_OPEN_DEBT_ATOMIC", 0n),
 };
 
 const chain = defineChain({
@@ -226,6 +227,13 @@ check(
   openExternalDebt === null
     ? `${fmt(totalDebtOpened)} opened / ${fmt(totalRepaid)} repaid`
     : `${fmt(totalDebtOpened)} opened / ${fmt(totalRepaid)} repaid / ${fmt(openExternalDebt)} open external debt`,
+);
+check(
+  "open external debt is within configured verifier threshold",
+  openExternalDebt !== null && openExternalDebt <= proof.maxOpenExternalDebtUSDC,
+  openExternalDebt === null
+    ? "debt accounting underflow"
+    : `${fmt(openExternalDebt)} open / ${fmt(proof.maxOpenExternalDebtUSDC)} allowed`,
 );
 check("blocked total includes overrun amount", totalBlocked >= proof.blockedAmountUSDC, fmt(totalBlocked));
 check("sponsored available accounting tracks restored line", totalSponsoredAvailable >= proof.reserveUSDC, fmt(totalSponsoredAvailable));

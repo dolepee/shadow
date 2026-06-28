@@ -21,7 +21,7 @@ import {
   type WebAuthnCredential,
 } from "@circle-fin/modular-wallets-core";
 import { createBundlerClient, toWebAuthnAccount } from "viem/account-abstraction";
-import { createPublicClient as createClient, encodeFunctionData, http } from "viem";
+import { createPublicClient as createClient, encodeFunctionData, http, type PublicClient } from "viem";
 import {
   addresses,
   agentSignal,
@@ -51,6 +51,16 @@ import {
   type ShadowState,
   type SourceAgent,
 } from "./chain";
+import {
+  FLOAT_V2_CONTRACT,
+  FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE,
+  FLOAT_V2_DEPLOY_BLOCK,
+  FLOAT_V2_STATUS_NAMES,
+  FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
+  floatV2Abi,
+  floatV2IntentConsumedEvent,
+  floatV2ReceiptEvent,
+} from "./floatV2Config";
 import "./styles.css";
 
 type PresetKey = "conservative" | "balanced" | "aggressive";
@@ -128,7 +138,6 @@ const EXTERNAL_SIGNER_LABELS: Record<string, ExternalSignedLabel> = {
   },
 };
 
-const FLOAT_V2_CONTRACT = "0x20dcA96B0C487D94De885c726c956ffaF38b12C2" as const;
 const FLOAT_V2_PROOF = {
   sourcify: "https://sourcify.dev/server/v2/contract/5042002/0x20dcA96B0C487D94De885c726c956ffaF38b12C2",
   directSpendTx: "0xf2615a12b11d42d6509bc2baaafbc81fd31e4d5b54751c3686c55458252d9b03" as Hash,
@@ -140,50 +149,10 @@ const FLOAT_V2_PROOF = {
   cruxRepayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
   obolSpendTx: "0x78567fc68238c6b309aa26916bbf3f456d4da20de27ecb4e9e6a7d3a245acc8a" as Hash,
 };
-const FLOAT_V2_DEPLOY_BLOCK = 48_837_320n;
-const FLOAT_V2_LOG_CHUNK_SIZE = 9_000n;
+const FLOAT_V2_LOG_CHUNK_SIZE = FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE;
 
-type FloatV2TrackedExternalAgent = {
-  label: string;
-  agent: Address;
-  spendTx?: Hash;
-  repayTx?: Hash;
-};
-
-const FLOAT_V2_TRACKED_EXTERNAL_AGENTS: readonly FloatV2TrackedExternalAgent[] = [
-  { label: "Forum", agent: "0x13585c6004fbA9D7D49219a6435B68348fD30770" as Address },
-  { label: "CitePay", agent: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address },
-  {
-    label: "Crux",
-    agent: "0x9972fF27a2EADBDB8414072736395236E0BF0092" as Address,
-    spendTx: "0x6fd0e59360decc8fdecd56c8bf1a448569d72e6e5706d862e50c816d50b29a7d" as Hash,
-    repayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
-  },
-  { label: "Argus Alpha", agent: "0x5c0b33b209f510868E07792Edc46c3792B0b92EC" as Address },
-  { label: "Argus Beta", agent: "0x7d4897489bfc663b90baaf5b0803d18ae0ca817c" as Address },
-  { label: "Argus Gamma", agent: "0x43e0630025fd0339be1fa04d3d75daf355f50c89" as Address },
-  {
-    label: "Obol",
-    agent: "0xd39AcD18d4aB66f31e3f1931953374d4a546ABA3" as Address,
-    spendTx: FLOAT_V2_PROOF.obolSpendTx,
-  },
-  { label: "Driplet", agent: "0x7dF8C7ab755A62a5ea3356372Ad875d8C88084BF" as Address },
-] as const;
-
-const FLOAT_V2_STATUS_NAMES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"] as const;
-const floatV2Abi = parseAbi([
-  "function lines(address agent) view returns (address wallet,uint16 score,uint256 creditLimitUSDC,uint256 availableCreditUSDC,uint256 activeDebtUSDC,uint8 status,uint64 lastReview,bytes32 mandateId,uint64 day,uint256 spentTodayUSDC)",
-  "function lineSponsors(address agent) view returns (address sponsor,uint256 reserveUSDC)",
-  "function treasuryBalanceUSDC() view returns (uint256)",
-  "function totalAvailableCreditUSDC() view returns (uint256)",
-  "function totalSponsoredReserveUSDC() view returns (uint256)",
-]);
-const floatV2IntentConsumedEvent = parseAbiItem(
-  "event FloatIntentConsumed(address indexed agent, address indexed signer, uint256 indexed nonce, bytes32 requestHash)",
-);
-const floatV2ReceiptEvent = parseAbiItem(
-  "event FloatReceipt(uint256 indexed receiptId, bytes32 indexed receiptHash, uint8 indexed receiptType, address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, uint256 creditBeforeUSDC, uint256 creditAfterUSDC, uint256 debtBeforeUSDC, uint256 debtAfterUSDC, uint8 reason, bytes32 mandateId, bytes32 requestHash, bytes32 prevChecksum, bytes32 checksum)",
-);
+type FloatV2LineRead = readonly [Address, number, bigint, bigint, bigint, number, bigint, `0x${string}`, bigint, bigint];
+type FloatV2SponsorLineRead = readonly [Address, bigint];
 
 declare global {
   interface Window {
@@ -555,6 +524,12 @@ type FloatV2ActivityState = {
   };
   agents?: FloatV2AgentState[];
   selfTestAgents?: FloatV2AgentState[];
+  logFetch?: {
+    fromBlock?: string;
+    toBlock?: string;
+    complete?: boolean;
+    warnings?: string[];
+  };
   error?: string;
 };
 
@@ -619,7 +594,10 @@ async function fetchFloatV2Activity(): Promise<FloatV2ActivityState> {
   try {
     const res = await fetch(`/api/float?mode=v2&ts=${Date.now()}`, { cache: "no-store" });
     const data = await res.json();
-    if (res.ok && data?.ok) return data as FloatV2ActivityState;
+    if (res.ok && data?.ok && data?.logFetch?.complete !== false) return data as FloatV2ActivityState;
+    if (res.ok && data?.ok && data?.logFetch?.complete === false) {
+      throw new Error("V2 API returned an incomplete log read");
+    }
     throw new Error(data?.error || `V2 API returned ${res.status}`);
   } catch (error) {
     console.warn("Falling back to browser V2 read", error);
@@ -628,7 +606,7 @@ async function fetchFloatV2Activity(): Promise<FloatV2ActivityState> {
 }
 
 async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
-  const client: any = createClient({
+  const client = createClient({
     chain: arcTestnet,
     transport: http(import.meta.env.VITE_ARC_RPC_URL || "https://rpc.testnet.arc.network"),
   });
@@ -639,9 +617,9 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     getFloatV2Logs(client, float, floatV2ReceiptEvent, FLOAT_V2_DEPLOY_BLOCK, latestBlock),
   ]);
   const [treasuryBalance, totalAvailableCredit, totalSponsoredReserve] = await Promise.all([
-    readFloatV2(client, "treasuryBalanceUSDC"),
-    readFloatV2(client, "totalAvailableCreditUSDC"),
-    readFloatV2(client, "totalSponsoredReserveUSDC"),
+    readFloatV2Uint(client, "treasuryBalanceUSDC", latestBlock),
+    readFloatV2Uint(client, "totalAvailableCreditUSDC", latestBlock),
+    readFloatV2Uint(client, "totalSponsoredReserveUSDC", latestBlock),
   ]);
 
   type AgentStats = {
@@ -721,8 +699,8 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
   const agents = await Promise.all(
     [...statsByAgent.values()].map(async (stats): Promise<FloatV2AgentState> => {
       const [line, sponsorLine] = await Promise.all([
-        readFloatV2(client, "lines", [stats.agent]),
-        readFloatV2(client, "lineSponsors", [stats.agent]),
+        readFloatV2Line(client, stats.agent, latestBlock),
+        readFloatV2SponsorLine(client, stats.agent, latestBlock),
       ]);
       const status = Number(line[5]);
       return {
@@ -787,22 +765,55 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     summary,
     agents: visibleAgents,
     selfTestAgents: agents.filter((agent) => agent.category === "self-test"),
+    logFetch: {
+      fromBlock: FLOAT_V2_DEPLOY_BLOCK.toString(),
+      toBlock: latestBlock.toString(),
+      complete: true,
+      warnings: [],
+    },
   };
 }
 
-async function getFloatV2Logs(client: any, address: Address, event: ReturnType<typeof parseAbiItem>, fromBlock: bigint, toBlock: bigint) {
-  const logs: any[] = [];
+async function getFloatV2Logs(client: PublicClient, address: Address, event: ReturnType<typeof parseAbiItem>, fromBlock: bigint, toBlock: bigint) {
+  const logs: Array<{
+    args: Record<string, unknown>;
+    transactionHash: Hash;
+  }> = [];
   let cursor = fromBlock;
   while (cursor <= toBlock) {
-    const chunkEnd = cursor + FLOAT_V2_LOG_CHUNK_SIZE > toBlock ? toBlock : cursor + FLOAT_V2_LOG_CHUNK_SIZE;
-    logs.push(...(await client.getLogs({ address, event: event as any, fromBlock: cursor, toBlock: chunkEnd })));
+    const chunkEnd = cursor + FLOAT_V2_LOG_CHUNK_SIZE - 1n > toBlock ? toBlock : cursor + FLOAT_V2_LOG_CHUNK_SIZE - 1n;
+    logs.push(...((await client.getLogs({ address, event: event as any, fromBlock: cursor, toBlock: chunkEnd })) as typeof logs));
     cursor = chunkEnd + 1n;
   }
   return logs;
 }
 
-async function readFloatV2(client: any, functionName: string, args: unknown[] = []) {
-  return client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName, args });
+async function readFloatV2Uint(
+  client: PublicClient,
+  functionName: "treasuryBalanceUSDC" | "totalAvailableCreditUSDC" | "totalSponsoredReserveUSDC",
+  blockNumber: bigint,
+) {
+  return client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName, blockNumber }) as Promise<bigint>;
+}
+
+async function readFloatV2Line(client: PublicClient, agent: Address, blockNumber: bigint) {
+  return client.readContract({
+    address: FLOAT_V2_CONTRACT,
+    abi: floatV2Abi,
+    functionName: "lines",
+    args: [agent],
+    blockNumber,
+  }) as Promise<FloatV2LineRead>;
+}
+
+async function readFloatV2SponsorLine(client: PublicClient, agent: Address, blockNumber: bigint) {
+  return client.readContract({
+    address: FLOAT_V2_CONTRACT,
+    abi: floatV2Abi,
+    functionName: "lineSponsors",
+    args: [agent],
+    blockNumber,
+  }) as Promise<FloatV2SponsorLineRead>;
 }
 
 function App() {
@@ -927,6 +938,7 @@ function App() {
       setFloatV2State(data);
       setFloatV2Error(null);
     } catch (error) {
+      setFloatV2State(null);
       setFloatV2Error(error instanceof Error ? error.message : String(error));
     } finally {
       setFloatV2Loading(false);
@@ -1496,10 +1508,10 @@ function App() {
           </div>
           <HeroDiagram />
         </div>
-        <HeroMetrics state={floatV2State} />
+        <HeroMetrics state={floatV2State} loading={floatV2Loading} error={floatV2Error} />
       </section>
 
-      <HomeProofOverview state={floatV2State} />
+      <HomeProofOverview state={floatV2State} loading={floatV2Loading} error={floatV2Error} />
 
       <section className="pageNext" aria-label="Shadow Float product paths">
         <Link to="/float" className="pageNextCard pageNextCardPrimary">
@@ -1788,7 +1800,7 @@ function TreasuryHero({ treasuryState }: {
           </a>
         </div>
         <div className="treasuryFlowFooter">
-          <span>current verifier</span>
+          <span>strict verifier</span>
           <code>npm run float:v2-verify-live</code>
         </div>
       </aside>
@@ -2230,7 +2242,7 @@ function TreasuryLiveVerifierPanel({
 
 function TreasuryOnchainLinks() {
   const links = [
-    { label: "Run V2 verifier", value: "npm run float:v2-verify-live", href: "https://github.com/dolepee/shadow" },
+    { label: "Strict V2 verifier", value: "npm run float:v2-verify-live", href: "https://github.com/dolepee/shadow" },
     { label: "V2 provider payment", value: shortAddress(FLOAT_V2_PROOF.directSpendTx), href: txUrl(FLOAT_V2_PROOF.directSpendTx) },
     { label: "V2 blocked spend", value: shortAddress(FLOAT_V2_PROOF.blockedSpendTx), href: txUrl(FLOAT_V2_PROOF.blockedSpendTx) },
     { label: "Vault allocation", value: shortAddress(TREASURY_PROOF.txs.allocation), href: txUrl(TREASURY_PROOF.txs.allocation) },
@@ -2747,6 +2759,10 @@ function FloatV2CurrentPanel({
   loading: boolean;
   error: string | null;
 }) {
+  const showCount = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
+  const showUSDC = (value?: string | bigint | null) => (value === undefined || value === null ? (loading ? "reading" : "unavailable") : `${formatFloatUSDC(value)} USDC`);
+  const statusText = error ? "V2 read needs review" : loading && !state ? "reading V2" : "V2 active";
+  const statusTone = error || (!loading && !state) ? "pending" : "configured";
   const anchors = [
     { label: "V2 contract source", href: FLOAT_V2_PROOF.sourcify, value: shortAddress(FLOAT_V2_CONTRACT) },
     { label: "signed provider payment", href: txUrl(FLOAT_V2_PROOF.directSpendTx), value: shortAddress(FLOAT_V2_PROOF.directSpendTx) },
@@ -2798,9 +2814,9 @@ function FloatV2CurrentPanel({
       </div>
 
       <div className="floatStatusRow">
-        <div className="floatStatus configured">
+        <div className={`floatStatus ${statusTone}`}>
           <span className="floatStatusDot" />
-          V2 active
+          {statusText}
         </div>
         <span>sponsor reserve pays providers</span>
         <span>nonce and max debt checked onchain</span>
@@ -2808,11 +2824,11 @@ function FloatV2CurrentPanel({
       </div>
 
       <div className="floatMetricGrid">
-        <FloatMetric label="external lines" value={`${state?.summary?.registeredExternalLines ?? "reading"}`} tone="allow" />
-        <FloatMetric label="signed intents" value={`${state?.summary?.signedIntents ?? "reading"}`} tone="allow" />
-        <FloatMetric label="provider paid" value={`${formatFloatUSDC(state?.summary?.providerPaidUSDC)} USDC`} tone="allow" />
-        <FloatMetric label="closed loops" value={`${state?.summary?.repaidLifecycles ?? "reading"}`} tone="allow" />
-        <FloatMetric label="open debt" value={`${formatFloatUSDC(state?.summary?.activeDebtUSDC)} USDC`} tone={state?.summary?.openDebtAgents ? "block" : "allow"} />
+        <FloatMetric label="external lines" value={showCount(state?.summary?.registeredExternalLines)} tone="allow" />
+        <FloatMetric label="signed intents" value={showCount(state?.summary?.signedIntents)} tone="allow" />
+        <FloatMetric label="provider paid" value={showUSDC(state?.summary?.providerPaidUSDC)} tone="allow" />
+        <FloatMetric label="closed loops" value={showCount(state?.summary?.repaidLifecycles)} tone="allow" />
+        <FloatMetric label="open debt" value={showUSDC(state?.summary?.activeDebtUSDC)} tone={state?.summary?.openDebtAgents ? "block" : "allow"} />
       </div>
 
       <FloatV2ActivityBoard state={state} loading={loading} error={error} />
@@ -2918,7 +2934,7 @@ function FloatV2VerificationFooter({
           </a>
         ))}
         <a href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">
-          local check <strong>float:v2-verify-live</strong>
+          strict check <strong>float:v2-verify-live</strong>
         </a>
       </div>
     </section>
@@ -2934,8 +2950,12 @@ function classifyFloatV2Lifecycle(agent: FloatV2AgentState): {
   if (agent.repaidCount > 0 && activeDebt === 0n) {
     return { label: "closed", detail: "signed, paid, repaid", tone: "closed" };
   }
-  if (agent.providerPaidCount > 0 && activeDebt > 0n) {
-    return { label: "open debt", detail: "provider paid, repayment pending", tone: "open" };
+  if (activeDebt > 0n) {
+    return {
+      label: "open debt",
+      detail: agent.providerPaidCount > 0 ? "provider paid, repayment pending" : "debt open, payment log syncing",
+      tone: "open",
+    };
   }
   if (agent.blockedCount > 0 && agent.providerPaidCount === 0) {
     return { label: "blocked", detail: "overrun refused", tone: "blocked" };
@@ -2962,6 +2982,8 @@ function FloatV2ActivityBoard({
   const statusLabel = error ? "V2 read needs review" : loading && !state ? "reading V2 activity" : "live V2 activity";
   const closed = state?.summary?.repaidLifecycles ?? 0;
   const openDebt = state?.summary?.openDebtAgents ?? 0;
+  const showCount = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
+  const showUSDC = (value?: string | bigint | null) => (value === undefined || value === null ? (loading ? "reading" : "unavailable") : `${formatFloatUSDC(value)} USDC`);
 
   return (
     <section className="floatV2ActivityBoard" id="v2-activity" aria-label="Shadow Float V2 external activity">
@@ -2983,11 +3005,11 @@ function FloatV2ActivityBoard({
       </div>
 
       <div className="floatV2ActivityStats">
-        <FloatFact label="registered lines" value={`${state?.summary?.registeredExternalLines ?? "reading"}`} />
-        <FloatFact label="signed intents" value={`${state?.summary?.signedIntents ?? "reading"}`} />
-        <FloatFact label="provider paid" value={`${formatFloatUSDC(state?.summary?.providerPaidUSDC)} USDC`} />
-        <FloatFact label="closed loops" value={`${state?.summary?.repaidLifecycles ?? "reading"}`} />
-        <FloatFact label="open debt" value={`${formatFloatUSDC(state?.summary?.activeDebtUSDC)} USDC`} />
+        <FloatFact label="registered lines" value={showCount(state?.summary?.registeredExternalLines)} />
+        <FloatFact label="signed intents" value={showCount(state?.summary?.signedIntents)} />
+        <FloatFact label="provider paid" value={showUSDC(state?.summary?.providerPaidUSDC)} />
+        <FloatFact label="closed loops" value={showCount(state?.summary?.repaidLifecycles)} />
+        <FloatFact label="open debt" value={showUSDC(state?.summary?.activeDebtUSDC)} />
       </div>
 
       {error ? (
@@ -5413,7 +5435,7 @@ function SiteFooter() {
       title: "Builders",
       links: [
         { label: "Builder guide", href: "/builders" },
-        { label: "V2 verifier command", href: "https://github.com/dolepee/shadow" },
+        { label: "Strict V2 verifier", href: "https://github.com/dolepee/shadow" },
         { label: "Source on GitHub", href: "https://github.com/dolepee/shadow" },
       ],
     },
@@ -5466,8 +5488,23 @@ function SiteFooter() {
   );
 }
 
-function HomeProofOverview({ state }: { state: FloatV2ActivityState | null }) {
+function HomeProofOverview({
+  state,
+  loading,
+  error,
+}: {
+  state: FloatV2ActivityState | null;
+  loading: boolean;
+  error: string | null;
+}) {
   const summary = state?.summary;
+  const countValue = (value: number | undefined) => {
+    if (value !== undefined) return String(value);
+    if (error) return "unavailable";
+    return loading ? "reading" : "not loaded";
+  };
+  const statusLabel = error ? "V2 read failed" : loading && !state ? "reading V2" : "Float V2 live";
+  const statusClass = error ? "error" : "live";
   const cards = [
     {
       eyebrow: "current contract",
@@ -5479,7 +5516,7 @@ function HomeProofOverview({ state }: { state: FloatV2ActivityState | null }) {
     },
     {
       eyebrow: "external lines",
-      value: `${summary?.registeredExternalLines ?? 8}`,
+      value: countValue(summary?.registeredExternalLines),
       label: "registered agents",
       body: "External builders can give their agents sponsor-backed capacity without sending keys, gas, or approvals to Shadow.",
       href: "/float#v2-activity",
@@ -5487,7 +5524,7 @@ function HomeProofOverview({ state }: { state: FloatV2ActivityState | null }) {
     },
     {
       eyebrow: "closed loops",
-      value: `${summary?.repaidLifecycles ?? 4}`,
+      value: countValue(summary?.repaidLifecycles),
       label: "spend and repay",
       body: "Closed rows show the full agent lifecycle: signed intent, provider payment, debt, and repayment.",
       href: "/float#v2-activity",
@@ -5510,9 +5547,9 @@ function HomeProofOverview({ state }: { state: FloatV2ActivityState | null }) {
           <p className="eyebrow">live Float activity</p>
           <h2>External agents are using sponsor-backed lines on Float V2.</h2>
         </div>
-        <div className="homeProofStatus live">
+        <div className={`homeProofStatus ${statusClass}`}>
           <span className="homeProofStatusDot" />
-          Float V2 live
+          {statusLabel}
         </div>
       </div>
       <div className="homeProofGrid">
@@ -5545,13 +5582,26 @@ function HomeProofOverview({ state }: { state: FloatV2ActivityState | null }) {
   );
 }
 
-function HeroMetrics({ state }: { state: FloatV2ActivityState | null }) {
+function HeroMetrics({
+  state,
+  loading,
+  error,
+}: {
+  state: FloatV2ActivityState | null;
+  loading: boolean;
+  error: string | null;
+}) {
   const summary = state?.summary;
+  const countValue = (value: number | undefined) => {
+    if (value !== undefined) return String(value);
+    if (error) return "n/a";
+    return loading ? "..." : "n/a";
+  };
   const items: Array<{ label: string; value: string }> = [
-    { label: "external lines", value: `${summary?.registeredExternalLines ?? 8}` },
-    { label: "signed intents", value: `${summary?.signedIntents ?? 7}` },
-    { label: "closed loops", value: `${summary?.repaidLifecycles ?? 4}` },
-    { label: "open debt lines", value: `${summary?.openDebtAgents ?? 3}` },
+    { label: "external lines", value: countValue(summary?.registeredExternalLines) },
+    { label: "signed intents", value: countValue(summary?.signedIntents) },
+    { label: "closed loops", value: countValue(summary?.repaidLifecycles) },
+    { label: "open debt lines", value: countValue(summary?.openDebtAgents) },
   ];
 
   return (
@@ -5565,7 +5615,7 @@ function HeroMetrics({ state }: { state: FloatV2ActivityState | null }) {
         ))}
       </div>
       <span className="heroMetricsNote">
-        Live counters come from the current Float V2 activity feed.
+        {error ? "Float V2 counters are temporarily unavailable." : "Live counters come from the current Float V2 activity feed."}
       </span>
     </div>
   );

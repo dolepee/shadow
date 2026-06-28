@@ -89,6 +89,14 @@ Post-hackathon M1 hardening:
 
 No private keys are required to verify the current system.
 
+`npm run float:v2-verify-live` is strict by default: it exits nonzero if any external V2 debt remains open. If a reviewer wants to inspect the canonical V2 proof loop while an explicitly labeled external lifecycle is still open, set a matching threshold:
+
+```bash
+FLOAT_V2_VERIFY_MAX_OPEN_DEBT_ATOMIC=10000 npm run float:v2-verify-live
+```
+
+Full local checks:
+
 ```bash
 git clone https://github.com/dolepee/shadow
 cd shadow
@@ -101,7 +109,7 @@ npm run app:typecheck
 npm run app:build
 npm run agent:typecheck
 
-npm run float:v2-verify-live
+FLOAT_V2_VERIFY_MAX_OPEN_DEBT_ATOMIC=10000 npm run float:v2-verify-live
 curl -s https://shadow-arc.vercel.app/api/float?mode=v2
 curl -s https://shadow-arc.vercel.app/api/treasury
 npm run treasury:verify-live
