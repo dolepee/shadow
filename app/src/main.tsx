@@ -503,6 +503,7 @@ type FloatV2AgentState = {
 
 type FloatV2ActivityState = {
   ok?: boolean;
+  source?: "live" | "verified-snapshot";
   mode?: string;
   checkedAt?: string;
   chainId?: number;
@@ -531,6 +532,218 @@ type FloatV2ActivityState = {
     warnings?: string[];
   };
   error?: string;
+};
+
+const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
+  ok: true,
+  source: "verified-snapshot",
+  mode: "shadow-float-v2-activity",
+  checkedAt: "2026-06-29T05:33:46.248Z",
+  chainId: arcTestnet.id,
+  float: FLOAT_V2_CONTRACT,
+  latestBlock: "49252480",
+  treasuryBalanceUSDC: "440000",
+  totalAvailableCreditUSDC: "415000",
+  totalSponsoredReserveUSDC: "450000",
+  summary: {
+    registeredExternalLines: 8,
+    signedIntents: 8,
+    paidSpends: 8,
+    repaidLifecycles: 7,
+    openDebtAgents: 1,
+    providerPaidUSDC: "80000",
+    repaidUSDC: "70000",
+    activeDebtUSDC: "10000",
+    blockedUSDC: "0",
+  },
+  agents: [
+    {
+      label: "Argus Alpha",
+      category: "external",
+      agent: "0x5c0b33b209f510868E07792Edc46c3792B0b92EC" as Address,
+      wallet: "0x5c0b33b209f510868E07792Edc46c3792B0b92EC" as Address,
+      score: 8250,
+      creditLimitUSDC: "50000",
+      availableCreditUSDC: "50000",
+      activeDebtUSDC: "0",
+      status: 5,
+      statusName: "REPAID",
+      sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
+      sponsorReserveUSDC: "50000",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0x4ae5922841cb91b090e2785e26b94789a9c4028340bea5c162106657280bf896" as Hash,
+    },
+    {
+      label: "Argus Beta",
+      category: "external",
+      agent: "0x7D4897489BFC663b90BaAF5B0803d18ae0ca817c" as Address,
+      wallet: "0x7D4897489BFC663b90BaAF5B0803d18ae0ca817c" as Address,
+      score: 8250,
+      creditLimitUSDC: "50000",
+      availableCreditUSDC: "50000",
+      activeDebtUSDC: "0",
+      status: 5,
+      statusName: "REPAID",
+      sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
+      sponsorReserveUSDC: "50000",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0xac1b0d231b0d19ebcb8e18877e7fcffbb2cbf990f204f648c288053bb597d679" as Hash,
+    },
+    {
+      label: "Argus Gamma",
+      category: "external",
+      agent: "0x43e0630025FD0339bE1fA04d3d75Daf355F50c89" as Address,
+      wallet: "0x43e0630025FD0339bE1fA04d3d75Daf355F50c89" as Address,
+      score: 8250,
+      creditLimitUSDC: "50000",
+      availableCreditUSDC: "50000",
+      activeDebtUSDC: "0",
+      status: 5,
+      statusName: "REPAID",
+      sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
+      sponsorReserveUSDC: "50000",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0xad8301ca4edbbed18bc7204d8da9be53492116649a326728ad0ca5bc19bb1682" as Hash,
+    },
+    {
+      label: "CitePay",
+      category: "external",
+      agent: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address,
+      wallet: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address,
+      score: 8250,
+      creditLimitUSDC: "50000",
+      availableCreditUSDC: "50000",
+      activeDebtUSDC: "0",
+      status: 5,
+      statusName: "REPAID",
+      sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
+      sponsorReserveUSDC: "50000",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0x0090b55caa8553540e38b886e09e5b88fdda051254305eb36676e9dd8f842ad2" as Hash,
+    },
+    {
+      label: "Crux",
+      category: "external",
+      agent: "0x9972fF27a2EADBDB8414072736395236E0BF0092" as Address,
+      wallet: "0x9972fF27a2EADBDB8414072736395236E0BF0092" as Address,
+      score: 8250,
+      creditLimitUSDC: "50000",
+      availableCreditUSDC: "50000",
+      activeDebtUSDC: "0",
+      status: 5,
+      statusName: "REPAID",
+      sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
+      sponsorReserveUSDC: "50000",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      spendTx: "0x6fd0e59360decc8fdecd56c8bf1a448569d72e6e5706d862e50c816d50b29a7d" as Hash,
+      repayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
+      latestTxHash: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
+    },
+    {
+      label: "Driplet",
+      category: "external",
+      agent: "0xb8C0297Bc883a5626424FFFf9ad1F860E0f64CCf" as Address,
+      wallet: "0xb8C0297Bc883a5626424FFFf9ad1F860E0f64CCf" as Address,
+      score: 8250,
+      creditLimitUSDC: "50000",
+      availableCreditUSDC: "50000",
+      activeDebtUSDC: "0",
+      status: 5,
+      statusName: "REPAID",
+      sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
+      sponsorReserveUSDC: "50000",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0x0579c4c845809681a4af35c8b2bf1d474250ff0f35ce0cff7e94ce7abf209854" as Hash,
+    },
+    {
+      label: "Forum",
+      category: "external",
+      agent: "0x13585c6004fbA9D7D49219a6435B68348fD30770" as Address,
+      wallet: "0x13585c6004fbA9D7D49219a6435B68348fD30770" as Address,
+      score: 8250,
+      creditLimitUSDC: "50000",
+      availableCreditUSDC: "50000",
+      activeDebtUSDC: "0",
+      status: 5,
+      statusName: "REPAID",
+      sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
+      sponsorReserveUSDC: "50000",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0xfba85515afe3fa1c9bae84b244bb874657756bd1656612d8b71b0686f412892e" as Hash,
+    },
+    {
+      label: "Obol",
+      category: "external",
+      agent: "0xd39AcD18d4aB66f31e3f1931953374d4a546ABA3" as Address,
+      wallet: "0xd39AcD18d4aB66f31e3f1931953374d4a546ABA3" as Address,
+      score: 7850,
+      creditLimitUSDC: "25000",
+      availableCreditUSDC: "15000",
+      activeDebtUSDC: "10000",
+      status: 2,
+      statusName: "LIMITED",
+      sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
+      sponsorReserveUSDC: "50000",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 0,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "0",
+      blockedUSDC: "0",
+      spendTx: "0x78567fc68238c6b309aa26916bbf3f456d4da20de27ecb4e9e6a7d3a245acc8a" as Hash,
+      latestTxHash: "0x78567fc68238c6b309aa26916bbf3f456d4da20de27ecb4e9e6a7d3a245acc8a" as Hash,
+    },
+  ],
+  selfTestAgents: [],
+  logFetch: {
+    fromBlock: FLOAT_V2_DEPLOY_BLOCK.toString(),
+    toBlock: "49252480",
+    complete: true,
+    warnings: [],
+  },
 };
 
 type TreasuryCheck = {
@@ -846,7 +1059,7 @@ function App() {
   const [floatState, setFloatState] = useState<FloatState | null>(null);
   const [floatLoading, setFloatLoading] = useState(false);
   const [floatError, setFloatError] = useState<string | null>(null);
-  const [floatV2State, setFloatV2State] = useState<FloatV2ActivityState | null>(null);
+  const [floatV2State, setFloatV2State] = useState<FloatV2ActivityState | null>(FLOAT_V2_VERIFIED_SNAPSHOT);
   const [floatV2Loading, setFloatV2Loading] = useState(false);
   const [floatV2Error, setFloatV2Error] = useState<string | null>(null);
   const [treasuryState, setTreasuryState] = useState<TreasuryState | null>(null);
@@ -935,10 +1148,10 @@ function App() {
     setFloatV2Loading(true);
     try {
       const data = await fetchFloatV2Activity();
-      setFloatV2State(data);
+      setFloatV2State({ ...data, source: "live" });
       setFloatV2Error(null);
     } catch (error) {
-      setFloatV2State(null);
+      setFloatV2State(FLOAT_V2_VERIFIED_SNAPSHOT);
       setFloatV2Error(error instanceof Error ? error.message : String(error));
     } finally {
       setFloatV2Loading(false);
@@ -1492,8 +1705,8 @@ function App() {
                 Open Shadow Float
                 <span className="heroCtaArrow">→</span>
               </Link>
-              <Link className="heroCtaSecondary" to="/treasury">
-                Open Treasury rail
+              <Link className="heroCtaSecondary" to="/float#v2-activity">
+                View external board
               </Link>
             </div>
             <ul className="heroTrust" aria-label="Built on">
@@ -1531,7 +1744,7 @@ function App() {
         </Link>
         <Link to="/roadmap" className="pageNextCard">
           <span className="pageNextEyebrow">roadmap</span>
-          <span className="pageNextTitle">Gateway-batched x402, production-grade M1 custody, and external capital</span>
+          <span className="pageNextTitle">Provider delivery, production-grade M1 custody, and external capital</span>
           <span className="pageNextArrow">→</span>
         </Link>
       </section>
@@ -1633,8 +1846,8 @@ function App() {
         </article>
         <article className="roadmapCard">
           <span>interop</span>
-          <strong>Gateway-batched x402</strong>
-          <p>Bridge V2 direct provider payment and service-payment evidence into the Gateway-batched dialect Obol, Archer, and CitePay surfaced.</p>
+          <strong>Service-payment interop</strong>
+          <p>Bridge V2 direct provider payment with x402 and Gateway-batched payment evidence once settlement can be bound cleanly.</p>
         </article>
         <article className="roadmapCard">
           <span>market</span>
@@ -1689,8 +1902,8 @@ function App() {
             <span className="navWalletDot" />
             {account ? shortAddress(account) : "Wallet"}
           </button>
-          <Link to="/treasury" className="navCta">
-            Open Treasury
+          <Link to="/float" className="navCta">
+            Open Float
           </Link>
         </div>
       </nav>
@@ -2092,7 +2305,7 @@ function TreasuryProofPanel({
 
       <div className="treasuryBoundary">
         <span>External Float signed usage is live.</span>
-        <span>CitePay and Forum reviewed the Treasury receipts.</span>
+        <span>CitePay and Forum gave technical feedback on the Treasury receipt path.</span>
         <span>
           API and CLI both check the combined rail: <code>/api/treasury</code> and <code>npm run treasury:verify-live</code>.
         </span>
@@ -2273,7 +2486,7 @@ function TreasuryValidationPanel() {
     {
       label: "Obol",
       status: "verified Float draw",
-      detail: "Buyer-side agent signed a current-contract spend intent and publicly confirmed the bind.",
+      detail: "Buyer-side agent signed a current-contract spend intent and returned the bind plus repayment flow.",
     },
     {
       label: "Argus",
@@ -2282,21 +2495,21 @@ function TreasuryValidationPanel() {
     },
     {
       label: "CitePay",
-      status: "architecture fit reviewed",
+      status: "architecture fit feedback",
       detail: "Builder feedback says Float + M1 fits agent/x402 workflows because enforcement happens before USDC leaves the policy boundary.",
     },
     {
       label: "Forum",
-      status: "live txs verified",
-      detail: "Forum reviewed the Arc transactions and confirmed the same vault entrypoint moved funds when allowed, then moved zero USDC when over limit.",
+      status: "live tx feedback",
+      detail: "Forum checked the Arc transactions and noted that the same vault entrypoint moved funds when allowed, then moved zero USDC when over limit.",
     },
   ];
 
   return (
-    <section className="treasuryValidationSection" aria-label="External validation and builder background">
+    <section className="treasuryValidationSection" aria-label="External feedback and builder background">
       <div className="treasurySectionHeader">
-        <p className="eyebrow">validation · public receipts</p>
-        <h2>External Float usage is live; M1 review is tied to public receipts.</h2>
+        <p className="eyebrow">builder feedback · public receipts</p>
+        <h2>External Float usage is live; M1 feedback is tied to public receipts.</h2>
       </div>
 
       <div className="treasuryValidationGrid">
@@ -2312,10 +2525,10 @@ function TreasuryValidationPanel() {
 
         <article className="treasuryValidationCard treasuryValidationCardValidated">
           <span>technical review</span>
-          <strong>Builders reviewed the transaction path</strong>
+          <strong>Builders gave technical feedback on the transaction path</strong>
           <p>
-            CitePay confirmed the architecture fit. Forum checked the live Arc transactions and verified the core claim:
-            the same vault adapter entrypoint moved USDC when allowed, then moved zero USDC when over limit.
+            CitePay said the model fits agent payment workflows. Forum checked the live Arc transactions and noted the
+            same vault adapter entrypoint moved USDC when allowed, then moved zero USDC when over limit.
           </p>
           <a href="/api/treasury" target="_blank" rel="noreferrer">
             Open verifier output →
@@ -2333,7 +2546,7 @@ function TreasuryValidationPanel() {
         </article>
       </div>
 
-      <div className="treasuryValidationList" aria-label="External validation entries">
+      <div className="treasuryValidationList" aria-label="External feedback entries">
         {validationRows.map((row) => (
           <article key={row.label}>
             <span>{row.label}</span>
@@ -2759,10 +2972,11 @@ function FloatV2CurrentPanel({
   loading: boolean;
   error: string | null;
 }) {
+  const isSnapshot = state?.source === "verified-snapshot";
   const showCount = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
   const showUSDC = (value?: string | bigint | null) => (value === undefined || value === null ? (loading ? "reading" : "unavailable") : `${formatFloatUSDC(value)} USDC`);
-  const statusText = error ? "V2 read needs review" : loading && !state ? "reading V2" : "V2 active";
-  const statusTone = error || (!loading && !state) ? "pending" : "configured";
+  const statusText = isSnapshot ? (loading ? "syncing live V2" : "last verified V2") : error ? "V2 read needs review" : loading && !state ? "reading V2" : "V2 active";
+  const statusTone = error && !isSnapshot ? "pending" : "configured";
   const anchors = [
     { label: "V2 contract source", href: FLOAT_V2_PROOF.sourcify, value: shortAddress(FLOAT_V2_CONTRACT) },
     { label: "signed provider payment", href: txUrl(FLOAT_V2_PROOF.directSpendTx), value: shortAddress(FLOAT_V2_PROOF.directSpendTx) },
@@ -2976,10 +3190,11 @@ function FloatV2ActivityBoard({
   error: string | null;
 }) {
   const agents = state?.agents || [];
+  const isSnapshot = state?.source === "verified-snapshot";
   const checkedAt = state?.checkedAt
     ? new Date(state.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : null;
-  const statusLabel = error ? "V2 read needs review" : loading && !state ? "reading V2 activity" : "live V2 activity";
+  const statusLabel = isSnapshot ? (loading ? "syncing live V2" : "last verified snapshot") : error ? "V2 read needs review" : loading && !state ? "reading V2 activity" : "live V2 activity";
   const closed = state?.summary?.repaidLifecycles ?? 0;
   const openDebt = state?.summary?.openDebtAgents ?? 0;
   const showCount = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
@@ -2989,7 +3204,7 @@ function FloatV2ActivityBoard({
     <section className="floatV2ActivityBoard" id="v2-activity" aria-label="Shadow Float V2 external activity">
       <div className="floatBoxHeader">
         <span>external agent board</span>
-        <small>{checkedAt ? `updated ${checkedAt}` : statusLabel}</small>
+        <small>{checkedAt ? `${isSnapshot ? "snapshot" : "updated"} ${checkedAt}` : statusLabel}</small>
       </div>
       <div className="floatV2ActivityIntro">
         <div>
@@ -2997,6 +3212,7 @@ function FloatV2ActivityBoard({
           <p>
             Closed means the agent signed a V2 intent, ShadowFloat paid the provider from sponsor reserve, and the same line
             was repaid. Open debt means the provider payment is already bound and the agent has not repaid yet.
+            {isSnapshot ? " Showing the last verified snapshot while the live feed syncs." : ""}
           </p>
         </div>
         <a href="/api/float?mode=v2" target="_blank" rel="noreferrer">
@@ -3012,7 +3228,7 @@ function FloatV2ActivityBoard({
         <FloatFact label="open debt" value={showUSDC(state?.summary?.activeDebtUSDC)} />
       </div>
 
-      {error ? (
+      {error && !isSnapshot ? (
         <div className="floatV2ActivityEmpty">
           <strong>V2 activity read failed</strong>
           <span>{error}</span>
@@ -3106,7 +3322,7 @@ function FloatWalletProof({ state, loading }: { state: FloatState | null; loadin
             historical Float bind {shortAddress(proof.bindTxHash)}
           </a>
         )}
-        <a href="/api/float" target="_blank" rel="noreferrer">
+        <a href="/api/float?mode=v2" target="_blank" rel="noreferrer">
           live Float API
         </a>
       </div>
@@ -3136,7 +3352,7 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       status: walletProof ? "live" : "pending",
       amount: formatFloatUSDC(walletProof?.walletShortfallUSDC),
       receipt: "BALANCE_CHECK",
-      href: "/api/float",
+      href: "/api/float?mode=v2",
       meaning: "Current wallet balance is shown separately from Float capacity; no fake historical balance is claimed.",
     },
     {
@@ -3144,7 +3360,7 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       status: grantReceipt ? "proven" : "pending",
       amount: formatFloatUSDC(grantReceipt?.amountUSDC || state?.alphaLine?.creditLimitUSDC),
       receipt: "FLOAT_GRANTED",
-      href: grantReceipt?.transactionHash ? txUrl(grantReceipt.transactionHash) : "/api/float",
+      href: grantReceipt?.transactionHash ? txUrl(grantReceipt.transactionHash) : "/api/float?mode=v2",
       meaning: "The line exists onchain and can be checked against receipt-derived behavior evidence.",
     },
     {
@@ -3160,7 +3376,7 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       status: providerPaidReceipt || x402Receipt ? "proven" : "pending",
       amount: formatFloatUSDC(providerPaidReceipt?.amountUSDC || x402Receipt?.x402?.amountUSDC),
       receipt: "PROVIDER_PAID",
-      href: x402Receipt?.x402?.x402Hash ? txUrl(x402Receipt.x402.x402Hash) : providerPaidReceipt?.transactionHash ? txUrl(providerPaidReceipt.transactionHash) : "/api/float",
+      href: x402Receipt?.x402?.x402Hash ? txUrl(x402Receipt.x402.x402Hash) : providerPaidReceipt?.transactionHash ? txUrl(providerPaidReceipt.transactionHash) : "/api/float?mode=v2",
       meaning: "V1 shows the facilitator fronting Arc USDC to the x402 provider. V2 pays directly from contract reserve.",
     },
     {
@@ -3168,7 +3384,7 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       status: x402Receipt?.x402 ? "proven" : "pending",
       amount: formatFloatUSDC(x402Receipt?.x402?.amountUSDC),
       receipt: "X402PaymentBound",
-      href: x402Receipt?.x402?.bindingTxHash ? txUrl(x402Receipt.x402.bindingTxHash) : "/api/float",
+      href: x402Receipt?.x402?.bindingTxHash ? txUrl(x402Receipt.x402.bindingTxHash) : "/api/float?mode=v2",
       meaning: "The historical x402 settlement hash is bound to the Float request hash onchain.",
     },
     {
@@ -3176,7 +3392,7 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       status: debtReceipt ? "proven" : "pending",
       amount: formatFloatUSDC(debtReceipt?.debtOpenedUSDC),
       receipt: "DEBT_OPENED",
-      href: debtReceipt?.transactionHash ? txUrl(debtReceipt.transactionHash) : "/api/float",
+      href: debtReceipt?.transactionHash ? txUrl(debtReceipt.transactionHash) : "/api/float?mode=v2",
       meaning: "Debt includes provider amount plus the testnet fee, so accounting is explicit.",
     },
     {
@@ -3184,7 +3400,7 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       status: repayReceipt ? "proven" : "pending",
       amount: formatFloatUSDC(repayReceipt?.amountUSDC),
       receipt: "REPAID",
-      href: repayReceipt?.transactionHash ? txUrl(repayReceipt.transactionHash) : "/api/float",
+      href: repayReceipt?.transactionHash ? txUrl(repayReceipt.transactionHash) : "/api/float?mode=v2",
       meaning: "Repayment reduces debt and reopens available capacity.",
     },
     {
@@ -3192,7 +3408,7 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       status: overspendReceipt ? "proven" : "pending",
       amount: formatFloatUSDC(overspendReceipt?.amountUSDC),
       receipt: "SPEND_BLOCKED",
-      href: overspendReceipt?.transactionHash ? txUrl(overspendReceipt.transactionHash) : "/api/float",
+      href: overspendReceipt?.transactionHash ? txUrl(overspendReceipt.transactionHash) : "/api/float?mode=v2",
       meaning: "A request above the line is refused before provider or treasury funds move.",
     },
     {
@@ -3200,7 +3416,7 @@ function FloatProofRunway({ state }: { state: FloatState | null }) {
       status: denialReceipt ? "proven" : "pending",
       amount: formatFloatUSDC(denialReceipt?.amountUSDC),
       receipt: "CREDIT_DENIED",
-      href: denialReceipt?.transactionHash ? txUrl(denialReceipt.transactionHash) : "/api/float",
+      href: denialReceipt?.transactionHash ? txUrl(denialReceipt.transactionHash) : "/api/float?mode=v2",
       meaning: "A denied line cannot turn into spendable USDC.",
     },
   ];
@@ -3246,7 +3462,7 @@ function FloatProofChecksPanel({ state }: { state: FloatState | null }) {
       </div>
       <div className="floatProofCheckGrid">
         {entries.map(([key, ok]) => (
-          <a className={`floatProofCheck ${ok ? "pass" : "pending"}`} href="/api/float" target="_blank" rel="noreferrer" key={key}>
+          <a className={`floatProofCheck ${ok ? "pass" : "pending"}`} href="/api/float?mode=v2" target="_blank" rel="noreferrer" key={key}>
             <span>{ok ? "PASS" : "PENDING"}</span>
             <strong>{humanizeFloatKey(key)}</strong>
           </a>
@@ -3269,8 +3485,8 @@ function FloatOnchainLinks({ state }: { state: FloatState | null }) {
   const denialReceipt = pointers?.denialReceipt || receipts.find((receipt) => receipt.receiptType === "CREDIT_DENIED");
   const latestExternalRun = (state?.loopRuns || []).find((run) => run.source === "external-signed" && run.requestHash);
   const links = [
-    { label: "Open live API", href: "/api/float" },
-    { label: "Check reserve", href: "/api/float" },
+    { label: "Open V2 activity API", href: "/api/float?mode=v2" },
+    { label: "Check V2 reserve", href: "/api/float?mode=v2" },
     { label: "Check V2 direct spend", href: txUrl(FLOAT_V2_PROOF.directSpendTx) },
     { label: "Check V2 blocked overrun", href: txUrl(FLOAT_V2_PROOF.blockedSpendTx) },
     { label: "Check V2 repayment", href: txUrl(FLOAT_V2_PROOF.repayTx) },
@@ -3314,7 +3530,7 @@ function FloatStandingBoardPanel({
   const agents = board?.agents || [];
   const visibleAgents = compact ? agents.slice(0, 3) : agents.slice(0, 8);
   const counts = board?.counts || {};
-  const alphaApi = alpha ? `/api/float-tools?action=agent&address=${alpha}` : "/api/float";
+  const alphaApi = alpha ? `/api/float-tools?action=agent&address=${alpha}` : "/api/float?mode=v2";
 
   return (
     <article className="floatStandingBoard" aria-label="Shadow Float agent standing board">
@@ -3461,7 +3677,7 @@ function FloatCreditFlywheelPanel({ board }: { board?: FloatStandingBoard }) {
   }).length;
   const scoreApiHref = agents[0]?.agent
     ? `/api/float-tools?action=score&address=${agents[0].agent}`
-    : "/api/float";
+    : "/api/float?mode=v2";
 
   return (
     <article className="floatCreditPanel" aria-label="Receipt-derived Float credit flywheel">
@@ -3619,7 +3835,7 @@ function FloatExternalSignedPanel({ state }: { state: FloatState | null }) {
             provider payments; older rows remain labeled as historical x402 binds.
           </p>
         </div>
-        <a href="/api/float" target="_blank" rel="noreferrer">
+        <a href="/api/float?mode=v2" target="_blank" rel="noreferrer">
           Live API
         </a>
       </div>
@@ -5450,8 +5666,8 @@ function SiteFooter() {
             <span>Shadow</span>
           </Link>
           <p className="siteFooterTagline">
-            Sponsor-backed USDC capacity for agents on Arc, with signed intents, repayment, and a verified Treasury/M1
-            mandate extension.
+            Sponsor-backed USDC capacity for agents on Arc, with signed intents, provider payment, repayment, and blocked
+            overruns.
           </p>
           <div className="siteFooterBadge">
             <span className="heroBadgeDot" />
@@ -5482,7 +5698,7 @@ function SiteFooter() {
       </div>
       <div className="siteFooterBottom">
         <span>Built for Canteen × Circle Lepton · 2026</span>
-        <span>Shadow Float V2 · credit, controls, and receipts on Arc</span>
+        <span>Shadow Float V2 · spending lines, controls, and receipts on Arc</span>
       </div>
     </footer>
   );
@@ -5498,13 +5714,14 @@ function HomeProofOverview({
   error: string | null;
 }) {
   const summary = state?.summary;
+  const isSnapshot = state?.source === "verified-snapshot";
   const countValue = (value: number | undefined) => {
     if (value !== undefined) return String(value);
     if (error) return "unavailable";
     return loading ? "reading" : "not loaded";
   };
-  const statusLabel = error ? "V2 read failed" : loading && !state ? "reading V2" : "Float V2 live";
-  const statusClass = error ? "error" : "live";
+  const statusLabel = isSnapshot ? (loading ? "syncing live V2" : "verified snapshot") : error ? "V2 read failed" : loading && !state ? "reading V2" : "Float V2 live";
+  const statusClass = error && !isSnapshot ? "error" : "live";
   const cards = [
     {
       eyebrow: "current contract",
@@ -5534,7 +5751,7 @@ function HomeProofOverview({
       eyebrow: "external buyer agent",
       value: "Obol",
       label: "signed V2 line",
-      body: "Obol signed a V2 intent and the contract paid the provider from sponsor reserve. Repayment remains labeled as pending.",
+      body: "Obol signed a V2 intent and the contract paid the provider from sponsor reserve. The line remains labeled as open debt until Obol repays.",
       href: txUrl(FLOAT_V2_PROOF.obolSpendTx),
       external: true,
     },
@@ -5575,6 +5792,7 @@ function HomeProofOverview({
       </div>
       <div className="homeProofLinks">
         <Link to="/float">Open Float</Link>
+        <a href="/api/float?mode=v2" target="_blank" rel="noreferrer">Open V2 activity API</a>
         <a href={FLOAT_V2_PROOF.sourcify} target="_blank" rel="noreferrer">View source match</a>
         <a href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">View repository</a>
       </div>
@@ -5592,6 +5810,7 @@ function HeroMetrics({
   error: string | null;
 }) {
   const summary = state?.summary;
+  const isSnapshot = state?.source === "verified-snapshot";
   const countValue = (value: number | undefined) => {
     if (value !== undefined) return String(value);
     if (error) return "n/a";
@@ -5615,7 +5834,11 @@ function HeroMetrics({
         ))}
       </div>
       <span className="heroMetricsNote">
-        {error ? "Float V2 counters are temporarily unavailable." : "Live counters come from the current Float V2 activity feed."}
+        {isSnapshot
+          ? "Showing the last verified V2 snapshot while the live feed syncs."
+          : error
+            ? "Float V2 counters are temporarily unavailable."
+            : "Live counters come from the current Float V2 activity feed."}
       </span>
     </div>
   );

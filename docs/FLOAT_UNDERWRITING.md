@@ -72,7 +72,8 @@ The verifier returns `supportCheck.scoreSupported` and `supportCheck.limitSuppor
 
 ## Verifiable Surfaces
 
-- `GET /api/float` shows treasury, receipts, standing board, and source breakdown.
+- `GET /api/float?mode=v2` shows current V2 external activity.
+- `GET /api/float` remains the historical V1 receipt API.
 - `GET /api/float-tools?action=agent&address=0x...` reads a single line.
 - `GET /api/float-tools?action=score&address=0x...` recomputes the deterministic v0 score.
 - `GET /api/float-tools?action=verify&hash=0x...` verifies an external signed Float intent.

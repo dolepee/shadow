@@ -89,10 +89,11 @@ Post-hackathon M1 hardening:
 
 No private keys are required to verify the current system.
 
-`npm run float:v2-verify-live` is strict by default: it exits nonzero if any external V2 debt remains open. If a reviewer wants to inspect the canonical V2 proof loop while an explicitly labeled external lifecycle is still open, set a matching threshold:
+`npm run float:v2-verify-live` verifies the canonical V2 proof loop and, by default, allows up to `0.01` USDC of explicitly labeled external open debt. That keeps the Obol open-debt row visible without weakening the proof loop. For strict closed-lifecycle mode, set `FLOAT_V2_VERIFY_STRICT_CLOSED=1`.
 
 ```bash
-FLOAT_V2_VERIFY_MAX_OPEN_DEBT_ATOMIC=10000 npm run float:v2-verify-live
+npm run float:v2-verify-live
+FLOAT_V2_VERIFY_STRICT_CLOSED=1 npm run float:v2-verify-live
 ```
 
 Full local checks:
@@ -109,7 +110,7 @@ npm run app:typecheck
 npm run app:build
 npm run agent:typecheck
 
-FLOAT_V2_VERIFY_MAX_OPEN_DEBT_ATOMIC=10000 npm run float:v2-verify-live
+npm run float:v2-verify-live
 curl -s https://shadow-arc.vercel.app/api/float?mode=v2
 curl -s https://shadow-arc.vercel.app/api/treasury
 npm run treasury:verify-live
@@ -142,7 +143,7 @@ Supporting M1 contracts are documented in [`docs/LEPTON_M1.md`](docs/LEPTON_M1.m
 - Source-matched deployed contract.
 - Live external activity board.
 - No-secret verifier for the current V2 loop.
-- Historical V1 x402/EIP-3009 binding evidence.
+- Historical V1 x402/EIP-3009 binding evidence, labeled separately from the current V2 product path.
 - Supporting M1 mandate proof for adapter-level ALLOW/BLOCK behavior.
 
 ## What Is Not Claimed

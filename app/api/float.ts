@@ -10,7 +10,6 @@ import {
   decodeEventLog,
   type Address,
   type Hash,
-  type PublicClient,
 } from "viem";
 import {
   FLOAT_V2_CONTRACT,
@@ -126,6 +125,10 @@ type FloatReadClient = {
   // deep and Vercel's serverless type pass can fail on it. The function only
   // calls the typed `lines(address)` view below.
   readContract: (args: any) => Promise<any>;
+};
+
+type FloatV2LogClient = {
+  getLogs: (args: any) => Promise<Array<{ data: `0x${string}`; topics: readonly `0x${string}`[]; transactionHash: `0x${string}` }>>;
 };
 
 type FloatReceiptEventArgs = {
@@ -455,7 +458,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
       });
     }
 
-    const logWarnings = await enrichFloatV2StatsFromLogs(client, stats, latestBlock);
+    const logWarnings = await enrichFloatV2StatsFromLogs(client as FloatV2LogClient, stats, latestBlock);
     if (logWarnings.length > 0) {
       throw new Error(`incomplete V2 log read: ${logWarnings.slice(0, 2).join("; ")}`);
     }
@@ -546,7 +549,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
   }
 }
 
-async function enrichFloatV2StatsFromLogs(client: PublicClient, stats: Map<string, FloatV2AgentStats>, latestBlock: bigint) {
+async function enrichFloatV2StatsFromLogs(client: FloatV2LogClient, stats: Map<string, FloatV2AgentStats>, latestBlock: bigint) {
   const warnings: string[] = [];
   for (let start = FLOAT_V2_DEPLOY_BLOCK; start <= latestBlock; start += FLOAT_V2_LOG_CHUNK_SIZE) {
     const end = start + FLOAT_V2_LOG_CHUNK_SIZE - 1n > latestBlock ? latestBlock : start + FLOAT_V2_LOG_CHUNK_SIZE - 1n;

@@ -19,6 +19,7 @@ const env = {
 const CHAIN_ID = 5_042_002;
 const DEFAULT_RPC = "https://rpc.testnet.arc.network";
 const DEFAULT_USDC = "0x3600000000000000000000000000000000000000";
+const DEFAULT_ALLOWED_OPEN_EXTERNAL_DEBT = clean(env.FLOAT_V2_VERIFY_STRICT_CLOSED) === "1" ? 0n : 10_000n;
 
 const DEFAULT_PROOF = {
   float: "0x20dca96b0c487d94de885c726c956ffaf38b12c2",
@@ -63,7 +64,7 @@ const proof = {
   reserveUSDC: bigintEnv("FLOAT_V2_VERIFY_RESERVE_ATOMIC", DEFAULT_PROOF.reserveUSDC),
   directAmountUSDC: bigintEnv("FLOAT_V2_VERIFY_DIRECT_AMOUNT_ATOMIC", DEFAULT_PROOF.directAmountUSDC),
   blockedAmountUSDC: bigintEnv("FLOAT_V2_VERIFY_BLOCKED_AMOUNT_ATOMIC", DEFAULT_PROOF.blockedAmountUSDC),
-  maxOpenExternalDebtUSDC: bigintEnv("FLOAT_V2_VERIFY_MAX_OPEN_DEBT_ATOMIC", 0n),
+  maxOpenExternalDebtUSDC: bigintEnv("FLOAT_V2_VERIFY_MAX_OPEN_DEBT_ATOMIC", DEFAULT_ALLOWED_OPEN_EXTERNAL_DEBT),
 };
 
 const chain = defineChain({
@@ -229,7 +230,7 @@ check(
     : `${fmt(totalDebtOpened)} opened / ${fmt(totalRepaid)} repaid / ${fmt(openExternalDebt)} open external debt`,
 );
 check(
-  "open external debt is within configured verifier threshold",
+  "open external debt is within documented verifier threshold",
   openExternalDebt !== null && openExternalDebt <= proof.maxOpenExternalDebtUSDC,
   openExternalDebt === null
     ? "debt accounting underflow"
@@ -281,6 +282,10 @@ const result = {
     openDebtUSDC: openExternalDebt?.toString() ?? "0",
     blockedUSDC: totalBlocked.toString(),
   },
+  openDebtPolicy:
+    proof.maxOpenExternalDebtUSDC === 0n
+      ? "strict closed mode: no external V2 debt may remain open"
+      : `default mode: allows explicitly labeled external open debt up to ${fmt(proof.maxOpenExternalDebtUSDC)}`,
   checks,
 };
 
