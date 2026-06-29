@@ -1765,7 +1765,6 @@ function App() {
       <TreasuryLiveVerifierPanel state={treasuryState} loading={treasuryLoading} error={treasuryError} />
       <TreasuryOnchainLinks />
       <TreasuryValidationPanel />
-      <TreasuryHardeningPanel />
     </>
   );
 
@@ -2222,7 +2221,7 @@ function TreasuryProofPanel({
           <h2>One operator paid, allocated, and was stopped on the third action.</h2>
           <p>
             The sequence below is deliberately concrete: one provider payment, one vault allocation, one blocked over-limit
-            allocation, and one read-only check. It shows the M1 rail in action while production custody moves to the next phase.
+            allocation, and one read-only check. It shows the scoped M1 adapter path that is live on Arc testnet.
           </p>
         </div>
         <div className={`treasuryProofStatus ${treasuryState?.ok === false ? "fail" : ""}`}>
@@ -2558,49 +2557,6 @@ function TreasuryValidationPanel() {
             <span>{row.label}</span>
             <strong>{row.status}</strong>
             <p>{row.detail}</p>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function TreasuryHardeningPanel() {
-  const boundaries = [
-    {
-      label: "approved-adapter boundary",
-      title: "The live M1 guarantee is scoped",
-      body: "Approved adapters authenticate the account and honor ALLOW/BLOCK before transfer. New adapters must implement the same enforcement pattern.",
-    },
-    {
-      label: "vault sink",
-      title: "Vault sink is not production treasury custody",
-      body: "The current sink demonstrates allowed allocation and no-transfer blocking. The production version connects to a withdrawable vault or real market integration.",
-    },
-    {
-      label: "bond scope",
-      title: "Bond coverage expands with production custody",
-      body: "The current bond supports receipt liveness. Production custody adds stronger correctness checks and settlement slashing.",
-    },
-    {
-      label: "underwriting roadmap",
-      title: "Float scoring moves toward autonomous adjustment",
-      body: "The score path derives behavior counts from Float receipts. The next upgrade adjusts lines automatically from that public score.",
-    },
-  ];
-
-  return (
-    <section className="treasuryValidationSection" aria-label="M1 production roadmap">
-      <div className="treasurySectionHeader">
-        <p className="eyebrow">production roadmap</p>
-        <h2>The next build turns the M1 rail into production custody.</h2>
-      </div>
-      <div className="roadmapGrid">
-        {boundaries.map((item) => (
-          <article className="roadmapCard" key={item.label}>
-            <span>{item.label}</span>
-            <strong>{item.title}</strong>
-            <p>{item.body}</p>
           </article>
         ))}
       </div>
@@ -6494,48 +6450,6 @@ function CircleStackPanel() {
           <p>Shadow&apos;s delta is reserved capacity: draw against sponsor-backed USDC, open debt, repay, or get blocked.</p>
         </article>
       </div>
-    </section>
-  );
-}
-
-function FloatEconomicsPanel() {
-  return (
-    <section className="floatEconomicsPanel" aria-label="Shadow Float treasury economics roadmap">
-      <Header eyebrow="capital model" title="Mainnet Float needs reserved capital, not hot-funded agents" />
-      <div className="floatEconomicsGrid">
-        <article>
-          <span>treasury capital</span>
-          <p>
-            At scale, operators or liquidity providers fund the treasury. Granted capacity stays capped by reserves, so
-            the system does not promise more available Float than it can front.
-          </p>
-        </article>
-        <article>
-          <span>defaults</span>
-          <p>
-            Defaults reduce or freeze future capacity and route the agent back through review. Sponsor-funded V2 lines
-            already include reserve recovery for bad debt.
-          </p>
-        </article>
-        <article>
-          <span>fees</span>
-          <p>
-            Each approved draw can accrue a small fee into the agent&apos;s debt. Repayment returns principal plus fee,
-            funding treasury sustainability and default reserves.
-          </p>
-        </article>
-        <article>
-          <span>why mainnet needs it</span>
-          <p>
-            Agents should not keep every wallet hot-funded just to buy data, compute, or APIs. Float lets them spend inside
-            a bounded, revocable line while budget settlement catches up.
-          </p>
-        </article>
-      </div>
-      <p className="floatEconomicsNote">
-        Live testnet amounts are intentionally small; the important signal is the complete loop: reserve, provider payment,
-        debt, fee accrual, repayment, and block/deny behavior.
-      </p>
     </section>
   );
 }
