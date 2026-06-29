@@ -148,6 +148,12 @@ const FLOAT_V2_PROOF = {
   cruxSpendTx: "0x6fd0e59360decc8fdecd56c8bf1a448569d72e6e5706d862e50c816d50b29a7d" as Hash,
   cruxRepayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
   obolSpendTx: "0x78567fc68238c6b309aa26916bbf3f456d4da20de27ecb4e9e6a7d3a245acc8a" as Hash,
+  argusAlphaBorrowTx: "0x50831fd00ef83a2c5fdb5bd5829ac6800c783aa34ec2149eb92c1bb38553aa2c" as Hash,
+  argusAlphaRepayTx: "0x4ae5922841cb91b090e2785e26b94789a9c4028340bea5c162106657280bf896" as Hash,
+  argusBetaBorrowTx: "0x03d67f3f911abda8e862700787f33d5ad7002e49a6fd989172dfbca5d6aa9ba9" as Hash,
+  argusBetaRepayTx: "0xac1b0d231b0d19ebcb8e18877e7fcffbb2cbf990f204f648c288053bb597d679" as Hash,
+  argusGammaBorrowTx: "0x49aceee516b7eb037c9b475cdf9f238335eea9975c2102731b05826c6a0dc33e" as Hash,
+  argusGammaRepayTx: "0xad8301ca4edbbed18bc7204d8da9be53492116649a326728ad0ca5bc19bb1682" as Hash,
 };
 const FLOAT_V2_LOG_CHUNK_SIZE = FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE;
 
@@ -2983,6 +2989,7 @@ function FloatV2CurrentPanel({
     { label: "overrun blocked", href: txUrl(FLOAT_V2_PROOF.blockedSpendTx), value: shortAddress(FLOAT_V2_PROOF.blockedSpendTx) },
     { label: "repayment restored line", href: txUrl(FLOAT_V2_PROOF.repayTx), value: shortAddress(FLOAT_V2_PROOF.repayTx) },
     { label: "Crux external lifecycle", href: txUrl(FLOAT_V2_PROOF.cruxRepayTx), value: shortAddress(FLOAT_V2_PROOF.cruxRepayTx) },
+    { label: "Argus Alpha closed loop", href: txUrl(FLOAT_V2_PROOF.argusAlphaRepayTx), value: shortAddress(FLOAT_V2_PROOF.argusAlphaRepayTx) },
     { label: "Obol signed spend", href: txUrl(FLOAT_V2_PROOF.obolSpendTx), value: shortAddress(FLOAT_V2_PROOF.obolSpendTx) },
   ];
 
@@ -5748,11 +5755,11 @@ function HomeProofOverview({
       external: false,
     },
     {
-      eyebrow: "external buyer agent",
-      value: "Obol",
-      label: "signed V2 line",
-      body: "Obol signed a V2 intent and the contract paid the provider from sponsor reserve. The line remains labeled as open debt until Obol repays.",
-      href: txUrl(FLOAT_V2_PROOF.obolSpendTx),
+      eyebrow: "external agent fleet",
+      value: "Argus x3",
+      label: "three closed loops",
+      body: "Argus Alpha, Beta, and Gamma each ran the V2 path: signed intent, provider payment from sponsor reserve, debt, approval, and repayment.",
+      href: txUrl(FLOAT_V2_PROOF.argusAlphaRepayTx),
       external: true,
     },
   ];

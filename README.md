@@ -35,6 +35,16 @@ Live V2 activity currently shown on the site:
 
 External V2 lines currently include Forum, CitePay, Crux, Driplet, Argus Alpha, Argus Beta, Argus Gamma, and Obol. Forum, CitePay, Crux, Driplet, and all three Argus agents have closed the full signed spend and repay loop. Obol has a provider-paid V2 spend with repayment still open and labeled that way on the live board.
 
+### Argus Three-Agent Lifecycle
+
+Argus ran three agent lines through Shadow Float V2. Each row shows a signed V2 spend that paid the provider from sponsor reserve, then a repayment that restored the line.
+
+| Agent | Borrow tx | Repay tx |
+| --- | --- | --- |
+| Argus Alpha `0x5c0b...92EC` | [`0x50831f...53aa2c`](https://testnet.arcscan.app/tx/0x50831fd00ef83a2c5fdb5bd5829ac6800c783aa34ec2149eb92c1bb38553aa2c) | [`0x4ae592...0bf896`](https://testnet.arcscan.app/tx/0x4ae5922841cb91b090e2785e26b94789a9c4028340bea5c162106657280bf896) |
+| Argus Beta `0x7D4897...a817c` | [`0x03d67f...a9ba9`](https://testnet.arcscan.app/tx/0x03d67f3f911abda8e862700787f33d5ad7002e49a6fd989172dfbca5d6aa9ba9) | [`0xac1b0d...97d679`](https://testnet.arcscan.app/tx/0xac1b0d231b0d19ebcb8e18877e7fcffbb2cbf990f204f648c288053bb597d679) |
+| Argus Gamma `0x43e063...50c89` | [`0x49acee...dc33e`](https://testnet.arcscan.app/tx/0x49aceee516b7eb037c9b475cdf9f238335eea9975c2102731b05826c6a0dc33e) | [`0xad8301...b1682`](https://testnet.arcscan.app/tx/0xad8301ca4edbbed18bc7204d8da9be53492116649a326728ad0ca5bc19bb1682) |
+
 ## How Float Works
 
 1. A sponsor opens a small reserve-backed line for an agent.
