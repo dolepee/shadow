@@ -45,6 +45,20 @@ Argus ran three agent lines through Shadow Float V2. Each row shows a signed V2 
 | Argus Beta `0x7D4897...a817c` | [`0x03d67f...a9ba9`](https://testnet.arcscan.app/tx/0x03d67f3f911abda8e862700787f33d5ad7002e49a6fd989172dfbca5d6aa9ba9) | [`0xac1b0d...97d679`](https://testnet.arcscan.app/tx/0xac1b0d231b0d19ebcb8e18877e7fcffbb2cbf990f204f648c288053bb597d679) |
 | Argus Gamma `0x43e063...50c89` | [`0x49acee...dc33e`](https://testnet.arcscan.app/tx/0x49aceee516b7eb037c9b475cdf9f238335eea9975c2102731b05826c6a0dc33e) | [`0xad8301...b1682`](https://testnet.arcscan.app/tx/0xad8301ca4edbbed18bc7204d8da9be53492116649a326728ad0ca5bc19bb1682) |
 
+### CitePay Provider Proof
+
+CitePay confirmed five paid provider queries from the Shadow operator wallet on Arc testnet. Shadow paid CitePay through its DirectTransfer flow, CitePay served the answers, and creator payouts were triggered through CitePay receipts.
+
+| # | Query fee tx | Amount | Status |
+| ---: | --- | ---: | --- |
+| 1 | [`0x3c74ba...a9929`](https://testnet.arcscan.app/tx/0x3c74ba902d9494c7762f440affa0065ef4a2478b6e9cb4cb228e11cd689a9929) | 0.001 USDC | confirmed |
+| 2 | [`0xc8ee30...3532a`](https://testnet.arcscan.app/tx/0xc8ee30e0c2ab5943f472baf819fb17af8b39571665ba4ac408b9fe8d9343532a) | 0.001 USDC | confirmed |
+| 3 | [`0xb1b672...f48bd`](https://testnet.arcscan.app/tx/0xb1b6727138218b79ec829cd221db65bd4abe47b5a9b7afee8bdd42b14e1f48bd) | 0.001 USDC | confirmed |
+| 4 | [`0x88ef62...adef8`](https://testnet.arcscan.app/tx/0x88ef62f2ab2b13cbea658ca9f4d26ebd38c6e86aa8e0704dd7e51a676beadef8) | 0.001 USDC | confirmed |
+| 5 | [`0x85aea6...1311`](https://testnet.arcscan.app/tx/0x85aea6dfce5b589fa5a1e5526889d31ca9126385217614b42d0ad34656261311) | 0.001 USDC | confirmed |
+
+Provider proof notes: [`docs/CITEPAY_PROVIDER_PROOF.md`](docs/CITEPAY_PROVIDER_PROOF.md)
+
 ## How Float Works
 
 1. A sponsor opens a small reserve-backed line for an agent.

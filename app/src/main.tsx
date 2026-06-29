@@ -154,6 +154,13 @@ const FLOAT_V2_PROOF = {
   argusBetaRepayTx: "0xac1b0d231b0d19ebcb8e18877e7fcffbb2cbf990f204f648c288053bb597d679" as Hash,
   argusGammaBorrowTx: "0x49aceee516b7eb037c9b475cdf9f238335eea9975c2102731b05826c6a0dc33e" as Hash,
   argusGammaRepayTx: "0xad8301ca4edbbed18bc7204d8da9be53492116649a326728ad0ca5bc19bb1682" as Hash,
+  citePayProviderQueryTxs: [
+    "0x3c74ba902d9494c7762f440affa0065ef4a2478b6e9cb4cb228e11cd689a9929",
+    "0xc8ee30e0c2ab5943f472baf819fb17af8b39571665ba4ac408b9fe8d9343532a",
+    "0xb1b6727138218b79ec829cd221db65bd4abe47b5a9b7afee8bdd42b14e1f48bd",
+    "0x88ef62f2ab2b13cbea658ca9f4d26ebd38c6e86aa8e0704dd7e51a676beadef8",
+    "0x85aea6dfce5b589fa5a1e5526889d31ca9126385217614b42d0ad34656261311",
+  ] as readonly Hash[],
 };
 const FLOAT_V2_LOG_CHUNK_SIZE = FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE;
 
@@ -2946,6 +2953,7 @@ function FloatV2CurrentPanel({
     { label: "repayment restored line", href: txUrl(FLOAT_V2_PROOF.repayTx), value: shortAddress(FLOAT_V2_PROOF.repayTx) },
     { label: "Crux external lifecycle", href: txUrl(FLOAT_V2_PROOF.cruxRepayTx), value: shortAddress(FLOAT_V2_PROOF.cruxRepayTx) },
     { label: "Argus Alpha closed loop", href: txUrl(FLOAT_V2_PROOF.argusAlphaRepayTx), value: shortAddress(FLOAT_V2_PROOF.argusAlphaRepayTx) },
+    { label: "CitePay provider proof", href: txUrl(FLOAT_V2_PROOF.citePayProviderQueryTxs[0]), value: "5 paid queries" },
     { label: "Obol signed spend", href: txUrl(FLOAT_V2_PROOF.obolSpendTx), value: shortAddress(FLOAT_V2_PROOF.obolSpendTx) },
   ];
 
@@ -5716,6 +5724,14 @@ function HomeProofOverview({
       label: "three closed loops",
       body: "Argus Alpha, Beta, and Gamma each ran the V2 path: signed intent, provider payment from sponsor reserve, debt, approval, and repayment.",
       href: txUrl(FLOAT_V2_PROOF.argusAlphaRepayTx),
+      external: true,
+    },
+    {
+      eyebrow: "provider proof",
+      value: "CitePay x5",
+      label: "paid queries confirmed",
+      body: "Shadow paid CitePay five times through DirectTransfer; CitePay confirmed the payments, answers, receipts, and creator payout flow.",
+      href: txUrl(FLOAT_V2_PROOF.citePayProviderQueryTxs[0]),
       external: true,
     },
   ];
