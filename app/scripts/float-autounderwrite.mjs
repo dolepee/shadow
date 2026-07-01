@@ -64,7 +64,7 @@ const abi = parseAbi([
   "function revoke(address agent, bytes32 requestHash) returns (bytes32)",
 ]);
 
-const state = await fetchJson("/api/float");
+const state = await fetchJson("/api/float?mode=v1");
 if (!state?.configured) throw new Error("Float API is not configured");
 if (getAddress(state.float) !== FLOAT) throw new Error(`API float ${state.float} does not match env float ${FLOAT}`);
 

@@ -1140,7 +1140,7 @@ function App() {
   async function refreshFloat() {
     setFloatLoading(true);
     try {
-      const response = await fetch("/api/float");
+      const response = await fetch("/api/float?mode=v1");
       const data = (await response.json()) as FloatState;
       if (!response.ok || data.error) {
         throw new Error(data.error || `Float read failed with ${response.status}`);
