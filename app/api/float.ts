@@ -97,6 +97,21 @@ type FloatV2Line = readonly [
 
 type FloatV2SponsorLine = readonly [sponsor: Address, reserveUSDC: bigint];
 
+type FloatV2BehaviorStats = readonly [
+  paidBound: number,
+  signedExternalPaid: number,
+  repaid: number,
+  blocked: number,
+  denied: number,
+  errorCount: number,
+];
+
+type FloatV2AutonomousScore = readonly [
+  score: number,
+  recommendedLimitUSDC: bigint,
+  cappedLimitUSDC: bigint,
+];
+
 type FloatLoopRun = {
   source?: string;
   float?: string;
@@ -470,11 +485,14 @@ async function handleFloatV2(res: VercelLikeResponse) {
 
     const agents = await Promise.all(
       [...stats.values()].map(async (entry) => {
-        const [line, sponsorLine] = (await Promise.all([
+        const [line, sponsorLine, behaviorStats, autonomousScore] = (await Promise.all([
           client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [entry.agent], blockNumber: latestBlock }),
           client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lineSponsors", args: [entry.agent], blockNumber: latestBlock }),
-        ])) as [FloatV2Line, FloatV2SponsorLine];
+          client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "behaviorStats", args: [entry.agent], blockNumber: latestBlock }),
+          client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "autonomousLineScore", args: [entry.agent], blockNumber: latestBlock }),
+        ])) as [FloatV2Line, FloatV2SponsorLine, FloatV2BehaviorStats, FloatV2AutonomousScore];
         const status = Number(line[5]);
+        const lastReview = line[6].toString();
         return {
           label: entry.label,
           category: "external",
@@ -486,6 +504,22 @@ async function handleFloatV2(res: VercelLikeResponse) {
           activeDebtUSDC: line[4].toString(),
           status,
           statusName: FLOAT_V2_STATUS_NAMES[status] || "UNKNOWN",
+          lastReview,
+          lastReviewISO: line[6] > 0n ? new Date(Number(line[6]) * 1000).toISOString() : null,
+          scoredByContract: true,
+          behavior: {
+            paidBound: Number(behaviorStats[0]),
+            signedExternalPaid: Number(behaviorStats[1]),
+            repaid: Number(behaviorStats[2]),
+            blocked: Number(behaviorStats[3]),
+            denied: Number(behaviorStats[4]),
+            errorCount: Number(behaviorStats[5]),
+          },
+          autonomousScore: {
+            score: Number(autonomousScore[0]),
+            recommendedLimitUSDC: autonomousScore[1].toString(),
+            cappedLimitUSDC: autonomousScore[2].toString(),
+          },
           sponsor: sponsorLine[0],
           sponsorReserveUSDC: sponsorLine[1].toString(),
           signedIntents: entry.signedIntents,

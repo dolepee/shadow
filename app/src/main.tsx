@@ -169,6 +169,8 @@ const FLOAT_V2_LOG_CHUNK_SIZE = FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE;
 
 type FloatV2LineRead = readonly [Address, number, bigint, bigint, bigint, number, bigint, `0x${string}`, bigint, bigint];
 type FloatV2SponsorLineRead = readonly [Address, bigint];
+type FloatV2BehaviorStatsRead = readonly [number, number, number, number, number, number];
+type FloatV2AutonomousScoreRead = readonly [number, bigint, bigint];
 
 declare global {
   interface Window {
@@ -503,6 +505,22 @@ type FloatV2AgentState = {
   activeDebtUSDC: string;
   status: number;
   statusName: string;
+  lastReview?: string;
+  lastReviewISO?: string | null;
+  scoredByContract?: boolean;
+  behavior?: {
+    paidBound: number;
+    signedExternalPaid: number;
+    repaid: number;
+    blocked: number;
+    denied: number;
+    errorCount: number;
+  };
+  autonomousScore?: {
+    score: number;
+    recommendedLimitUSDC: string;
+    cappedLimitUSDC: string;
+  };
   sponsor: Address;
   sponsorReserveUSDC: string;
   signedIntents: number;
@@ -584,6 +602,11 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
+      lastReview: "1782870038",
+      lastReviewISO: "2026-07-01T01:40:38.000Z",
+      scoredByContract: true,
+      behavior: { paidBound: 0, signedExternalPaid: 2, repaid: 2, blocked: 0, denied: 0, errorCount: 0 },
+      autonomousScore: { score: 9000, recommendedLimitUSDC: "1000000", cappedLimitUSDC: "50000" },
       sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
       sponsorReserveUSDC: "50000",
       signedIntents: 2,
@@ -606,6 +629,11 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
+      lastReview: "1782645116",
+      lastReviewISO: "2026-06-28T11:11:56.000Z",
+      scoredByContract: true,
+      behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
+      autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
       sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
       sponsorReserveUSDC: "50000",
       signedIntents: 1,
@@ -628,6 +656,11 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
+      lastReview: "1782645128",
+      lastReviewISO: "2026-06-28T11:12:08.000Z",
+      scoredByContract: true,
+      behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
+      autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
       sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
       sponsorReserveUSDC: "50000",
       signedIntents: 1,
@@ -650,6 +683,11 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
+      lastReview: "1782510847",
+      lastReviewISO: "2026-06-26T21:54:07.000Z",
+      scoredByContract: true,
+      behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
+      autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
       sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
       sponsorReserveUSDC: "50000",
       signedIntents: 1,
@@ -672,6 +710,11 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
+      lastReview: "1782542835",
+      lastReviewISO: "2026-06-27T06:47:15.000Z",
+      scoredByContract: true,
+      behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
+      autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
       sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
       sponsorReserveUSDC: "50000",
       signedIntents: 1,
@@ -696,6 +739,11 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
+      lastReview: "1782660996",
+      lastReviewISO: "2026-06-28T15:36:36.000Z",
+      scoredByContract: true,
+      behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
+      autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
       sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
       sponsorReserveUSDC: "50000",
       signedIntents: 1,
@@ -718,6 +766,11 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
+      lastReview: "1782500200",
+      lastReviewISO: "2026-06-26T18:56:40.000Z",
+      scoredByContract: true,
+      behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
+      autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
       sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
       sponsorReserveUSDC: "50000",
       signedIntents: 1,
@@ -740,6 +793,11 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "10000",
       status: 2,
       statusName: "LIMITED",
+      lastReview: "1782568032",
+      lastReviewISO: "2026-06-27T13:47:12.000Z",
+      scoredByContract: true,
+      behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 0, blocked: 0, denied: 0, errorCount: 0 },
+      autonomousScore: { score: 7850, recommendedLimitUSDC: "25000", cappedLimitUSDC: "25000" },
       sponsor: "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address,
       sponsorReserveUSDC: "50000",
       signedIntents: 1,
@@ -927,9 +985,11 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
 
   const agents = await Promise.all(
     [...statsByAgent.values()].map(async (stats): Promise<FloatV2AgentState> => {
-      const [line, sponsorLine] = await Promise.all([
+      const [line, sponsorLine, behaviorStats, autonomousScore] = await Promise.all([
         readFloatV2Line(client, stats.agent, latestBlock),
         readFloatV2SponsorLine(client, stats.agent, latestBlock),
+        readFloatV2BehaviorStats(client, stats.agent, latestBlock),
+        readFloatV2AutonomousScore(client, stats.agent, latestBlock),
       ]);
       const status = Number(line[5]);
       return {
@@ -943,6 +1003,22 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
         activeDebtUSDC: line[4].toString(),
         status,
         statusName: FLOAT_V2_STATUS_NAMES[status] || "UNKNOWN",
+        lastReview: line[6].toString(),
+        lastReviewISO: line[6] > 0n ? new Date(Number(line[6]) * 1000).toISOString() : null,
+        scoredByContract: true,
+        behavior: {
+          paidBound: Number(behaviorStats[0]),
+          signedExternalPaid: Number(behaviorStats[1]),
+          repaid: Number(behaviorStats[2]),
+          blocked: Number(behaviorStats[3]),
+          denied: Number(behaviorStats[4]),
+          errorCount: Number(behaviorStats[5]),
+        },
+        autonomousScore: {
+          score: Number(autonomousScore[0]),
+          recommendedLimitUSDC: autonomousScore[1].toString(),
+          cappedLimitUSDC: autonomousScore[2].toString(),
+        },
         sponsor: sponsorLine[0],
         sponsorReserveUSDC: sponsorLine[1].toString(),
         signedIntents: stats.signedIntents,
@@ -1043,6 +1119,26 @@ async function readFloatV2SponsorLine(client: PublicClient, agent: Address, bloc
     args: [agent],
     blockNumber,
   }) as Promise<FloatV2SponsorLineRead>;
+}
+
+async function readFloatV2BehaviorStats(client: PublicClient, agent: Address, blockNumber: bigint) {
+  return client.readContract({
+    address: FLOAT_V2_CONTRACT,
+    abi: floatV2Abi,
+    functionName: "behaviorStats",
+    args: [agent],
+    blockNumber,
+  }) as Promise<FloatV2BehaviorStatsRead>;
+}
+
+async function readFloatV2AutonomousScore(client: PublicClient, agent: Address, blockNumber: bigint) {
+  return client.readContract({
+    address: FLOAT_V2_CONTRACT,
+    abi: floatV2Abi,
+    functionName: "autonomousLineScore",
+    args: [agent],
+    blockNumber,
+  }) as Promise<FloatV2AutonomousScoreRead>;
 }
 
 function App() {
@@ -3155,6 +3251,24 @@ function classifyFloatV2Lifecycle(agent: FloatV2AgentState): {
   return { label: "registered", detail: "line ready", tone: "registered" };
 }
 
+function describeFloatV2Behavior(agent: FloatV2AgentState): string {
+  const behavior = agent.behavior;
+  if (!behavior) return "behavior syncing";
+  const paid = behavior.signedExternalPaid + behavior.paidBound;
+  const parts = [`paid ${paid}`, `repaid ${behavior.repaid}`];
+  if (behavior.blocked > 0) parts.push(`blocked ${behavior.blocked}`);
+  if (behavior.denied > 0) parts.push(`denied ${behavior.denied}`);
+  if (behavior.errorCount > 0) parts.push(`errors ${behavior.errorCount}`);
+  return parts.join(" · ");
+}
+
+function formatFloatV2Review(agent: FloatV2AgentState): string {
+  if (!agent.lastReviewISO) return "review syncing";
+  const date = new Date(agent.lastReviewISO);
+  if (Number.isNaN(date.getTime())) return "review syncing";
+  return `reviewed ${date.toLocaleDateString([], { month: "short", day: "numeric" })}`;
+}
+
 function FloatV2ActivityBoard({
   state,
   loading,
@@ -3172,6 +3286,7 @@ function FloatV2ActivityBoard({
   const statusLabel = isSnapshot ? (loading ? "syncing live V2" : "last verified snapshot") : error ? "V2 read needs review" : loading && !state ? "reading V2 activity" : "live V2 activity";
   const closed = state?.summary?.repaidLifecycles ?? 0;
   const openDebt = state?.summary?.openDebtAgents ?? 0;
+  const topScore = agents.reduce((max, agent) => Math.max(max, agent.autonomousScore?.score ?? agent.score ?? 0), 0);
   const showCount = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
   const showUSDC = (value?: string | bigint | null) => (value === undefined || value === null ? (loading ? "reading" : "unavailable") : `${formatFloatUSDC(value)} USDC`);
 
@@ -3187,6 +3302,7 @@ function FloatV2ActivityBoard({
           <p>
             Closed means the agent signed a V2 intent, ShadowFloat paid the provider from sponsor reserve, and the same line
             was repaid. Open debt means the provider payment is already bound and the agent has not repaid yet.
+            Sponsored lines are scored by the contract from behavior stats after paid, blocked, and repaid actions.
             {isSnapshot ? " Showing the last verified snapshot while the live feed syncs." : ""}
           </p>
         </div>
@@ -3201,6 +3317,7 @@ function FloatV2ActivityBoard({
         <FloatFact label="provider paid" value={showUSDC(state?.summary?.providerPaidUSDC)} />
         <FloatFact label="closed loops" value={showCount(state?.summary?.repaidLifecycles)} />
         <FloatFact label="open debt" value={showUSDC(state?.summary?.activeDebtUSDC)} />
+        <FloatFact label="top contract score" value={topScore > 0 ? String(topScore) : loading ? "reading" : "unavailable"} />
       </div>
 
       {error && !isSnapshot ? (
@@ -3225,16 +3342,24 @@ function FloatV2ActivityBoard({
                   <small>{lifecycle.detail}</small>
                 </div>
                 <div className="floatV2ActivityMetric">
-                  <span>paid</span>
-                  <strong>{formatFloatUSDC(agent.providerPaidUSDC)}</strong>
+                  <span>contract score</span>
+                  <strong>{agent.autonomousScore?.score ?? agent.score}</strong>
+                  <small>{formatFloatV2Review(agent)}</small>
                 </div>
                 <div className="floatV2ActivityMetric">
-                  <span>debt</span>
-                  <strong>{formatFloatUSDC(agent.activeDebtUSDC)}</strong>
+                  <span>behavior vector</span>
+                  <strong>{describeFloatV2Behavior(agent)}</strong>
+                  <small>scored by ShadowFloat</small>
                 </div>
                 <div className="floatV2ActivityMetric">
                   <span>line</span>
                   <strong>{formatFloatUSDC(agent.creditLimitUSDC)}</strong>
+                  <small>cap {formatFloatUSDC(agent.autonomousScore?.cappedLimitUSDC || agent.creditLimitUSDC)}</small>
+                </div>
+                <div className="floatV2ActivityMetric">
+                  <span>debt</span>
+                  <strong>{formatFloatUSDC(agent.activeDebtUSDC)}</strong>
+                  <small>{formatFloatUSDC(agent.providerPaidUSDC)} paid</small>
                 </div>
               </>
             );
@@ -5689,6 +5814,7 @@ function HomeProofOverview({
   error: string | null;
 }) {
   const summary = state?.summary;
+  const topContractScore = (state?.agents || []).reduce((max, agent) => Math.max(max, agent.autonomousScore?.score ?? agent.score ?? 0), 0);
   const isSnapshot = state?.source === "verified-snapshot";
   const countValue = (value: number | undefined) => {
     if (value !== undefined) return String(value);
@@ -5737,6 +5863,14 @@ function HomeProofOverview({
       body: "Argus Alpha, Beta, and Gamma ran the V2 path, then Alpha used Float again to buy a CitePay answer and repay.",
       href: txUrl(FLOAT_V2_PROOF.argusCitePayRepayTx),
       external: true,
+    },
+    {
+      eyebrow: "autonomous scoring",
+      value: topContractScore > 0 ? String(topContractScore) : countValue(undefined),
+      label: "contract scored",
+      body: "Sponsored lines are re-scored by ShadowFloat from paid, blocked, and repaid behavior, not by an owner script.",
+      href: "/float#v2-activity",
+      external: false,
     },
     {
       eyebrow: "provider proof",

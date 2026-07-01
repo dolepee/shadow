@@ -1034,7 +1034,7 @@ html {
 .floatV2ActivityStats {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .floatV2ActivityRows {
@@ -1051,7 +1051,7 @@ html {
   color: var(--ink);
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(150px, 1.3fr) repeat(4, minmax(76px, 0.7fr));
+  grid-template-columns: minmax(150px, 1.2fr) minmax(100px, 0.8fr) minmax(92px, 0.65fr) minmax(170px, 1fr) minmax(86px, 0.65fr) minmax(86px, 0.65fr);
   min-height: 66px;
   padding: 10px 12px;
   text-decoration: none;

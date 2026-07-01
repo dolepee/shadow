@@ -29,6 +29,8 @@ export const FLOAT_V2_TRACKED_EXTERNAL_AGENTS = [
 export const floatV2Abi = parseAbi([
   "function lines(address agent) view returns (address wallet,uint16 score,uint256 creditLimitUSDC,uint256 availableCreditUSDC,uint256 activeDebtUSDC,uint8 status,uint64 lastReview,bytes32 mandateId,uint64 day,uint256 spentTodayUSDC)",
   "function lineSponsors(address agent) view returns (address sponsor,uint256 reserveUSDC)",
+  "function behaviorStats(address agent) view returns (uint16 paidBound,uint16 signedExternalPaid,uint16 repaid,uint16 blocked,uint16 denied,uint16 errorCount)",
+  "function autonomousLineScore(address agent) view returns (uint16 score,uint256 recommendedLimitUSDC,uint256 cappedLimitUSDC)",
   "function treasuryBalanceUSDC() view returns (uint256)",
   "function totalAvailableCreditUSDC() view returns (uint256)",
   "function totalSponsoredReserveUSDC() view returns (uint256)",

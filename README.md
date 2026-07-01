@@ -35,6 +35,21 @@ Live V2 activity currently shown on the site:
 
 External V2 lines currently include Forum, CitePay, Crux, Driplet, Argus Alpha, Argus Beta, Argus Gamma, and Obol. Forum, CitePay, Crux, Driplet, and all three Argus agents have closed the full signed spend and repay loop. Argus Alpha also used Float V2 to pay CitePay for a provider answer and repaid that second draw. Obol has a provider-paid V2 spend with repayment still open and labeled that way on the live board.
 
+### Autonomous Underwriting Is Deployed
+
+Sponsored V2 lines are re-scored by `ShadowFloat` itself. Paid, blocked, and repaid actions update `behaviorStats(agent)` and trigger the same internal refresh path that recomputes `deterministicScore`, adjusts the line cap within the sponsor reserve, and emits `DeterministicFloatScored`.
+
+Anyone can inspect the scoring path:
+
+```bash
+cast call 0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
+  "autonomousLineScore(address)(uint16,uint256,uint256)" \
+  0x5c0b33b209f510868E07792Edc46c3792B0b92EC \
+  --rpc-url https://rpc.testnet.arc.network
+```
+
+`refreshSponsoredLineFromBehavior(address,bytes32)` is also public, and normal spend and repay paths call the same refresh logic automatically. The Argus Alpha repay tx [`0x0f50d4...ff3699`](https://testnet.arcscan.app/tx/0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699) contains a live `DeterministicFloatScored` event. Argus Alpha reached score `9000` after two paid and two repaid actions. Obol remains `LIMITED` with one paid action and open debt. Owner scoring functions such as `grantFloatFromScore`, `reduceLimit`, and `revoke` revert on sponsored lines, so these external lines are not silently edited by the V1 owner underwriter path.
+
 ### Argus Three-Agent Lifecycle
 
 Argus ran three agent lines through Shadow Float V2. Each row shows a signed V2 spend that paid the provider from sponsor reserve, then a repayment that restored the line.
@@ -170,6 +185,7 @@ Supporting M1 contracts are documented in [`docs/LEPTON_M1.md`](docs/LEPTON_M1.m
 - Direct provider payment from sponsor reserve.
 - Debt opening, repayment, and restored capacity.
 - Blocked overrun path with no provider transfer.
+- Autonomous sponsored-line scoring from on-chain behavior stats.
 - Source-matched deployed contract.
 - Live external activity board.
 - No-secret verifier for the current V2 loop.
@@ -181,7 +197,6 @@ Supporting M1 contracts are documented in [`docs/LEPTON_M1.md`](docs/LEPTON_M1.m
 - No production lending market.
 - No real Morpho vault integration yet.
 - No production treasury customer yet.
-- No autonomous ownerless underwriting yet. Receipt-derived scoring exists, but applying line updates remains owner/operator-controlled.
 - No EVM-native verification of subjective provider service quality. Provider delivery receipts are implemented and tested, but the standard live V2 verification loop currently proves payment and repayment, not service quality.
 
 ## Project Docs
