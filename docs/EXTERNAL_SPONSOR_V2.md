@@ -33,9 +33,27 @@ The sponsor wallet needs:
 
 The sponsor does not need to share a private key. They run the command locally.
 
+One-time setup from a fresh clone, at the repo root:
+
+```bash
+npm install --prefix app
+```
+
+The sponsor scripts import `viem` from `app/node_modules`.
+
 ## Sponsor Opens The Line
 
-From the Shadow repo:
+From the Shadow repo, dry run first:
+
+```bash
+SHADOW_FLOAT=0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
+FLOAT_SPONSOR_PRIVATE_KEY=0xSPONSOR_KEY \
+FLOAT_AGENT=0xAGENT_WALLET \
+SPONSOR_LINE_DRY_RUN=1 \
+npm run float:v2-sponsor-line
+```
+
+Then open the line:
 
 ```bash
 SHADOW_FLOAT=0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
@@ -44,16 +62,6 @@ FLOAT_AGENT=0xAGENT_WALLET \
 FLOAT_V2_LINE_ATOMIC=50000 \
 FLOAT_V2_MAX_PER_REQUEST_ATOMIC=10000 \
 FLOAT_V2_DAILY_LIMIT_ATOMIC=50000 \
-npm run float:v2-sponsor-line
-```
-
-Dry run first:
-
-```bash
-SHADOW_FLOAT=0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
-FLOAT_SPONSOR_PRIVATE_KEY=0xSPONSOR_KEY \
-FLOAT_AGENT=0xAGENT_WALLET \
-SPONSOR_LINE_DRY_RUN=1 \
 npm run float:v2-sponsor-line
 ```
 
@@ -74,6 +82,8 @@ FLOAT_INTENT_EXECUTOR=0xSPONSOR_OR_RELAYER \
 RATIONALE="External sponsor V2 line: agent uses Shadow Float to buy an approved paid provider resource." \
 node app/scripts/float-builder-sign.mjs
 ```
+
+Set `FLOAT_INTENT_EXECUTOR` to the sponsor's own address to keep the whole lifecycle external. The executor only submits the transaction; the provider payment comes from the sponsored reserve held by the contract.
 
 The agent sends back only:
 
@@ -113,6 +123,10 @@ node app/scripts/float-builder-repay.mjs
 ```
 
 The script reads the current V2 line debt, approves exactly that amount if needed, and calls `repay`. After repayment, `lines(agent).activeDebtUSDC` should be `0`, and the line should show restored capacity.
+
+## Reclaim The Reserve
+
+The reserve stays the sponsor's. Once the line has zero active debt, the sponsor can close the line at any time with `closeSponsoredLine(agent, recipient, requestHash)`. Closing writes a receipt and returns the entire reserve to the recipient the sponsor names. While debt is open, `closeSponsoredLine` reverts with `ActiveDebt`.
 
 ## Public Claim Boundary
 
