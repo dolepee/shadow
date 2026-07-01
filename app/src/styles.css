@@ -2642,7 +2642,7 @@ html {
   }
 
   .floatV2ActivityRow {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
   .floatV2ActivityIdentity {
