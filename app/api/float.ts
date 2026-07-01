@@ -515,7 +515,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
       registeredExternalLines: visibleAgents.filter((agent) => BigInt(agent.sponsorReserveUSDC) > 0n).length,
       signedIntents: visibleAgents.reduce((sum, agent) => sum + agent.signedIntents, 0),
       paidSpends: visibleAgents.reduce((sum, agent) => sum + agent.providerPaidCount, 0),
-      repaidLifecycles: visibleAgents.filter((agent) => BigInt(agent.repaidUSDC) > 0n && BigInt(agent.activeDebtUSDC) === 0n).length,
+      repaidLifecycles: visibleAgents.reduce((sum, agent) => sum + agent.repaidCount, 0),
       openDebtAgents: visibleAgents.filter((agent) => BigInt(agent.activeDebtUSDC) > 0n).length,
       providerPaidUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.providerPaidUSDC), 0n).toString(),
       repaidUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.repaidUSDC), 0n).toString(),

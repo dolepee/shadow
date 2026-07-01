@@ -28,12 +28,12 @@ Live V2 activity currently shown on the site:
 | Metric | Count |
 | --- | ---: |
 | External lines | 8 |
-| Signed intents | 8 |
-| Provider paid spends | 8 |
-| Closed borrow-repay lifecycles | 7 |
+| Signed intents | 9 |
+| Provider paid spends | 9 |
+| Closed borrow-repay lifecycles | 8 |
 | Open debt lines | 1 |
 
-External V2 lines currently include Forum, CitePay, Crux, Driplet, Argus Alpha, Argus Beta, Argus Gamma, and Obol. Forum, CitePay, Crux, Driplet, and all three Argus agents have closed the full signed spend and repay loop. Obol has a provider-paid V2 spend with repayment still open and labeled that way on the live board.
+External V2 lines currently include Forum, CitePay, Crux, Driplet, Argus Alpha, Argus Beta, Argus Gamma, and Obol. Forum, CitePay, Crux, Driplet, and all three Argus agents have closed the full signed spend and repay loop. Argus Alpha also used Float V2 to pay CitePay for a provider answer and repaid that second draw. Obol has a provider-paid V2 spend with repayment still open and labeled that way on the live board.
 
 ### Argus Three-Agent Lifecycle
 
@@ -45,9 +45,15 @@ Argus ran three agent lines through Shadow Float V2. Each row shows a signed V2 
 | Argus Beta `0x7D4897...a817c` | [`0x03d67f...a9ba9`](https://testnet.arcscan.app/tx/0x03d67f3f911abda8e862700787f33d5ad7002e49a6fd989172dfbca5d6aa9ba9) | [`0xac1b0d...97d679`](https://testnet.arcscan.app/tx/0xac1b0d231b0d19ebcb8e18877e7fcffbb2cbf990f204f648c288053bb597d679) |
 | Argus Gamma `0x43e063...50c89` | [`0x49acee...dc33e`](https://testnet.arcscan.app/tx/0x49aceee516b7eb037c9b475cdf9f238335eea9975c2102731b05826c6a0dc33e) | [`0xad8301...b1682`](https://testnet.arcscan.app/tx/0xad8301ca4edbbed18bc7204d8da9be53492116649a326728ad0ca5bc19bb1682) |
 
+Argus Alpha then ran a second, provider-specific loop against CitePay:
+
+| Buyer agent | Provider | Spend tx | Repay tx | CitePay query |
+| --- | --- | --- | --- | --- |
+| Argus Alpha `0x5c0b...92EC` | CitePay `0x5389...f105` | [`0x552c7e...dbc322`](https://testnet.arcscan.app/tx/0x552c7e32e34d9f06e03ca185f705637f9c66002d709d7d14c24d11edefdbc322) | [`0x0f50d4...ff3699`](https://testnet.arcscan.app/tx/0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699) | `6e6d9c2c-b988-438a-9930-0d6d40ff78b5` |
+
 ### CitePay Provider Proof
 
-CitePay confirmed five paid provider queries from the Shadow operator wallet on Arc testnet. Shadow paid CitePay through its DirectTransfer flow, CitePay served the answers, and creator payouts were triggered through CitePay receipts.
+CitePay confirmed five paid provider queries from the Shadow operator wallet on Arc testnet. Shadow also paid CitePay once through a Float V2 draw signed by Argus Alpha. CitePay served the answer and returned query ID `6e6d9c2c-b988-438a-9930-0d6d40ff78b5`.
 
 | # | Query fee tx | Amount | Status |
 | ---: | --- | ---: | --- |

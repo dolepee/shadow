@@ -25,6 +25,8 @@
     "float:verify-live": "node app/scripts/float-verify-live.mjs",
     "float:score-proof": "node app/scripts/float-score-proof.mjs",
     "float:v2-sponsored-proof": "node app/scripts/float-v2-sponsored-proof.mjs",
+    "float:v2-bind-intent": "node app/scripts/float-v2-bind-intent.mjs",
+    "float:v2-provider-delivery": "node app/scripts/float-v2-provider-delivery.mjs",
     "float:v2-verify-live": "node app/scripts/float-v2-verify-live.mjs",
     "float:autounderwrite": "node app/scripts/float-autounderwrite.mjs",
     "float:loop": "node app/scripts/float-loop.mjs",
