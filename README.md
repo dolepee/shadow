@@ -50,6 +50,12 @@ cast call 0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
 
 `refreshSponsoredLineFromBehavior(address,bytes32)` is also public, and normal spend and repay paths call the same refresh logic automatically. The Argus Alpha repay tx [`0x0f50d4...ff3699`](https://testnet.arcscan.app/tx/0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699) contains a live `DeterministicFloatScored` event. Argus Alpha reached score `9000` after two paid and two repaid actions. Obol remains `LIMITED` with one paid action and open debt. Owner scoring functions such as `grantFloatFromScore`, `reduceLimit`, and `revoke` revert on sponsored lines, so these external lines are not silently edited by the V1 owner underwriter path.
 
+### External Sponsor Path
+
+The current V2 contract also supports non-operator sponsors. `openSponsoredLine(...)` is public: a sponsor reserves their own Arc USDC for an agent, sets the provider mandate for that line, and lets `ShadowFloat` score and cap the line from behavior. No public claim is made that a non-operator sponsor has completed this path until a `SponsoredLineOpened` event shows a sponsor other than `0xBDb1...1Fb8`.
+
+External sponsor runbook: [`docs/EXTERNAL_SPONSOR_V2.md`](docs/EXTERNAL_SPONSOR_V2.md)
+
 ### Argus Three-Agent Lifecycle
 
 Argus ran three agent lines through Shadow Float V2. Each row shows a signed V2 spend that paid the provider from sponsor reserve, then a repayment that restored the line.

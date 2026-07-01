@@ -16,18 +16,31 @@ import { privateKeyToAccount } from "viem/accounts";
 // sender is you. You need the small debt amount in testnet USDC plus a little
 // gas. Run on YOUR machine; your key never leaves it.
 //
-//   BUILDER_PRIVATE_KEY=0x... node app/scripts/float-builder-repay.mjs
+//   SHADOW_FLOAT=0x... \
+//   EXPECTED_AGENT=0x... \
+//   BUILDER_PRIVATE_KEY=0x... \
+//   node app/scripts/float-builder-repay.mjs
 
-const RPC = clean(process.env.ARC_RPC_URL) || "https://rpc.testnet.arc.network";
+const RPC = clean(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
 const CHAIN_ID = 5_042_002;
-const FLOAT = getAddress(clean(process.env.SHADOW_FLOAT) || "0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
+const LEGACY_FLOAT = getAddress("0xf305647ba0ff7f1e2d4be5f37f2ef9f930531057");
+const FLOAT_RAW = clean(process.env.SHADOW_FLOAT);
+if (!FLOAT_RAW) throw new Error("set SHADOW_FLOAT to the deployed V2 ShadowFloat address before repaying");
+const FLOAT = getAddress(FLOAT_RAW);
+if (FLOAT === LEGACY_FLOAT && clean(process.env.ALLOW_LEGACY_FLOAT) !== "1") {
+  throw new Error("refusing to repay against the known V1 ShadowFloat address; set SHADOW_FLOAT to V2 or ALLOW_LEGACY_FLOAT=1");
+}
 const USDC = getAddress(clean(process.env.ARC_USDC) || "0x3600000000000000000000000000000000000000");
 
 const KEY = normalizeKey(clean(process.env.BUILDER_PRIVATE_KEY));
 if (!KEY) throw new Error("set BUILDER_PRIVATE_KEY to your registered agent wallet's key (it stays on your machine)");
+const EXPECTED_AGENT = clean(process.env.EXPECTED_AGENT);
 
 const account = privateKeyToAccount(KEY);
 const agent = account.address;
+if (EXPECTED_AGENT && getAddress(EXPECTED_AGENT) !== agent) {
+  throw new Error(`BUILDER_PRIVATE_KEY resolves to ${agent}, but expected ${getAddress(EXPECTED_AGENT)}`);
+}
 const chain = defineChain({
   id: CHAIN_ID,
   name: "Arc Testnet",
