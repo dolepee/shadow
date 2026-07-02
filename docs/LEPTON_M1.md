@@ -30,13 +30,13 @@ It is intentionally separate from `MirrorRouter`. Copy-trading remains adapter o
 
 - This is not a live Uniswap v4 hook on Arc.
 - This is not a live Morpho integration.
-- This is not a claimed protocol partnership.
+- This is not a claimed production protocol integration.
 - This does not add subjective slashing or human disputes.
 - This does not let an LLM override deterministic policy.
 
 The adapter is named `V4StyleArcAdapter` because Arc has announced Uniswap support, but Uniswap's official v4 deployment list does not currently publish an Arc PoolManager address. When an official Arc PoolManager exists, the adapter can be replaced by a real hook that calls the same mandate engine.
 
-The adapter is named `MorphoStyleVaultAdapter` because a Morpho-like deposit/allocation gate is the realistic first protocol-design-partner shape before Arc has live Uniswap v4 hooks. It is not claiming Morpho partnership or production integration; it proves that the primitive can gate a vault deposit before USDC moves.
+The adapter is named `MorphoStyleVaultAdapter` because a Morpho-like deposit/allocation gate is the realistic first protocol-design-collaboration shape before Arc has live Uniswap v4 hooks. It is not claiming Morpho integration or production use; it proves that the primitive can gate a vault deposit before USDC moves.
 
 ## Protocol Adapter Surfaces
 

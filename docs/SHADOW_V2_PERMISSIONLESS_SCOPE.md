@@ -12,9 +12,8 @@ cancellation before funds move.
 
 The V2 Float product is sponsor-funded by default: a sponsor deposits the reserve for a specific agent line and sets the
 allowed provider policy for that line. The sponsor can cleanly close after full repayment, or default an unrepaid line and
-recover only the reserve remainder after bad debt is written off. This is not permissionless unsecured underwriting; it is
-permissionless creation of reserve-backed, contract-enforced spending lines whose capacity is refreshed from
-contract-stored behavior.
+recover only the reserve remainder after bad debt is written off. The product is permissionless creation of
+reserve-backed, contract-enforced spending lines whose capacity is refreshed from contract-stored behavior.
 
 ## Non-Negotiable Guarantees
 
@@ -34,7 +33,7 @@ contract-stored behavior.
 - No external agent wallet can be drained by signing a Float intent.
 - No M1 adapter can force a deposit from a wallet just because it has allowance.
 - No "vault" wording without an exit path or a clear test-sink label.
-- No "permissionless underwriting" claim unless the evidence is derived and enforceable without operator judgment.
+- No broad credit-market claim unless the evidence is derived and enforceable without operator judgment.
 
 ## V1 Proof That Stays Valid
 
@@ -137,8 +136,8 @@ Implemented for V2 sponsored lines:
 - Automatic refresh runs after direct signed spend, blocked spend, and repayment.
 - The refreshed credit limit is capped by the sponsor's deposited reserve.
 
-This is not unsecured credit. The sponsor still supplies the capital at risk. The autonomous part is that the contract
-derives and applies the score/limit from recorded behavior instead of owner-submitted evidence.
+The sponsor still supplies the capital at risk. The autonomous part is that the contract derives and applies the score
+and limit from recorded behavior instead of owner-submitted evidence.
 
 ### x402 Bind
 
@@ -183,8 +182,8 @@ Required Float V2 tests:
 
 Allowed claim: "sponsor-funded lines refresh from contract-stored behavior."
 
-Not allowed claim: "permissionless unsecured credit underwriting." V2 does not let an unfunded agent borrow from a public
-treasury only because it has a good score. A sponsor or future pool must still reserve capital first.
+Not allowed claim: open-ended public credit. V2 does not let an unfunded agent borrow from a public treasury only because
+it has a good score. A sponsor or future pool must still reserve capital first.
 
 The off-chain verifier should still recompute the same score from receipts and compare it to `autonomousLineScore(...)`,
 but the V2 deploy proof should lead with the contract-stored behavior refresh because that path no longer depends on owner
@@ -259,7 +258,8 @@ Until then:
 - Let builders sign with their own tooling.
 - If a builder refuses to bind a main production agent, do not pressure them.
 - Burner agents are acceptable only if framed as builder-controlled test agents.
-- Public acknowledgements must be quoted accurately; no "partner" language unless they explicitly say partner.
+- Public acknowledgements must be quoted accurately; use tester, integrator, sponsor, or provider unless the other team
+  explicitly approves stronger wording.
 
 ## Deployment And Migration
 
@@ -310,7 +310,7 @@ Allowed:
 
 Not allowed until built:
 
-- "Fully permissionless credit underwriting."
+- "Open-ended public credit."
 - "Any integrator cannot bypass the enforcer."
 - "Gateway settlement is bound into Float."
 - "The agent runs your treasury without keys."
@@ -348,12 +348,12 @@ failure modes:
   final proof surfaces.
 - Current x402 provider proof is project-controlled unless an independent provider is actually paid and verified. Do not
   imply otherwise.
-- Circle depth should be claimed only where load-bearing: Arc USDC, x402, EIP-3009 now; Gateway only after a real
-  settlement resolver exists.
+- Circle depth should be claimed only where load-bearing: Arc USDC and V2 direct provider payment now; x402 and Gateway
+  only where the specific flow actually uses them.
 - "Agent runs your treasury without the keys" remains forbidden until the actor/account split and authorization model
   prove it. Use "signed, bounded authorization" and "verified adapters" instead.
-- "Autonomous underwriting" is forbidden until evidence is derived from public receipts and line movement is reproducible
-  without operator judgment.
+- Broad autonomous-credit wording is forbidden unless evidence is derived from public receipts and line movement is
+  reproducible without operator judgment.
 - Amounts can stay testnet-small, but the mechanism must be real and the fee/revenue language must say "fee mechanics,"
   not traction.
 - Mimir's advantage is legibility and distribution. Shadow's route to beating it is not more proof tables; it is a

@@ -46,7 +46,7 @@
         "name": "Shadow",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
-        "description": "Sponsor-backed USDC spending lines for autonomous agents on Arc, with signed intents, provider payment, debt, repayment, external sponsors, Gateway settlement evidence, and CCTP acknowledgement.",
+        "description": "Sponsor-backed USDC spending lines for autonomous agents on Arc, with signed intents, provider payment, debt, repayment, external sponsors, and contract-scored refresh.",
         "url": "https://shadow-arc.vercel.app/float",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
@@ -64,7 +64,7 @@
       <main data-prerender="shell" style="font-family:'Bricolage Grotesque',system-ui,sans-serif;max-width:860px;margin:48px auto;padding:24px;color:#f3f7ff;background:#07111f;border:1px solid rgba(184,211,255,.14);border-radius:22px">
         <header>
           <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow Float V2 · live on Arc testnet</p>
-          <h1 style="font-size:40px;margin:0 0 12px;line-height:1.05;letter-spacing:0">Agents can buy services before every wallet is pre funded.</h1>
+          <h1 style="font-size:40px;margin:0 0 12px;line-height:1.05;letter-spacing:0">Agents can buy services without pre-funding every wallet.</h1>
           <p style="font-size:17px;line-height:1.55;color:#c0cce0;margin:0 0 18px">
             Shadow Float lets a sponsor reserve Arc USDC for an agent. The agent signs a bounded intent, the contract pays the provider, debt opens, repayment restores capacity, and oversized requests are blocked before funds move.
           </p>
@@ -72,7 +72,7 @@
             External builders have used the V2 path, external sponsors have opened lines, and the autonomous desk publishes live decisions that are bound to onchain receipts.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:8px 0 0">
-            The app also shows Gateway settlement records and a CCTP acknowledgement so the supporting Circle flows are visible without changing the core payment path.
+            Gateway settlement records and a CCTP acknowledgement are documented as support notes; the core proof path is the V2 contract paying providers from sponsor-backed Arc USDC.
           </p>
         </header>
         <section>
@@ -82,7 +82,7 @@
             <li><strong>Provider payment</strong> · ShadowFloat pays approved providers from sponsor-backed Arc USDC</li>
             <li><strong>Float debt</strong> · debt opens onchain and repayment restores available capacity</li>
             <li><strong>External sponsor capital</strong> · outside wallets can reserve USDC for their own sponsored lines</li>
-            <li><strong>Circle evidence</strong> · Gateway settlement records and CCTP acknowledgement are shown as supporting flows</li>
+            <li><strong>Circle support</strong> · Gateway settlement and CCTP acknowledgement are documented separately from the core Float path</li>
             <li><strong>Overreach block</strong> · oversized requests move no provider funds</li>
           </ul>
           <p style="font-size:14px;color:#8fb4d9;margin:8px 0 0">

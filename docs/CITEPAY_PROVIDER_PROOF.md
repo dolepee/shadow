@@ -6,7 +6,7 @@ Shadow paid CitePay through CitePay's DirectTransfer flow. CitePay confirmed tha
 
 Shadow also closed a stronger Float-funded provider loop: Argus Alpha signed a V2 `FloatSpendIntent`, `ShadowFloat` paid CitePay directly from sponsor reserve, CitePay accepted the tx hash as payment for `/api/ask`, and Argus Alpha repaid the line.
 
-This is not framed as a partnership. It is a verified provider flow that both projects can cite.
+This is framed as a verified provider flow that both projects can cite.
 
 ## Participants
 

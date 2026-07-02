@@ -1,40 +1,60 @@
 # Shadow Float Underwriting
 
-Shadow Float currently uses **receipt-derived behavior evidence** plus a deterministic v0 score formula exposed in both the contract and the public API.
+This document describes the current judged underwriting path first, then labels the older v0 owner-run score path separately.
 
-That means the score endpoint derives behavior counts from `FloatReceipt` logs wherever the behavior is onchain-visible. The contract exposes `deterministicScore(...)`, `recommendedLimitUSDC(score)`, and `grantFloatFromScore(...)`; the API at `GET /api/float-tools?action=score&address=0x...` recomputes the same suggested score and line from the current Float evidence window.
+## Current V2 Sponsored Lines
 
-The remaining trust assumption is execution: in the Lepton version, an owner/operator still submits the evidence counts to `grantFloatFromScore` and performs line changes. A reviewer can recompute the receipt-derived counts from chain logs, compare the API result to the current line, and verify signed external spends through the signed-intent verifier links. `npm run float:autounderwrite` turns those public counts into proposed line raises/cuts, and can apply them only when explicitly run by the contract owner. This is deterministic v0 underwriting over public receipts, not permissionless lending yet.
+Shadow Float V2 uses sponsor-backed lines. A sponsor reserves Arc USDC for a specific agent, and `ShadowFloat` caps that line by the smaller of:
 
-## Current Inputs
+- the sponsor's reserve; and
+- the contract's deterministic limit recommendation for the agent's behavior score.
 
-For Lepton, v0 scoring inputs are:
+Safe claim:
 
-- line label: lab, invited, self-test, or demo;
-- paid-bound Float runs;
-- signed external x402 Float runs;
-- repayments;
-- blocked overreach;
-- denied attempts;
-- execution errors.
+> Shadow Float V2 provides permissionless sponsor-funded lines with contract-enforced signed spends and contract-scored refresh from recorded behavior.
 
-The contract records the resulting `score`, `creditLimitUSDC`, `availableCreditUSDC`, `activeDebtUSDC`, and `status` in `lines(address)`.
+Unsafe claims:
 
-## Evidence Sources
+- "open-ended public credit";
+- "unreserved borrowing";
+- "anyone can submit evidence";
+- "public lending market."
 
-| Input | Source | Trust label |
-| --- | --- | --- |
-| line label | configured lab / invited / self-test / demo address sets | operator-configured |
-| paid-bound runs | Float receipts with `SPEND_ALLOWED`, `PROVIDER_PAID`, `DEBT_OPENED`, and matching `X402PaymentBound` | receipt-derived |
-| signed external paid runs | signed-intent metadata plus matching receipt-derived paid-bound evidence | externally signed + onchain verified |
-| repayments | Float receipts and line state | onchain-derived |
-| blocked overreach | Float receipts with `SPEND_BLOCKED` / `AMOUNT_TOO_HIGH` | onchain-derived |
-| denied attempts | Float receipts with `CREDIT_DENIED` | onchain-derived |
-| current line | `ShadowFloat.lines(address)` | onchain-derived |
+Sponsors supply the capital at risk. The contract supplies the signed-spend checks, behavior counters, deterministic scoring, and reserve-capped line refresh.
 
-The score endpoint returns `evidenceMode`, `evidenceCompleteness`, `evidenceSources`, `currentLine`, `computed`, `supportCheck`, and `trustAssumption` so the limitation is visible in the same API response as the score.
+## V2 Evidence Inputs
 
-## Deterministic v0 Formula
+The V2 contract stores `behaviorStats(agent)` and updates those counters only through contract-verified line activity:
+
+- paid-bound behavior;
+- signed external paid behavior;
+- repayment behavior;
+- blocked overrun behavior;
+- denied behavior;
+- execution error behavior.
+
+The signed spend path checks signer, nonce, expiry, provider, endpoint, amount, executor, and max cumulative debt before payment. When a spend, block, or repay occurs, the contract refreshes the sponsored line from the stored behavior counters.
+
+Public inspection:
+
+```bash
+cast call 0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
+  "autonomousLineScore(address)(uint16,uint256,uint256)" \
+  0x5c0b33b209f510868E07792Edc46c3792B0b92EC \
+  --rpc-url https://rpc.testnet.arc.network
+```
+
+Anyone can also call:
+
+```text
+refreshSponsoredLineFromBehavior(address agent, bytes32 reasonHash)
+```
+
+Normal spend, blocked-spend, and repay paths call the same internal refresh logic automatically.
+
+## Deterministic Formula
+
+The V2 formula is exposed in the contract through `deterministicScore(...)` and `recommendedLimitUSDC(score)`.
 
 ```text
 base:
@@ -52,37 +72,38 @@ adjustments:
   -300 per ERROR run, max 3
 
 limit bands:
-  score >= 9000: 1.00 USDC line
-  score >= 8000: 0.05 USDC line
-  score >= 7500: 0.025 USDC line
+  score >= 9000: 1.00 USDC recommended line
+  score >= 8000: 0.05 USDC recommended line
+  score >= 7500: 0.025 USDC recommended line
   otherwise: 0
 ```
 
-The verifier returns `supportCheck.scoreSupported` and `supportCheck.limitSupported`, so a reviewer can see whether the public score supports the current onchain line.
+For sponsored lines, the spendable cap is still limited by sponsor reserve.
 
-## Current Safe Claim
+## Owner Controls And Sponsored Lines
 
-> Shadow Float gives receipt-derived, behavior-backed USDC spending lines to autonomous agents on Arc, with owner/operator-controlled line execution in v0.
+The owner-run V1/v0 line-management functions are not the current external-line refresh mechanism. For sponsored V2 lines, owner scoring functions such as `grantFloatFromScore`, `reduceLimit`, and `revoke` revert with the sponsored-line guard. The sponsor path is intentionally narrower: the sponsor funds reserve and provider mandate; the contract scores recorded behavior and caps spendable capacity by reserve.
 
-## Claims We Do Not Make Yet
+## Historical V1/v0 Score Proof
 
-- The evidence window is receipt-derived, but current Lepton lines are not permissionlessly auto-updated.
-- The contract does not independently judge subjective service quality.
-- Invited builder signatures are external usage tests, not partnerships.
+The older score endpoint and `npm run float:score-proof` remain useful historical context. They recompute receipt-derived standing-board evidence from prior Float receipts and can explain how the score formula evolved.
 
-## Verifiable Surfaces
+Historical surfaces:
 
-- `GET /api/float?mode=v2` shows current V2 external activity.
-- `GET /api/float` remains the historical V1 receipt API.
-- `GET /api/float-tools?action=agent&address=0x...` reads a single line.
-- `GET /api/float-tools?action=score&address=0x...` recomputes the deterministic v0 score.
-- `GET /api/float-tools?action=verify&hash=0x...` verifies an external signed Float intent.
-- `ShadowFloat.lines(address)` is the canonical onchain line state.
-- `ShadowFloat.deterministicScore(...)` and `ShadowFloat.recommendedLimitUSDC(...)` expose the v0 formula onchain.
-- `ShadowFloat.grantFloatFromScore(...)` grants a line from the deterministic formula once receipt-derived evidence counts are submitted.
-- `npm run float:score-proof` checks score evidence across the standing board.
-- `npm run float:autounderwrite` dry-runs line updates from receipt-derived evidence; `FLOAT_AUTOUNDERWRITE_APPLY=1` applies them with the owner key, and `FLOAT_AUTOUNDERWRITE_AUTO_FUND=1` can pre-fund any reserve shortfall.
+- `GET /api/float` for the old V1 receipt API;
+- `GET /api/float-tools?action=score&address=0x...` for score recomputation;
+- `npm run float:score-proof` for the standing-board score proof;
+- `npm run float:autounderwrite` for the old owner-run proposal flow.
 
-## Next Step
+Do not present these as the current permissionless V2 sponsored-line mechanism. The current judge path is:
 
-The mainnet-ready version should move from owner-run automation to a policy-controlled verifier module that submits the receipt-derived score input window automatically and adjusts lines without manual review.
+```bash
+npm run float:v2-verify-live
+curl -s https://shadow-arc.vercel.app/api/float?mode=v2
+```
+
+## What Is Not Claimed
+
+- The contract does not judge subjective provider service quality by itself.
+- Provider delivery receipts are implemented and tested, but they are not part of the standard live V2 proof loop yet.
+- Invited builder activity is integration testing unless the other team explicitly approves stronger wording.

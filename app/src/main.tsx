@@ -2008,7 +2008,7 @@ function App() {
               <span className="heroBadgeDot" />
               Shadow Float V2 · live on Arc testnet
             </div>
-            <h1>Agents can buy services before every wallet is pre funded.</h1>
+            <h1>Agents can buy services without pre-funding every wallet.</h1>
             <p className="lede">
               Shadow Float gives autonomous agents a small, policy-bound USDC spending line. A sponsor reserves Arc USDC,
               the agent signs a bounded intent, the contract pays the provider, debt opens, repayment restores capacity,
@@ -2094,7 +2094,7 @@ function App() {
     <div className="routePage">
       <section className="pageHead">
         <p className="pageEyebrow">builders · agent access</p>
-        <h1 className="pageTitle">Give your agent sponsor-backed capacity without pre funding it first.</h1>
+        <h1 className="pageTitle">Give your agent sponsor-backed capacity without pre-funding it first.</h1>
         <p className="pageLede">
           Shadow Float is for buyer agents that need paid data, compute, or API calls under strict policy. The agent signs
           a bounded intent; V2 verifies it onchain, pays the named provider from sponsor reserve, and records the debt trail.
@@ -2154,8 +2154,8 @@ function App() {
         <h1 className="pageTitle">What is live on Arc, and what comes next.</h1>
         <p className="pageLede">
           Shadow Float now covers the full testnet loop: sponsor reserve, signed authorization, provider payment, debt,
-          repayment, automated scoring, external sponsors, Gateway settlement evidence, and CCTP acknowledgement. The next
-          work is production custody and larger provider markets.
+          repayment, automated scoring, external sponsors, and labeled open debt. Gateway settlement and CCTP acknowledgement
+          stay as supporting Circle notes, not the Float proof path.
         </p>
       </section>
       <section className="roadmapStatusBand" aria-label="Live Shadow Float milestones">
@@ -2171,8 +2171,8 @@ function App() {
         </article>
         <article>
           <span>matured</span>
-          <strong>Circle interop evidence</strong>
-          <p>Gateway settled recorded Desk amounts, and CCTP attestation verification is live through Shadow&apos;s acknowledgement route.</p>
+          <strong>Circle support notes</strong>
+          <p>Gateway and CCTP work is documented as supporting interop evidence. The judged Float path remains Arc USDC payment from reserve.</p>
         </article>
       </section>
       <section className="roadmapGrid" aria-label="Shadow Float roadmap">
@@ -2537,11 +2537,11 @@ function TreasuryProofPanel({
     },
     {
       status: "proven",
-      title: "Read-only checks cover both paths",
+      title: "Read-only records expose the path",
       amount: `${formatFloatUSDC(TREASURY_PROOF.feeUSDC)} fee`,
-      receipt: "npm run treasury:verify-live",
-      meaning: "The command checks the payment tx, bind event, vault movement, blocked no-move path, debt, and fee.",
-      links: [{ label: "repo", href: "https://github.com/dolepee/shadow" }],
+      receipt: "/api/treasury",
+      meaning: "The API surfaces the payment tx, vault movement, blocked no-move path, debt, and fee as supporting M1 records.",
+      links: [{ label: "API", href: "/api/treasury" }],
     },
   ];
 
@@ -2644,7 +2644,7 @@ function TreasuryProofPanel({
         <span>External Float signed usage is live.</span>
         <span>CitePay and Forum gave technical feedback on the adapter record path.</span>
         <span>
-          API and CLI both check the combined path: <code>/api/treasury</code> and <code>npm run treasury:verify-live</code>.
+          The current judged verifier path is Float V2; these records stay as supporting M1 context at <code>/api/treasury</code>.
         </span>
       </div>
     </section>
@@ -3749,11 +3749,11 @@ function FloatDeskJournal({
       </div>
       <div className="floatDeskGateway">
         <div>
-          <span>Circle Gateway settlement</span>
+          <span>Circle Gateway support note</span>
           <strong>{FLOAT_DESK_GATEWAY_PROOF.totalUSDC} USDC batched over {FLOAT_DESK_GATEWAY_PROOF.rows} Desk cycles</strong>
           <p>
-            Gateway settled recorded Desk amounts after provider payments landed. This shows settlement plumbing for small
-            Desk amounts, separate from V2 provider payment and external traction.
+            Gateway records show settlement plumbing for small Desk amounts after provider payments landed. This stays
+            separate from the V2 provider-payment proof and external traction.
           </p>
         </div>
         <div className="floatDeskGatewayProofs">
@@ -6864,7 +6864,7 @@ function LeptonM1Panel({
       {!compact && (
         <div className="leptonBoundaries">
           <span>v4-style adapter, not a claimed Uniswap hook</span>
-          <span>Morpho-style adapter, not a claimed Morpho partnership</span>
+          <span>Morpho-style adapter, not a claimed Morpho integration</span>
           <span>objective missing-receipt slashing only</span>
           <span>deterministic policy; no LLM override</span>
         </div>

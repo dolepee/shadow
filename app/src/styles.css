@@ -50,6 +50,13 @@ html {
   scroll-behavior: smooth;
 }
 
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -3160,6 +3167,7 @@ input:focus-visible {
 .shell {
   margin: 0 auto;
   max-width: 1320px;
+  min-width: 0;
   min-height: 100vh;
   overflow-x: clip;
   padding: 18px 32px 48px;
@@ -3176,6 +3184,7 @@ input:focus-visible {
   box-shadow: 0 18px 70px -46px rgba(52, 229, 255, 0.55);
   display: flex;
   justify-content: space-between;
+  min-width: 0;
   padding: 14px 18px;
   position: sticky;
   top: 12px;
@@ -3191,6 +3200,7 @@ input:focus-visible {
   gap: 10px;
   letter-spacing: -0.02em;
   text-decoration: none;
+  min-width: 0;
 }
 
 .shadowMark {
@@ -3265,6 +3275,7 @@ input:focus-visible {
   padding: 9px 14px;
   text-decoration: none;
   transition: background 140ms ease, border-color 140ms ease;
+  white-space: nowrap;
 }
 
 .navCta:hover {
@@ -3771,14 +3782,19 @@ input:focus-visible {
 
 @media (max-width: 520px) {
   .shell {
-    padding-left: 18px;
-    padding-right: 18px;
+    padding-left: 12px;
+    padding-right: 12px;
+    width: 100%;
   }
 
   .nav {
     align-items: flex-start;
     display: grid;
     grid-template-columns: 1fr;
+    overflow: hidden;
+    padding-left: 14px;
+    padding-right: 14px;
+    width: 100%;
   }
 
   .navLinks {
@@ -3794,7 +3810,8 @@ input:focus-visible {
 
   .navActions {
     align-items: stretch;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 8px;
     width: 100%;
   }
@@ -3807,6 +3824,16 @@ input:focus-visible {
     padding-left: 10px;
     padding-right: 10px;
   }
+
+  .navWallet {
+    font-size: 10.5px;
+    gap: 6px;
+  }
+
+  .navCta {
+    font-size: 12px;
+    white-space: normal;
+  }
 }
 
 .navActions {
@@ -3818,7 +3845,8 @@ input:focus-visible {
 @media (max-width: 520px) {
   .navActions {
     align-items: stretch;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 8px;
     width: 100%;
   }
@@ -3914,6 +3942,7 @@ input:focus-visible {
   display: grid;
   gap: 52px;
   grid-template-columns: minmax(0, 0.9fr) minmax(420px, 0.78fr);
+  min-width: 0;
   position: relative;
 }
 
@@ -3943,6 +3972,7 @@ input:focus-visible {
   letter-spacing: 0;
   line-height: 1.02;
   max-width: 760px;
+  overflow-wrap: anywhere;
 }
 
 .hero .lede {
@@ -5541,21 +5571,26 @@ input:focus-visible {
     border-radius: 20px;
     max-width: 100%;
     min-width: 0;
+    overflow-x: clip;
     padding: 44px 18px 24px;
+    width: 100%;
   }
   .hero h1 {
-    font-size: 38px;
+    font-size: clamp(32px, 9vw, 38px);
     letter-spacing: 0;
     line-height: 1.08;
     max-width: 100%;
     overflow-wrap: anywhere;
+    word-break: normal;
   }
   .heroGrid {
     gap: 36px;
     min-width: 0;
+    width: 100%;
   }
   .heroCopy {
     min-width: 0;
+    width: 100%;
   }
   .heroBadge {
     margin-bottom: 22px;
@@ -5581,6 +5616,7 @@ input:focus-visible {
     gap: 10px 18px;
     margin-top: 28px;
     padding-top: 18px;
+    width: 100%;
   }
   .heroTrust li {
     font-size: 11.5px;
@@ -5588,6 +5624,7 @@ input:focus-visible {
   }
   .heroMetrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
   }
   .heroMetric {
     padding: 16px 18px;

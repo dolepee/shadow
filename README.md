@@ -39,7 +39,7 @@ Live V2 activity currently shown on the site:
 | Closed borrow-repay lifecycles | 10 |
 | Open debt lines | 1 |
 
-External V2 lines currently include Forum, CitePay, Crux, Driplet, Argus Alpha, Argus Beta, Argus Gamma, Obol, CitePay sponsor, and Forum Tollgate sponsor. Forum, CitePay, Crux, Driplet, all three Argus agents, CitePay sponsor, and Forum Tollgate sponsor have closed the signed spend and repay loop. Argus Alpha also used Float V2 to pay CitePay for a provider answer and repaid that second draw. Obol has a provider-paid V2 spend with repayment still open and labeled that way on the live board.
+The live board shows 9 active external lines. The full external activity table also includes Forum Tollgate's closed sponsor lifecycle row, where the sponsor reclaimed the reserve and the active line is no longer counted. Forum, CitePay, Crux, Driplet, all three Argus agents, CitePay sponsor, and Forum Tollgate sponsor have closed the signed spend and repay loop. Argus Alpha also used Float V2 to pay CitePay for a provider answer and repaid that second draw. Obol has a provider-paid V2 spend with repayment still open and labeled that way on the live board.
 
 ### Autonomous Underwriting Is Deployed
 
@@ -153,7 +153,7 @@ Arc's agentic workflow lane combines identity, settlement, and programmable cont
 
 Shadow uses Arc USDC as the settlement asset. The historical V1 path binds x402/EIP-3009 settlement hashes into Float receipts. V2 removes the blind operator-bind gap by verifying the agent intent in the contract and paying the provider directly from reserved USDC.
 
-Circle Gateway is exercised as additive settlement plumbing over recorded Desk activity: two Desk PAY cycles totaling `0.002` USDC were settled through Gateway batching on Jul 2, 2026. This is not the V2 provider payment path and is not counted as external traction; it shows how sub-cent Desk economics can batch through Circle tooling. Details: [`docs/GATEWAY.md`](docs/GATEWAY.md).
+Circle Gateway is documented as additive settlement plumbing over recorded Desk activity: two Desk PAY cycles totaling `0.002` USDC were settled through Gateway batching on Jul 2, 2026 and are served from `/api/settlements` under `deskRecords`. This is not the V2 provider payment path and is not counted as external traction; it shows how sub-cent Desk economics can batch through Circle tooling. Details: [`docs/GATEWAY.md`](docs/GATEWAY.md).
 
 Circle CCTP is exercised as a live acknowledgement path: Shadow verified a Sepolia USDC burn attestation through `/api/cctp-funding` on Jul 2, 2026. This proves attestation verification, not Arc minting or Float credit. Details: [`docs/CCTP.md`](docs/CCTP.md).
 
@@ -169,7 +169,7 @@ Records page: https://shadow-arc.vercel.app/treasury
 
 Records API: `GET https://shadow-arc.vercel.app/api/treasury`
 
-Records verifier: `npm run treasury:verify-live`
+The Records surface is supporting context. The current judged proof path is the V2 verifier below.
 
 Next M1 hardening:
 
@@ -205,16 +205,16 @@ npm run agent:typecheck
 
 npm run float:v2-verify-live
 curl -s https://shadow-arc.vercel.app/api/float?mode=v2
-curl -s https://shadow-arc.vercel.app/api/treasury
-npm run treasury:verify-live
+curl -s https://shadow-arc.vercel.app/api/desk
 ```
 
 Additional historical checks:
 
 ```bash
-npm run float:verify-live
 npm run float:score-proof
 ```
+
+Historical checks are kept for context, not as the Lepton judge path.
 
 ## Contract Surface
 
