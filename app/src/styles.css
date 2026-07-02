@@ -1034,6 +1034,46 @@ html {
   border-color: rgba(50, 215, 255, 0.45);
 }
 
+.floatV2BoardGuide {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 12px 0;
+}
+
+.floatV2BoardGuide div {
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid rgba(184, 211, 255, 0.1);
+  border-radius: 10px;
+  padding: 11px;
+}
+
+.floatV2BoardGuide span {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+
+.floatV2BoardGuide strong {
+  color: var(--ink);
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+.floatV2BoardGuide p {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 6px 0 0;
+}
+
 .floatV2ActivityStats {
   display: grid;
   gap: 10px;
@@ -2811,6 +2851,10 @@ html {
 
   .floatV2ActivityStats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .floatV2BoardGuide {
+    grid-template-columns: 1fr;
   }
 
   .floatMetricGrid {
@@ -5443,21 +5487,36 @@ input:focus-visible {
 @media (max-width: 720px) {
   .hero {
     border-radius: 20px;
+    max-width: 100%;
+    min-width: 0;
     padding: 44px 18px 24px;
   }
   .hero h1 {
     font-size: 38px;
     letter-spacing: 0;
     line-height: 1.08;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
   .heroGrid {
     gap: 36px;
+    min-width: 0;
+  }
+  .heroCopy {
+    min-width: 0;
   }
   .heroBadge {
     margin-bottom: 22px;
   }
   .heroActions {
+    align-items: stretch;
+    flex-direction: column;
     margin-top: 26px;
+  }
+  .heroCtaPrimary,
+  .heroCtaSecondary {
+    justify-content: center;
+    width: 100%;
   }
   .heroTrust {
     gap: 10px 18px;
@@ -5756,6 +5815,8 @@ input:focus-visible {
   }
   .heroLedger {
     border-radius: 12px;
+    max-width: 100%;
+    min-width: 0;
   }
 }
 
@@ -8595,8 +8656,16 @@ code {
   }
 
   .navActions {
-    align-items: flex-end;
-    flex-direction: column;
+    align-items: stretch;
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .navWallet,
+  .navCta {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
   }
 }
 
@@ -9981,6 +10050,11 @@ code {
   color: var(--block);
 }
 
+.heroLedgerCell.settled {
+  background: linear-gradient(180deg, rgba(52, 229, 255, 0.06), transparent 70%);
+  color: var(--accent);
+}
+
 .heroLedgerCellHead {
   align-items: center;
   display: flex;
@@ -10016,6 +10090,10 @@ code {
   box-shadow: 0 0 10px rgba(255, 95, 126, 0.58);
 }
 
+.heroLedgerCell.settled .heroLedgerCellDot {
+  box-shadow: 0 0 10px rgba(52, 229, 255, 0.58);
+}
+
 .heroLedgerCellAddr {
   color: var(--ink-faint);
   font-family: var(--mono);
@@ -10038,6 +10116,10 @@ code {
   opacity: 0.85;
 }
 
+.heroLedgerCell.settled .heroLedgerCellMain {
+  color: var(--ink);
+}
+
 .heroLedgerCellUnit {
   color: var(--ink-soft);
   font-family: var(--mono);
@@ -10050,6 +10132,10 @@ code {
 .heroLedgerCell.blocked .heroLedgerCellUnit {
   color: var(--block);
   opacity: 0.85;
+}
+
+.heroLedgerCell.settled .heroLedgerCellUnit {
+  color: var(--accent);
 }
 
 .heroLedgerCellMeta {
@@ -10068,6 +10154,11 @@ code {
   border-color: var(--block-glow);
 }
 
+.heroLedgerCell.settled .heroLedgerCellMeta {
+  background: rgba(52, 229, 255, 0.055);
+  border-color: rgba(52, 229, 255, 0.2);
+}
+
 .heroLedgerCellMetaLabel {
   color: var(--ink-faint);
   font-family: var(--mono);
@@ -10082,6 +10173,10 @@ code {
   opacity: 0.85;
 }
 
+.heroLedgerCell.settled .heroLedgerCellMetaLabel {
+  color: var(--accent);
+}
+
 .heroLedgerCellMetaValue {
   color: var(--ink-soft);
   font-family: var(--mono);
@@ -10090,6 +10185,10 @@ code {
 }
 
 .heroLedgerCell.blocked .heroLedgerCellMetaValue {
+  color: var(--ink);
+}
+
+.heroLedgerCell.settled .heroLedgerCellMetaValue {
   color: var(--ink);
 }
 

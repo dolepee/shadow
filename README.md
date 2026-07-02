@@ -159,17 +159,17 @@ Circle CCTP is exercised as a live acknowledgement path: Shadow verified a Sepol
 
 Circle wallet tooling was explored for future onboarding, but it is not required for the current Float V2 spend path.
 
-## Treasury And M1
+## Supporting Records And M1
 
-Shadow Treasury and M1 are supporting mandate rails, not the primary product surface.
+The Records surface and M1 are supporting mandate rails, not the primary product surface.
 
-The Treasury page shows an execution wallet using approved adapters to allocate Arc testnet USDC when a bonded enforcer returns `ALLOW`, and move zero funds when the same adapter path returns `BLOCK`. This validates the policy shape, but it is not claimed as a production treasury customer or a real Morpho deployment.
+The Records page shows an execution wallet using approved adapters to allocate Arc testnet USDC when a bonded enforcer returns `ALLOW`, and move zero funds when the same adapter path returns `BLOCK`. This validates the policy shape, but it is not claimed as a production treasury customer or a real Morpho deployment.
 
-Treasury page: https://shadow-arc.vercel.app/treasury
+Records page: https://shadow-arc.vercel.app/treasury
 
-Treasury API: `GET https://shadow-arc.vercel.app/api/treasury`
+Records API: `GET https://shadow-arc.vercel.app/api/treasury`
 
-Treasury verifier: `npm run treasury:verify-live`
+Records verifier: `npm run treasury:verify-live`
 
 Next M1 hardening:
 

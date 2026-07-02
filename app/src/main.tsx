@@ -2047,8 +2047,8 @@ function App() {
           <span className="pageNextArrow">→</span>
         </Link>
         <Link to="/treasury" className="pageNextCard">
-          <span className="pageNextEyebrow">mandate extension</span>
-          <span className="pageNextTitle">See the M1 adapter allocate when allowed and move nothing when blocked</span>
+          <span className="pageNextEyebrow">records</span>
+          <span className="pageNextTitle">Check the supporting adapter records without leaving the Float story</span>
           <span className="pageNextArrow">→</span>
         </Link>
         <Link to="/builders" className="pageNextCard">
@@ -2216,7 +2216,7 @@ function App() {
             Home
           </NavLink>
           <NavLink to="/treasury" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
-            Treasury
+            Records
           </NavLink>
           <NavLink to="/float" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Float
@@ -2294,14 +2294,14 @@ function TreasuryHero({ treasuryState }: {
   ];
   const verifierLabel = treasuryState
     ? treasuryState.ok
-      ? `${treasuryState.checks?.filter((check) => check.ok).length || 0}/${treasuryState.checks?.length || 0} Treasury checks`
-      : "Treasury verifier red"
-    : "Treasury verifier ready";
+      ? `${treasuryState.checks?.filter((check) => check.ok).length || 0}/${treasuryState.checks?.length || 0} record checks`
+      : "record verifier red"
+    : "record verifier ready";
 
   return (
-    <section className="treasuryHero" aria-label="Shadow Treasury overview">
+    <section className="treasuryHero" aria-label="Shadow supporting records overview">
       <div className="treasuryHeroCopy">
-        <p className="eyebrow">supporting treasury records</p>
+        <p className="eyebrow">supporting records</p>
         <h1>Mandate checks and settlement records sit behind the Float product.</h1>
         <p>
           This page keeps the supporting rails visible without making them the main story: approved-adapter checks,
@@ -2322,7 +2322,7 @@ function TreasuryHero({ treasuryState }: {
         </div>
       </div>
 
-      <aside className="treasuryFlow" aria-label="Shadow Treasury flow">
+      <aside className="treasuryFlow" aria-label="Shadow supporting records flow">
         <div className="treasuryFlowHeader">
           <span>execution wallet</span>
           <code>{shortAddress(TREASURY_PROOF.operator)}</code>
@@ -2354,7 +2354,7 @@ function TreasuryHero({ treasuryState }: {
         </div>
       </aside>
 
-      <div className="treasuryHeroStats" aria-label="Shadow Treasury live amounts">
+      <div className="treasuryHeroStats" aria-label="Shadow supporting record amounts">
         {railStats.map((stat) => (
           <div className={`treasuryHeroStat ${stat.tone}`} key={stat.label}>
             <span>{stat.label}</span>
@@ -2395,13 +2395,13 @@ function TreasuryEvidenceStrip({ treasuryState }: { treasuryState: TreasuryState
   ];
 
   return (
-    <section className="treasuryEvidenceStrip" aria-label="Shadow Treasury onchain evidence">
+    <section className="treasuryEvidenceStrip" aria-label="Shadow supporting records onchain evidence">
       <div className="treasuryEvidenceIntro">
         <span>onchain evidence</span>
         <strong>{treasuryState?.ok ? `${passed}/${total} live checks pass` : "contracts and txs visible"}</strong>
         <p>Contract addresses and ArcScan transactions are visible from the product surface.</p>
       </div>
-      <div className="treasuryEvidenceGroup" aria-label="Treasury contracts">
+      <div className="treasuryEvidenceGroup" aria-label="Record contracts">
         {contractLinks.map((item) => (
           <a href={item.href} target="_blank" rel="noreferrer" key={item.label}>
             <span>{item.label}</span>
@@ -2409,7 +2409,7 @@ function TreasuryEvidenceStrip({ treasuryState }: { treasuryState: TreasuryState
           </a>
         ))}
       </div>
-      <div className="treasuryEvidenceGroup" aria-label="Treasury transactions">
+      <div className="treasuryEvidenceGroup" aria-label="Record transactions">
         {txLinks.map((item) => (
           <a href={item.href} target="_blank" rel="noreferrer" key={item.label}>
             <span>{item.label}</span>
@@ -2458,7 +2458,7 @@ function TreasuryRailSplit({
   ];
 
   return (
-    <section className="treasuryRailSection" aria-label="Shadow Treasury rail split">
+    <section className="treasuryRailSection" aria-label="Shadow supporting records rail split">
       <div className="treasurySectionHeader">
         <p className="eyebrow">supporting rails</p>
         <h2>Payments, adapter movement, and settlement records stay separated and verifiable.</h2>
@@ -2641,7 +2641,7 @@ function TreasuryProofPanel({
 
       <div className="treasuryBoundary">
         <span>External Float signed usage is live.</span>
-        <span>CitePay and Forum gave technical feedback on the Treasury receipt path.</span>
+        <span>CitePay and Forum gave technical feedback on the adapter record path.</span>
         <span>
           API and CLI both check the combined rail: <code>/api/treasury</code> and <code>npm run treasury:verify-live</code>.
         </span>
@@ -2732,11 +2732,11 @@ function TreasuryLiveVerifierPanel({
     : null;
 
   return (
-    <section className="treasuryLiveVerifier" aria-label="Live Shadow Treasury verifier">
+    <section className="treasuryLiveVerifier" aria-label="Live Shadow records verifier">
       <div className="treasuryLiveVerifierHeader">
         <div>
           <p className="eyebrow">live verifier · no private keys</p>
-          <h2>The Treasury page reads the same onchain checks as the CLI.</h2>
+          <h2>The Records page reads the same onchain checks as the CLI.</h2>
           <p>
             This endpoint verifies the mandate adapter path from live Arc state. The current Float V2 payment anchors are
             shown on the Float page.
@@ -2763,7 +2763,7 @@ function TreasuryLiveVerifierPanel({
                 ? `${failed} check${failed === 1 ? "" : "s"} need attention before relying on this view.`
                 : state
                   ? `All ${passed} live checks passed${checkedAt ? ` at ${checkedAt}` : ""}.`
-                  : "Waiting for the live Treasury API to return."}
+                  : "Waiting for the live records API to return."}
             </p>
             <div>
               <a href="/api/treasury" target="_blank" rel="noreferrer">
@@ -3552,6 +3552,23 @@ function FloatV2ActivityBoard({
         <a href="/api/float?mode=v2" target="_blank" rel="noreferrer">
           Live API
         </a>
+      </div>
+      <div className="floatV2BoardGuide" aria-label="How to read the external agent board">
+        <div>
+          <span>closed</span>
+          <strong>signed, paid, repaid</strong>
+          <p>The provider was paid from reserve, then the agent restored the line.</p>
+        </div>
+        <div>
+          <span>open debt</span>
+          <strong>provider paid, repay pending</strong>
+          <p>The service payment happened already. The agent still has debt on its line.</p>
+        </div>
+        <div>
+          <span>blocked</span>
+          <strong>no provider transfer</strong>
+          <p>Oversized or denied requests are refused before any reserve moves.</p>
+        </div>
       </div>
 
       <div className="floatV2ActivityStats">
@@ -6112,22 +6129,22 @@ function HeroDiagram() {
       <div className="heroLedgerHeader">
         <span className="heroLedgerHeaderTitle">
           <span className="heroLedgerHeaderDot" />
-          Shadow Float · live path
+          Shadow Float · external lifecycle
         </span>
         <span className="heroLedgerLive">
           <span className="heroLedgerLiveDot" />
-          Arc · signed intent
+          Arc · V2 receipt
         </span>
       </div>
 
       <div className="heroLedgerIntent">
-        <span className="heroLedgerIntentLabel">Agent signed intent</span>
+        <span className="heroLedgerIntentLabel">Argus Alpha signed intent</span>
         <div className="heroLedgerIntentBody">
-          <span className="agentTag">Forum</span>
+          <span className="agentTag">Argus</span>
           <span className="heroLedgerIntentVerb">buy</span>
-          <span className="heroLedgerIntentNumber">provider data</span>
+          <span className="heroLedgerIntentNumber">CitePay answer</span>
           <span className="heroLedgerIntentArrow">→</span>
-          <span className="heroLedgerIntentNumber">0.01&nbsp;USDC</span>
+          <span className="heroLedgerIntentNumber">0.001&nbsp;USDC</span>
         </div>
       </div>
 
@@ -6138,38 +6155,38 @@ function HeroDiagram() {
               <span className="heroLedgerCellDot" />
               PAID
             </span>
-            <span className="heroLedgerCellAddr">approved provider</span>
+            <span className="heroLedgerCellAddr">CitePay provider</span>
           </div>
-          <div className="heroLedgerCellMain">+0.01</div>
-          <div className="heroLedgerCellUnit">USDC paid from reserve</div>
+          <div className="heroLedgerCellMain">+0.001</div>
+          <div className="heroLedgerCellUnit">USDC paid from sponsor reserve</div>
           <div className="heroLedgerCellMeta">
             <span className="heroLedgerCellMetaLabel">receipt</span>
-            <span className="heroLedgerCellMetaValue">intent consumed · debt opened · capacity reduced</span>
+            <span className="heroLedgerCellMetaValue">intent consumed · answer served · debt opened</span>
           </div>
         </div>
-        <div className="heroLedgerCell blocked">
+        <div className="heroLedgerCell settled">
           <div className="heroLedgerCellHead">
             <span className="heroLedgerCellStatus">
               <span className="heroLedgerCellDot" />
-              BLOCKED
+              REPAID
             </span>
-            <span className="heroLedgerCellAddr">premium request</span>
+            <span className="heroLedgerCellAddr">same agent line</span>
           </div>
-          <div className="heroLedgerCellMain">0.00</div>
-          <div className="heroLedgerCellUnit">USDC moved from treasury</div>
+          <div className="heroLedgerCellMain">0.001</div>
+          <div className="heroLedgerCellUnit">USDC returned to Float</div>
           <div className="heroLedgerCellMeta">
-            <span className="heroLedgerCellMetaLabel">policy rule</span>
-            <span className="heroLedgerCellMetaValue">amount&nbsp;&gt;&nbsp;line · blocked before spend</span>
+            <span className="heroLedgerCellMetaLabel">line state</span>
+            <span className="heroLedgerCellMetaValue">debt cleared · capacity restored · score refreshed</span>
           </div>
         </div>
       </div>
 
       <div className="heroLedgerProof">
         <span className="heroLedgerProofLabel">Float receipt</span>
-        <span className="heroLedgerProofHash">signature + provider payment + debt</span>
+        <span className="heroLedgerProofHash">Argus Alpha + CitePay + repayment</span>
         <span className="heroLedgerProofSep" />
         <span className="heroLedgerProofChain">chain&nbsp;5042002</span>
-        <span className="heroLedgerProofVerify">verified onchain</span>
+        <span className="heroLedgerProofVerify">live receipt</span>
       </div>
     </div>
   );
@@ -6182,7 +6199,7 @@ function SiteFooter() {
       links: [
         { label: "Home", href: "/" },
         { label: "Shadow Float", href: "/float" },
-        { label: "Treasury / M1", href: "/treasury" },
+        { label: "Records", href: "/treasury" },
         { label: "Roadmap", href: "/roadmap" },
       ],
     },
