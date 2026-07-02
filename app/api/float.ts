@@ -493,6 +493,13 @@ async function handleFloatV2(res: VercelLikeResponse) {
         ])) as [FloatV2Line, FloatV2SponsorLine, FloatV2BehaviorStats, FloatV2AutonomousScore];
         const status = Number(line[5]);
         const lastReview = line[6].toString();
+        const sponsorReserveUSDC = sponsorLine[1].toString();
+        const sponsorState =
+          sponsorLine[1] > 0n
+            ? "active-reserve"
+            : entry.repaidCount > 0 && line[2] === 0n && line[4] === 0n
+              ? "closed-reserve-reclaimed"
+              : "none";
         return {
           label: entry.label,
           category: "external",
@@ -521,7 +528,8 @@ async function handleFloatV2(res: VercelLikeResponse) {
             cappedLimitUSDC: autonomousScore[2].toString(),
           },
           sponsor: sponsorLine[0],
-          sponsorReserveUSDC: sponsorLine[1].toString(),
+          sponsorReserveUSDC,
+          sponsorState,
           signedIntents: entry.signedIntents,
           providerPaidCount: entry.providerPaidCount,
           repaidCount: entry.repaidCount,

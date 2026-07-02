@@ -531,6 +531,7 @@ type FloatV2AgentState = {
   };
   sponsor: Address;
   sponsorReserveUSDC: string;
+  sponsorState?: "active-reserve" | "closed-reserve-reclaimed" | "none";
   signedIntents: number;
   providerPaidCount: number;
   repaidCount: number;
@@ -754,6 +755,7 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
       sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address,
       sponsorReserveUSDC: "50000",
+      sponsorState: "active-reserve",
       signedIntents: 1,
       providerPaidCount: 1,
       repaidCount: 1,
@@ -783,6 +785,7 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       autonomousScore: { score: 5000, recommendedLimitUSDC: "0", cappedLimitUSDC: "0" },
       sponsor: "0x0000000000000000000000000000000000000000" as Address,
       sponsorReserveUSDC: "0",
+      sponsorState: "closed-reserve-reclaimed",
       signedIntents: 1,
       providerPaidCount: 1,
       repaidCount: 1,
@@ -1058,6 +1061,13 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
         readFloatV2AutonomousScore(client, stats.agent, latestBlock),
       ]);
       const status = Number(line[5]);
+      const sponsorReserveUSDC = sponsorLine[1].toString();
+      const sponsorState =
+        sponsorLine[1] > 0n
+          ? "active-reserve"
+          : stats.repaidCount > 0 && line[2] === 0n && line[4] === 0n
+            ? "closed-reserve-reclaimed"
+            : "none";
       return {
         label: stats.label,
         category: stats.category,
@@ -1086,7 +1096,8 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
           cappedLimitUSDC: autonomousScore[2].toString(),
         },
         sponsor: sponsorLine[0],
-        sponsorReserveUSDC: sponsorLine[1].toString(),
+        sponsorReserveUSDC,
+        sponsorState,
         signedIntents: stats.signedIntents,
         providerPaidCount: stats.providerPaidCount,
         repaidCount: stats.repaidCount,
@@ -3301,7 +3312,7 @@ function classifyFloatV2Lifecycle(agent: FloatV2AgentState): {
 } {
   const activeDebt = asAtomicUSDC(agent.activeDebtUSDC);
   if (agent.repaidCount > 0 && activeDebt === 0n) {
-    if (asAtomicUSDC(agent.sponsorReserveUSDC) === 0n && asAtomicUSDC(agent.creditLimitUSDC) === 0n) {
+    if (agent.sponsorState === "closed-reserve-reclaimed" || (asAtomicUSDC(agent.sponsorReserveUSDC) === 0n && asAtomicUSDC(agent.creditLimitUSDC) === 0n)) {
       return { label: "closed", detail: "paid, repaid, reserve reclaimed", tone: "closed" };
     }
     return { label: "closed", detail: "signed, paid, repaid", tone: "closed" };
@@ -3406,6 +3417,7 @@ function FloatV2ActivityBoard({
           {agents.map((agent) => {
             const href = agent.latestTxHash || agent.repayTx || agent.spendTx;
             const lifecycle = classifyFloatV2Lifecycle(agent);
+            const reserveReclaimed = lifecycle.detail.includes("reserve reclaimed");
             const row = (
               <>
                 <div className="floatV2ActivityIdentity">
@@ -3429,8 +3441,8 @@ function FloatV2ActivityBoard({
                 </div>
                 <div className="floatV2ActivityMetric">
                   <span>line</span>
-                  <strong>{formatFloatUSDC(agent.creditLimitUSDC)}</strong>
-                  <small>cap {formatFloatUSDC(agent.autonomousScore?.cappedLimitUSDC || agent.creditLimitUSDC)}</small>
+                  <strong>{reserveReclaimed ? "closed" : formatFloatUSDC(agent.creditLimitUSDC)}</strong>
+                  <small>{reserveReclaimed ? "reserve reclaimed" : `cap ${formatFloatUSDC(agent.autonomousScore?.cappedLimitUSDC || agent.creditLimitUSDC)}`}</small>
                 </div>
                 <div className="floatV2ActivityMetric">
                   <span>debt</span>
