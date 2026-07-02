@@ -592,6 +592,7 @@ type FloatDeskEntry = {
     clampReasons?: string[];
   };
   bookNote?: string;
+  assessment?: string;
   txs?: {
     spend?: {
       txHash?: Hash;
@@ -3755,7 +3756,8 @@ function FloatDeskRow({ entry }: { entry: FloatDeskEntry }) {
       <div className="floatDeskReason">
         <strong>{entry.decision?.rationale || entry.bookNote || "Desk cycle recorded."}</strong>
         <small>
-          {clamped ? `policy clamped: ${entry.decision?.clampReasons?.join(", ") || "yes"}` : entry.bookNote || "chain policy unchanged"}
+          {entry.assessment ||
+            (clamped ? `policy clamped: ${entry.decision?.clampReasons?.join(", ") || "yes"}` : entry.bookNote || "chain policy unchanged")}
         </small>
       </div>
       <div className="floatDeskProofs">

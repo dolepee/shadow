@@ -186,11 +186,13 @@ async function runDeskCycle() {
       entry.txs.repay = await executeRepay(state, clamped.rationale);
     }
     entry.reviews = await reviewTrackedLines();
-    entry.counts = summarizeHistory(history.concat(entry));
     entry.ok = true;
+    entry.assessment = assessDeskOutcome(entry);
+    entry.counts = summarizeHistory(history.concat(entry));
   } catch (error) {
     entry.ok = false;
     entry.error = sanitizeError(error);
+    entry.assessment = assessDeskOutcome(entry);
     if (!isPolicySkip(entry)) throw error;
   } finally {
     if (LIVE) await persistDeskEntry(kv, history, entry);
@@ -252,6 +254,7 @@ async function readDeskState(history) {
       provider: entry.decision?.provider,
       outcome: entry.ok === false ? "ERROR" : entry.outcome || "OK",
       rationale: entry.decision?.rationale,
+      assessment: entry.assessment,
     })),
   };
 }
@@ -269,6 +272,8 @@ async function decideDeskAction(state) {
         "Choose one action: PAY, SKIP, REPAY, or HOLD.",
         "PAY buys one tiny provider resource when the book would benefit from a fresh external answer.",
         "The desk mandate weighs BOTH costs: spend costs budget, but staleness costs too. A book with no external answer inside the last 24 hours (or none ever) is stale.",
+        "Use recent outcome assessments as memory. Do not repeat low-value spends just because they succeeded onchain.",
+        "If the book needs a fresh external answer, choose citepay. Shadow is an internal control provider, not an external answer source.",
         "REPAY clears open lab debt when debt discipline matters.",
         "SKIP or HOLD is correct when policy, budget, usefulness, or freshness does not justify a spend.",
         'JSON shape: {"action":"PAY|SKIP|REPAY|HOLD","provider":"citepay|shadow","amountAtomic":"1000","rationale":"one sentence","bookNote":"one short line about the live Float book"}',
@@ -793,6 +798,27 @@ function summarizeHistory(history) {
     settles: history.filter((entry) => entry.txs?.settle?.txHash).length,
     clamps: history.filter((entry) => entry.decision?.wasClamped).length,
   };
+}
+
+function assessDeskOutcome(entry) {
+  const action = entry.decision?.action;
+  const provider = entry.decision?.provider;
+  if (entry.ok === false) return "Failed cycle: preserve capital until the failure is understood.";
+  if (action === "PAY") {
+    if (provider === "citepay") {
+      if (entry.txs?.ask?.ok && entry.txs.ask?.receipt?.hasAnswer) {
+        const citations = entry.txs.ask.receipt.citationCount;
+        return citations === undefined
+          ? "Useful external answer: CitePay returned an answer for the paid query."
+          : `Useful external answer: CitePay returned an answer with ${citations} cited source${citations === 1 ? "" : "s"}.`;
+      }
+      return "Weak external answer: CitePay payment landed, but no answer receipt was confirmed in the journal.";
+    }
+    return "Control spend: internal provider payment settled, but it did not refresh external-answer coverage.";
+  }
+  if (action === "REPAY") return "Useful discipline action: open lab debt was repaid.";
+  if (action === "SKIP" || action === "HOLD") return "No spend: capital preserved, but no new provider answer was learned.";
+  return "Cycle recorded without a classified outcome.";
 }
 
 function serializeProposal(decision) {
