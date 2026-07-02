@@ -1128,6 +1128,85 @@ html {
   color: var(--ink);
 }
 
+.floatDeskLineCard {
+  background:
+    linear-gradient(135deg, rgba(50, 215, 255, 0.09), rgba(77, 240, 168, 0.04)),
+    rgba(7, 17, 31, 0.58);
+  border: 1px solid rgba(50, 215, 255, 0.18);
+  border-radius: 16px;
+  margin-top: 14px;
+  padding: 14px;
+}
+
+.floatDeskLineBody {
+  align-items: stretch;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(360px, 1.4fr);
+  margin-top: 12px;
+}
+
+.floatDeskLineLead {
+  background: rgba(7, 17, 31, 0.48);
+  border: 1px solid rgba(184, 211, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.floatDeskLineLead span {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.floatDeskLineLead strong {
+  color: var(--ink);
+  display: block;
+  font-family: var(--mono);
+  font-size: 22px;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.floatDeskLineLead p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 10px 0 0;
+}
+
+.floatDeskLineStats {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.floatDeskLineProofs {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+.floatDeskLineProofs a {
+  border: 1px solid rgba(50, 215, 255, 0.18);
+  border-radius: 999px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 10px;
+  text-decoration: none;
+}
+
+.floatDeskLineProofs a:hover {
+  border-color: rgba(50, 215, 255, 0.42);
+}
+
 .floatDeskJournal {
   background:
     linear-gradient(135deg, rgba(77, 240, 168, 0.08), rgba(50, 215, 255, 0.035)),
@@ -2628,6 +2707,7 @@ html {
   .floatReceiptList,
   .floatExternalRow,
   .floatV2ActivityRow,
+  .floatDeskLineBody,
   .floatDeskRow {
     grid-template-columns: 1fr;
   }
@@ -2651,6 +2731,7 @@ html {
 
   .floatLoopStats,
   .floatLoopSplit,
+  .floatDeskLineStats,
   .floatDeskStats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2800,6 +2881,7 @@ html {
   }
 
   .floatV2ActivityStats,
+  .floatDeskLineStats,
   .floatDeskStats {
     grid-template-columns: 1fr;
   }

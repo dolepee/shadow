@@ -633,10 +633,26 @@ type FloatDeskEntry = {
   error?: string;
 };
 
+type FloatDeskLabLine = {
+  agent?: Address;
+  label?: string;
+  score?: number;
+  creditLimitUSDC?: string;
+  availableCreditUSDC?: string;
+  activeDebtUSDC?: string;
+  statusName?: string;
+  sponsor?: Address;
+  sponsorReserveUSDC?: string;
+  recommendedLimitUSDC?: string;
+  cappedLimitUSDC?: string;
+  scoredByContract?: boolean;
+};
+
 type FloatDeskState = {
   ok?: boolean;
   mode?: string;
   checkedAt?: string;
+  labLine?: FloatDeskLabLine | null;
   entries?: FloatDeskEntry[];
   counts?: {
     cycles: number;
@@ -3311,6 +3327,7 @@ function FloatV2CurrentPanel({
       </div>
 
       <FloatV2ActivityBoard state={state} loading={loading} error={error} />
+      <FloatDeskLabLineCard state={deskState} loading={deskLoading} error={deskError} />
       <FloatDeskJournal state={deskState} loading={deskLoading} error={deskError} />
       <FloatV2WorkflowPanel />
       <FloatV2UseCasePanel />
@@ -3584,6 +3601,75 @@ function FloatV2ActivityBoard({
           <span>Rows appear after registered external agents sign or repay on Float V2.</span>
         </div>
       )}
+    </section>
+  );
+}
+
+function FloatDeskLabLineCard({
+  state,
+  loading,
+  error,
+}: {
+  state: FloatDeskState | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  const labLine = state?.labLine || null;
+  const latest = state?.entries?.[0];
+  const latestSpend = latest?.txs?.spend;
+  const latestSettle = latest?.txs?.settle;
+  const status = error
+    ? "desk line read needs review"
+    : loading && !labLine
+      ? "reading desk line"
+      : labLine
+        ? `${labLine.statusName || "UNKNOWN"} · scored by contract`
+        : "desk line pending";
+
+  return (
+    <section className="floatDeskLineCard" aria-label="Float Desk lab line">
+      <div className="floatBoxHeader">
+        <span>Float Desk lab line</span>
+        <small>{status}</small>
+      </div>
+      <div className="floatDeskLineBody">
+        <div className="floatDeskLineLead">
+          <span>autonomous operator</span>
+          <strong>{labLine?.agent ? shortAddress(labLine.agent) : "desk agent"}</strong>
+          <p>
+            The Desk line is lab-labeled and separated from external traction. It earns capacity from the same
+            contract-scored behavior path used by sponsored external lines.
+          </p>
+        </div>
+        <div className="floatDeskLineStats">
+          <FloatFact label="score" value={labLine?.score !== undefined ? String(labLine.score) : loading ? "reading" : "pending"} />
+          <FloatFact label="limit" value={labLine?.creditLimitUSDC ? `${formatFloatUSDC(labLine.creditLimitUSDC)} USDC` : loading ? "reading" : "pending"} />
+          <FloatFact label="available" value={labLine?.availableCreditUSDC ? `${formatFloatUSDC(labLine.availableCreditUSDC)} USDC` : loading ? "reading" : "pending"} />
+          <FloatFact label="debt" value={labLine?.activeDebtUSDC ? `${formatFloatUSDC(labLine.activeDebtUSDC)} USDC` : loading ? "reading" : "pending"} />
+          <FloatFact label="reserve" value={labLine?.sponsorReserveUSDC ? `${formatFloatUSDC(labLine.sponsorReserveUSDC)} USDC` : loading ? "reading" : "pending"} />
+          <FloatFact label="settled cycles" value={state?.counts ? String((state.counts.settles || 0) + state.counts.repays) : loading ? "reading" : "0"} />
+        </div>
+        <div className="floatDeskLineProofs">
+          {latestSpend?.requestHash && (
+            <a href={latestSpend.txHash ? txUrl(latestSpend.txHash) : "/api/desk"} target="_blank" rel="noreferrer">
+              rationale digest {shortHash(latestSpend.requestHash)}
+            </a>
+          )}
+          {latestSpend?.txHash && (
+            <a href={txUrl(latestSpend.txHash)} target="_blank" rel="noreferrer">
+              latest spend {shortAddress(latestSpend.txHash)}
+            </a>
+          )}
+          {latestSettle?.txHash && (
+            <a href={txUrl(latestSettle.txHash)} target="_blank" rel="noreferrer">
+              latest settle {shortAddress(latestSettle.txHash)}
+            </a>
+          )}
+          <a href="/api/desk" target="_blank" rel="noreferrer">
+            Desk API
+          </a>
+        </div>
+      </div>
     </section>
   );
 }
