@@ -153,7 +153,7 @@ Arc's agentic workflow lane combines identity, settlement, and programmable cont
 
 Shadow uses Arc USDC as the settlement asset. The historical V1 path binds x402/EIP-3009 settlement hashes into Float receipts. V2 removes the blind operator-bind gap by verifying the agent intent in the contract and paying the provider directly from reserved USDC.
 
-Circle Gateway remains roadmap. Shadow has paid an independent Gateway-batched Arc x402 seller in lab, but per-transfer onchain settlement binding into Float receipts needs a resolver that maps a specific Gateway transfer to its onchain settlement and bindable `bytes32`.
+Circle Gateway is exercised as additive settlement plumbing over recorded Desk activity: two Desk PAY cycles totaling `0.002` USDC were settled through Gateway batching on Jul 2, 2026. This is not the V2 provider payment path and is not counted as external traction; it shows how sub-cent Desk economics can batch through Circle infrastructure. Details: [`docs/GATEWAY.md`](docs/GATEWAY.md).
 
 Circle Modular Wallets and Gas Station were demonstrated for passkey-based onboarding. They are useful for future agent onboarding, but they are not required for the current Float V2 spend path.
 

@@ -1256,6 +1256,67 @@ html {
   text-decoration: none;
 }
 
+.floatDeskGateway {
+  align-items: center;
+  background: rgba(50, 215, 255, 0.055);
+  border: 1px solid rgba(50, 215, 255, 0.16);
+  border-radius: 12px;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin: 0 0 12px;
+  padding: 12px;
+}
+
+.floatDeskGateway span {
+  color: var(--accent);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.floatDeskGateway strong {
+  color: var(--ink);
+  display: block;
+  font-size: 16px;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.floatDeskGateway p {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 6px 0 0;
+  max-width: 820px;
+}
+
+.floatDeskGatewayProofs {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.floatDeskGatewayProofs span,
+.floatDeskGatewayProofs a {
+  border: 1px solid rgba(184, 211, 255, 0.14);
+  border-radius: 999px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0;
+  margin: 0;
+  padding: 6px 8px;
+  text-decoration: none;
+  text-transform: none;
+}
+
 .floatDeskStats {
   display: grid;
   gap: 10px;
@@ -2878,6 +2939,15 @@ html {
 
   .floatDeskIntro a {
     text-align: center;
+  }
+
+  .floatDeskGateway {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .floatDeskGatewayProofs {
+    justify-content: flex-start;
   }
 
   .floatV2ActivityStats,

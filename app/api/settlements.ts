@@ -20,6 +20,7 @@ const DEFAULT_USDC = "0x3600000000000000000000000000000000000000";
 const DEFAULT_GATEWAY_WALLET = "0x0077777d7EBA4688BDeF3E311b846F25870A19B9";
 const DEFAULT_FEE_ATOMIC = "100"; // 0.0001 USDC at 6 decimals.
 const SETTLEMENT_INDEX_KEY = "gateway:settlements:index:v1";
+const DESK_SETTLEMENT_INDEX_KEY = "gateway:desk:settlements:index:v1";
 const SETTLEMENT_LIMIT = 300;
 
 type VercelLikeRequest = {
@@ -73,6 +74,45 @@ type SettlementRequest = {
   intentId?: string | number;
 };
 
+type DeskSettlementRequest = {
+  cycle?: string;
+  spendTx?: string;
+  settleTx?: string;
+  requestHash?: string;
+  amountUSDC?: string | number;
+  provider?: string;
+};
+
+type DeskSettlementTarget = {
+  cycle: string;
+  spendTx: Hex;
+  settleTx: Hex | null;
+  requestHash: Hex;
+  amountAtomic: bigint;
+  provider: string;
+  timestamp: string;
+};
+
+type DeskSettlementRecord = {
+  cycle: string;
+  spendTx: Hex;
+  settleTx: Hex | null;
+  requestHash: Hex;
+  amountAtomic: string;
+  amountUSDC: string;
+  provider: string;
+  gatewayBatchId: string | null;
+  gatewayTx: string | null;
+  payer: string | null;
+  network: "arc-testnet";
+  rail: "circle-gateway-x402-batching";
+  scope: "desk-settlement-layer";
+  status: "settled";
+  at: string;
+  deskTimestamp: string;
+  testnet: true;
+};
+
 type PaymentPayload = {
   x402Version: number;
   resource?: { url: string; description: string; mimeType: string };
@@ -107,7 +147,9 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
 async function handleGet(res: VercelLikeResponse) {
   const kv = kvConfigFromEnv();
   const configured = settlementConfigFromEnv();
-  const records = kv ? await loadSettlementIndex(kv).catch(() => []) : [];
+  const [records, deskRecords] = kv
+    ? await Promise.all([loadSettlementIndex(kv).catch(() => []), loadDeskSettlementIndex(kv).catch(() => [])])
+    : [[], []];
   res.status(200).json({
     configured: Boolean(configured),
     kvConfigured: Boolean(kv),
@@ -117,6 +159,7 @@ async function handleGet(res: VercelLikeResponse) {
     feeAtomic: (configured?.feeAtomic ?? BigInt(process.env.GATEWAY_NANOSETTLEMENT_FEE_ATOMIC || DEFAULT_FEE_ATOMIC)).toString(),
     feeUSDC: formatUnits(configured?.feeAtomic ?? BigInt(process.env.GATEWAY_NANOSETTLEMENT_FEE_ATOMIC || DEFAULT_FEE_ATOMIC), 6),
     records,
+    deskRecords,
     missing: missingSettlementEnv(),
   });
 }
@@ -133,7 +176,7 @@ async function handlePost(req: VercelLikeRequest, res: VercelLikeResponse) {
     return;
   }
 
-  let body: SettlementRequest;
+  let body: SettlementRequest | DeskSettlementRequest;
   try {
     body = await readBody(req);
   } catch {
@@ -141,9 +184,14 @@ async function handlePost(req: VercelLikeRequest, res: VercelLikeResponse) {
     return;
   }
 
+  if (isDeskSettlementRequest(body)) {
+    await handleDeskSettlementPost(req, res, gate, kv, body);
+    return;
+  }
+
   let target: Required<SettlementRequest> & { mirrorTx: Hex; follower: Address; sourceAgent: Address; intentId: string };
   try {
-    target = normalizeSettlementRequest(body);
+    target = normalizeSettlementRequest(body as SettlementRequest);
   } catch (error) {
     res.status(400).json({ error: sanitizeError(error) });
     return;
@@ -223,6 +271,92 @@ async function handlePost(req: VercelLikeRequest, res: VercelLikeResponse) {
   }
 }
 
+async function handleDeskSettlementPost(
+  req: VercelLikeRequest,
+  res: VercelLikeResponse,
+  gate: SettlementConfig,
+  kv: KVConfig,
+  body: DeskSettlementRequest,
+) {
+  let target: DeskSettlementTarget;
+  try {
+    target = await normalizeAndVerifyDeskSettlement(body, kv);
+  } catch (error) {
+    res.status(422).json({ error: sanitizeError(error), charged: false });
+    return;
+  }
+
+  const existing = await kvGet<DeskSettlementRecord>(kv, deskSettlementRecordKey(target)).catch(() => null);
+  if (existing) {
+    res.status(200).json({ duplicate: true, settlement: existing });
+    return;
+  }
+
+  const requirements = deskPaymentRequirements(req, gate, target);
+  const paymentSignature = readHeader(req, "payment-signature");
+  if (!paymentSignature) {
+    res.setHeader("PAYMENT-REQUIRED", encodeHeader({ x402Version: 2, resource: deskResource(req, target), accepts: [requirements] }));
+    res.status(402).json({
+      x402Version: 2,
+      error: "Gateway payment required",
+      accepts: [requirements],
+      charged: false,
+    });
+    return;
+  }
+
+  let payload: PaymentPayload;
+  try {
+    payload = parsePaymentSignature(paymentSignature);
+  } catch (error) {
+    res.status(402).json({ error: sanitizeError(error), accepts: [requirements], charged: false });
+    return;
+  }
+
+  try {
+    const facilitator = new BatchFacilitatorClient(gate.facilitatorUrl ? { url: gate.facilitatorUrl } : undefined);
+    const verifyResult = await facilitator.verify(payload, requirements);
+    if (!verifyResult.isValid) {
+      throw new Error(verifyResult.invalidReason || "Gateway payment verification failed");
+    }
+
+    const settleResult = await facilitator.settle(payload, requirements);
+    if (!settleResult.success) {
+      throw new Error(settleResult.errorReason || "Gateway settlement failed");
+    }
+
+    const gatewayTx = settleResult.transaction || null;
+    const record: DeskSettlementRecord = {
+      cycle: target.cycle,
+      spendTx: target.spendTx,
+      settleTx: target.settleTx,
+      requestHash: target.requestHash,
+      amountAtomic: target.amountAtomic.toString(),
+      amountUSDC: formatUnits(target.amountAtomic, 6),
+      provider: target.provider,
+      gatewayBatchId: gatewayTx,
+      gatewayTx,
+      payer: settleResult.payer || verifyResult.payer || null,
+      network: "arc-testnet",
+      rail: "circle-gateway-x402-batching",
+      scope: "desk-settlement-layer",
+      status: "settled",
+      at: new Date().toISOString(),
+      deskTimestamp: target.timestamp,
+      testnet: true,
+    };
+
+    await saveDeskSettlement(kv, record);
+    res.setHeader("PAYMENT-RESPONSE", encodeHeader({ success: true, transaction: gatewayTx, network: ARC_NETWORK, payer: record.payer }));
+    res.status(200).json({
+      settlement: record,
+      note: "Gateway settlement-layer proof over a recorded Float Desk cycle. This is not the provider payment path.",
+    });
+  } catch (error) {
+    res.status(402).json({ error: sanitizeError(error), accepts: [requirements], charged: false });
+  }
+}
+
 // Vercel env values on this project are known to carry literal "\n" tails
 // (see SHADOW_ROUTER); always sanitize before address validation.
 function cleanEnv(value: string | undefined): string | undefined {
@@ -292,6 +426,89 @@ function resource(req: VercelLikeRequest, target: { mirrorTx: Hex; follower: Add
     description: `Shadow copied mirror nanosettlement for intent ${target.intentId}`,
     mimeType: "application/json",
   };
+}
+
+function isDeskSettlementRequest(body: SettlementRequest | DeskSettlementRequest): body is DeskSettlementRequest {
+  return Boolean((body as DeskSettlementRequest).cycle || (body as DeskSettlementRequest).spendTx);
+}
+
+async function normalizeAndVerifyDeskSettlement(body: DeskSettlementRequest, kv: KVConfig): Promise<DeskSettlementTarget> {
+  const cycle = cleanString(body.cycle);
+  const spendTx = cleanString(body.spendTx);
+  const requestHash = cleanString(body.requestHash);
+  if (!cycle) throw new Error("cycle is required");
+  if (!isHash(spendTx)) throw new Error("spendTx must be a transaction hash");
+  if (!isHash(requestHash)) throw new Error("requestHash must be bytes32");
+
+  const entries = await readFloatDeskRuns(kv);
+  const match = entries.find((entry) => {
+    const spend = entry?.txs?.spend;
+    return (
+      entry?.cycle === cycle &&
+      typeof spend?.txHash === "string" &&
+      spend.txHash.toLowerCase() === spendTx.toLowerCase() &&
+      typeof spend?.requestHash === "string" &&
+      spend.requestHash.toLowerCase() === requestHash.toLowerCase()
+    );
+  });
+  if (!match) throw new Error("matching Float Desk PAY cycle not found");
+  if (match?.decision?.action !== "PAY") throw new Error("only PAY desk cycles can be gateway-settled");
+
+  const spend = match.txs?.spend;
+  const amountAtomic = BigInt(spend?.amountUSDC || "0");
+  if (amountAtomic <= 0n) throw new Error("desk spend amount is missing");
+  const suppliedAmount = cleanString(body.amountUSDC);
+  if (suppliedAmount && BigInt(suppliedAmount) !== amountAtomic) {
+    throw new Error("amountUSDC does not match the Desk journal");
+  }
+  const provider = cleanString(spend?.provider || match.decision?.provider || body.provider || "unknown");
+  const settleTx = cleanString(match.txs?.settle?.txHash || body.settleTx || "");
+  if (settleTx && !isHash(settleTx)) throw new Error("settleTx must be a transaction hash");
+
+  return {
+    cycle,
+    spendTx: spendTx as Hex,
+    settleTx: settleTx ? (settleTx as Hex) : null,
+    requestHash: requestHash as Hex,
+    amountAtomic,
+    provider,
+    timestamp: cleanString(match.ts || new Date().toISOString()),
+  };
+}
+
+function deskPaymentRequirements(req: VercelLikeRequest, gate: SettlementConfig, target: DeskSettlementTarget) {
+  return {
+    scheme: "exact",
+    network: ARC_NETWORK,
+    asset: gate.usdc,
+    amount: target.amountAtomic.toString(),
+    payTo: gate.payTo,
+    maxTimeoutSeconds: 2_592_000,
+    extra: {
+      name: "GatewayWalletBatched",
+      version: "1",
+      verifyingContract: gate.gatewayWallet,
+      receipt: {
+        scope: "shadow-float-desk",
+        cycle: target.cycle,
+        spendTx: target.spendTx,
+        requestHash: target.requestHash,
+      },
+    },
+  };
+}
+
+function deskResource(req: VercelLikeRequest, target: DeskSettlementTarget) {
+  return {
+    url: absoluteUrl(req),
+    description: `Shadow Float Desk Gateway settlement for cycle ${target.cycle}`,
+    mimeType: "application/json",
+  };
+}
+
+async function readFloatDeskRuns(kv: KVConfig): Promise<any[]> {
+  const current = await kvGet<any[]>(kv, "float:desk:runs");
+  return Array.isArray(current) ? current : [];
 }
 
 async function assertCopiedMirrorReceipt(
@@ -389,6 +606,23 @@ function settlementRecordKey(record: { mirrorTx: string; follower: string; inten
   return `gateway:settlement:${record.mirrorTx.toLowerCase()}:${record.follower.toLowerCase()}:${record.intentId}`;
 }
 
+async function saveDeskSettlement(kv: KVConfig, record: DeskSettlementRecord) {
+  const [existing] = await Promise.all([
+    loadDeskSettlementIndex(kv).catch(() => []),
+    kvSet(kv, deskSettlementRecordKey(record), record),
+  ]);
+  const next = [record, ...existing.filter((item) => deskSettlementRecordKey(item) !== deskSettlementRecordKey(record))].slice(0, SETTLEMENT_LIMIT);
+  await kvSet(kv, DESK_SETTLEMENT_INDEX_KEY, next);
+}
+
+async function loadDeskSettlementIndex(kv: KVConfig): Promise<DeskSettlementRecord[]> {
+  return (await kvGet<DeskSettlementRecord[]>(kv, DESK_SETTLEMENT_INDEX_KEY)) || [];
+}
+
+function deskSettlementRecordKey(record: { cycle: string; spendTx: string }) {
+  return `gateway:desk:settlement:${record.cycle}:${record.spendTx.toLowerCase()}`;
+}
+
 function kvConfigFromEnv(): KVConfig | null {
   const url = process.env.KV_REST_API_URL?.trim();
   const token = process.env.KV_REST_API_TOKEN?.trim();
@@ -436,11 +670,20 @@ function encodeHeader(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString("base64");
 }
 
+function cleanString(value: unknown): string {
+  return typeof value === "string" || typeof value === "number" ? String(value).trim() : "";
+}
+
+function isHash(value: string): value is Hex {
+  return /^0x[a-fA-F0-9]{64}$/.test(value);
+}
+
 function sanitizeError(error: unknown): string {
   let msg = error instanceof Error ? error.message : String(error);
   msg = msg
     .replace(/https?:\/\/[^\s"']+/gi, "[upstream]")
     .replace(/swrm_[a-z0-9]+/gi, "[redacted]")
+    .replace(/croo_sk_[a-z0-9]+/gi, "[redacted]")
     .replace(/Bearer\s+[a-z0-9._-]+/gi, "Bearer [redacted]");
   msg = (msg.split("\n")[0] || "").slice(0, 180).trim();
   return msg || "Gateway settlement unavailable";
