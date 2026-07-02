@@ -3443,7 +3443,7 @@ function FloatV2VerificationFooter({
   anchors: Array<{ label: string; href: string; value: string }>;
 }) {
   return (
-    <section className="floatV2VerificationFooter" aria-label="Shadow Float V2 verification links">
+    <section className="floatV2VerificationFooter" id="float-verifier" aria-label="Shadow Float V2 verification links">
       <div>
         <span>inspectable records</span>
         <p>Source match, transaction anchors, and the local check command are available for builders who want to inspect the line.</p>
@@ -6301,7 +6301,7 @@ function HomeTruthStrip({
       label: "verifier",
       value: "26",
       body: "Live checks run against the public Arc RPC.",
-      href: "https://github.com/dolepee/shadow",
+      to: "/float#float-verifier",
     },
   ];
 
