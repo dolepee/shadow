@@ -155,6 +155,8 @@ Shadow uses Arc USDC as the settlement asset. The historical V1 path binds x402/
 
 Circle Gateway is exercised as additive settlement plumbing over recorded Desk activity: two Desk PAY cycles totaling `0.002` USDC were settled through Gateway batching on Jul 2, 2026. This is not the V2 provider payment path and is not counted as external traction; it shows how sub-cent Desk economics can batch through Circle infrastructure. Details: [`docs/GATEWAY.md`](docs/GATEWAY.md).
 
+Circle CCTP is exercised as a live acknowledgement path: Shadow verified a Sepolia USDC burn attestation through `/api/cctp-funding` on Jul 2, 2026. This proves attestation verification, not Arc minting or Float credit. Details: [`docs/CCTP.md`](docs/CCTP.md).
+
 Circle Modular Wallets and Gas Station were demonstrated for passkey-based onboarding. They are useful for future agent onboarding, but they are not required for the current Float V2 spend path.
 
 ## Treasury And M1
