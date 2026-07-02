@@ -608,6 +608,12 @@ type FloatDeskEntry = {
       requestHash?: Hash;
       amountUSDC?: string;
     };
+    settle?: {
+      txHash?: Hash;
+      approve?: Hash;
+      requestHash?: Hash;
+      amountUSDC?: string;
+    };
     ask?: {
       ok?: boolean;
       status?: number;
@@ -638,6 +644,7 @@ type FloatDeskState = {
     skips: number;
     holds: number;
     repays: number;
+    settles?: number;
     clamps: number;
   };
   missing?: string[];
@@ -3616,7 +3623,7 @@ function FloatDeskJournal({
       <div className="floatDeskStats">
         <FloatFact label="cycles" value={counts ? String(counts.cycles) : loading ? "reading" : "0"} />
         <FloatFact label="pays" value={counts ? String(counts.pays) : "0"} />
-        <FloatFact label="repays" value={counts ? String(counts.repays) : "0"} />
+        <FloatFact label="settles" value={counts ? String((counts.settles || 0) + counts.repays) : "0"} />
         <FloatFact label="skips" value={counts ? String(counts.skips + counts.holds) : "0"} />
         <FloatFact label="policy clamps" value={counts ? String(counts.clamps) : "0"} />
         <FloatFact label="latest" value={latest?.ts ? formatDeskTime(latest.ts) : loading ? "reading" : "pending"} />
@@ -3646,8 +3653,9 @@ function FloatDeskRow({ entry }: { entry: FloatDeskEntry }) {
   const action = entry.decision?.action || "HOLD";
   const spend = entry.txs?.spend;
   const repay = entry.txs?.repay;
-  const txHash = spend?.txHash || repay?.txHash;
-  const amount = spend?.amountUSDC || repay?.amountUSDC || entry.decision?.amountAtomic || "0";
+  const settle = entry.txs?.settle;
+  const txHash = spend?.txHash || repay?.txHash || settle?.txHash;
+  const amount = spend?.amountUSDC || repay?.amountUSDC || settle?.amountUSDC || entry.decision?.amountAtomic || "0";
   const reviewed = entry.reviews?.filter((review) => review.txHash).length || 0;
   const clamped = entry.decision?.wasClamped;
 
@@ -3673,6 +3681,11 @@ function FloatDeskRow({ entry }: { entry: FloatDeskEntry }) {
         {txHash && (
           <a href={txUrl(txHash)} target="_blank" rel="noreferrer">
             tx {shortAddress(txHash)}
+          </a>
+        )}
+        {settle?.txHash && (
+          <a href={txUrl(settle.txHash)} target="_blank" rel="noreferrer">
+            settle {shortAddress(settle.txHash)}
           </a>
         )}
         {entry.txs?.ask?.queryId && <span>citepay {entry.txs.ask.queryId.slice(0, 8)}</span>}

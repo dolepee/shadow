@@ -790,6 +790,7 @@ function summarizeHistory(history) {
     skips: history.filter((entry) => entry.decision?.action === "SKIP").length,
     holds: history.filter((entry) => entry.decision?.action === "HOLD").length,
     repays: history.filter((entry) => entry.decision?.action === "REPAY").length,
+    settles: history.filter((entry) => entry.txs?.settle?.txHash).length,
     clamps: history.filter((entry) => entry.decision?.wasClamped).length,
   };
 }

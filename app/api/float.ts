@@ -613,6 +613,7 @@ async function handleFloatDesk(res: VercelLikeResponse, req: VercelLikeRequest) 
         skips: entriesRaw.filter((entry) => entry?.decision?.action === "SKIP").length,
         holds: entriesRaw.filter((entry) => entry?.decision?.action === "HOLD").length,
         repays: entriesRaw.filter((entry) => entry?.decision?.action === "REPAY").length,
+        settles: entriesRaw.filter((entry) => entry?.txs?.settle?.txHash).length,
         clamps: entriesRaw.filter((entry) => entry?.decision?.wasClamped).length,
       },
     });
