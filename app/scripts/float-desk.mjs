@@ -219,6 +219,7 @@ async function readDeskState(history) {
     citepay: mandateView(citepayMandateRaw),
     shadow: mandateView(shadowMandateRaw),
   };
+  const lastPay = history.filter((entry) => entry.decision?.action === "PAY" && entry.ok !== false).at(-1);
   return {
     ts: new Date().toISOString(),
     cycle: DESK_CYCLE,
@@ -241,6 +242,10 @@ async function readDeskState(history) {
       minGasWei: MIN_GAS_WEI.toString(),
     },
     floatApi: summarizeFloatApi(floatApi),
+    freshness: {
+      lastExternalAnswerAt: lastPay ? lastPay.ts : null,
+      hoursSinceLastExternalAnswer: lastPay ? Math.round((Date.now() - Date.parse(lastPay.ts)) / 3_600_000) : null,
+    },
     recent: history.slice(-5).map((entry) => ({
       ts: entry.ts,
       action: entry.decision?.action,
@@ -263,6 +268,7 @@ async function decideDeskAction(state) {
       content: [
         "Choose one action: PAY, SKIP, REPAY, or HOLD.",
         "PAY buys one tiny provider resource when the book would benefit from a fresh external answer.",
+        "The desk mandate weighs BOTH costs: spend costs budget, but staleness costs too. A book with no external answer inside the last 24 hours (or none ever) is stale.",
         "REPAY clears open lab debt when debt discipline matters.",
         "SKIP or HOLD is correct when policy, budget, usefulness, or freshness does not justify a spend.",
         'JSON shape: {"action":"PAY|SKIP|REPAY|HOLD","provider":"citepay|shadow","amountAtomic":"1000","rationale":"one sentence","bookNote":"one short line about the live Float book"}',
