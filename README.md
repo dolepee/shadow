@@ -2,7 +2,13 @@
 
 **Shadow Float is sponsor-backed USDC capacity for autonomous agents on Arc.**
 
-Agents need paid data, compute, APIs, and services, but pre-funding every agent wallet is hard to manage. Shadow lets a sponsor reserve Arc USDC for a specific agent. The agent signs a bounded EIP-712 spend intent. `ShadowFloat` verifies the signer, nonce, expiry, provider, endpoint, amount, executor, and max cumulative debt onchain before any provider payment moves.
+Agents need paid data, compute, and APIs before they have money of their own. On Shadow Float, a sponsor reserves Arc USDC for an agent, the agent signs a bounded EIP-712 spend intent, and `ShadowFloat` verifies the signer, nonce, expiry, provider, endpoint, amount, executor, and max cumulative debt onchain before any provider payment moves.
+
+Three things are true on this testnet right now:
+
+1. **An autonomous desk runs the book.** An LLM operator decides what to buy, its one-sentence rationale rides inside the signed intent, and the intent digest becomes the onchain `requestHash`, so every decision is cryptographically bound to its receipt. After the desk's first clean lifecycle, the contract raised the desk's own credit limit from behavior alone.
+2. **Outside projects use it with their own wallets.** Nine external lines from outside builder teams, a cross-project loop where one team's agent borrowed Shadow credit to pay another team's API, and two non-operator sponsors who put their own USDC behind agent lines, one of whom closed the line and reclaimed the full reserve.
+3. **Anyone can verify all of it with one command and no keys.** `npm run float:v2-verify-live` re-derives the proof loop against the public Arc RPC, 26 checks.
 
 Live app: https://shadow-arc.vercel.app
 
@@ -55,6 +61,15 @@ cast call 0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
 Float Desk is the lab-labeled autonomous operator for judging week. It reads the live V2 book, asks an LLM to propose `PAY`, `SKIP`, `HOLD`, or `REPAY`, then clamps that proposal through hard policy before any transaction is signed. The agent can buy a tiny provider answer, repay open lab debt, or skip when the spend is not useful. The chain still decides whether a signed spend is valid.
 
 Desk activity is separate from external traction. It runs on its own operator-sponsored lab line `0x4355...522E`, publishes its journal at `/float#desk-journal`, and exposes the same data at `GET /api/desk`. For `PAY` actions, the EIP-712 rationale sentence is inside `FloatSpendIntent.reason`; the typed-data digest becomes the onchain `requestHash`, so the journaled rationale is bound to the receipt.
+
+The desk line is underwritten by the contract like every sponsored line. After the desk's first paid and settled cycle, `ShadowFloat` raised the line's cap from `0.025` to `0.05` USDC on its own (score `7500` to `8250`, capped by the sponsor reserve). `GET /api/desk` returns the live line as `labLine`, or read it directly:
+
+```bash
+cast call 0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
+  "autonomousLineScore(address)(uint16,uint256,uint256)" \
+  0x43553CaeE153496200d37644cE28775B2b2b522E \
+  --rpc-url https://rpc.testnet.arc.network
+```
 
 Useful commands:
 

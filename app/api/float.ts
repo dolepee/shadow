@@ -602,10 +602,39 @@ async function handleFloatDesk(res: VercelLikeResponse, req: VercelLikeRequest) 
     const limit = Number.isFinite(requested) ? Math.max(1, Math.min(50, Math.floor(requested))) : 20;
     const entriesRaw = await readFloatDeskRuns();
     const entries = entriesRaw.map((entry) => redactDeskSecrets(entry)).slice(-limit).reverse();
+    let labLine: Record<string, unknown> | null = null;
+    try {
+      const rpcUrl = cleanEnv(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
+      const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) });
+      const agent = getAddress(cleanEnv(process.env.DESK_AGENT_ADDRESS) || "0x43553CaeE153496200d37644cE28775B2b2b522E");
+      const [line, sponsor, score] = (await Promise.all([
+        client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [agent] }),
+        client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lineSponsors", args: [agent] }),
+        client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "autonomousLineScore", args: [agent] }),
+      ])) as [any, any, any];
+      const status = Number(line[5]);
+      labLine = {
+        agent,
+        label: "desk-lab",
+        score: Number(line[1]),
+        creditLimitUSDC: line[2].toString(),
+        availableCreditUSDC: line[3].toString(),
+        activeDebtUSDC: line[4].toString(),
+        statusName: FLOAT_V2_STATUS_NAMES[status] || "UNKNOWN",
+        sponsor: sponsor[0],
+        sponsorReserveUSDC: sponsor[1].toString(),
+        recommendedLimitUSDC: score[1].toString(),
+        cappedLimitUSDC: score[2].toString(),
+        scoredByContract: true,
+      };
+    } catch {
+      labLine = null;
+    }
     res.status(200).json({
       ok: true,
       mode: "float-desk-journal",
       checkedAt: new Date().toISOString(),
+      labLine,
       entries,
       counts: {
         cycles: entriesRaw.length,
