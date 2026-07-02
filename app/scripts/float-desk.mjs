@@ -221,7 +221,16 @@ async function readDeskState(history) {
     citepay: mandateView(citepayMandateRaw),
     shadow: mandateView(shadowMandateRaw),
   };
-  const lastPay = history.filter((entry) => entry.decision?.action === "PAY" && entry.ok !== false).at(-1);
+  const lastExternalAnswer = history
+    .filter(
+      (entry) =>
+        entry.decision?.action === "PAY" &&
+        entry.decision?.provider === "citepay" &&
+        entry.txs?.ask?.ok &&
+        entry.txs.ask?.receipt?.hasAnswer &&
+        entry.ok !== false,
+    )
+    .at(-1);
   return {
     ts: new Date().toISOString(),
     cycle: DESK_CYCLE,
@@ -245,8 +254,8 @@ async function readDeskState(history) {
     },
     floatApi: summarizeFloatApi(floatApi),
     freshness: {
-      lastExternalAnswerAt: lastPay ? lastPay.ts : null,
-      hoursSinceLastExternalAnswer: lastPay ? Math.round((Date.now() - Date.parse(lastPay.ts)) / 3_600_000) : null,
+      lastExternalAnswerAt: lastExternalAnswer ? lastExternalAnswer.ts : null,
+      hoursSinceLastExternalAnswer: lastExternalAnswer ? Math.round((Date.now() - Date.parse(lastExternalAnswer.ts)) / 3_600_000) : null,
     },
     recent: history.slice(-5).map((entry) => ({
       ts: entry.ts,
