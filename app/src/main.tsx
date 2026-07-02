@@ -2008,11 +2008,11 @@ function App() {
               <span className="heroBadgeDot" />
               Shadow Float V2 · live on Arc testnet
             </div>
-            <h1>Agents transact under rules with sponsor-backed USDC capacity.</h1>
+            <h1>Agents can buy services before every wallet is pre funded.</h1>
             <p className="lede">
-              Arc&apos;s agentic workflow stack needs identity, settlement, and programmable controls. Shadow adds the
-              capital layer: a sponsor reserves Arc USDC, the agent signs a bounded intent, the contract pays the provider,
-              debt opens, repayment restores capacity, and overruns move no funds.
+              Shadow Float gives autonomous agents a small, policy-bound USDC spending line. A sponsor reserves Arc USDC,
+              the agent signs a bounded intent, the contract pays the provider, debt opens, repayment restores capacity,
+              and oversized requests are blocked before funds move.
             </p>
             <div className="heroActions">
               <Link to="/float" className="heroCtaPrimary">
@@ -2058,7 +2058,7 @@ function App() {
         </Link>
         <Link to="/roadmap" className="pageNextCard">
           <span className="pageNextEyebrow">roadmap</span>
-          <span className="pageNextTitle">Provider delivery, production-grade M1 custody, and external capital</span>
+          <span className="pageNextTitle">See what is live now, what matured this week, and what remains next</span>
           <span className="pageNextArrow">→</span>
         </Link>
       </section>
@@ -2086,7 +2086,6 @@ function App() {
         deskLoading={floatDeskLoading}
         deskError={floatDeskError}
       />
-      <CircleStackPanel />
     </>
   );
 
@@ -2094,7 +2093,7 @@ function App() {
     <div className="routePage">
       <section className="pageHead">
         <p className="pageEyebrow">builders · agent access</p>
-        <h1 className="pageTitle">Give your agent sponsor-backed capacity without pre-funding it first.</h1>
+        <h1 className="pageTitle">Give your agent sponsor-backed capacity without pre funding it first.</h1>
         <p className="pageLede">
           Shadow Float is for buyer agents that need paid data, compute, or API calls under strict policy. The agent signs
           a bounded intent; V2 verifies it onchain, pays the named provider from sponsor reserve, and records the debt trail.
@@ -2150,39 +2149,56 @@ function App() {
   const roadmapPage = (
     <div className="routePage">
       <section className="pageHead">
-        <p className="pageEyebrow">mainnet path</p>
-        <h1 className="pageTitle">From sponsored testnet lines to an agent capital network.</h1>
+        <p className="pageEyebrow">product status</p>
+        <h1 className="pageTitle">What is live on Arc, and what comes next.</h1>
         <p className="pageLede">
-          Shadow already has sponsor reserve, signed authorization, provider payment, debt, repayment, blocks, and external
-          use on Arc testnet. The next phase is deeper settlement interop and production-grade capital.
+          Shadow Float now covers the full testnet loop: sponsor reserve, signed authorization, provider payment, debt,
+          repayment, automated scoring, external sponsors, Gateway settlement evidence, and CCTP acknowledgement. The next
+          work is production custody and larger provider markets.
         </p>
       </section>
-      <CircleStackPanel />
+      <section className="roadmapStatusBand" aria-label="Live Shadow Float milestones">
+        <article>
+          <span>live now</span>
+          <strong>Float V2 spending lines</strong>
+          <p>Agents sign bounded intents, providers are paid from sponsor-backed reserve, debt is recorded, and repayment restores capacity.</p>
+        </article>
+        <article>
+          <span>matured</span>
+          <strong>External sponsor capital</strong>
+          <p>CitePay and Forum Tollgate opened external sponsored lines; Forum closed its line and reclaimed the full reserve.</p>
+        </article>
+        <article>
+          <span>matured</span>
+          <strong>Circle interop evidence</strong>
+          <p>Gateway settled recorded Desk amounts, and CCTP attestation verification is live through Shadow&apos;s acknowledgement route.</p>
+        </article>
+      </section>
       <section className="roadmapGrid" aria-label="Shadow Float roadmap">
         <article className="roadmapCard">
-          <span>M1 v2 hardening</span>
+          <span>next</span>
           <strong>Production-grade mandate custody</strong>
-          <p>Move approved-adapter allocation into an escrow-release or custodial enforcer with withdrawable vault support and stronger slashing.</p>
+          <p>Move M1 adapter allocation into a withdrawable custody model with cleaner release rules and stronger execution accountability.</p>
         </article>
         <article className="roadmapCard">
-          <span>interop</span>
-          <strong>Service-payment interop</strong>
-          <p>Bridge V2 direct provider payment with x402 and Gateway-batched payment evidence once settlement can be bound cleanly.</p>
+          <span>next</span>
+          <strong>Provider delivery receipts</strong>
+          <p>Make provider-signed delivery receipts part of the standard public flow so payment and service delivery can be checked together.</p>
         </article>
         <article className="roadmapCard">
-          <span>market</span>
-          <strong>Independent providers</strong>
-          <p>Let Float-funded buyer agents purchase from third-party sellers, with x402 service evidence kept separate from the V2 payment primitive.</p>
+          <span>next</span>
+          <strong>More independent providers</strong>
+          <p>Expand from CitePay-style paid answers into more data, scan, compute, and API services that agents can buy through Float.</p>
         </article>
         <article className="roadmapCard">
-          <span>risk</span>
-          <strong>Autonomous line adjustment</strong>
-          <p>Use the receipt-derived score path to raise or cut lines automatically from public behavior.</p>
+          <span>next</span>
+          <strong>Deeper sponsor controls</strong>
+          <p>Give sponsors clearer dashboards for daily limits, provider mandates, reserve reclaim, defaults, and risk exposure.</p>
         </article>
         <article className="roadmapCard">
-          <span>capital</span>
+          <span>mainnet</span>
           <strong>Treasury reserve model</strong>
-          <p>Give operators and LPs a reserve, fee, and default framework for funding agent spending lines.</p>
+          <p>Define reserve providers, fee policy, and default handling for larger spending lines without weakening the reserve floor.</p>
         </article>
       </section>
     </div>
@@ -2280,16 +2296,16 @@ function TreasuryHero({ treasuryState }: {
     ? treasuryState.ok
       ? `${treasuryState.checks?.filter((check) => check.ok).length || 0}/${treasuryState.checks?.length || 0} Treasury checks`
       : "Treasury verifier red"
-    : "M1 verifier ready";
+    : "Treasury verifier ready";
 
   return (
     <section className="treasuryHero" aria-label="Shadow Treasury overview">
       <div className="treasuryHeroCopy">
-        <p className="eyebrow">Shadow Treasury / M1 · mandate extension</p>
-        <h1>Approved adapters enforce mandate checks before vault-style funds move.</h1>
+        <p className="eyebrow">supporting treasury records</p>
+        <h1>Mandate checks and settlement records sit behind the Float product.</h1>
         <p>
-          Shadow Treasury is the M1 extension to Float. It shows the same operator paying a provider, allocating through a
-          hardened approved adapter, and getting blocked before vault-style USDC moves on an over-limit action.
+          This page keeps the supporting rails visible without making them the main story: approved-adapter checks,
+          settlement records, and over-limit blocks that complement Float V2.
         </p>
         <div className="treasuryHeroActions">
           <Link className="treasuryHeroPrimary" to="/float">
@@ -2301,14 +2317,14 @@ function TreasuryHero({ treasuryState }: {
         </div>
         <div className="treasuryHeroBoundary" aria-label="Verified receipt scope">
           <span>External Float usage live</span>
-          <span>M1 approved-adapter rail</span>
+          <span>mandate adapter record</span>
           <span>{verifierLabel}</span>
         </div>
       </div>
 
       <aside className="treasuryFlow" aria-label="Shadow Treasury flow">
         <div className="treasuryFlowHeader">
-          <span>operator</span>
+          <span>execution wallet</span>
           <code>{shortAddress(TREASURY_PROOF.operator)}</code>
         </div>
         <div className="treasuryFlowBranch allow">
@@ -2319,7 +2335,7 @@ function TreasuryHero({ treasuryState }: {
           </a>
         </div>
         <div className="treasuryFlowBranch allow">
-          <span>M1 rail</span>
+          <span>mandate rail</span>
           <strong>Allocates to vault</strong>
           <a href={txUrl(TREASURY_PROOF.txs.allocation)} target="_blank" rel="noreferrer">
             {shortAddress(TREASURY_PROOF.txs.allocation)}
@@ -2425,16 +2441,16 @@ function TreasuryRailSplit({
     },
     {
       eyebrow: "allocation rail",
-      title: "M1 gates approved-adapter movement",
+      title: "Mandate adapters gate approved movement",
       body: "The approved adapter authenticates the account, reads the bonded enforcer's ALLOW or BLOCK decision, and only moves vault-style USDC on ALLOW. This guarantee is scoped to approved adapters.",
       stat: leptonState?.morphoDepositedUSDC !== undefined ? `${formatUSDC(leptonState.morphoDepositedUSDC)} USDC allocated` : "0.1 USDC allocated",
-      href: "/lepton",
-      cta: "Open M1",
+      href: "/treasury",
+      cta: "View records",
     },
     {
       eyebrow: "combined receipts",
       title: "One read-only check follows the transaction path",
-      body: "The current product surface separates Float V2 payments from the M1 adapter path, while keeping every anchor public.",
+      body: "The current product surface separates Float V2 payments from adapter records and settlement evidence, while keeping every anchor public.",
       stat: "Arc tx anchors",
       href: "https://github.com/dolepee/shadow",
       cta: "View repo",
@@ -2444,8 +2460,8 @@ function TreasuryRailSplit({
   return (
     <section className="treasuryRailSection" aria-label="Shadow Treasury rail split">
       <div className="treasurySectionHeader">
-        <p className="eyebrow">two rails · one operator story</p>
-        <h2>Payments and allocations stay separate onchain, but read as one verified mandate extension.</h2>
+        <p className="eyebrow">supporting rails</p>
+        <h2>Payments, adapter movement, and settlement records stay separated and verifiable.</h2>
       </div>
       <div className="treasuryRailGrid">
         {railCards.map((card) => {
@@ -2495,7 +2511,7 @@ function TreasuryProofPanel({
       title: "Float paid the provider",
       amount: TREASURY_PROOF.amountX402USDC,
       receipt: "SPEND_ALLOWED + X402PaymentBound",
-      meaning: "The supporting path uses the historical Float rail: operator fronted Arc USDC to the provider, then bound the settlement into Float debt.",
+      meaning: "The supporting path uses the historical Float rail: the execution wallet fronted Arc USDC to the provider, then bound the settlement into Float debt.",
       links: [
         { label: "settlement", href: txUrl(TREASURY_PROOF.txs.x402Settlement) },
         { label: "bind", href: txUrl(TREASURY_PROOF.txs.floatBind) },
@@ -2533,7 +2549,7 @@ function TreasuryProofPanel({
       <div className="treasuryProofHeader">
         <div>
           <p className="eyebrow">live transaction runway · Arc receipts</p>
-          <h2>One operator paid, allocated, and was stopped on the third action.</h2>
+          <h2>One execution wallet paid, allocated, and was stopped on the third action.</h2>
           <p>
             The sequence below is deliberately concrete: one provider payment, one vault allocation, one blocked over-limit
             allocation, and one read-only check. It shows the scoped M1 adapter path that is live on Arc testnet.
@@ -2837,7 +2853,7 @@ function TreasuryValidationPanel() {
           <span>external Float usage</span>
           <strong>V2 signed intents live</strong>
           <p>
-            External agents can authorize a bounded Float spend without pre-funding the provider payment first. The contract
+            External agents can authorize a bounded Float spend without pre funding the provider payment first. The contract
             verifies the signature and pays the provider from sponsor reserve.
           </p>
           <Link to="/float">Open Float →</Link>
@@ -2968,7 +2984,7 @@ function FloatPanel({
             <h1>Signed agents draw reserved USDC, then repay the debt.</h1>
           )}
           <p className="floatLede">
-            Shadow Float V2 gives autonomous agents sponsor-backed Arc USDC capacity without pre-funding every wallet. The
+            Shadow Float V2 gives autonomous agents sponsor-backed Arc USDC capacity without pre funding every wallet. The
             agent signs one bounded intent; the contract verifies it onchain, pays the named provider from reserve, opens
             debt, restores capacity on repayment, and blocks overreach before funds move.
           </p>
@@ -3279,7 +3295,7 @@ function FloatV2CurrentPanel({
       <div className="floatHeroShell">
         <div className="floatHeroCopy">
           <p className="eyebrow">Shadow Float V2 · live on Arc</p>
-          <h1>Let agents pay providers without pre-funding every wallet.</h1>
+          <h1>Let agents pay providers without pre funding every wallet.</h1>
           <p className="floatLede">
             Shadow Float lets a sponsor reserve Arc USDC for an agent. The agent signs a bounded spend intent, the contract
             pays the named provider from that reserve, and the line is restored when the agent repays.
@@ -3363,7 +3379,7 @@ function FloatV2UseCasePanel() {
     <section className="floatV2UseCase" aria-label="Shadow Float V2 users">
       <div>
         <span>why Float exists</span>
-        <strong>Autonomous agents need paid services, but pre-funding every wallet is hard to manage at scale.</strong>
+        <strong>Autonomous agents need paid services, but pre funding every wallet is hard to manage at scale.</strong>
       </div>
       <div className="floatV2UseCaseGrid">
         {items.map((item) => (
@@ -3634,18 +3650,18 @@ function FloatDeskLabLineCard({
         : "desk line pending";
 
   return (
-    <section className="floatDeskLineCard" aria-label="Float Desk lab line">
+    <section className="floatDeskLineCard" aria-label="Float Desk system line">
       <div className="floatBoxHeader">
-        <span>Float Desk lab line</span>
+        <span>Float Desk system line</span>
         <small>{status}</small>
       </div>
       <div className="floatDeskLineBody">
         <div className="floatDeskLineLead">
-          <span>autonomous operator</span>
+          <span>autonomous desk</span>
           <strong>{labLine?.agent ? shortAddress(labLine.agent) : "desk agent"}</strong>
           <p>
-            The Desk line is lab-labeled and separated from external traction. It earns capacity from the same
-            contract-scored behavior path used by sponsored external lines.
+            The Desk line is separated from external builder traction. It earns capacity from the same contract-scored
+            behavior path used by sponsored external lines.
           </p>
         </div>
         <div className="floatDeskLineStats">
@@ -3703,10 +3719,10 @@ function FloatDeskJournal({
       </div>
       <div className="floatDeskIntro">
         <div>
-          <strong>Autonomous desk, lab line, decisions by LLM under contract policy.</strong>
+          <strong>Autonomous desk decisions, constrained by contract policy.</strong>
           <p>
             The desk reads the live Float book, proposes pay, skip, hold, or repay actions, and the contract policy decides
-            what can execute. Desk activity is lab-labeled and kept separate from external builder traction.
+            what can execute. Desk activity is separated from external builder traction.
           </p>
         </div>
         <a href="/api/desk" target="_blank" rel="noreferrer">
@@ -3715,11 +3731,11 @@ function FloatDeskJournal({
       </div>
       <div className="floatDeskGateway">
         <div>
-          <span>Circle Gateway settlement layer</span>
+          <span>Circle Gateway settlement</span>
           <strong>{FLOAT_DESK_GATEWAY_PROOF.totalUSDC} USDC batched over {FLOAT_DESK_GATEWAY_PROOF.rows} Desk cycles</strong>
           <p>
-            Gateway settled recorded Desk amounts after the provider payments landed. This is additive settlement plumbing,
-            not the V2 provider payment path or external traction.
+            Gateway settled recorded Desk amounts after provider payments landed. This shows settlement plumbing for small
+            Desk amounts, separate from V2 provider payment and external traction.
           </p>
         </div>
         <div className="floatDeskGatewayProofs">
@@ -3753,7 +3769,7 @@ function FloatDeskJournal({
       ) : (
         <div className="floatDeskEmpty">
           <strong>{loading ? "Reading desk journal" : "Desk cycles have not been published yet"}</strong>
-          <span>Scheduled lab cycles will appear here after the workflow writes to the public journal.</span>
+          <span>Scheduled cycles will appear here after the workflow writes to the public journal.</span>
         </div>
       )}
     </section>
@@ -6228,7 +6244,7 @@ function SiteFooter() {
         </div>
       </div>
       <div className="siteFooterBottom">
-        <span>Built for Canteen × Circle Lepton · 2026</span>
+        <span>Built on Arc testnet with Circle USDC · 2026</span>
         <span>Shadow Float V2 · spending lines, controls, and receipts on Arc</span>
       </div>
     </footer>
@@ -6274,7 +6290,7 @@ function HomeProofOverview({
     {
       eyebrow: "external sponsor capital",
       value: "2",
-      label: "non operator sponsors",
+      label: "external sponsors",
       body: "CitePay keeps a live external reserve open. Forum Tollgate completed sponsor, spend, repay, and reserve reclaim.",
       href: txUrl(FLOAT_V2_PROOF.citePaySponsorOpenTx),
       external: true,
@@ -6290,8 +6306,8 @@ function HomeProofOverview({
     {
       eyebrow: "open debt line",
       value: countValue(summary?.openDebtAgents),
-      label: "Obol remains open",
-      body: "Obol has a V2 provider-paid spend with repayment still pending, so the board keeps one live open-debt row.",
+      label: "open debt shown",
+      body: "Open debt stays visible until the agent repays, so the board shows both completed loops and active exposure.",
       href: txUrl(FLOAT_V2_PROOF.obolSpendTx),
       external: true,
     },

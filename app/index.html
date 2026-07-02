@@ -15,7 +15,7 @@
     <title>Shadow Float: sponsor-backed USDC capacity for agents on Arc</title>
     <meta
       name="description"
-      content="Shadow Float gives agents sponsor-backed Arc USDC capacity with on-chain signed intents, direct provider payment, debt, repayment, and overrun blocks."
+      content="Shadow Float lets autonomous agents buy approved services with sponsor-backed Arc USDC, then repay or get blocked by contract policy."
     />
     <link rel="canonical" href="https://shadow-arc.vercel.app/float" />
 
@@ -24,7 +24,7 @@
     <meta property="og:title" content="Shadow Float: sponsor-backed USDC capacity for agents on Arc" />
     <meta
       property="og:description"
-      content="Agents transact under rules with reserved Arc USDC capacity: signed intent, provider payment, debt, repayment, and overrun blocks."
+      content="Agents buy approved services through sponsor-backed USDC lines: signed intent, provider paid, debt opened, repayment restored, and overruns blocked."
     />
     <meta property="og:url" content="https://shadow-arc.vercel.app/float" />
     <meta property="og:image" content="https://shadow-arc.vercel.app/og-shadow-float.png" />
@@ -35,7 +35,7 @@
     <meta name="twitter:title" content="Shadow Float: sponsor-backed USDC capacity for agents on Arc" />
     <meta
       name="twitter:description"
-      content="Sponsor-backed USDC lines for agents on Arc. Every signed draw, debt, repayment, and block is verifiable."
+      content="Sponsor-backed USDC lines for agents on Arc. Every signed spend, provider payment, debt, repayment, and block is verifiable."
     />
     <meta name="twitter:image" content="https://shadow-arc.vercel.app/og-shadow-float.png" />
 
@@ -46,7 +46,7 @@
         "name": "Shadow",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
-        "description": "Sponsor-backed USDC capacity for autonomous agents on Arc, with signed intents, direct provider payment, repayment, and a verified Treasury/M1 mandate extension.",
+        "description": "Sponsor-backed USDC spending lines for autonomous agents on Arc, with signed intents, provider payment, debt, repayment, external sponsors, Gateway settlement evidence, and CCTP acknowledgement.",
         "url": "https://shadow-arc.vercel.app/float",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
@@ -64,28 +64,29 @@
       <main data-prerender="shell" style="font-family:'Bricolage Grotesque',system-ui,sans-serif;max-width:860px;margin:48px auto;padding:24px;color:#f3f7ff;background:#07111f;border:1px solid rgba(184,211,255,.14);border-radius:22px">
         <header>
           <p style="text-transform:uppercase;letter-spacing:0.18em;font-size:12px;color:#8fb4d9;margin:0 0 8px;font-family:'IBM Plex Mono',monospace">Shadow Float V2 · live on Arc testnet</p>
-          <h1 style="font-size:40px;margin:0 0 12px;line-height:1.05;letter-spacing:0">Agents transact under rules with sponsor-backed USDC capacity.</h1>
+          <h1 style="font-size:40px;margin:0 0 12px;line-height:1.05;letter-spacing:0">Agents can buy services before every wallet is pre funded.</h1>
           <p style="font-size:17px;line-height:1.55;color:#c0cce0;margin:0 0 18px">
-            Shadow Float lets a sponsor reserve Arc USDC for an agent. The agent signs a bounded intent, the contract pays the provider from custody, opens debt, restores capacity on repayment, and blocks overruns before funds move.
+            Shadow Float lets a sponsor reserve Arc USDC for an agent. The agent signs a bounded intent, the contract pays the provider, debt opens, repayment restores capacity, and oversized requests are blocked before funds move.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:0 0 4px">
-            Treasury/M1 is the supporting mandate extension: approved adapters allocate vault-style USDC only after an ALLOW receipt, and over-limit actions move no vault funds.
+            External builders have used the V2 path, external sponsors have opened lines, and the autonomous desk publishes live decisions that are bound to onchain receipts.
           </p>
           <p style="font-size:16px;line-height:1.55;color:#c0cce0;margin:8px 0 0">
-            External Float usage is live, and both rails are anchored by public contract and transaction links.
+            The app also shows Gateway settlement records and a CCTP acknowledgement so the supporting Circle flows are visible without changing the core payment path.
           </p>
         </header>
         <section>
           <h2 style="font-size:18px;margin:28px 0 8px">What the app shows</h2>
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#d5e5fb">
             <li><strong>Signed intent</strong> · the contract verifies signer, nonce, expiry, provider, amount, executor, and max debt</li>
-            <li><strong>Provider payment</strong> · ShadowFloat pays approved providers from sponsor-backed Arc USDC custody</li>
+            <li><strong>Provider payment</strong> · ShadowFloat pays approved providers from sponsor-backed Arc USDC</li>
             <li><strong>Float debt</strong> · debt opens onchain and repayment restores available capacity</li>
-            <li><strong>M1 allocation</strong> · a vault-style deposit moves only after an ALLOW receipt</li>
-            <li><strong>Overreach block</strong> · oversized Float and M1 actions move no funds</li>
+            <li><strong>External sponsor capital</strong> · outside wallets can reserve USDC for their own sponsored lines</li>
+            <li><strong>Circle evidence</strong> · Gateway settlement records and CCTP acknowledgement are shown as supporting flows</li>
+            <li><strong>Overreach block</strong> · oversized requests move no provider funds</li>
           </ul>
           <p style="font-size:14px;color:#8fb4d9;margin:8px 0 0">
-            Onchain anchors are below; the full app adds current Float activity, builder onboarding, and the M1 transaction path.
+            Onchain anchors are below; the full app adds current Float activity, builder onboarding, and the autonomous desk journal.
           </p>
         </section>
         <section>
@@ -93,7 +94,7 @@
           <ul style="margin:0;padding:0;list-style:none;font-size:15px;line-height:1.7;color:#d5e5fb">
             <li>· <strong style="color:#4df0a8">/float</strong> shows current sponsored Float activity</li>
             <li>· <strong style="color:#4df0a8">/builders</strong> shows the external agent onboarding flow</li>
-            <li>· <strong style="color:#4df0a8">/treasury</strong> shows the supporting M1 mandate rail</li>
+            <li>· <strong style="color:#4df0a8">/treasury</strong> shows supporting treasury and settlement records</li>
             <li>· <strong style="color:#4df0a8">GitHub</strong> contains the contract checks and reproducible commands</li>
           </ul>
         </section>

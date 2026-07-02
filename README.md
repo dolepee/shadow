@@ -6,8 +6,8 @@ Agents need paid data, compute, and APIs before they have money of their own. On
 
 Three things are true on this testnet right now:
 
-1. **An autonomous desk runs the book.** An LLM operator decides what to buy, its one-sentence rationale rides inside the signed intent, and the intent digest becomes the onchain `requestHash`, so every decision is cryptographically bound to its receipt. After the desk's first clean lifecycle, the contract raised the desk's own credit limit from behavior alone.
-2. **Outside projects use it with their own wallets.** Nine external lines from outside builder teams, a cross-project loop where one team's agent borrowed Shadow credit to pay another team's API, and two non-operator sponsors who put their own USDC behind agent lines, one of whom closed the line and reclaimed the full reserve.
+1. **An autonomous desk runs the book.** An LLM-driven desk decides what to buy, its one-sentence rationale rides inside the signed intent, and the intent digest becomes the onchain `requestHash`, so every decision is cryptographically bound to its receipt. After the desk's first clean lifecycle, the contract raised the desk's own credit limit from behavior alone.
+2. **Outside projects use it with their own wallets.** Nine external lines from outside builder teams, a cross-project loop where one team's agent borrowed Shadow credit to pay another team's API, and two external sponsors who put their own USDC behind agent lines, one of whom closed the line and reclaimed the full reserve.
 3. **Anyone can verify all of it with one command and no keys.** `npm run float:v2-verify-live` re-derives the proof loop against the public Arc RPC, 26 checks.
 
 Live app: https://shadow-arc.vercel.app
@@ -54,13 +54,13 @@ cast call 0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
   --rpc-url https://rpc.testnet.arc.network
 ```
 
-`refreshSponsoredLineFromBehavior(address,bytes32)` is also public, and normal spend and repay paths call the same refresh logic automatically. The Argus Alpha repay tx [`0x0f50d4...ff3699`](https://testnet.arcscan.app/tx/0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699) contains a live `DeterministicFloatScored` event. Argus Alpha reached score `9000` after two paid and two repaid actions. Obol remains `LIMITED` with one paid action and open debt. Owner scoring functions such as `grantFloatFromScore`, `reduceLimit`, and `revoke` revert on sponsored lines, so these external lines are not silently edited by the V1 owner underwriter path.
+`refreshSponsoredLineFromBehavior(address,bytes32)` is also public, and normal spend and repay paths call the same refresh logic automatically. The Argus Alpha repay tx [`0x0f50d4...ff3699`](https://testnet.arcscan.app/tx/0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699) contains a live `DeterministicFloatScored` event. Argus Alpha reached score `9000` after two paid and two repaid actions. One external line still shows open debt until it repays. Owner scoring functions such as `grantFloatFromScore`, `reduceLimit`, and `revoke` revert on sponsored lines, so these external lines are not silently edited by the V1 owner underwriter path.
 
 ### The Desk
 
-Float Desk is the lab-labeled autonomous operator for judging week. It reads the live V2 book, asks an LLM to propose `PAY`, `SKIP`, `HOLD`, or `REPAY`, then clamps that proposal through hard policy before any transaction is signed. The agent can buy a tiny provider answer, repay open lab debt, or skip when the spend is not useful. The chain still decides whether a signed spend is valid.
+Float Desk is the autonomous system line that exercises the live V2 book. It reads current line state, asks an LLM to propose `PAY`, `SKIP`, `HOLD`, or `REPAY`, then clamps that proposal through hard policy before any transaction is signed. The desk can buy a tiny provider answer, repay open system debt, or skip when the spend is not useful. The chain still decides whether a signed spend is valid.
 
-Desk activity is separate from external traction. It runs on its own operator-sponsored lab line `0x4355...522E`, publishes its journal at `/float#desk-journal`, and exposes the same data at `GET /api/desk`. For `PAY` actions, the EIP-712 rationale sentence is inside `FloatSpendIntent.reason`; the typed-data digest becomes the onchain `requestHash`, so the journaled rationale is bound to the receipt.
+Desk activity is separate from external builder traction. It runs on its own system line `0x4355...522E`, publishes its journal at `/float#desk-journal`, and exposes the same data at `GET /api/desk`. For `PAY` actions, the EIP-712 rationale sentence is inside `FloatSpendIntent.reason`; the typed-data digest becomes the onchain `requestHash`, so the journaled rationale is bound to the receipt.
 
 The desk line is underwritten by the contract like every sponsored line. After the desk's first paid and settled cycle, `ShadowFloat` raised the line's cap from `0.025` to `0.05` USDC on its own (score `7500` to `8250`, capped by the sponsor reserve). `GET /api/desk` returns the live line as `labLine`, or read it directly:
 
@@ -79,13 +79,13 @@ FLOAT_DESK_LIVE=1 npm run float:desk
 FLOAT_DESK_LIVE=1 npm run float:desk -- --setup-mandate
 ```
 
-The setup command lets the sponsor refresh the CitePay provider mandate for the lab line. Normal cycles never count toward external builder lines, external sponsor proofs, or the V2 verifier.
+The setup command lets the sponsor refresh the CitePay provider mandate for the system line. Normal cycles never count toward external builder lines, external sponsor proofs, or the V2 verifier.
 
 ### External Sponsor Path
 
-The current V2 contract also supports non-operator sponsors. `openSponsoredLine(...)` is public: a sponsor reserves their own Arc USDC for an agent, sets the provider mandate for that line, and lets `ShadowFloat` score and cap the line from behavior.
+The current V2 contract also supports external sponsors. `openSponsoredLine(...)` is public: a sponsor reserves their own Arc USDC for an agent, sets the provider mandate for that line, and lets `ShadowFloat` score and cap the line from behavior.
 
-CitePay became the first live non-operator sponsor on Shadow Float V2. Forum Tollgate then completed the full external sponsor lifecycle: sponsor opens reserve, agent spends, agent repays, sponsor closes the line, and the full reserve returns to the sponsor.
+CitePay became the first live external sponsor on Shadow Float V2. Forum Tollgate then completed the full external sponsor lifecycle: sponsor opens reserve, agent spends, agent repays, sponsor closes the line, and the full reserve returns to the sponsor.
 
 | Sponsor proof | Sponsor wallet | Agent | Key tx | State |
 | --- | --- | --- | --- | --- |
@@ -114,7 +114,7 @@ Argus Alpha then ran a second, provider-specific loop against CitePay:
 
 ### CitePay Provider Proof
 
-CitePay confirmed five paid provider queries from the Shadow operator wallet on Arc testnet. Shadow also paid CitePay once through a Float V2 draw signed by Argus Alpha. CitePay served the answer and returned query ID `6e6d9c2c-b988-438a-9930-0d6d40ff78b5`.
+CitePay confirmed five paid provider queries from the Shadow execution wallet on Arc testnet. Shadow also paid CitePay once through a Float V2 draw signed by Argus Alpha. CitePay served the answer and returned query ID `6e6d9c2c-b988-438a-9930-0d6d40ff78b5`.
 
 | # | Query fee tx | Amount | Status |
 | ---: | --- | ---: | --- |
@@ -157,13 +157,13 @@ Circle Gateway is exercised as additive settlement plumbing over recorded Desk a
 
 Circle CCTP is exercised as a live acknowledgement path: Shadow verified a Sepolia USDC burn attestation through `/api/cctp-funding` on Jul 2, 2026. This proves attestation verification, not Arc minting or Float credit. Details: [`docs/CCTP.md`](docs/CCTP.md).
 
-Circle Modular Wallets and Gas Station were demonstrated for passkey-based onboarding. They are useful for future agent onboarding, but they are not required for the current Float V2 spend path.
+Circle wallet tooling was explored for future onboarding, but it is not required for the current Float V2 spend path.
 
 ## Treasury And M1
 
 Shadow Treasury and M1 are supporting mandate rails, not the primary product surface.
 
-The Treasury page shows an operator using approved adapters to allocate Arc testnet USDC when a bonded enforcer returns `ALLOW`, and move zero funds when the same adapter path returns `BLOCK`. This validates the policy shape, but it is not claimed as a production treasury customer or a real Morpho deployment.
+The Treasury page shows an execution wallet using approved adapters to allocate Arc testnet USDC when a bonded enforcer returns `ALLOW`, and move zero funds when the same adapter path returns `BLOCK`. This validates the policy shape, but it is not claimed as a production treasury customer or a real Morpho deployment.
 
 Treasury page: https://shadow-arc.vercel.app/treasury
 
@@ -171,7 +171,7 @@ Treasury API: `GET https://shadow-arc.vercel.app/api/treasury`
 
 Treasury verifier: `npm run treasury:verify-live`
 
-Post-hackathon M1 hardening:
+Next M1 hardening:
 
 - Move from adapter-enforced checks to custodial or escrow-release enforcement.
 - Replace the test sink with a withdrawable vault integration.
