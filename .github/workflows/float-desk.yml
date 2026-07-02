@@ -1,8 +1,6 @@
 name: float-desk
 
 on:
-  schedule:
-    - cron: "17 */3 * * *"
   workflow_dispatch:
     inputs:
       setup_mandate:
