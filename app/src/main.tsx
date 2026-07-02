@@ -577,6 +577,73 @@ type FloatV2ActivityState = {
   error?: string;
 };
 
+type FloatDeskEntry = {
+  ok?: boolean | null;
+  live?: boolean;
+  cycle?: string;
+  ts?: string;
+  source?: string;
+  decision?: {
+    action?: "PAY" | "SKIP" | "REPAY" | "HOLD" | string;
+    provider?: string;
+    amountAtomic?: string;
+    rationale?: string;
+    wasClamped?: boolean;
+    clampReasons?: string[];
+  };
+  bookNote?: string;
+  txs?: {
+    spend?: {
+      txHash?: Hash;
+      requestHash?: Hash;
+      rationaleDigest?: Hash;
+      amountUSDC?: string;
+      provider?: string;
+      providerPaid?: boolean;
+      providerDeltaUSDC?: string;
+    };
+    repay?: {
+      txHash?: Hash;
+      approve?: Hash;
+      requestHash?: Hash;
+      amountUSDC?: string;
+    };
+    ask?: {
+      ok?: boolean;
+      status?: number;
+      queryId?: string | null;
+    };
+  };
+  reviews?: Array<{
+    agent?: Address;
+    txHash?: Hash;
+    scoreBefore?: number;
+    scoreAfter?: number;
+    limitBeforeUSDC?: string;
+    limitAfterUSDC?: string;
+    skipped?: string;
+    error?: string;
+  }>;
+  error?: string;
+};
+
+type FloatDeskState = {
+  ok?: boolean;
+  mode?: string;
+  checkedAt?: string;
+  entries?: FloatDeskEntry[];
+  counts?: {
+    cycles: number;
+    pays: number;
+    skips: number;
+    holds: number;
+    repays: number;
+    clamps: number;
+  };
+  missing?: string[];
+  error?: string;
+};
+
 const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
   ok: true,
   source: "verified-snapshot",
@@ -961,6 +1028,13 @@ async function fetchFloatV2Activity(): Promise<FloatV2ActivityState> {
   return fetchFloatV2ActivityFromRpc();
 }
 
+async function fetchFloatDeskJournal(): Promise<FloatDeskState> {
+  const res = await fetch(`/api/float?mode=desk&ts=${Date.now()}`, { cache: "no-store" });
+  const data = (await res.json()) as FloatDeskState;
+  if (!res.ok || data?.ok === false) throw new Error(data?.error || `desk read failed with ${res.status}`);
+  return data;
+}
+
 async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
   const client = createClient({
     chain: arcTestnet,
@@ -1251,6 +1325,9 @@ function App() {
   const [floatV2State, setFloatV2State] = useState<FloatV2ActivityState | null>(FLOAT_V2_VERIFIED_SNAPSHOT);
   const [floatV2Loading, setFloatV2Loading] = useState(false);
   const [floatV2Error, setFloatV2Error] = useState<string | null>(null);
+  const [floatDeskState, setFloatDeskState] = useState<FloatDeskState | null>(null);
+  const [floatDeskLoading, setFloatDeskLoading] = useState(false);
+  const [floatDeskError, setFloatDeskError] = useState<string | null>(null);
   const [treasuryState, setTreasuryState] = useState<TreasuryState | null>(null);
   const [treasuryLoading, setTreasuryLoading] = useState(false);
   const [treasuryError, setTreasuryError] = useState<string | null>(null);
@@ -1350,6 +1427,24 @@ function App() {
   useEffect(() => {
     refreshFloatV2();
     const interval = setInterval(refreshFloatV2, 20_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function refreshFloatDesk() {
+    setFloatDeskLoading(true);
+    try {
+      setFloatDeskState(await fetchFloatDeskJournal());
+      setFloatDeskError(null);
+    } catch (error) {
+      setFloatDeskError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setFloatDeskLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refreshFloatDesk();
+    const interval = setInterval(refreshFloatDesk, 30_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -1953,7 +2048,14 @@ function App() {
 
   const floatPage = (
     <>
-      <FloatV2CurrentPanel state={floatV2State} loading={floatV2Loading} error={floatV2Error} />
+      <FloatV2CurrentPanel
+        state={floatV2State}
+        loading={floatV2Loading}
+        error={floatV2Error}
+        deskState={floatDeskState}
+        deskLoading={floatDeskLoading}
+        deskError={floatDeskError}
+      />
       <CircleStackPanel />
     </>
   );
@@ -3112,10 +3214,16 @@ function FloatV2CurrentPanel({
   state,
   loading,
   error,
+  deskState,
+  deskLoading,
+  deskError,
 }: {
   state: FloatV2ActivityState | null;
   loading: boolean;
   error: string | null;
+  deskState: FloatDeskState | null;
+  deskLoading: boolean;
+  deskError: string | null;
 }) {
   const isSnapshot = state?.source === "verified-snapshot";
   const showCount = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
@@ -3196,6 +3304,7 @@ function FloatV2CurrentPanel({
       </div>
 
       <FloatV2ActivityBoard state={state} loading={loading} error={error} />
+      <FloatDeskJournal state={deskState} loading={deskLoading} error={deskError} />
       <FloatV2WorkflowPanel />
       <FloatV2UseCasePanel />
       <FloatV2VerificationFooter anchors={anchors} />
@@ -3469,6 +3578,108 @@ function FloatV2ActivityBoard({
         </div>
       )}
     </section>
+  );
+}
+
+function FloatDeskJournal({
+  state,
+  loading,
+  error,
+}: {
+  state: FloatDeskState | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  const entries = state?.entries || [];
+  const latest = entries[0];
+  const counts = state?.counts;
+  const status = error ? "desk read needs review" : loading && !state ? "reading desk" : entries.length ? "live journal" : "waiting for first cycle";
+
+  return (
+    <section className="floatDeskJournal" id="desk-journal" aria-label="Shadow Float Desk journal">
+      <div className="floatBoxHeader">
+        <span>Float Desk journal</span>
+        <small>{status}</small>
+      </div>
+      <div className="floatDeskIntro">
+        <div>
+          <strong>Autonomous desk, lab line, decisions by LLM under contract policy.</strong>
+          <p>
+            The desk reads the live Float book, proposes pay, skip, hold, or repay actions, and the contract policy decides
+            what can execute. Desk activity is lab-labeled and kept separate from external builder traction.
+          </p>
+        </div>
+        <a href="/api/desk" target="_blank" rel="noreferrer">
+          Desk API
+        </a>
+      </div>
+      <div className="floatDeskStats">
+        <FloatFact label="cycles" value={counts ? String(counts.cycles) : loading ? "reading" : "0"} />
+        <FloatFact label="pays" value={counts ? String(counts.pays) : "0"} />
+        <FloatFact label="repays" value={counts ? String(counts.repays) : "0"} />
+        <FloatFact label="skips" value={counts ? String(counts.skips + counts.holds) : "0"} />
+        <FloatFact label="policy clamps" value={counts ? String(counts.clamps) : "0"} />
+        <FloatFact label="latest" value={latest?.ts ? formatDeskTime(latest.ts) : loading ? "reading" : "pending"} />
+      </div>
+      {error ? (
+        <div className="floatDeskEmpty">
+          <strong>Desk journal read failed</strong>
+          <span>{error}</span>
+        </div>
+      ) : entries.length ? (
+        <div className="floatDeskRows">
+          {entries.slice(0, 6).map((entry, index) => (
+            <FloatDeskRow entry={entry} key={`${entry.cycle || index}-${entry.ts || "desk"}`} />
+          ))}
+        </div>
+      ) : (
+        <div className="floatDeskEmpty">
+          <strong>{loading ? "Reading desk journal" : "Desk cycles have not been published yet"}</strong>
+          <span>Scheduled lab cycles will appear here after the workflow writes to the public journal.</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FloatDeskRow({ entry }: { entry: FloatDeskEntry }) {
+  const action = entry.decision?.action || "HOLD";
+  const spend = entry.txs?.spend;
+  const repay = entry.txs?.repay;
+  const txHash = spend?.txHash || repay?.txHash;
+  const amount = spend?.amountUSDC || repay?.amountUSDC || entry.decision?.amountAtomic || "0";
+  const reviewed = entry.reviews?.filter((review) => review.txHash).length || 0;
+  const clamped = entry.decision?.wasClamped;
+
+  return (
+    <article className={`floatDeskRow ${String(action).toLowerCase()}${entry.ok === false ? " error" : ""}`}>
+      <div className="floatDeskAction">
+        <span>{formatDeskTime(entry.ts)}</span>
+        <strong>{action}</strong>
+        <small>{entry.decision?.provider || "policy"} · {formatFloatUSDC(amount)} USDC</small>
+      </div>
+      <div className="floatDeskReason">
+        <strong>{entry.decision?.rationale || entry.bookNote || "Desk cycle recorded."}</strong>
+        <small>
+          {clamped ? `policy clamped: ${entry.decision?.clampReasons?.join(", ") || "yes"}` : entry.bookNote || "chain policy unchanged"}
+        </small>
+      </div>
+      <div className="floatDeskProofs">
+        {spend?.requestHash && (
+          <a href={txHash ? txUrl(txHash) : "/api/desk"} target="_blank" rel="noreferrer">
+            digest {shortHash(spend.requestHash)}
+          </a>
+        )}
+        {txHash && (
+          <a href={txUrl(txHash)} target="_blank" rel="noreferrer">
+            tx {shortAddress(txHash)}
+          </a>
+        )}
+        {entry.txs?.ask?.queryId && <span>citepay {entry.txs.ask.queryId.slice(0, 8)}</span>}
+        {reviewed > 0 && <span>reviewed {reviewed}</span>}
+        {entry.error && <span>{entry.error}</span>}
+      </div>
+    </article>
   );
 }
 
@@ -4254,6 +4465,13 @@ function formatFloatUSDC(value?: string | bigint | null): string {
   } catch {
     return "0";
   }
+}
+
+function formatDeskTime(value?: string | null): string {
+  if (!value) return "pending";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "pending";
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function shortHash(value?: string | null): string {

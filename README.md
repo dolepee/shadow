@@ -50,6 +50,22 @@ cast call 0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
 
 `refreshSponsoredLineFromBehavior(address,bytes32)` is also public, and normal spend and repay paths call the same refresh logic automatically. The Argus Alpha repay tx [`0x0f50d4...ff3699`](https://testnet.arcscan.app/tx/0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699) contains a live `DeterministicFloatScored` event. Argus Alpha reached score `9000` after two paid and two repaid actions. Obol remains `LIMITED` with one paid action and open debt. Owner scoring functions such as `grantFloatFromScore`, `reduceLimit`, and `revoke` revert on sponsored lines, so these external lines are not silently edited by the V1 owner underwriter path.
 
+### The Desk
+
+Float Desk is the lab-labeled autonomous operator for judging week. It reads the live V2 book, asks an LLM to propose `PAY`, `SKIP`, `HOLD`, or `REPAY`, then clamps that proposal through hard policy before any transaction is signed. The agent can buy a tiny provider answer, repay open lab debt, or skip when the spend is not useful. The chain still decides whether a signed spend is valid.
+
+Desk activity is separate from external traction. It runs on the canonical lab line `0x5773...62a0`, publishes its journal at `/float#desk-journal`, and exposes the same data at `GET /api/desk`. For `PAY` actions, the EIP-712 rationale sentence is inside `FloatSpendIntent.reason`; the typed-data digest becomes the onchain `requestHash`, so the journaled rationale is bound to the receipt.
+
+Useful commands:
+
+```bash
+npm run float:desk
+FLOAT_DESK_LIVE=1 npm run float:desk
+FLOAT_DESK_LIVE=1 npm run float:desk -- --setup-mandate
+```
+
+The setup command lets the sponsor refresh the CitePay provider mandate for the lab line. Normal cycles never count toward external builder lines, external sponsor proofs, or the V2 verifier.
+
 ### External Sponsor Path
 
 The current V2 contract also supports non-operator sponsors. `openSponsoredLine(...)` is public: a sponsor reserves their own Arc USDC for an agent, sets the provider mandate for that line, and lets `ShadowFloat` score and cap the line from behavior.

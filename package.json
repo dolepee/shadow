@@ -30,6 +30,7 @@
     "float:v2-provider-delivery": "node app/scripts/float-v2-provider-delivery.mjs",
     "float:v2-verify-live": "node app/scripts/float-v2-verify-live.mjs",
     "float:autounderwrite": "node app/scripts/float-autounderwrite.mjs",
+    "float:desk": "node app/scripts/float-desk.mjs",
     "float:loop": "node app/scripts/float-loop.mjs",
     "treasury:spike": "node app/scripts/treasury-operator-spike.mjs",
     "treasury:verify-live": "node app/scripts/treasury-verify-live.mjs",

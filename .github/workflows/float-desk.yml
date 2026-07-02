@@ -1,0 +1,56 @@
+name: float-desk
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+    inputs:
+      setup_mandate:
+        description: "Set or refresh the CitePay mandate for the lab line"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: float-desk
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      ARC_RPC_URL: "https://rpc.testnet.arc.network"
+      ARC_USDC: "0x3600000000000000000000000000000000000000"
+      SHADOW_FLOAT: "0x20dcA96B0C487D94De885c726c956ffaF38b12C2"
+      FLOAT_DESK_LIVE: "1"
+      DESK_AGENT_ADDRESS: "0x5773dd87b1A2b57697f773F0dcdFa65f405662a0"
+      DESK_AGENT_PRIVATE_KEY: ${{ secrets.DESK_AGENT_PRIVATE_KEY || secrets.FLOAT_AGENT_PRIVATE_KEY }}
+      FLOAT_EXECUTOR_PRIVATE_KEY: ${{ secrets.FLOAT_EXECUTOR_PRIVATE_KEY || secrets.FLOAT_SPONSOR_PRIVATE_KEY || secrets.CAT_AGENT_PRIVATE_KEY }}
+      BANKR_LLM_KEY: ${{ secrets.BANKR_LLM_KEY }}
+      BANKR_LLM_MODEL: ${{ secrets.BANKR_LLM_MODEL || 'deepseek-v3.2' }}
+      KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+      KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+      DESK_MAX_SPEND_ATOMIC: "10000"
+      DESK_MAX_SPENDS_PER_DAY: "6"
+      DESK_CITEPAY_AMOUNT_ATOMIC: "1000"
+      DESK_CITEPAY_DAILY_LIMIT_ATOMIC: "30000"
+      DESK_CITEPAY_QUERY: "What changed in Shadow Float V2's agent credit graph today?"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: install app deps
+        working-directory: app
+        run: pnpm install --no-frozen-lockfile --ignore-workspace
+      - name: run Float Desk
+        run: |
+          if [ "${{ github.event.inputs.setup_mandate }}" = "true" ]; then
+            npm run float:desk -- --setup-mandate
+          else
+            npm run float:desk
+          fi

@@ -257,6 +257,11 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
     return;
   }
 
+  if (queryParam(req, "mode") === "desk") {
+    await handleFloatDesk(res, req);
+    return;
+  }
+
   if (queryParam(req, "mode") === "v2" || queryParam(req, "v") === "2") {
     await handleFloatV2(res);
     return;
@@ -588,6 +593,32 @@ async function handleFloatV2(res: VercelLikeResponse) {
   } catch (error) {
     res.setHeader("Cache-Control", "no-store");
     res.status(503).json({ ok: false, mode: "shadow-float-v2-activity", error: sanitizeError(error) });
+  }
+}
+
+async function handleFloatDesk(res: VercelLikeResponse, req: VercelLikeRequest) {
+  try {
+    const requested = Number(queryParam(req, "limit") || "20");
+    const limit = Number.isFinite(requested) ? Math.max(1, Math.min(50, Math.floor(requested))) : 20;
+    const entriesRaw = await readFloatDeskRuns();
+    const entries = entriesRaw.map((entry) => redactDeskSecrets(entry)).slice(-limit).reverse();
+    res.status(200).json({
+      ok: true,
+      mode: "float-desk-journal",
+      checkedAt: new Date().toISOString(),
+      entries,
+      counts: {
+        cycles: entriesRaw.length,
+        pays: entriesRaw.filter((entry) => entry?.decision?.action === "PAY").length,
+        skips: entriesRaw.filter((entry) => entry?.decision?.action === "SKIP").length,
+        holds: entriesRaw.filter((entry) => entry?.decision?.action === "HOLD").length,
+        repays: entriesRaw.filter((entry) => entry?.decision?.action === "REPAY").length,
+        clamps: entriesRaw.filter((entry) => entry?.decision?.wasClamped).length,
+      },
+    });
+  } catch (error) {
+    res.setHeader("Cache-Control", "no-store");
+    res.status(503).json({ ok: false, mode: "float-desk-journal", error: sanitizeError(error) });
   }
 }
 
@@ -1105,6 +1136,35 @@ async function readFloatLoopRuns(): Promise<FloatLoopRun[]> {
   } catch {
     return [];
   }
+}
+
+async function readFloatDeskRuns(): Promise<any[]> {
+  const url = cleanEnv(process.env.KV_REST_API_URL);
+  const token = cleanEnv(process.env.KV_REST_API_TOKEN);
+  if (!url || !token) return [];
+  try {
+    const response = await fetch(`${url.replace(/\/$/, "")}/get/${encodeURIComponent("float:desk:runs")}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return [];
+    const json = (await response.json()) as { result?: string | null };
+    if (!json.result) return [];
+    const parsed = JSON.parse(json.result) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function redactDeskSecrets(value: unknown): unknown {
+  if (typeof value === "string") return redactDeskString(value);
+  if (Array.isArray(value)) return value.map(redactDeskSecrets);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, redactDeskSecrets(entry)]));
+}
+
+function redactDeskString(value: string): string {
+  return value.replace(/(sk-[A-Za-z0-9_-]{12,}|swrm_[A-Za-z0-9_-]+|croo_sk_[A-Za-z0-9_-]+|Bearer\s+[A-Za-z0-9._-]+)/g, "[redacted]");
 }
 
 function isFloatRun(value: unknown): value is FloatLoopRun {
