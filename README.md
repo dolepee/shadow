@@ -27,13 +27,13 @@ Live V2 activity currently shown on the site:
 
 | Metric | Count |
 | --- | ---: |
-| External lines | 8 |
-| Signed intents | 9 |
-| Provider paid spends | 9 |
-| Closed borrow-repay lifecycles | 8 |
+| External lines | 9 |
+| Signed intents | 11 |
+| Provider paid spends | 11 |
+| Closed borrow-repay lifecycles | 10 |
 | Open debt lines | 1 |
 
-External V2 lines currently include Forum, CitePay, Crux, Driplet, Argus Alpha, Argus Beta, Argus Gamma, and Obol. Forum, CitePay, Crux, Driplet, and all three Argus agents have closed the full signed spend and repay loop. Argus Alpha also used Float V2 to pay CitePay for a provider answer and repaid that second draw. Obol has a provider-paid V2 spend with repayment still open and labeled that way on the live board.
+External V2 lines currently include Forum, CitePay, Crux, Driplet, Argus Alpha, Argus Beta, Argus Gamma, Obol, CitePay sponsor, and Forum Tollgate sponsor. Forum, CitePay, Crux, Driplet, all three Argus agents, CitePay sponsor, and Forum Tollgate sponsor have closed the signed spend and repay loop. Argus Alpha also used Float V2 to pay CitePay for a provider answer and repaid that second draw. Obol has a provider-paid V2 spend with repayment still open and labeled that way on the live board.
 
 ### Autonomous Underwriting Is Deployed
 
@@ -52,9 +52,18 @@ cast call 0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
 
 ### External Sponsor Path
 
-The current V2 contract also supports non-operator sponsors. `openSponsoredLine(...)` is public: a sponsor reserves their own Arc USDC for an agent, sets the provider mandate for that line, and lets `ShadowFloat` score and cap the line from behavior. No public claim is made that a non-operator sponsor has completed this path until a `SponsoredLineOpened` event shows a sponsor other than `0xBDb1...1Fb8`.
+The current V2 contract also supports non-operator sponsors. `openSponsoredLine(...)` is public: a sponsor reserves their own Arc USDC for an agent, sets the provider mandate for that line, and lets `ShadowFloat` score and cap the line from behavior.
+
+CitePay became the first live non-operator sponsor on Shadow Float V2. Forum Tollgate then completed the full external sponsor lifecycle: sponsor opens reserve, agent spends, agent repays, sponsor closes the line, and the full reserve returns to the sponsor.
+
+| Sponsor proof | Sponsor wallet | Agent | Key tx | State |
+| --- | --- | --- | --- | --- |
+| CitePay live reserve | `0x5389...f105` | `0xdfDE...044f` | [`0xf2dabb...53540`](https://testnet.arcscan.app/tx/0xf2dabb1ce651330a389acd4d6cacee1a859dc4fc12f18459143dc0f60ee53540) | live reserve, repaid |
+| Forum Tollgate reclaim | `0x12F2...ba03` | `0x645b...139C` | [`0xba995c...16463`](https://testnet.arcscan.app/tx/0xba995c10f06f14b876a6b4c19ad69cbfe023d878784961f6eaebb62a3aa16463) | reserve reclaimed |
 
 External sponsor runbook: [`docs/EXTERNAL_SPONSOR_V2.md`](docs/EXTERNAL_SPONSOR_V2.md)
+
+External sponsor proof notes: [`docs/EXTERNAL_SPONSOR_PROOF.md`](docs/EXTERNAL_SPONSOR_PROOF.md)
 
 ### Argus Three-Agent Lifecycle
 

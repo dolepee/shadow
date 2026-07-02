@@ -157,6 +157,14 @@ const FLOAT_V2_PROOF = {
   argusCitePaySpendTx: "0x552c7e32e34d9f06e03ca185f705637f9c66002d709d7d14c24d11edefdbc322" as Hash,
   argusCitePayRepayTx: "0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699" as Hash,
   argusCitePayQueryId: "6e6d9c2c-b988-438a-9930-0d6d40ff78b5",
+  citePaySponsorApproveTx: "0xa23a69aa34d4d3532ad1cc15718ca9a8537a9d085a9312937a2596ba319ad2af" as Hash,
+  citePaySponsorOpenTx: "0xf2dabb1ce651330a389acd4d6cacee1a859dc4fc12f18459143dc0f60ee53540" as Hash,
+  citePaySponsorSpendTx: "0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae" as Hash,
+  citePaySponsorRepayTx: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe" as Hash,
+  forumSponsorOpenTx: "0x8f9759660161819cf924314abcaf2feefb55d973a845c6ed0921d14e560c79df" as Hash,
+  forumSponsorSpendTx: "0x0bd8271279c6fcde28cc4de51b5f54be4842a8c1e3ed304a221c6281db20f75f" as Hash,
+  forumSponsorRepayTx: "0x48a81e86ccc7c49814929e44dca93d2f44f82322abff587903419a64e8302172" as Hash,
+  forumSponsorCloseTx: "0xba995c10f06f14b876a6b4c19ad69cbfe023d878784961f6eaebb62a3aa16463" as Hash,
   citePayProviderQueryTxs: [
     "0x3c74ba902d9494c7762f440affa0065ef4a2478b6e9cb4cb228e11cd689a9929",
     "0xc8ee30e0c2ab5943f472baf819fb17af8b39571665ba4ac408b9fe8d9343532a",
@@ -572,21 +580,21 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
   ok: true,
   source: "verified-snapshot",
   mode: "shadow-float-v2-activity",
-  checkedAt: "2026-06-29T05:33:46.248Z",
+  checkedAt: "2026-07-02T11:54:41.321Z",
   chainId: arcTestnet.id,
   float: FLOAT_V2_CONTRACT,
-  latestBlock: "49252480",
-  treasuryBalanceUSDC: "440000",
-  totalAvailableCreditUSDC: "415000",
-  totalSponsoredReserveUSDC: "450000",
+  latestBlock: "49803171",
+  treasuryBalanceUSDC: "495275",
+  totalAvailableCreditUSDC: "465000",
+  totalSponsoredReserveUSDC: "500000",
   summary: {
-    registeredExternalLines: 8,
-    signedIntents: 9,
-    paidSpends: 9,
-    repaidLifecycles: 8,
+    registeredExternalLines: 9,
+    signedIntents: 11,
+    paidSpends: 11,
+    repaidLifecycles: 10,
     openDebtAgents: 1,
-    providerPaidUSDC: "81000",
-    repaidUSDC: "71000",
+    providerPaidUSDC: "101000",
+    repaidUSDC: "91000",
     activeDebtUSDC: "10000",
     blockedUSDC: "0",
   },
@@ -729,6 +737,64 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       latestTxHash: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368" as Hash,
     },
     {
+      label: "CitePay sponsor",
+      category: "external",
+      agent: "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f" as Address,
+      wallet: "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f" as Address,
+      score: 8250,
+      creditLimitUSDC: "50000",
+      availableCreditUSDC: "50000",
+      activeDebtUSDC: "0",
+      status: 5,
+      statusName: "REPAID",
+      lastReview: "1782990434",
+      lastReviewISO: "2026-07-02T11:07:14.000Z",
+      scoredByContract: true,
+      behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
+      autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
+      sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address,
+      sponsorReserveUSDC: "50000",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      spendTx: "0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae" as Hash,
+      repayTx: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe" as Hash,
+      latestTxHash: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe" as Hash,
+    },
+    {
+      label: "Forum Tollgate sponsor",
+      category: "external",
+      agent: "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C" as Address,
+      wallet: "0x0000000000000000000000000000000000000000" as Address,
+      score: 0,
+      creditLimitUSDC: "0",
+      availableCreditUSDC: "0",
+      activeDebtUSDC: "0",
+      status: 4,
+      statusName: "REVOKED",
+      lastReview: "1782992348",
+      lastReviewISO: "2026-07-02T11:39:08.000Z",
+      scoredByContract: true,
+      behavior: { paidBound: 0, signedExternalPaid: 0, repaid: 0, blocked: 0, denied: 0, errorCount: 0 },
+      autonomousScore: { score: 5000, recommendedLimitUSDC: "0", cappedLimitUSDC: "0" },
+      sponsor: "0x0000000000000000000000000000000000000000" as Address,
+      sponsorReserveUSDC: "0",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      spendTx: "0x0bd8271279c6fcde28cc4de51b5f54be4842a8c1e3ed304a221c6281db20f75f" as Hash,
+      repayTx: "0x48a81e86ccc7c49814929e44dca93d2f44f82322abff587903419a64e8302172" as Hash,
+      latestTxHash: "0xba995c10f06f14b876a6b4c19ad69cbfe023d878784961f6eaebb62a3aa16463" as Hash,
+    },
+    {
       label: "Driplet",
       category: "external",
       agent: "0xb8C0297Bc883a5626424FFFf9ad1F860E0f64CCf" as Address,
@@ -814,7 +880,7 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
   selfTestAgents: [],
   logFetch: {
     fromBlock: FLOAT_V2_DEPLOY_BLOCK.toString(),
-    toBlock: "49252480",
+    toBlock: "49803171",
     complete: true,
     warnings: [],
   },
@@ -3054,6 +3120,8 @@ function FloatV2CurrentPanel({
     { label: "Argus Alpha closed loop", href: txUrl(FLOAT_V2_PROOF.argusAlphaRepayTx), value: shortAddress(FLOAT_V2_PROOF.argusAlphaRepayTx) },
     { label: "Argus to CitePay loop", href: txUrl(FLOAT_V2_PROOF.argusCitePayRepayTx), value: shortAddress(FLOAT_V2_PROOF.argusCitePayRepayTx) },
     { label: "CitePay provider proof", href: txUrl(FLOAT_V2_PROOF.citePayProviderQueryTxs[0]), value: "5 paid queries" },
+    { label: "CitePay sponsor line", href: txUrl(FLOAT_V2_PROOF.citePaySponsorOpenTx), value: shortAddress(FLOAT_V2_PROOF.citePaySponsorOpenTx) },
+    { label: "Forum reserve reclaim", href: txUrl(FLOAT_V2_PROOF.forumSponsorCloseTx), value: shortAddress(FLOAT_V2_PROOF.forumSponsorCloseTx) },
     { label: "Obol signed spend", href: txUrl(FLOAT_V2_PROOF.obolSpendTx), value: shortAddress(FLOAT_V2_PROOF.obolSpendTx) },
   ];
 
@@ -3233,6 +3301,9 @@ function classifyFloatV2Lifecycle(agent: FloatV2AgentState): {
 } {
   const activeDebt = asAtomicUSDC(agent.activeDebtUSDC);
   if (agent.repaidCount > 0 && activeDebt === 0n) {
+    if (asAtomicUSDC(agent.sponsorReserveUSDC) === 0n && asAtomicUSDC(agent.creditLimitUSDC) === 0n) {
+      return { label: "closed", detail: "paid, repaid, reserve reclaimed", tone: "closed" };
+    }
     return { label: "closed", detail: "signed, paid, repaid", tone: "closed" };
   }
   if (activeDebt > 0n) {
@@ -3253,9 +3324,14 @@ function classifyFloatV2Lifecycle(agent: FloatV2AgentState): {
 
 function describeFloatV2Behavior(agent: FloatV2AgentState): string {
   const behavior = agent.behavior;
-  if (!behavior) return "behavior syncing";
-  const paid = behavior.signedExternalPaid + behavior.paidBound;
-  const parts = [`paid ${paid}`, `repaid ${behavior.repaid}`];
+  if (!behavior) {
+    if (agent.providerPaidCount > 0 || agent.repaidCount > 0) return `paid ${agent.providerPaidCount} · repaid ${agent.repaidCount}`;
+    return "behavior syncing";
+  }
+  const behaviorPaid = behavior.signedExternalPaid + behavior.paidBound;
+  const paid = behaviorPaid > 0 ? behaviorPaid : agent.providerPaidCount;
+  const repaid = behavior.repaid > 0 ? behavior.repaid : agent.repaidCount;
+  const parts = [`paid ${paid}`, `repaid ${repaid}`];
   if (behavior.blocked > 0) parts.push(`blocked ${behavior.blocked}`);
   if (behavior.denied > 0) parts.push(`denied ${behavior.denied}`);
   if (behavior.errorCount > 0) parts.push(`errors ${behavior.errorCount}`);
@@ -5839,6 +5915,14 @@ function HomeProofOverview({
       body: "External builders can give their agents sponsor-backed capacity without sending keys, gas, or approvals to Shadow.",
       href: "/float#v2-activity",
       external: false,
+    },
+    {
+      eyebrow: "external sponsor capital",
+      value: "2",
+      label: "non operator sponsors",
+      body: "CitePay keeps a live external reserve open. Forum Tollgate completed sponsor, spend, repay, and reserve reclaim.",
+      href: txUrl(FLOAT_V2_PROOF.citePaySponsorOpenTx),
+      external: true,
     },
     {
       eyebrow: "closed loops",

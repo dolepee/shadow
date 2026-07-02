@@ -15,6 +15,18 @@ export const FLOAT_V2_TRACKED_EXTERNAL_AGENTS = [
     spendTx: "0x6fd0e59360decc8fdecd56c8bf1a448569d72e6e5706d862e50c816d50b29a7d",
     repayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368",
   },
+  {
+    label: "CitePay sponsor",
+    agent: "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f",
+    spendTx: "0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae",
+    repayTx: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe",
+  },
+  {
+    label: "Forum Tollgate sponsor",
+    agent: "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C",
+    spendTx: "0x0bd8271279c6fcde28cc4de51b5f54be4842a8c1e3ed304a221c6281db20f75f",
+    repayTx: "0x48a81e86ccc7c49814929e44dca93d2f44f82322abff587903419a64e8302172",
+  },
   { label: "Argus Alpha", agent: "0x5c0b33b209f510868E07792Edc46c3792B0b92EC" },
   { label: "Argus Beta", agent: "0x7d4897489bfc663b90baaf5b0803d18ae0ca817c" },
   { label: "Argus Gamma", agent: "0x43e0630025fd0339be1fa04d3d75daf355F50c89" },

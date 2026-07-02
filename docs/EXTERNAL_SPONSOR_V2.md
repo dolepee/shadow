@@ -2,7 +2,7 @@
 
 Shadow Float V2 lets any sponsor open a reserve-backed line for an agent without owner approval. The sponsor supplies the USDC reserve, sets the provider policy, and controls the line-specific provider mandate. The agent still signs each spend intent locally.
 
-This runbook is for the first non-operator sponsor test. It does not require a contract redeploy.
+This runbook is for non-operator sponsor tests. It does not require a contract redeploy.
 
 ## Live Contract
 
@@ -130,12 +130,10 @@ The reserve stays the sponsor's. Once the line has zero active debt, the sponsor
 
 ## Public Claim Boundary
 
-Do not claim external sponsorship until `SponsoredLineOpened.sponsor` is not `0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8`.
+CitePay and Forum Tollgate have now completed non-operator sponsor runs. The proof notes live in [`EXTERNAL_SPONSOR_PROOF.md`](EXTERNAL_SPONSOR_PROOF.md).
 
-Allowed claim before the first external sponsor:
+Allowed claim:
 
-> Shadow Float V2 has a permissionless external sponsor path ready: any sponsor can reserve USDC for an agent, set provider policy, and let the contract score and cap the line.
+> Non-operator sponsors put their own Arc USDC behind Shadow Float V2 agent lines. Agents completed signed spend and repay loops through those externally sponsored reserves, and Forum Tollgate also closed the line and reclaimed the reserve.
 
-Allowed claim after the first external sponsor:
-
-> A non-operator sponsor put their own Arc USDC behind an agent line on Shadow Float V2, and the agent completed the signed spend and repay loop through that externally sponsored reserve.
+Do not stretch this into a production lending market, a liquidity pool, or mainnet credit claim. It is a testnet proof that the external sponsor primitive works end to end.
