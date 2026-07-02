@@ -3950,6 +3950,58 @@ input:focus-visible {
   max-width: 570px;
 }
 
+.homeTruthStrip {
+  display: grid;
+  gap: 9px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 22px;
+  max-width: 640px;
+}
+
+.homeTruthItem {
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid rgba(184, 211, 255, 0.11);
+  border-radius: 10px;
+  color: var(--ink);
+  display: grid;
+  gap: 7px;
+  min-height: 118px;
+  padding: 12px;
+  text-decoration: none;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.homeTruthItem:hover {
+  background: rgba(52, 229, 255, 0.075);
+  border-color: rgba(52, 229, 255, 0.24);
+  transform: translateY(-1px);
+}
+
+.homeTruthItem span {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.homeTruthItem strong {
+  color: var(--copy);
+  font-family: var(--mono);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.homeTruthItem p {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0;
+}
+
 .heroBadge {
   align-items: center;
   background: rgba(52, 229, 255, 0.075);
@@ -5512,6 +5564,13 @@ input:focus-visible {
     align-items: stretch;
     flex-direction: column;
     margin-top: 26px;
+  }
+  .homeTruthStrip {
+    grid-template-columns: 1fr;
+    margin-top: 22px;
+  }
+  .homeTruthItem {
+    min-height: 0;
   }
   .heroCtaPrimary,
   .heroCtaSecondary {

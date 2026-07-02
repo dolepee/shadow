@@ -140,9 +140,9 @@ The V2 contract enforces the signed intent path directly. Older V1 receipts rema
 
 ## Why It Matters
 
-Arc's agentic workflow lane combines identity, settlement, and programmable controls. Shadow adds the capital layer.
+Arc's agentic workflow lane combines identity, settlement, and programmable controls. Shadow adds the capital primitive.
 
-| Layer | Shadow's role |
+| Primitive | Shadow's role |
 | --- | --- |
 | Identity | The line is bound to the wallet that signs the EIP-712 intent. |
 | Settlement | Arc USDC is the unit of account. V2 pays providers directly from contract custody. |
@@ -153,7 +153,7 @@ Arc's agentic workflow lane combines identity, settlement, and programmable cont
 
 Shadow uses Arc USDC as the settlement asset. The historical V1 path binds x402/EIP-3009 settlement hashes into Float receipts. V2 removes the blind operator-bind gap by verifying the agent intent in the contract and paying the provider directly from reserved USDC.
 
-Circle Gateway is exercised as additive settlement plumbing over recorded Desk activity: two Desk PAY cycles totaling `0.002` USDC were settled through Gateway batching on Jul 2, 2026. This is not the V2 provider payment path and is not counted as external traction; it shows how sub-cent Desk economics can batch through Circle infrastructure. Details: [`docs/GATEWAY.md`](docs/GATEWAY.md).
+Circle Gateway is exercised as additive settlement plumbing over recorded Desk activity: two Desk PAY cycles totaling `0.002` USDC were settled through Gateway batching on Jul 2, 2026. This is not the V2 provider payment path and is not counted as external traction; it shows how sub-cent Desk economics can batch through Circle tooling. Details: [`docs/GATEWAY.md`](docs/GATEWAY.md).
 
 Circle CCTP is exercised as a live acknowledgement path: Shadow verified a Sepolia USDC burn attestation through `/api/cctp-funding` on Jul 2, 2026. This proves attestation verification, not Arc minting or Float credit. Details: [`docs/CCTP.md`](docs/CCTP.md).
 
@@ -161,7 +161,7 @@ Circle wallet tooling was explored for future onboarding, but it is not required
 
 ## Supporting Records And M1
 
-The Records surface and M1 are supporting mandate rails, not the primary product surface.
+The Records surface and M1 are supporting mandate paths, not the primary product surface.
 
 The Records page shows an execution wallet using approved adapters to allocate Arc testnet USDC when a bonded enforcer returns `ALLOW`, and move zero funds when the same adapter path returns `BLOCK`. This validates the policy shape, but it is not claimed as a production treasury customer or a real Morpho deployment.
 

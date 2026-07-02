@@ -2014,6 +2014,7 @@ function App() {
               the agent signs a bounded intent, the contract pays the provider, debt opens, repayment restores capacity,
               and oversized requests are blocked before funds move.
             </p>
+            <HomeTruthStrip floatState={floatV2State} deskState={floatDeskState} deskLoading={floatDeskLoading} />
             <div className="heroActions">
               <Link to="/float" className="heroCtaPrimary">
                 Open Shadow Float
@@ -2215,11 +2216,11 @@ function App() {
           <NavLink end to="/" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Home
           </NavLink>
-          <NavLink to="/treasury" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
-            Records
-          </NavLink>
           <NavLink to="/float" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Float
+          </NavLink>
+          <NavLink to="/treasury" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+            Records
           </NavLink>
           <NavLink to="/builders" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Builders
@@ -2304,7 +2305,7 @@ function TreasuryHero({ treasuryState }: {
         <p className="eyebrow">supporting records</p>
         <h1>Mandate checks and settlement records sit behind the Float product.</h1>
         <p>
-          This page keeps the supporting rails visible without making them the main story: approved-adapter checks,
+          This page keeps the supporting records visible without making them the main story: approved-adapter checks,
           settlement records, and over-limit blocks that complement Float V2.
         </p>
         <div className="treasuryHeroActions">
@@ -2328,14 +2329,14 @@ function TreasuryHero({ treasuryState }: {
           <code>{shortAddress(TREASURY_PROOF.operator)}</code>
         </div>
         <div className="treasuryFlowBranch allow">
-          <span>Float rail</span>
+          <span>Float path</span>
           <strong>Provider paid</strong>
           <a href={txUrl(FLOAT_V2_PROOF.directSpendTx)} target="_blank" rel="noreferrer">
             {shortAddress(FLOAT_V2_PROOF.directSpendTx)}
           </a>
         </div>
         <div className="treasuryFlowBranch allow">
-          <span>mandate rail</span>
+          <span>mandate path</span>
           <strong>Allocates to vault</strong>
           <a href={txUrl(TREASURY_PROOF.txs.allocation)} target="_blank" rel="noreferrer">
             {shortAddress(TREASURY_PROOF.txs.allocation)}
@@ -2432,7 +2433,7 @@ function TreasuryRailSplit({
 }) {
   const railCards = [
     {
-      eyebrow: "payment rail",
+      eyebrow: "payment path",
       title: "Float pays before the agent is funded",
       body: "Signed agents authorize a spend, Float pays the approved provider from reserved capacity, fee-inclusive debt opens, and repayment restores capacity.",
       stat: "V2 signed intent live",
@@ -2440,7 +2441,7 @@ function TreasuryRailSplit({
       cta: "Open Float",
     },
     {
-      eyebrow: "allocation rail",
+      eyebrow: "allocation path",
       title: "Mandate adapters gate approved movement",
       body: "The approved adapter authenticates the account, reads the bonded enforcer's ALLOW or BLOCK decision, and only moves vault-style USDC on ALLOW. This guarantee is scoped to approved adapters.",
       stat: leptonState?.morphoDepositedUSDC !== undefined ? `${formatUSDC(leptonState.morphoDepositedUSDC)} USDC allocated` : "0.1 USDC allocated",
@@ -2458,9 +2459,9 @@ function TreasuryRailSplit({
   ];
 
   return (
-    <section className="treasuryRailSection" aria-label="Shadow supporting records rail split">
+    <section className="treasuryRailSection" aria-label="Shadow supporting records path split">
       <div className="treasurySectionHeader">
-        <p className="eyebrow">supporting rails</p>
+        <p className="eyebrow">supporting records</p>
         <h2>Payments, adapter movement, and settlement records stay separated and verifiable.</h2>
       </div>
       <div className="treasuryRailGrid">
@@ -2511,7 +2512,7 @@ function TreasuryProofPanel({
       title: "Float paid the provider",
       amount: TREASURY_PROOF.amountX402USDC,
       receipt: "SPEND_ALLOWED + X402PaymentBound",
-      meaning: "The supporting path uses the historical Float rail: the execution wallet fronted Arc USDC to the provider, then bound the settlement into Float debt.",
+      meaning: "The supporting path uses the historical Float record: the execution wallet fronted Arc USDC to the provider, then bound the settlement into Float debt.",
       links: [
         { label: "settlement", href: txUrl(TREASURY_PROOF.txs.x402Settlement) },
         { label: "bind", href: txUrl(TREASURY_PROOF.txs.floatBind) },
@@ -2523,7 +2524,7 @@ function TreasuryProofPanel({
       title: "M1 allocated USDC into a vault sink",
       amount: TREASURY_PROOF.amountAllocatedUSDC,
       receipt: "ALLOW",
-      meaning: "The bonded mandate rail allowed a vault-style allocation only after policy checks passed.",
+      meaning: "The bonded mandate path allowed a vault-style allocation only after policy checks passed.",
       links: [{ label: "allocation", href: txUrl(TREASURY_PROOF.txs.allocation) }],
     },
     {
@@ -2536,7 +2537,7 @@ function TreasuryProofPanel({
     },
     {
       status: "proven",
-      title: "Read-only checks cover both rails",
+      title: "Read-only checks cover both paths",
       amount: `${formatFloatUSDC(TREASURY_PROOF.feeUSDC)} fee`,
       receipt: "npm run treasury:verify-live",
       meaning: "The command checks the payment tx, bind event, vault movement, blocked no-move path, debt, and fee.",
@@ -2643,7 +2644,7 @@ function TreasuryProofPanel({
         <span>External Float signed usage is live.</span>
         <span>CitePay and Forum gave technical feedback on the adapter record path.</span>
         <span>
-          API and CLI both check the combined rail: <code>/api/treasury</code> and <code>npm run treasury:verify-live</code>.
+          API and CLI both check the combined path: <code>/api/treasury</code> and <code>npm run treasury:verify-live</code>.
         </span>
       </div>
     </section>
@@ -2756,7 +2757,7 @@ function TreasuryLiveVerifierPanel({
       ) : (
         <div className="treasuryVerifierGrid">
           <article className="treasuryVerifierSummary">
-            <span>combined rail</span>
+            <span>combined path</span>
             <strong>{state?.ok ? "green" : loading ? "syncing" : "pending"}</strong>
             <p>
               {failed
@@ -2876,7 +2877,7 @@ function TreasuryValidationPanel() {
           <strong>External agents are signing V2 intents</strong>
           <p>
             Forum, CitePay, Obol, Crux, and Argus-style agents are the relevant surface now: bounded intents, provider
-            payment, debt, repayment, and overrun blocks on the V2 rail.
+            payment, debt, repayment, and overrun blocks on V2.
           </p>
           <Link to="/float">Open Float →</Link>
         </article>
@@ -3349,9 +3350,9 @@ function FloatV2CurrentPanel({
         <FloatMetric label="open debt" value={showUSDC(state?.summary?.activeDebtUSDC)} tone={state?.summary?.openDebtAgents ? "block" : "allow"} />
       </div>
 
-      <FloatV2ActivityBoard state={state} loading={loading} error={error} />
       <FloatDeskLabLineCard state={deskState} loading={deskLoading} error={deskError} />
       <FloatDeskJournal state={deskState} loading={deskLoading} error={deskError} />
+      <FloatV2ActivityBoard state={state} loading={loading} error={error} />
       <FloatV2WorkflowPanel />
       <FloatV2UseCasePanel />
       <FloatV2VerificationFooter anchors={anchors} />
@@ -6265,6 +6266,66 @@ function SiteFooter() {
         <span>Shadow Float V2 · spending lines, controls, and receipts on Arc</span>
       </div>
     </footer>
+  );
+}
+
+function HomeTruthStrip({
+  floatState,
+  deskState,
+  deskLoading,
+}: {
+  floatState: FloatV2ActivityState | null;
+  deskState: FloatDeskState | null;
+  deskLoading: boolean;
+}) {
+  const deskCycles = deskState?.counts?.cycles;
+  const externalLines = floatState?.summary?.registeredExternalLines;
+  const showCount = (value: number | undefined, fallback: string) => (value === undefined ? fallback : String(value));
+  const truths: Array<
+    { label: string; value: string; body: string; to: string; href?: never } |
+    { label: string; value: string; body: string; href: string; to?: never }
+  > = [
+    {
+      label: "desk decides",
+      value: showCount(deskCycles, deskLoading ? "reading" : "live"),
+      body: "Rationale digest becomes the onchain requestHash.",
+      to: "/float#desk-journal",
+    },
+    {
+      label: "outside graph",
+      value: showCount(externalLines, "9"),
+      body: "External agents and external sponsors are visible.",
+      to: "/float#v2-activity",
+    },
+    {
+      label: "verifier",
+      value: "26",
+      body: "Live checks run against the public Arc RPC.",
+      href: "https://github.com/dolepee/shadow",
+    },
+  ];
+
+  return (
+    <div className="homeTruthStrip" aria-label="Shadow Float live proof summary">
+      {truths.map((truth) => {
+        const content = (
+          <>
+            <span>{truth.label}</span>
+            <strong>{truth.value}</strong>
+            <p>{truth.body}</p>
+          </>
+        );
+        return "href" in truth ? (
+          <a className="homeTruthItem" href={truth.href} target="_blank" rel="noreferrer" key={truth.label}>
+            {content}
+          </a>
+        ) : (
+          <Link className="homeTruthItem" to={truth.to} key={truth.label}>
+            {content}
+          </Link>
+        );
+      })}
+    </div>
   );
 }
 
