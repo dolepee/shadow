@@ -54,7 +54,7 @@ cast call 0x20dcA96B0C487D94De885c726c956ffaF38b12C2 \
 
 Float Desk is the lab-labeled autonomous operator for judging week. It reads the live V2 book, asks an LLM to propose `PAY`, `SKIP`, `HOLD`, or `REPAY`, then clamps that proposal through hard policy before any transaction is signed. The agent can buy a tiny provider answer, repay open lab debt, or skip when the spend is not useful. The chain still decides whether a signed spend is valid.
 
-Desk activity is separate from external traction. It runs on the canonical lab line `0x5773...62a0`, publishes its journal at `/float#desk-journal`, and exposes the same data at `GET /api/desk`. For `PAY` actions, the EIP-712 rationale sentence is inside `FloatSpendIntent.reason`; the typed-data digest becomes the onchain `requestHash`, so the journaled rationale is bound to the receipt.
+Desk activity is separate from external traction. It runs on its own operator-sponsored lab line `0x4355...522E`, publishes its journal at `/float#desk-journal`, and exposes the same data at `GET /api/desk`. For `PAY` actions, the EIP-712 rationale sentence is inside `FloatSpendIntent.reason`; the typed-data digest becomes the onchain `requestHash`, so the journaled rationale is bound to the receipt.
 
 Useful commands:
 

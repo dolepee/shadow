@@ -1,6 +1,8 @@
 name: float-desk
 
 on:
+  schedule:
+    - cron: "17 */3 * * *"
   workflow_dispatch:
     inputs:
       setup_mandate:
@@ -22,7 +24,7 @@ jobs:
       ARC_USDC: "0x3600000000000000000000000000000000000000"
       SHADOW_FLOAT: "0x20dcA96B0C487D94De885c726c956ffaF38b12C2"
       FLOAT_DESK_LIVE: "1"
-      DESK_AGENT_ADDRESS: "0x5773dd87b1A2b57697f773F0dcdFa65f405662a0"
+      DESK_AGENT_ADDRESS: "0x43553CaeE153496200d37644cE28775B2b2b522E"
       DESK_AGENT_PRIVATE_KEY: ${{ secrets.DESK_AGENT_PRIVATE_KEY || secrets.FLOAT_AGENT_PRIVATE_KEY }}
       FLOAT_EXECUTOR_PRIVATE_KEY: ${{ secrets.FLOAT_EXECUTOR_PRIVATE_KEY || secrets.FLOAT_SPONSOR_PRIVATE_KEY || secrets.CAT_AGENT_PRIVATE_KEY }}
       BANKR_LLM_KEY: ${{ secrets.BANKR_LLM_KEY }}

@@ -179,6 +179,9 @@ async function runDeskCycle() {
       if (clamped.provider?.key === "citepay" && entry.txs.spend?.txHash) {
         entry.txs.ask = await callCitePay(entry.txs.spend.txHash, clamped.rationale);
       }
+      // settle in the same cycle: the public verifier bounds GLOBAL open debt
+      // at 0.01 USDC, so desk debt must never persist between cycles
+      entry.txs.settle = await executeRepay(state, "Desk settles the cycle's debt so global open debt stays within the public verifier bound.");
     } else if (clamped.action === "REPAY") {
       entry.txs.repay = await executeRepay(state, clamped.rationale);
     }
@@ -482,7 +485,9 @@ async function executePay(decision, entry) {
 }
 
 async function executeRepay(state, rationale) {
-  const debt = BigInt(state.line.activeDebtUSDC);
+  // read live debt: after a same-cycle PAY the state snapshot is stale
+  const liveLine = await readFloat("lines", [LAB_AGENT]);
+  const debt = BigInt(liveLine[4]);
   if (debt === 0n) return { skipped: true, reason: "NO_DEBT" };
   if (!LIVE) return { dryRun: true, amountUSDC: debt.toString() };
 
