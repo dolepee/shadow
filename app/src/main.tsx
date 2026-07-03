@@ -3822,16 +3822,23 @@ function FloatDeskJournal({
 }) {
   const entries = state?.entries || [];
   const completedEntries = entries.filter((entry) => entry.ok !== false);
-  const hiddenRetryEntries = Math.max(0, entries.length - completedEntries.length);
-  const latest = completedEntries[0] || entries[0];
+  const displayEntries = completedEntries.filter((entry) => {
+    const action = String(entry.decision?.action || "").toUpperCase();
+    const rationale = `${entry.decision?.rationale || ""} ${entry.assessment || ""}`;
+    const recoveryLanguage = /\b(error|failed|failure|revert|reverted)\b/i.test(rationale);
+    if (action === "SKIP" || action === "HOLD") return !recoveryLanguage;
+    return true;
+  });
+  const hiddenRetryEntries = Math.max(0, entries.length - displayEntries.length);
+  const latest = displayEntries[0] || completedEntries[0] || entries[0];
   const counts = state?.counts;
   const status = error
     ? "desk read needs review"
     : loading && !state
       ? "reading desk"
-      : completedEntries.length
+      : displayEntries.length
         ? "completed journal"
-        : entries.length
+        : completedEntries.length
           ? "retry journal"
           : "waiting for first cycle";
 
@@ -3846,12 +3853,12 @@ function FloatDeskJournal({
           <strong>Autonomous desk decisions, constrained by contract policy.</strong>
           <p>
             The desk reads the live Float book, proposes pay, skip, hold, or repay actions, and the contract policy decides
-            what can execute. This page shows completed decisions first; the raw Desk API keeps the full journal, including
-            retries. Desk activity is separated from external builder traction.
+            what can execute. This page shows completed decisions first; the raw Desk API keeps the full journal,
+            including retries and recoveries. Desk activity is separated from external builder traction.
           </p>
           {hiddenRetryEntries > 0 && (
             <small className="floatDeskRetryNote">
-              {hiddenRetryEntries} retry {hiddenRetryEntries === 1 ? "entry is" : "entries are"} visible in the raw API.
+              {hiddenRetryEntries} retry or recovery {hiddenRetryEntries === 1 ? "entry is" : "entries are"} visible in the raw API.
             </small>
           )}
         </div>
@@ -3872,9 +3879,9 @@ function FloatDeskJournal({
           <strong>Desk journal read failed</strong>
           <span>{error}</span>
         </div>
-      ) : completedEntries.length ? (
+      ) : displayEntries.length ? (
         <div className="floatDeskRows">
-          {completedEntries.slice(0, 6).map((entry, index) => (
+          {displayEntries.slice(0, 6).map((entry, index) => (
             <FloatDeskRow entry={entry} key={`${entry.cycle || index}-${entry.ts || "desk"}`} />
           ))}
         </div>
@@ -3897,6 +3904,17 @@ function FloatDeskRow({ entry }: { entry: FloatDeskEntry }) {
   const amount = spend?.amountUSDC || repay?.amountUSDC || settle?.amountUSDC || entry.decision?.amountAtomic || "0";
   const reviewed = entry.reviews?.filter((review) => review.txHash).length || 0;
   const clamped = entry.decision?.wasClamped;
+  const primaryText =
+    action === "REPAY" && entry.assessment
+      ? entry.assessment
+      : entry.decision?.rationale || entry.bookNote || "Desk cycle recorded.";
+  const secondaryText =
+    action === "REPAY"
+      ? clamped
+        ? `policy clamped: ${entry.decision?.clampReasons?.join(", ") || "open debt discipline"}`
+        : entry.bookNote || "line debt cleared"
+      : entry.assessment ||
+        (clamped ? `policy clamped: ${entry.decision?.clampReasons?.join(", ") || "yes"}` : entry.bookNote || "chain policy unchanged");
 
   return (
     <article className={`floatDeskRow ${String(action).toLowerCase()}${entry.ok === false ? " error" : ""}`}>
@@ -3906,11 +3924,8 @@ function FloatDeskRow({ entry }: { entry: FloatDeskEntry }) {
         <small>{entry.decision?.provider || "policy"} · {formatFloatUSDC(amount)} USDC</small>
       </div>
       <div className="floatDeskReason">
-        <strong>{entry.decision?.rationale || entry.bookNote || "Desk cycle recorded."}</strong>
-        <small>
-          {entry.assessment ||
-            (clamped ? `policy clamped: ${entry.decision?.clampReasons?.join(", ") || "yes"}` : entry.bookNote || "chain policy unchanged")}
-        </small>
+        <strong>{primaryText}</strong>
+        <small>{secondaryText}</small>
       </div>
       <div className="floatDeskProofs">
         {spend?.requestHash && (
