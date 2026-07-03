@@ -668,12 +668,6 @@ type FloatDeskState = {
   error?: string;
 };
 
-const FLOAT_DESK_GATEWAY_PROOF = {
-  rows: 2,
-  totalUSDC: "0.002",
-  batches: ["cad5a209-df11-4eb3-95e6-29b442c6293c", "910c14fc-3af9-4716-81f3-9144e31d2650"],
-};
-
 const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
   ok: true,
   source: "verified-snapshot",
@@ -3846,24 +3840,6 @@ function FloatDeskJournal({
         <a href="/api/desk" target="_blank" rel="noreferrer">
           Desk API
         </a>
-      </div>
-      <div className="floatDeskGateway">
-        <div>
-          <span>Circle Gateway support note</span>
-          <strong>{FLOAT_DESK_GATEWAY_PROOF.totalUSDC} USDC batched over {FLOAT_DESK_GATEWAY_PROOF.rows} Desk cycles</strong>
-          <p>
-            Gateway records show settlement plumbing for small Desk amounts after provider payments landed. This stays
-            separate from the V2 provider-payment proof and external traction.
-          </p>
-        </div>
-        <div className="floatDeskGatewayProofs">
-          {FLOAT_DESK_GATEWAY_PROOF.batches.map((batch) => (
-            <span key={batch}>batch {shortHash(batch)}</span>
-          ))}
-          <a href="/api/settlements" target="_blank" rel="noreferrer">
-            Settlement API
-          </a>
-        </div>
       </div>
       <div className="floatDeskStats">
         <FloatFact label="cycles" value={counts ? String(counts.cycles) : loading ? "reading" : "0"} />
