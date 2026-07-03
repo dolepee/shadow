@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
-      ARC_RPC_URL: "https://rpc.testnet.arc.network"
+      ARC_RPC_URL: ${{ secrets.ARC_RPC_URL || 'https://rpc.testnet.arc.network' }}
       ARC_USDC: "0x3600000000000000000000000000000000000000"
       SHADOW_FLOAT: "0x20dcA96B0C487D94De885c726c956ffaF38b12C2"
       FLOAT_DESK_LIVE: "1"

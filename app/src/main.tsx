@@ -3475,9 +3475,14 @@ function classifyFloatV2Lifecycle(agent: FloatV2AgentState): {
     return { label: "closed", detail: "signed, paid, repaid", tone: "closed" };
   }
   if (activeDebt > 0n) {
+    const isObol = agent.agent.toLowerCase() === OBOL_SIGNER;
     return {
       label: "open debt",
-      detail: agent.providerPaidCount > 0 ? "provider paid, repayment pending" : "debt open, payment log syncing",
+      detail: isObol
+        ? "one open-debt exhibit, repayment pending"
+        : agent.providerPaidCount > 0
+          ? "provider paid, repayment pending"
+          : "debt open, payment log syncing",
       tone: "open",
     };
   }
