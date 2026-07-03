@@ -3821,9 +3821,19 @@ function FloatDeskJournal({
   error: string | null;
 }) {
   const entries = state?.entries || [];
-  const latest = entries[0];
+  const completedEntries = entries.filter((entry) => entry.ok !== false);
+  const hiddenRetryEntries = Math.max(0, entries.length - completedEntries.length);
+  const latest = completedEntries[0] || entries[0];
   const counts = state?.counts;
-  const status = error ? "desk read needs review" : loading && !state ? "reading desk" : entries.length ? "live journal" : "waiting for first cycle";
+  const status = error
+    ? "desk read needs review"
+    : loading && !state
+      ? "reading desk"
+      : completedEntries.length
+        ? "completed journal"
+        : entries.length
+          ? "retry journal"
+          : "waiting for first cycle";
 
   return (
     <section className="floatDeskJournal" id="desk-journal" aria-label="Shadow Float Desk journal">
@@ -3836,8 +3846,14 @@ function FloatDeskJournal({
           <strong>Autonomous desk decisions, constrained by contract policy.</strong>
           <p>
             The desk reads the live Float book, proposes pay, skip, hold, or repay actions, and the contract policy decides
-            what can execute. Desk activity is separated from external builder traction.
+            what can execute. This page shows completed decisions first; the raw Desk API keeps the full journal, including
+            retries. Desk activity is separated from external builder traction.
           </p>
+          {hiddenRetryEntries > 0 && (
+            <small className="floatDeskRetryNote">
+              {hiddenRetryEntries} retry {hiddenRetryEntries === 1 ? "entry is" : "entries are"} visible in the raw API.
+            </small>
+          )}
         </div>
         <a href="/api/desk" target="_blank" rel="noreferrer">
           Desk API
@@ -3856,16 +3872,16 @@ function FloatDeskJournal({
           <strong>Desk journal read failed</strong>
           <span>{error}</span>
         </div>
-      ) : entries.length ? (
+      ) : completedEntries.length ? (
         <div className="floatDeskRows">
-          {entries.slice(0, 6).map((entry, index) => (
+          {completedEntries.slice(0, 6).map((entry, index) => (
             <FloatDeskRow entry={entry} key={`${entry.cycle || index}-${entry.ts || "desk"}`} />
           ))}
         </div>
       ) : (
         <div className="floatDeskEmpty">
-          <strong>{loading ? "Reading desk journal" : "Desk cycles have not been published yet"}</strong>
-          <span>Scheduled cycles will appear here after the workflow writes to the public journal.</span>
+          <strong>{loading ? "Reading desk journal" : entries.length ? "Only retry entries are in the latest journal" : "Desk cycles have not been published yet"}</strong>
+          <span>{entries.length ? "Open the raw Desk API for the full retry trail." : "Scheduled cycles will appear here after the workflow writes to the public journal."}</span>
         </div>
       )}
     </section>

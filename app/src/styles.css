@@ -1464,6 +1464,15 @@ body,
   max-width: 780px;
 }
 
+.floatDeskRetryNote {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  margin-top: 8px;
+}
+
 .floatDeskIntro a {
   border: 1px solid rgba(77, 240, 168, 0.25);
   border-radius: 999px;
