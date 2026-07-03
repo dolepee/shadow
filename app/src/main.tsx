@@ -3784,7 +3784,7 @@ function FloatDeskLabLineCard({
           <FloatFact label="available" value={labLine?.availableCreditUSDC ? `${formatFloatUSDC(labLine.availableCreditUSDC)} USDC` : loading ? "reading" : "pending"} />
           <FloatFact label="debt" value={labLine?.activeDebtUSDC ? `${formatFloatUSDC(labLine.activeDebtUSDC)} USDC` : loading ? "reading" : "pending"} />
           <FloatFact label="reserve" value={labLine?.sponsorReserveUSDC ? `${formatFloatUSDC(labLine.sponsorReserveUSDC)} USDC` : loading ? "reading" : "pending"} />
-          <FloatFact label="settled cycles" value={state?.counts ? String((state.counts.settles || 0) + state.counts.repays) : loading ? "reading" : "0"} />
+          <FloatFact label="provider settles" value={state?.counts ? String(state.counts.settles || 0) : loading ? "reading" : "0"} />
         </div>
         <div className="floatDeskLineProofs">
           {latestSpend?.requestHash && (
@@ -3869,7 +3869,7 @@ function FloatDeskJournal({
       <div className="floatDeskStats">
         <FloatFact label="cycles" value={counts ? String(counts.cycles) : loading ? "reading" : "0"} />
         <FloatFact label="pays" value={counts ? String(counts.pays) : "0"} />
-        <FloatFact label="settles" value={counts ? String((counts.settles || 0) + counts.repays) : "0"} />
+        <FloatFact label="settles" value={counts ? String(counts.settles || 0) : "0"} />
         <FloatFact label="skips" value={counts ? String(counts.skips + counts.holds) : "0"} />
         <FloatFact label="policy clamps" value={counts ? String(counts.clamps) : "0"} />
         <FloatFact label="latest" value={latest?.ts ? formatDeskTime(latest.ts) : loading ? "reading" : "pending"} />
