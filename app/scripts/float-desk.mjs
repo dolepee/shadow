@@ -422,6 +422,7 @@ function clampDecision(proposed, state, history) {
     if (amountAtomic > BigInt(mandate.maxPerRequestUSDC)) clampReasons.push("ABOVE_PROVIDER_MANDATE");
     if (amountAtomic > dailyRemaining) clampReasons.push("ABOVE_DAILY_REMAINING");
     if (amountAtomic > BigInt(state.line.availableCreditUSDC)) clampReasons.push("ABOVE_AVAILABLE_CREDIT");
+    if (amountAtomic > BigInt(state.floors.agentUSDC)) clampReasons.push("AGENT_USDC_BELOW_REPAY_AMOUNT");
     if (!mandate.active || BigInt(mandate.expiry) <= BigInt(NOW)) clampReasons.push("PROVIDER_MANDATE_INACTIVE");
     if (paidToday >= MAX_SPENDS_PER_DAY) clampReasons.push("DESK_SPEND_COUNT_CAP");
     if (BigInt(state.floors.treasuryUSDC) < MIN_TREASURY_ATOMIC) clampReasons.push("TREASURY_FLOOR");
