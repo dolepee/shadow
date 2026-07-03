@@ -2148,8 +2148,8 @@ function App() {
         <h1 className="pageTitle">What is live on Arc, and what comes next.</h1>
         <p className="pageLede">
           Shadow Float now covers the full testnet loop: sponsor reserve, signed authorization, provider payment, debt,
-          repayment, automated scoring, external sponsors, and labeled open debt. Gateway settlement and CCTP acknowledgement
-          stay as supporting Circle notes, not the Float proof path.
+          repayment, automated scoring, external sponsors, and labeled open debt. The roadmap below keeps the Float path
+          separate from supporting records.
         </p>
       </section>
       <section className="roadmapStatusBand" aria-label="Live Shadow Float milestones">
@@ -2165,8 +2165,8 @@ function App() {
         </article>
         <article>
           <span>matured</span>
-          <strong>Circle support notes</strong>
-          <p>Gateway and CCTP work is documented as supporting interop evidence. The judged Float path remains Arc USDC payment from reserve.</p>
+          <strong>Autonomous line scoring</strong>
+          <p>Sponsored lines are re-scored by ShadowFloat from recorded paid, blocked, and repaid behavior after each action.</p>
         </article>
       </section>
       <section className="roadmapGrid" aria-label="Shadow Float roadmap">
