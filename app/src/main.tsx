@@ -2038,7 +2038,7 @@ function App() {
       <section className="pageNext" aria-label="Shadow Float product paths">
         <Link to="/float" className="pageNextCard pageNextCardPrimary">
           <span className="pageNextEyebrow">product</span>
-          <span className="pageNextTitle">Walk the signed spend, provider payment, debt, repay, block, and denial loop</span>
+          <span className="pageNextTitle">Walk the signed spend, provider payment, debt, repayment, and overrun block</span>
           <span className="pageNextArrow">→</span>
         </Link>
         <Link to="/treasury" className="pageNextCard">
