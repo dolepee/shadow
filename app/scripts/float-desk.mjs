@@ -381,16 +381,21 @@ function clampDecision(proposed, state, history) {
   const provider = PROVIDERS[String(proposed.provider || "citepay").toLowerCase()] || PROVIDERS.citepay;
   const mandate = state.mandates[provider.key];
   const debt = BigInt(state.line.activeDebtUSDC);
-  const recentActions = history.slice(-2).map((entry) => entry.decision?.action);
   let action = ["PAY", "SKIP", "REPAY", "HOLD"].includes(originalAction) ? originalAction : "SKIP";
   let amountAtomic = safeBigInt(proposed.amountAtomic) || provider.defaultAmountAtomic;
   let rationale = sanitizeSentence(proposed.rationale || `${action} proposed from live book.`);
   const clampReasons = [];
 
-  if (debt > 0n && action === "PAY" && recentActions.every((item) => item === "PAY")) {
-    action = "REPAY";
-    amountAtomic = debt;
-    clampReasons.push("REPAY_FORCED_AFTER_TWO_PAY_CYCLES_WITH_OPEN_DEBT");
+  if (debt > 0n && action !== "REPAY") {
+    if (BigInt(state.floors.agentUSDC) < debt) {
+      action = "HOLD";
+      amountAtomic = 0n;
+      clampReasons.push("OPEN_DEBT_WAITING_FOR_AGENT_USDC");
+    } else {
+      action = "REPAY";
+      amountAtomic = debt;
+      clampReasons.push("OPEN_DEBT_FORCES_REPAY");
+    }
   }
 
   if (action === "REPAY") {
