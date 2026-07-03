@@ -3267,9 +3267,10 @@ function FloatV2CurrentPanel({
   deskError: string | null;
 }) {
   const isSnapshot = state?.source === "verified-snapshot";
+  const isSnapshotFallback = isSnapshot && Boolean(error);
   const showCount = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
   const showUSDC = (value?: string | bigint | null) => (value === undefined || value === null ? (loading ? "reading" : "unavailable") : `${formatFloatUSDC(value)} USDC`);
-  const statusText = isSnapshot ? (loading ? "syncing live V2" : "last verified V2") : error ? "V2 read needs review" : loading && !state ? "reading V2" : "V2 active";
+  const statusText = isSnapshotFallback ? "verified fallback" : error ? "V2 read needs review" : loading && !state ? "reading V2" : "V2 active";
   const statusTone = error && !isSnapshot ? "pending" : "configured";
   const anchors = [
     { label: "V2 contract source", href: FLOAT_V2_PROOF.sourcify, value: shortAddress(FLOAT_V2_CONTRACT) },
@@ -3621,7 +3622,8 @@ function FloatV2ActivityBoard({
   const checkedAt = state?.checkedAt
     ? new Date(state.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : null;
-  const statusLabel = isSnapshot ? (loading ? "syncing live V2" : "last verified snapshot") : error ? "V2 read needs review" : loading && !state ? "reading V2 activity" : "live V2 activity";
+  const isSnapshotFallback = isSnapshot && Boolean(error);
+  const statusLabel = isSnapshotFallback ? "verified fallback" : error ? "V2 read needs review" : loading && !state ? "reading V2 activity" : "live V2 activity";
   const closed = state?.summary?.repaidLifecycles ?? 0;
   const openDebt = state?.summary?.openDebtAgents ?? 0;
   const topScore = agents.reduce((max, agent) => Math.max(max, agent.autonomousScore?.score ?? agent.score ?? 0), 0);
@@ -3632,7 +3634,7 @@ function FloatV2ActivityBoard({
     <section className="floatV2ActivityBoard" id="v2-activity" aria-label="Shadow Float V2 external activity">
       <div className="floatBoxHeader">
         <span>external agent board</span>
-        <small>{checkedAt ? `${isSnapshot ? "snapshot" : "updated"} ${checkedAt}` : statusLabel}</small>
+        <small>{checkedAt ? `${isSnapshotFallback ? "snapshot" : "updated"} ${checkedAt}` : statusLabel}</small>
       </div>
       <div className="floatV2ActivityIntro">
         <div>
@@ -3641,7 +3643,7 @@ function FloatV2ActivityBoard({
             Closed means the agent signed a V2 intent, ShadowFloat paid the provider from sponsor reserve, and the same line
             was repaid. Open debt means the provider payment is already bound and the agent has not repaid yet.
             Sponsored lines are scored by the contract from behavior stats after paid, blocked, and repaid actions.
-            {isSnapshot ? " Showing the last verified snapshot while the live feed syncs." : ""}
+            {isSnapshotFallback ? " Showing a verified fallback snapshot while the live feed recovers." : ""}
           </p>
         </div>
         <a href="/api/float?mode=v2" target="_blank" rel="noreferrer">
@@ -6417,12 +6419,13 @@ function HomeProofOverview({
   const summary = state?.summary;
   const topContractScore = (state?.agents || []).reduce((max, agent) => Math.max(max, agent.autonomousScore?.score ?? agent.score ?? 0), 0);
   const isSnapshot = state?.source === "verified-snapshot";
+  const isSnapshotFallback = isSnapshot && Boolean(error);
   const countValue = (value: number | undefined) => {
     if (value !== undefined) return String(value);
     if (error) return "unavailable";
     return loading ? "reading" : "not loaded";
   };
-  const statusLabel = isSnapshot ? (loading ? "syncing live V2" : "verified snapshot") : error ? "V2 read failed" : loading && !state ? "reading V2" : "Float V2 live";
+  const statusLabel = isSnapshotFallback ? "verified fallback" : error ? "V2 read failed" : loading && !state ? "reading V2" : "Float V2 live";
   const statusClass = error && !isSnapshot ? "error" : "live";
   const cards = [
     {
@@ -6545,6 +6548,7 @@ function HeroMetrics({
 }) {
   const summary = state?.summary;
   const isSnapshot = state?.source === "verified-snapshot";
+  const isSnapshotFallback = isSnapshot && Boolean(error);
   const countValue = (value: number | undefined) => {
     if (value !== undefined) return String(value);
     if (error) return "n/a";
@@ -6568,8 +6572,8 @@ function HeroMetrics({
         ))}
       </div>
       <span className="heroMetricsNote">
-        {isSnapshot
-          ? "Showing the last verified V2 snapshot while the live feed syncs."
+        {isSnapshotFallback
+          ? "Showing a verified V2 snapshot while the live counter read recovers."
           : error
             ? "Float V2 counters are temporarily unavailable."
             : "Live counters come from the current Float V2 activity feed."}
