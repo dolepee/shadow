@@ -2429,7 +2429,7 @@ function TreasuryRailSplit({
     {
       eyebrow: "payment path",
       title: "Float pays before the agent is funded",
-      body: "Signed agents authorize a spend, Float pays the approved provider from reserved capacity, fee-inclusive debt opens, and repayment restores capacity.",
+      body: "Signed agents authorize a spend, Float pays the approved provider from reserved capacity, debt opens, and repayment restores capacity.",
       stat: "V2 signed intent live",
       href: "/float",
       cta: "Open Float",
@@ -2826,21 +2826,21 @@ function TreasuryValidationPanel() {
     },
     {
       label: "CitePay",
-      status: "architecture fit feedback",
-      detail: "Builder feedback says Float + M1 fits agent/x402 workflows because enforcement happens before USDC leaves the policy boundary.",
+      status: "provider and sponsor receipts",
+      detail: "CitePay appears on the V2 proof path as a provider paid by Float and as a non-operator sponsor reserve.",
     },
     {
       label: "Forum",
-      status: "live tx feedback",
-      detail: "Forum checked the Arc transactions and noted that the same vault entrypoint moved funds when allowed, then moved zero USDC when over limit.",
+      status: "sponsor reclaim receipt",
+      detail: "Forum Tollgate appears on the sponsor proof path with open reserve, agent spend, agent repay, and reserve reclaim transactions.",
     },
   ];
 
   return (
     <section className="treasuryValidationSection" aria-label="External feedback and builder background">
       <div className="treasurySectionHeader">
-        <p className="eyebrow">builder feedback · public receipts</p>
-        <h2>External Float usage is live; M1 feedback is tied to public receipts.</h2>
+        <p className="eyebrow">external usage · public receipts</p>
+        <h2>External Float usage is live; supporting records stay public.</h2>
       </div>
 
       <div className="treasuryValidationGrid">
@@ -2855,11 +2855,11 @@ function TreasuryValidationPanel() {
         </article>
 
         <article className="treasuryValidationCard treasuryValidationCardValidated">
-          <span>technical review</span>
-          <strong>Builders gave technical feedback on the transaction path</strong>
+          <span>receipt check</span>
+          <strong>Use public records, not claims</strong>
           <p>
-            CitePay said the model fits agent payment workflows. Forum checked the live Arc transactions and noted the
-            same vault adapter entrypoint moved USDC when allowed, then moved zero USDC when over limit.
+            The verifier output and Float board expose the provider payment, adapter allow and block records, sponsor
+            reserves, repayments, and reserve reclaim transactions.
           </p>
           <a href="/api/treasury" target="_blank" rel="noreferrer">
             Open verifier output →
