@@ -13,11 +13,13 @@ import {
   stringToBytes,
   type Address,
 } from "viem";
+import { FLOAT_V2_CONTRACT, FLOAT_V2_DEPLOY_BLOCK } from "../floatV2Config.js";
 
 export const config = { maxDuration: 25 };
 
 const ARC_CHAIN_ID = 5_042_002;
 const ZERO = "0x0000000000000000000000000000000000000000";
+const LEGACY_FLOAT_V1 = "0xF305647bA0ff7f1E2d4bE5f37F2EF9f930531057";
 const DEFAULT_ALPHA = "0xa100000000000000000000000000000000000001";
 const DEFAULT_BETA = "0xbe7a000000000000000000000000000000000002";
 const DEFAULT_SELF_TEST_AGENTS = [
@@ -273,17 +275,13 @@ async function handleAgent(req: Req, res: Res) {
     return;
   }
 
-  const floatRaw = clean(process.env.SHADOW_FLOAT || process.env.VITE_SHADOW_FLOAT);
-  if (!floatRaw || !isAddress(floatRaw)) {
-    res.status(200).json({ configured: false, testnet: true, network: "arc-testnet" });
-    return;
-  }
+  const float = currentFloatAddress();
   const rpcUrl = clean(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
 
   try {
     const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) });
     const line = await client.readContract({
-      address: getAddress(floatRaw),
+      address: float,
       abi: floatAbi,
       functionName: "lines",
       args: [getAddress(address)],
@@ -294,7 +292,7 @@ async function handleAgent(req: Req, res: Res) {
       configured: true,
       testnet: true,
       network: "arc-testnet",
-      float: getAddress(floatRaw),
+      float,
       agent: getAddress(address),
       label: labelFor(address),
       known,
@@ -310,7 +308,7 @@ async function handleAgent(req: Req, res: Res) {
           }
         : null,
       note: known
-        ? "Standing is behavior-backed: the Shadow operator grants and adjusts the line from observed on-chain behavior."
+        ? "Standing is sponsor-backed and contract-scored on V2: paid, blocked, and repaid behavior refresh the line within the sponsor reserve cap."
         : "No Float line for this address yet. Behavior earns a line; it is not self-claimed.",
       fetchedAt: Date.now(),
     });
@@ -327,8 +325,8 @@ async function handleRationale(req: Req, res: Res) {
     return;
   }
 
-  const floatRaw = clean(process.env.SHADOW_FLOAT || process.env.VITE_SHADOW_FLOAT);
-  const runs = filterRunsForFloat(await readLoopRuns(), floatRaw);
+  const float = currentFloatAddress();
+  const runs = filterRunsForFloat(await readLoopRuns(), float);
   const match = runs.find((r) => (r.requestHash || "").toLowerCase() === hash.toLowerCase());
   if (!match || !match.rationalePreimage) {
     res.status(200).json({
@@ -366,12 +364,8 @@ async function handleVerify(req: Req, res: Res) {
     return;
   }
 
-  const floatRaw = clean(process.env.SHADOW_FLOAT || process.env.VITE_SHADOW_FLOAT);
-  if (!floatRaw || !isAddress(floatRaw)) {
-    res.status(200).json({ configured: false, testnet: true, network: "arc-testnet" });
-    return;
-  }
-  const runs = filterRunsForFloat(await readLoopRuns(), floatRaw);
+  const float = currentFloatAddress();
+  const runs = filterRunsForFloat(await readLoopRuns(), float);
   const match = runs.find((r) => r.intent && r.signature && (r.requestHash || "").toLowerCase() === hash.toLowerCase());
   if (!match || !match.intent || !match.signature) {
     res.status(200).json({
@@ -440,7 +434,7 @@ async function handleVerify(req: Req, res: Res) {
     const signatureMode = erc1271SignerMatchesAgent ? "erc1271" : "eoa";
     const digestMatchesRequestHash = digest.toLowerCase() === hash.toLowerCase();
     const onchain = await verifyOnchainExternalProof(client, {
-      float: getAddress(floatRaw),
+      float,
       requestHash: hash,
       bindTxHash: match.bindTxHash,
       txHash: match.txHash,
@@ -712,17 +706,12 @@ async function handleScore(req: Req, res: Res) {
     return;
   }
 
-  const floatRaw = clean(process.env.SHADOW_FLOAT || process.env.VITE_SHADOW_FLOAT);
-  if (!floatRaw || !isAddress(floatRaw)) {
-    res.status(200).json({ configured: false, testnet: true, network: "arc-testnet" });
-    return;
-  }
+  const float = currentFloatAddress();
   const rpcUrl = clean(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
   const agent = getAddress(address);
 
   try {
     const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) }) as unknown as FloatToolsClient;
-    const float = getAddress(floatRaw);
     const [line, receiptCount, latestBlock] = await Promise.all([
       client.readContract({
         address: float,
@@ -733,10 +722,10 @@ async function handleScore(req: Req, res: Res) {
       client.readContract({ address: float, abi: floatAbi, functionName: "receiptCount" }),
       client.getBlockNumber(),
     ]);
-    const startBlock = BigInt(clean(process.env.SHADOW_FLOAT_START_BLOCK || process.env.VITE_SHADOW_FLOAT_START_BLOCK) || "0");
+    const startBlock = BigInt(clean(process.env.SHADOW_FLOAT_START_BLOCK || process.env.VITE_SHADOW_FLOAT_START_BLOCK) || FLOAT_V2_DEPLOY_BLOCK.toString());
     const fromBlock = startBlock > 0n ? startBlock : latestBlock > LOG_LOOKBACK ? latestBlock - LOG_LOOKBACK : 0n;
     const receiptEvidence = await readReceiptEvidence(client, float, fromBlock, latestBlock);
-    const runs = filterRunsForFloat(await readLoopRuns(), floatRaw);
+    const runs = filterRunsForFloat(await readLoopRuns(), float);
     const label = labelFor(agent);
     const evidence = scoreEvidenceFromReceipts(agent, receiptEvidence.receipts, runs);
     const score = deterministicScore(label, evidence);
@@ -812,9 +801,9 @@ async function handleScore(req: Req, res: Res) {
           currentLine.score <= score && BigInt(currentLine.creditLimitUSDC) <= BigInt(recommendedLimitUSDC),
       },
       trustAssumption:
-        "Deterministic v0 formula over receipt-derived evidence. Grant execution remains owner/operator-controlled and current Lepton lines are not permissionlessly auto-updated yet.",
+        "Deterministic v0 formula over receipt-derived evidence. Sponsored V2 lines are refreshed by the contract from recorded paid, blocked, and repaid behavior, while legacy non-sponsored lines remain outside this permissionless sponsor path.",
       note:
-        "This v0 verifier derives behavior counts from FloatReceipt logs, then mirrors the contract formula. signedExternalPaidBound still requires the published builder signature metadata because signatures are not stored onchain.",
+        "This v0 verifier derives behavior counts from FloatReceipt logs, then mirrors the V2 scoring bands. signedExternalPaidBound still requires published builder signature metadata because signatures are not stored onchain.",
       fetchedAt: Date.now(),
     });
   } catch (error) {
@@ -835,11 +824,7 @@ async function handleIntent(req: Req, res: Res) {
     return;
   }
 
-  const floatRaw = clean(process.env.SHADOW_FLOAT || process.env.VITE_SHADOW_FLOAT);
-  if (!floatRaw || !isAddress(floatRaw)) {
-    res.status(200).json({ configured: false, testnet: true, network: "arc-testnet" });
-    return;
-  }
+  const float = currentFloatAddress();
 
   const providerRaw = clean(readParam(req, "provider")) || clean(process.env.FLOAT_PROVIDER || process.env.VITE_FLOAT_PROVIDER) || "0x8ddf06fE8985988d3e0883F945E891BD57084937";
   const endpointHash = clean(readParam(req, "endpointHash")) || clean(process.env.FLOAT_ENDPOINT_HASH || process.env.VITE_FLOAT_ENDPOINT_HASH) || "0x54f180bcd31ab4c3401b23bc78cb3eeb89f85d42a3b43e3d06a692b91d941160";
@@ -866,7 +851,6 @@ async function handleIntent(req: Req, res: Res) {
     res.status(400).json({ error: "amountUSDC must be a positive integer in 6-decimal atomic units" });
     return;
   }
-  const float = getAddress(floatRaw);
   const agent = getAddress(agentParam);
   let activeDebtUSDC = 0n;
   let activeDebtRead = false;
@@ -946,7 +930,7 @@ async function handleIntent(req: Req, res: Res) {
       "A signature authorizes only this provider, endpoint hash, amount, maximum debt, nonce, expiry, executor, and reason.",
       "If executor is nonzero, only that address can consume the signed intent; if it is zero, any caller can submit it once.",
       "No transaction, approval, or USDC movement is required from the builder to sign typed data.",
-      "On V2, the Float contract verifies this signature, consumes the nonce, and emits FloatIntentConsumed before direct provider payment or operator-assisted x402 reimbursement.",
+      "On V2, the Float contract verifies this signature, consumes the nonce, and emits FloatIntentConsumed before direct provider payment from sponsor reserve.",
     ],
     debtContext: {
       activeDebtUSDC: activeDebtUSDC.toString(),
@@ -954,7 +938,7 @@ async function handleIntent(req: Req, res: Res) {
       maxDebtSource: maxDebtRaw ? "caller-provided" : activeDebtRead ? "active-debt-plus-amount-headroom" : "amount-headroom-fallback",
     },
     verifyBeforeBinding:
-      "A V2 direct spend is enforced entirely by the contract. Operator-assisted x402 still verifies the same signature onchain before reimbursement, while settlement truth is checked by the script/verifier.",
+      "A V2 direct spend is enforced entirely by the contract: signer, nonce, expiry, provider, endpoint, executor, amount, max debt, sponsor reserve, and line policy are checked before provider payment.",
     fetchedAt: Date.now(),
   });
 }
@@ -1167,6 +1151,17 @@ function filterRunsForFloat(runs: LoopRun[], floatRaw: string | undefined): Loop
   if (!floatRaw || !isAddress(floatRaw)) return [];
   const current = getAddress(floatRaw);
   return runs.filter((run) => Boolean(run.float && isAddress(run.float) && getAddress(run.float) === current));
+}
+
+function currentFloatAddress(): Address {
+  const explicit = clean(process.env.FLOAT_TOOLS_FLOAT || process.env.FLOAT_V2_CONTRACT);
+  const raw = explicit || FLOAT_V2_CONTRACT;
+  if (!isAddress(raw)) return getAddress(FLOAT_V2_CONTRACT);
+  const address = getAddress(raw);
+  if (address.toLowerCase() === LEGACY_FLOAT_V1.toLowerCase() && clean(process.env.ALLOW_LEGACY_FLOAT_TOOLS) !== "1") {
+    return getAddress(FLOAT_V2_CONTRACT);
+  }
+  return address;
 }
 
 function deterministicScore(label: "lab" | "invited" | "self-test" | "demo", evidence: ScoreEvidence) {
