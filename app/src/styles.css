@@ -10638,6 +10638,97 @@ code {
   color: var(--ink);
 }
 
+@media (max-width: 520px) {
+  html,
+  body,
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  .shell {
+    max-width: 100%;
+    overflow-x: hidden;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .nav,
+  .hero {
+    box-sizing: border-box;
+    max-width: calc(100vw - 24px);
+    width: 100%;
+  }
+
+  .nav {
+    gap: 12px;
+  }
+
+  .brand,
+  .navLinks,
+  .navActions {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .navActions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .navWallet,
+  .navCta {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .hero {
+    padding: 38px 18px 24px;
+  }
+
+  .heroGrid {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 100%;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .heroCopy,
+  .hero h1,
+  .hero .lede,
+  .homeTruthStrip,
+  .heroActions,
+  .heroTrust,
+  .heroLedger {
+    max-width: 100%;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .hero h1 {
+    font-size: clamp(32px, 9vw, 36px);
+    line-height: 1.08;
+    overflow-wrap: break-word;
+    text-wrap: balance;
+  }
+
+  .hero .lede {
+    overflow-wrap: break-word;
+  }
+
+  .heroTrust {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .heroTrust li {
+    min-width: 0;
+    white-space: normal;
+  }
+}
+
 .siteFooterBottom {
   align-items: center;
   border-top: 1px solid var(--border);
