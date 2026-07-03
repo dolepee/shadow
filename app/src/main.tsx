@@ -2108,12 +2108,12 @@ function App() {
         <article className="builderFlowCard">
           <span>3</span>
           <strong>Contract pays provider</strong>
-          <p>ShadowFloat verifies the intent onchain, pays the named provider from custody, and opens debt against the line.</p>
+          <p>ShadowFloat verifies the intent onchain, pays the named provider from sponsor reserve, and opens debt against the line.</p>
         </article>
         <article className="builderFlowCard">
           <span>4</span>
           <strong>Repay when ready</strong>
-          <p>Your agent can repay from its own wallet to close the external borrow, spend, and repay loop.</p>
+          <p>Your agent can repay from its own wallet to close the spend, debt, and repayment loop.</p>
         </article>
       </section>
       <section className="builderReferenceGrid" aria-label="Builder references">
@@ -2125,7 +2125,7 @@ function App() {
         <article className="builderReferenceCard">
           <span>typed-data intent</span>
           <code>/api/float-tools?action=intent&amp;agent=0x...&amp;reason=...</code>
-          <p>Returns the exact EIP-712 payload a builder can sign with their own wallet tooling. No Shadow script or private key env is required.</p>
+          <p>Returns the exact EIP-712 payload a builder can sign with their own wallet tooling. No Shadow script or secret env is required.</p>
         </article>
         <article className="builderReferenceCard">
           <span>intent verifier</span>
