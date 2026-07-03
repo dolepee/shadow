@@ -3353,6 +3353,7 @@ function FloatV2CurrentPanel({
       <FloatDeskLabLineCard state={deskState} loading={deskLoading} error={deskError} />
       <FloatDeskJournal state={deskState} loading={deskLoading} error={deskError} />
       <FloatV2ActivityBoard state={state} loading={loading} error={error} />
+      <FloatV2SponsorCapitalPanel state={state} />
       <FloatV2WorkflowPanel />
       <FloatV2UseCasePanel />
       <FloatV2VerificationFooter anchors={anchors} />
@@ -3430,6 +3431,100 @@ function FloatV2WorkflowPanel() {
             <span>{String(index + 1).padStart(2, "0")}</span>
             <strong>{step.title}</strong>
             <p>{step.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FloatV2SponsorCapitalPanel({ state }: { state: FloatV2ActivityState | null }) {
+  const totalSponsoredReserve = state?.totalSponsoredReserveUSDC
+    ? `${formatFloatUSDC(state.totalSponsoredReserveUSDC)} USDC`
+    : "reading";
+  const sponsorRuns = [
+    {
+      name: "CitePay",
+      status: "live reserve",
+      tone: "live",
+      sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+      agent: "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f",
+      reserve: "0.05 USDC",
+      body: "CitePay opened a non-operator reserve for a specific agent line. The spend was repaid, and the reserve remains live.",
+      steps: [
+        { label: "approve reserve", tx: FLOAT_V2_PROOF.citePaySponsorApproveTx },
+        { label: "openSponsoredLine", tx: FLOAT_V2_PROOF.citePaySponsorOpenTx },
+        { label: "spend", tx: FLOAT_V2_PROOF.citePaySponsorSpendTx },
+        { label: "repay", tx: FLOAT_V2_PROOF.citePaySponsorRepayTx },
+      ],
+    },
+    {
+      name: "Forum Tollgate",
+      status: "reserve reclaimed",
+      tone: "reclaimed",
+      sponsor: "0x12F25B721Cc21c38495e33A4c8524dd0B647ba03",
+      agent: "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C",
+      reserve: "0.05 USDC",
+      body: "Forum Tollgate completed the full sponsor path: open reserve, agent spend, agent repay, then close and reclaim the full reserve.",
+      steps: [
+        { label: "openSponsoredLine", tx: FLOAT_V2_PROOF.forumSponsorOpenTx },
+        { label: "spend", tx: FLOAT_V2_PROOF.forumSponsorSpendTx },
+        { label: "repay", tx: FLOAT_V2_PROOF.forumSponsorRepayTx },
+        { label: "closeSponsoredLine", tx: FLOAT_V2_PROOF.forumSponsorCloseTx },
+      ],
+    },
+  ];
+
+  return (
+    <section className="floatSponsorCapital" id="sponsor-capital" aria-label="External sponsor capital on Shadow Float V2">
+      <div className="floatBoxHeader">
+        <span>external sponsor capital</span>
+        <small>outside wallets, bounded reserves</small>
+      </div>
+      <div className="floatSponsorCapitalIntro">
+        <div>
+          <strong>Outside wallets can back agent capacity, then reclaim reserve after debt is clear.</strong>
+          <p>
+            These sponsor runs were sent by non-operator wallets. Each reserve is bound to one agent line and one provider
+            mandate. closeSponsoredLine only succeeds after active debt is repaid.
+          </p>
+        </div>
+        <div className="floatSponsorCapitalStats">
+          <FloatFact label="sponsor runs" value="2" />
+          <FloatFact label="live reserve" value="CitePay" />
+          <FloatFact label="reclaimed" value="Forum" />
+          <FloatFact label="total reserve on V2" value={totalSponsoredReserve} />
+        </div>
+      </div>
+      <div className="floatSponsorCapitalGrid">
+        {sponsorRuns.map((run) => (
+          <article className={`floatSponsorCapitalCard ${run.tone}`} key={run.name}>
+            <header>
+              <div>
+                <span>{run.name}</span>
+                <strong>{run.status}</strong>
+              </div>
+              <em>{run.reserve}</em>
+            </header>
+            <p>{run.body}</p>
+            <dl className="floatSponsorWallets">
+              <div>
+                <dt>sponsor sender</dt>
+                <dd>{shortAddress(run.sponsor)}</dd>
+              </div>
+              <div>
+                <dt>agent line</dt>
+                <dd>{shortAddress(run.agent)}</dd>
+              </div>
+            </dl>
+            <div className="floatSponsorSteps" aria-label={`${run.name} sponsor transaction steps`}>
+              {run.steps.map((step) => (
+                <a href={txUrl(step.tx)} target="_blank" rel="noreferrer" key={step.label}>
+                  {step.label}
+                  <strong>{shortAddress(step.tx)}</strong>
+                </a>
+              ))}
+            </div>
           </article>
         ))}
       </div>

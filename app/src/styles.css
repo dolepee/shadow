@@ -1178,6 +1178,175 @@ body,
   color: var(--ink);
 }
 
+.floatSponsorCapital {
+  background:
+    linear-gradient(135deg, rgba(77, 240, 168, 0.08), rgba(50, 215, 255, 0.035)),
+    rgba(7, 17, 31, 0.6);
+  border: 1px solid rgba(77, 240, 168, 0.18);
+  border-radius: 16px;
+  margin-top: 14px;
+  padding: 14px;
+  scroll-margin-top: 112px;
+}
+
+.floatSponsorCapitalIntro {
+  align-items: stretch;
+  background: rgba(7, 17, 31, 0.44);
+  border: 1px solid rgba(184, 211, 255, 0.1);
+  border-radius: 12px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+  margin: 12px 0;
+  padding: 12px;
+}
+
+.floatSponsorCapitalIntro strong {
+  color: var(--ink);
+  display: block;
+  font-size: clamp(21px, 2vw, 30px);
+  letter-spacing: 0;
+  line-height: 1.08;
+  max-width: 760px;
+}
+
+.floatSponsorCapitalIntro p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 8px 0 0;
+  max-width: 780px;
+}
+
+.floatSponsorCapitalStats {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.floatSponsorCapitalGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.floatSponsorCapitalCard {
+  background: rgba(184, 211, 255, 0.045);
+  border: 1px solid rgba(184, 211, 255, 0.12);
+  border-radius: 12px;
+  min-width: 0;
+  padding: 13px;
+}
+
+.floatSponsorCapitalCard.live {
+  background: linear-gradient(135deg, rgba(77, 240, 168, 0.1), rgba(184, 211, 255, 0.04));
+}
+
+.floatSponsorCapitalCard.reclaimed {
+  background: linear-gradient(135deg, rgba(50, 215, 255, 0.09), rgba(184, 211, 255, 0.04));
+}
+
+.floatSponsorCapitalCard header {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.floatSponsorCapitalCard header span,
+.floatSponsorCapitalCard dt {
+  color: var(--ink-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.floatSponsorCapitalCard header strong {
+  color: var(--ink);
+  display: block;
+  font-size: 22px;
+  letter-spacing: 0;
+  line-height: 1.05;
+  margin-top: 7px;
+}
+
+.floatSponsorCapitalCard header em {
+  border: 1px solid rgba(77, 240, 168, 0.24);
+  border-radius: 999px;
+  color: var(--copy);
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-style: normal;
+  padding: 7px 9px;
+}
+
+.floatSponsorCapitalCard p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 12px 0;
+}
+
+.floatSponsorWallets {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.floatSponsorWallets div {
+  background: rgba(7, 17, 31, 0.42);
+  border: 1px solid rgba(184, 211, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.floatSponsorWallets dd {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+
+.floatSponsorSteps {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.floatSponsorSteps a {
+  background: rgba(7, 17, 31, 0.5);
+  border: 1px solid rgba(50, 215, 255, 0.16);
+  border-radius: 10px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.25;
+  min-width: 0;
+  padding: 9px;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.floatSponsorSteps a:hover {
+  border-color: rgba(50, 215, 255, 0.42);
+  color: var(--ink);
+}
+
+.floatSponsorSteps strong {
+  color: var(--accent);
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
 .floatDeskLineCard {
   background:
     linear-gradient(135deg, rgba(50, 215, 255, 0.09), rgba(77, 240, 168, 0.04)),
@@ -2860,6 +3029,15 @@ body,
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .floatSponsorCapitalIntro,
+  .floatSponsorCapitalGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .floatSponsorSteps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .floatV2BoardGuide {
     grid-template-columns: 1fr;
   }
@@ -3001,6 +3179,29 @@ body,
 
   .floatV2ActivityIntro a {
     text-align: center;
+  }
+
+  .floatSponsorCapitalIntro,
+  .floatSponsorCapitalCard header {
+    align-items: stretch;
+  }
+
+  .floatSponsorCapital {
+    scroll-margin-top: 168px;
+  }
+
+  .floatSponsorCapitalStats,
+  .floatSponsorWallets,
+  .floatSponsorSteps {
+    grid-template-columns: 1fr;
+  }
+
+  .floatSponsorCapitalCard header {
+    flex-direction: column;
+  }
+
+  .floatSponsorCapitalCard header em {
+    align-self: flex-start;
   }
 
   .floatDeskIntro {
