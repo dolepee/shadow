@@ -3825,7 +3825,7 @@ function FloatDeskJournal({
   const displayEntries = completedEntries.filter((entry) => {
     const action = String(entry.decision?.action || "").toUpperCase();
     const rationale = `${entry.decision?.rationale || ""} ${entry.assessment || ""}`;
-    const recoveryLanguage = /\b(error|failed|failure|revert|reverted)\b/i.test(rationale);
+    const recoveryLanguage = /\b(errors?|failed|failure|reverts?|reverted)\b/i.test(rationale);
     if (action === "SKIP" || action === "HOLD") return !recoveryLanguage;
     return true;
   });
