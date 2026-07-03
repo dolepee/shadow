@@ -27,6 +27,7 @@ Chain: Arc Testnet, chain id `5042002`
 | Live activity API | `GET https://shadow-arc.vercel.app/api/float?mode=v2` |
 | Local verifier | `npm run float:v2-verify-live` |
 | Builder intent endpoint | `GET /api/float-tools?action=intent&agent=0x...&reason=...` |
+| Builder signing kit | [`examples/float-v2-signed-spend`](examples/float-v2-signed-spend) |
 | Intent verifier | `GET /api/float-tools?action=verify&hash=0x...` |
 
 Live V2 activity currently shown on the site:
@@ -178,22 +179,31 @@ Next M1 hardening:
 - Integrate a real Morpho or vault market before using Morpho language as a production claim.
 - Expand bonding from receipt liveness to correctness and settlement guarantees.
 
-## Verification
+## Judge Run
 
 No private keys are required to verify the current system.
 
-`npm run float:v2-verify-live` verifies the canonical V2 proof loop and, by default, allows up to `0.01` USDC of explicitly labeled external open debt. That keeps the Obol open-debt row visible without weakening the proof loop. For strict closed-lifecycle mode, set `FLOAT_V2_VERIFY_STRICT_CLOSED=1`.
-
-```bash
-npm run float:v2-verify-live
-FLOAT_V2_VERIFY_STRICT_CLOSED=1 npm run float:v2-verify-live
-```
-
-Full local checks:
+The quickest public path is the live V2 verifier plus the two read-only APIs that back the site:
 
 ```bash
 git clone https://github.com/dolepee/shadow
 cd shadow
+pnpm --dir app install --frozen-lockfile
+
+npm run float:v2-verify-live
+curl -s https://shadow-arc.vercel.app/api/float?mode=v2
+curl -s https://shadow-arc.vercel.app/api/desk
+```
+
+`npm run float:v2-verify-live` verifies the canonical V2 proof loop and, by default, allows up to `0.01` USDC of explicitly labeled external open debt. That keeps the Obol open-debt row visible without weakening the proof loop. For strict closed-lifecycle mode, set `FLOAT_V2_VERIFY_STRICT_CLOSED=1`.
+
+```bash
+FLOAT_V2_VERIFY_STRICT_CLOSED=1 npm run float:v2-verify-live
+```
+
+Full local checks before changing code:
+
+```bash
 pnpm --dir app install --frozen-lockfile
 pnpm --dir agent install --frozen-lockfile
 
@@ -236,6 +246,7 @@ Supporting M1 contracts are documented in [`docs/LEPTON_M1.md`](docs/LEPTON_M1.m
 - Autonomous sponsored-line scoring from on-chain behavior stats.
 - Source-matched deployed contract.
 - Live external activity board.
+- Forkable builder signing kit for the V2 signed spend and repay flow.
 - No-secret verifier for the current V2 loop.
 - Historical V1 x402/EIP-3009 binding evidence, labeled separately from the current V2 product path.
 - Supporting M1 mandate proof for adapter-level ALLOW/BLOCK behavior.

@@ -1,0 +1,12 @@
+{
+  "name": "shadow-float-v2-signed-spend-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sign": "node sign-intent.mjs",
+    "repay": "node repay.mjs"
+  },
+  "dependencies": {
+    "viem": "^2.41.0"
+  }
+}
