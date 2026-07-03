@@ -67,6 +67,8 @@ const REASONS = [
 
 const floatAbi = parseAbi([
   "function lines(address agent) view returns (address wallet, uint16 score, uint256 creditLimitUSDC, uint256 availableCreditUSDC, uint256 activeDebtUSDC, uint8 status, uint64 lastReview, bytes32 mandateId, uint64 day, uint256 spentTodayUSDC)",
+  "function behaviorStats(address agent) view returns (uint16 paidBound,uint16 signedExternalPaid,uint16 repaid,uint16 blocked,uint16 denied,uint16 errorCount)",
+  "function autonomousLineScore(address agent) view returns (uint16 score,uint256 recommendedLimitUSDC,uint256 cappedLimitUSDC)",
   "function receiptCount() view returns (uint256)",
   "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
   "function providerDeliveryByRequestHash(bytes32 requestHash) view returns (bytes32)",
@@ -712,11 +714,23 @@ async function handleScore(req: Req, res: Res) {
 
   try {
     const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) }) as unknown as FloatToolsClient;
-    const [line, receiptCount, latestBlock] = await Promise.all([
+    const [line, stats, autonomousScore, receiptCount, latestBlock] = await Promise.all([
       client.readContract({
         address: float,
         abi: floatAbi,
         functionName: "lines",
+        args: [agent],
+      }),
+      client.readContract({
+        address: float,
+        abi: floatAbi,
+        functionName: "behaviorStats",
+        args: [agent],
+      }),
+      client.readContract({
+        address: float,
+        abi: floatAbi,
+        functionName: "autonomousLineScore",
         args: [agent],
       }),
       client.readContract({ address: float, abi: floatAbi, functionName: "receiptCount" }),
@@ -731,6 +745,8 @@ async function handleScore(req: Req, res: Res) {
     const score = deterministicScore(label, evidence);
     const recommendedLimitUSDC = recommendedLimitForScore(score);
     const currentLine = serializeLine(line as readonly unknown[]);
+    const contractStats = serializeBehaviorStats(stats as readonly unknown[]);
+    const contractScore = serializeAutonomousScore(autonomousScore as readonly unknown[]);
 
     res.status(200).json({
       configured: true,
@@ -741,6 +757,15 @@ async function handleScore(req: Req, res: Res) {
       label,
       formulaVersion: "shadow-float-score-v0",
       evidenceMode: "receipt-derived",
+      authoritativeContractScore: {
+        score: contractScore.score,
+        recommendedLimitUSDC: contractScore.recommendedLimitUSDC,
+        recommendedLimitFormatted: formatAtomicUSDC(contractScore.recommendedLimitUSDC),
+        cappedLimitUSDC: contractScore.cappedLimitUSDC,
+        cappedLimitFormatted: formatAtomicUSDC(contractScore.cappedLimitUSDC),
+        behaviorStats: contractStats,
+        source: "ShadowFloat.autonomousLineScore(agent) and ShadowFloat.behaviorStats(agent)",
+      },
       formula: {
         base: {
           lab: 8500,
@@ -790,15 +815,16 @@ async function handleScore(req: Req, res: Res) {
         score,
         recommendedLimitUSDC,
         recommendedLimitFormatted: formatAtomicUSDC(recommendedLimitUSDC),
+        note: "Offchain receipt-derived mirror used for diagnostics. The authoritative V2 value is autonomousLineScore from the contract.",
       },
       currentLine,
       supportCheck: {
         currentScore: currentLine.score,
         currentCreditLimitUSDC: currentLine.creditLimitUSDC,
-        scoreSupported: currentLine.score <= score,
-        limitSupported: BigInt(currentLine.creditLimitUSDC) <= BigInt(recommendedLimitUSDC),
-        currentLineSupportedByComputedV0:
-          currentLine.score <= score && BigInt(currentLine.creditLimitUSDC) <= BigInt(recommendedLimitUSDC),
+        scoreSupportedByContract: currentLine.score <= contractScore.score,
+        limitSupportedByContract: BigInt(currentLine.creditLimitUSDC) <= BigInt(contractScore.cappedLimitUSDC),
+        currentLineSupportedByContract:
+          currentLine.score <= contractScore.score && BigInt(currentLine.creditLimitUSDC) <= BigInt(contractScore.cappedLimitUSDC),
       },
       trustAssumption:
         "Deterministic v0 formula over receipt-derived evidence. Sponsored V2 lines are refreshed by the contract from recorded paid, blocked, and repaid behavior, while legacy non-sponsored lines remain outside this permissionless sponsor path.",
@@ -1193,6 +1219,25 @@ function serializeLine(line: readonly unknown[]) {
     activeDebtUSDC: (line[4] as bigint).toString(),
     status: STATUSES[Number(line[5])] || `STATUS_${line[5]}`,
     lastReview: Number(line[6]),
+  };
+}
+
+function serializeBehaviorStats(stats: readonly unknown[]) {
+  return {
+    paidBound: Number(stats[0]),
+    signedExternalPaid: Number(stats[1]),
+    repaid: Number(stats[2]),
+    blocked: Number(stats[3]),
+    denied: Number(stats[4]),
+    errorCount: Number(stats[5]),
+  };
+}
+
+function serializeAutonomousScore(score: readonly unknown[]) {
+  return {
+    score: Number(score[0]),
+    recommendedLimitUSDC: (score[1] as bigint).toString(),
+    cappedLimitUSDC: (score[2] as bigint).toString(),
   };
 }
 
