@@ -2828,7 +2828,7 @@ function TreasuryValidationPanel() {
     {
       label: "Argus",
       status: "signed security-agent intent",
-      detail: "Agent Alpha signed a Float intent for paid x402 security data before producing a verdict.",
+      detail: "Agent Alpha signed a Float intent for paid security data before producing a verdict.",
     },
     {
       label: "CitePay",
@@ -4266,7 +4266,7 @@ function FloatStandingBoardPanel({
           <div className="floatStandingExternalSlot">
             <span>invited slot</span>
             <strong>waiting for first builder line</strong>
-            <small>Signed usage is counted separately only after a builder authorizes an x402 intent.</small>
+            <small>Signed usage is counted separately only after a builder authorizes a V2 spend intent.</small>
           </div>
         )}
         {!compact && beta && !agents.some((agent) => agent.agent.toLowerCase() === beta.toLowerCase()) && (
@@ -6204,7 +6204,7 @@ function Shadow2ProofStrip({
       metric: mirrorLoaded ? `${copiedCount}/${blockedCount}` : "syncing",
       unit: "copied / blocked",
       title: "The first production-style receipt rail",
-      body: "Copy trading stays visible as historical demand context: one source intent, per-user policy, no cascade revert.",
+      body: "Mirrored execution stays visible as historical demand context: one source intent, per-user policy, no cascade revert.",
       to: "/receipts",
       tone: "mirror",
     },

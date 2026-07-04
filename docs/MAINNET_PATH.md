@@ -82,7 +82,7 @@ Candidate paths:
 
 Why it matters: the hackathon AMM proves execution. Mainnet needs real liquidity, real assets, and realistic slippage.
 
-### 4. Source-Agent Partner Onboarding
+### 4. Source-Agent Integrator Onboarding
 
 Goal: launch with external source agents, not only Shadow-run agents.
 
