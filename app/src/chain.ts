@@ -14,6 +14,8 @@ import {
   type RecentWindowTotals,
 } from "./lifetimeSnapshot";
 
+export const PUBLIC_ARC_RPC_URL = "https://rpc.testnet.arc.network";
+
 export const arcTestnet = defineChain({
   id: 5_042_002,
   name: "Arc Testnet",
@@ -24,7 +26,7 @@ export const arcTestnet = defineChain({
   },
   rpcUrls: {
     default: {
-      http: [import.meta.env.VITE_ARC_RPC_URL || "http://127.0.0.1:8545"],
+      http: [import.meta.env.VITE_ARC_RPC_URL || PUBLIC_ARC_RPC_URL],
     },
   },
 });
@@ -65,7 +67,7 @@ export const isLeptonConfigured = Boolean(
 
 export const publicClient = createPublicClient({
   chain: arcTestnet,
-  transport: http(import.meta.env.VITE_ARC_RPC_URL || "http://127.0.0.1:8545"),
+  transport: http(import.meta.env.VITE_ARC_RPC_URL || PUBLIC_ARC_RPC_URL),
 });
 
 export const registryAbi = parseAbi([
