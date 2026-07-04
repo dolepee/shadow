@@ -171,7 +171,7 @@ The Records surface and M1 are supporting mandate paths, not the primary product
 
 The Records page shows an execution wallet using approved adapters to allocate Arc testnet USDC when a bonded enforcer returns `ALLOW`, and move zero funds when the same adapter path returns `BLOCK`. This validates the policy shape, but it is not claimed as a production treasury customer or a real Morpho deployment.
 
-Records page: https://shadow-arc.vercel.app/treasury
+Records page: https://shadow-arc.vercel.app/records
 
 Records API: `GET https://shadow-arc.vercel.app/api/treasury`
 

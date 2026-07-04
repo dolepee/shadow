@@ -2046,7 +2046,7 @@ function App() {
           <span className="pageNextTitle">Walk the signed spend, provider payment, debt, repayment, and overrun block</span>
           <span className="pageNextArrow">→</span>
         </Link>
-        <Link to="/treasury" className="pageNextCard">
+        <Link to="/records" className="pageNextCard">
           <span className="pageNextEyebrow">records</span>
           <span className="pageNextTitle">Check the supporting adapter records without leaving the Float story</span>
           <span className="pageNextArrow">→</span>
@@ -2218,7 +2218,7 @@ function App() {
           <NavLink to="/float" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Float
           </NavLink>
-          <NavLink to="/treasury" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
+          <NavLink to="/records" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
             Records
           </NavLink>
           <NavLink to="/builders" className={({ isActive }) => (isActive ? "navLink active" : "navLink")}>
@@ -2251,8 +2251,9 @@ function App() {
         <Route path="/agents" element={<Navigate to="/float" replace />} />
         <Route path="/follow" element={<Navigate to="/builders" replace />} />
         <Route path="/receipts" element={<Navigate to="/float" replace />} />
-        <Route path="/lepton" element={<Navigate to="/treasury" replace />} />
-        <Route path="/treasury" element={treasuryPage} />
+        <Route path="/lepton" element={<Navigate to="/records" replace />} />
+        <Route path="/treasury" element={<Navigate to="/records" replace />} />
+        <Route path="/records" element={treasuryPage} />
         <Route path="/float" element={floatPage} />
         <Route path="/proof" element={<Navigate to="/float" replace />} />
         <Route path="/builders" element={buildersPage} />
@@ -2444,7 +2445,7 @@ function TreasuryRailSplit({
       title: "Mandate adapters gate approved movement",
       body: "The approved adapter authenticates the account, reads the bonded enforcer's ALLOW or BLOCK decision, and only moves vault-style USDC on ALLOW. This guarantee is scoped to approved adapters.",
       stat: leptonState?.morphoDepositedUSDC !== undefined ? `${formatUSDC(leptonState.morphoDepositedUSDC)} USDC allocated` : "0.1 USDC allocated",
-      href: "/treasury",
+      href: "/records",
       cta: "View records",
     },
     {
@@ -6317,7 +6318,7 @@ function SiteFooter() {
       links: [
         { label: "Home", href: "/" },
         { label: "Shadow Float", href: "/float" },
-        { label: "Records", href: "/treasury" },
+        { label: "Records", href: "/records" },
         { label: "Roadmap", href: "/roadmap" },
       ],
     },
