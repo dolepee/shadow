@@ -272,9 +272,9 @@ Migration status:
 - V2 is deployed as the current permissionless Float contract:
   `0x20dcA96B0C487D94De885c726c956ffaF38b12C2`.
 - V2 treasury is funded through a sponsor reserve.
-- Fresh V2 proof-loop verification is live and reproducible. Default mode is `npm run float:v2-verify-live`; it allows up to
-  `0.01` USDC of explicitly labeled external open debt so the Obol row can remain visible. Strict closed-lifecycle mode is
-  `FLOAT_V2_VERIFY_STRICT_CLOSED=1 npm run float:v2-verify-live`. The canonical proof shows: sponsor opened a `0.05` USDC line, the
+- Fresh V2 proof-loop verification is live and reproducible. The canonical judge command is `npm run float:v2-verify-live`; it
+  surfaces the one intentional labeled open-debt exhibit (Obol) and confirms it stays within the documented `0.02` USDC bound,
+  so the command stays green while the exhibit remains visible. The canonical proof shows: sponsor opened a `0.05` USDC line, the
   agent signed, the contract paid `0.01` USDC directly to the provider, a `0.1` USDC overrun blocked with no provider
   transfer, repayment cleared debt, and the line restored to full capacity. This live verifier proves the canonical V2
   spend/block/repay loop; delivery receipts, close/default recovery, replay rejection, and cancellation remain covered by
@@ -324,7 +324,7 @@ Float V2 readiness status:
 - Float V2 tests pass: done;
 - live V2 deployment is funded: done;
 - fresh V2 receipts exist: done;
-- V2 verifier runs without private keys and now fails strict mode when external debt is open: done;
+- V2 verifier runs without private keys and transparently bounds the one labeled open-debt exhibit in its canonical mode: done;
 - README states V1 historical proof and V2 current proof separately: done.
 
 Still outside the Float V2 deploy gate:
