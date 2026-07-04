@@ -193,12 +193,12 @@ function defaultMandateFor(sourceName: string): string {
     return "Spot arbitrage on the USDC/ARCETH pool. Trade harder when depth is thick and quote drifts from the spot ratio; cool off when reserves thin. Bias toward riskLevel 2.";
   }
   if (lower.includes("lobster") || lower.includes("risk") || lower.includes("safe")) {
-    return "Risk-managed copy trading. Smaller size, tighter slippage bound, conservative risk level. Skip aggressive sizing when reserves look thin. Bias toward riskLevel 1.";
+    return "Risk-managed mirrored execution. Smaller size, tighter slippage bound, conservative risk level. Skip aggressive sizing when reserves look thin. Bias toward riskLevel 1.";
   }
   if (lower.includes("otter") || lower.includes("momentum") || lower.includes("aggr")) {
     return "Momentum follower. Push size up when quote agrees with spot and pool depth is healthy; widen slippage to chase. Bias toward riskLevel 3.";
   }
-  return "Balanced copy trader. Modest size, modest slippage, riskLevel 2.";
+  return "Balanced mirrored-execution mandate. Modest size, modest slippage, riskLevel 2.";
 }
 
 function buildRationale(args: {
