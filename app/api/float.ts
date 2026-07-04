@@ -48,6 +48,7 @@ const DEFAULT_SELF_TEST_AGENTS = [
 ] as const;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
 const OPERATOR_SPONSOR = "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address;
+const RPC_TRANSPORT_OPTIONS = { timeout: 60_000, retryCount: 3 } as const;
 
 type VercelLikeRequest = {
   method?: string;
@@ -283,7 +284,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
   try {
     const client = createPublicClient({
       chain: arcTestnet(cfg.rpcUrl),
-      transport: http(cfg.rpcUrl),
+      transport: http(cfg.rpcUrl, RPC_TRANSPORT_OPTIONS),
     });
     const [
       receiptCount,
@@ -460,7 +461,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
     const rpcUrl = cleanEnv(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
     const client = createPublicClient({
       chain: arcTestnet(rpcUrl),
-      transport: http(rpcUrl),
+      transport: http(rpcUrl, RPC_TRANSPORT_OPTIONS),
     });
     const latestBlock = await client.getBlockNumber();
     const stats = new Map<string, FloatV2AgentStats>();
@@ -831,7 +832,7 @@ async function handleFloatDesk(res: VercelLikeResponse, req: VercelLikeRequest) 
     let labLine: Record<string, unknown> | null = null;
     try {
       const rpcUrl = cleanEnv(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
-      const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl) });
+      const client = createPublicClient({ chain: arcTestnet(rpcUrl), transport: http(rpcUrl, RPC_TRANSPORT_OPTIONS) });
       const agent = getAddress(cleanEnv(process.env.DESK_AGENT_ADDRESS) || "0x43553CaeE153496200d37644cE28775B2b2b522E");
       const [line, sponsor, score] = (await Promise.all([
         client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [agent] }),
