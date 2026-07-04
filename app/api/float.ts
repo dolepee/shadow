@@ -884,8 +884,8 @@ async function enrichFloatV2StatsFromLogs(client: FloatV2LogClient, stats: Map<s
     const end = start + FLOAT_V2_LOG_CHUNK_SIZE - 1n > latestBlock ? latestBlock : start + FLOAT_V2_LOG_CHUNK_SIZE - 1n;
     try {
       const [intentLogs, receiptLogs] = await Promise.all([
-        client.getLogs({ address: FLOAT_V2_CONTRACT, event: floatV2IntentConsumedEvent, fromBlock: start, toBlock: end }),
-        client.getLogs({ address: FLOAT_V2_CONTRACT, event: floatV2ReceiptEvent, fromBlock: start, toBlock: end }),
+        getLogsWithRetry(client, { address: FLOAT_V2_CONTRACT, event: floatV2IntentConsumedEvent, fromBlock: start, toBlock: end }),
+        getLogsWithRetry(client, { address: FLOAT_V2_CONTRACT, event: floatV2ReceiptEvent, fromBlock: start, toBlock: end }),
       ]);
       for (const log of intentLogs) {
         const intent = decodeFloatV2Log(log, floatV2IntentConsumedEvent);
@@ -924,6 +924,23 @@ async function enrichFloatV2StatsFromLogs(client: FloatV2LogClient, stats: Map<s
     }
   }
   return warnings;
+}
+
+async function getLogsWithRetry<TLog>(client: { getLogs: (args: any) => Promise<TLog[]> }, args: any): Promise<TLog[]> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await client.getLogs(args);
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) await delay(150 * (attempt + 1));
+    }
+  }
+  throw lastError;
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function decodeFloatV2Log(log: { data: `0x${string}`; topics: readonly `0x${string}`[] }, item: ReturnType<typeof parseAbiItem>) {
@@ -1051,7 +1068,12 @@ async function readFloatLogs(client: any, address: Address, fromBlock: bigint, t
   for (let start = fromBlock; start <= toBlock; start += LOG_CHUNK_SIZE) {
     const end = start + LOG_CHUNK_SIZE - 1n > toBlock ? toBlock : start + LOG_CHUNK_SIZE - 1n;
     try {
-      const rawLogs = await client.getLogs({ address, fromBlock: start, toBlock: end });
+      const rawLogs = await getLogsWithRetry<{
+        data: `0x${string}`;
+        topics: readonly `0x${string}`[];
+        transactionHash: `0x${string}`;
+        blockNumber: bigint;
+      }>(client, { address, fromBlock: start, toBlock: end });
       for (const log of rawLogs) {
         const receipt = decodeFloatReceiptLog(log);
         if (receipt) {
