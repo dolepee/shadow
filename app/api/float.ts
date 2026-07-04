@@ -251,7 +251,7 @@ const REASONS = [
 
 export default async function handler(req: VercelLikeRequest, res: VercelLikeResponse) {
   res.setHeader("Content-Type", "application/json");
-  res.setHeader("Cache-Control", "public, s-maxage=15, stale-while-revalidate=60");
+  res.setHeader("Cache-Control", "no-store, max-age=0");
 
   if (req.method && req.method !== "GET") {
     res.setHeader("Allow", "GET");
