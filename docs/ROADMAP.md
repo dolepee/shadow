@@ -49,4 +49,4 @@ Goal: keep the older copy-capital receipt system useful without letting it dilut
 
 - Preserve the 2,893-receipt copy-capital archive as proof that Shadow's receipt-and-policy primitive predates Float.
 - Reuse the receipt/indexing discipline where it helps Float or Treasury/M1.
-- Avoid making copy trading the lead product in Float submissions or demos.
+- Avoid making mirrored execution the lead product in Float submissions or demos.

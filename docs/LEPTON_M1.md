@@ -2,7 +2,7 @@
 
 Shadow's Lepton M1 surface is a protocol-facing mandate engine for Arc DeFi.
 
-It is intentionally separate from `MirrorRouter`. Copy-trading remains adapter one and proof of demand; Lepton M1 exposes the reusable primitive underneath it: a USDC mandate is checked before capital moves, every allow/block produces an onchain receipt, and the enforcing surface must be bonded.
+It is intentionally separate from `MirrorRouter`. The earlier mirrored-execution adapter remains historical proof of demand; Lepton M1 exposes the reusable primitive underneath it: a USDC mandate is checked before capital moves, every allow/block produces an onchain receipt, and the enforcing surface must be bonded.
 
 ## What Ships
 
@@ -12,7 +12,7 @@ It is intentionally separate from `MirrorRouter`. Copy-trading remains adapter o
 - `V4StyleArcAdapter`: an honestly labeled v4-style Arc adapter that is swap-only, checks a mandate before moving USDC to a liquidity sink, and exposes pool-key execution references for future PoolManager/hook integration.
 - `MorphoStyleVaultAdapter`: an honestly labeled Morpho-style deposit adapter that is deposit-only, checks the same mandate engine before moving USDC to a vault sink, and binds execution references to market-like fields.
 - `MandateVaultSink`: a tiny protocol-like vault destination that records receipt-linked USDC deposits after an adapter moves funds. Each protocol adapter should use its own sink.
-- `RiskPolicy.evaluateSnapshot`: pure policy evaluation support reused from the existing copy-trading router.
+- `RiskPolicy.evaluateSnapshot`: pure policy evaluation support reused from the existing mirrored-execution router.
 
 ## What This Proves
 
