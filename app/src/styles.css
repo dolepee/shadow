@@ -4029,6 +4029,7 @@ input:focus-visible {
 
 .heroBackdrop {
   inset: 0;
+  overflow: hidden;
   pointer-events: none;
   position: absolute;
   z-index: -1;
@@ -6042,12 +6043,14 @@ input:focus-visible {
     line-height: 1.08;
   }
   .heroBackdropGlow--graphite {
-    height: 360px;
-    width: 360px;
+    height: 260px;
+    left: 0;
+    width: 260px;
   }
   .heroBackdropGlow--signal {
-    height: 260px;
-    width: 260px;
+    height: 220px;
+    right: 0;
+    width: 220px;
   }
   .heroLedger {
     border-radius: 12px;
