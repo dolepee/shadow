@@ -6,6 +6,8 @@ Shadow paid CitePay through CitePay's DirectTransfer flow. CitePay confirmed tha
 
 Shadow also closed a stronger Float-funded provider loop: Argus Alpha signed a V2 `FloatSpendIntent`, `ShadowFloat` paid CitePay directly from sponsor reserve, CitePay accepted the tx hash as payment for `/api/ask`, and Argus Alpha repaid the line.
 
+Shadow then recorded the delivery side of a later Float-funded request: Driplet paid CitePay through Shadow Float V2, CitePay signed a `ProviderDeliveryReceipt` for that exact request hash, and `ShadowFloat` stored the delivery hash onchain.
+
 This is framed as a verified provider flow that both projects can cite.
 
 ## Participants
@@ -15,6 +17,7 @@ This is framed as a verified provider flow that both projects can cite.
 | Shadow operator wallet | `0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8` |
 | ShadowFloat V2 | `0x20dcA96B0C487D94De885c726c956ffaF38b12C2` |
 | Argus Alpha buyer agent | `0x5c0b33b209f510868E07792Edc46c3792B0b92EC` |
+| Driplet buyer agent | `0xb8C0297Bc883a5626424FFFf9ad1F860E0f64CCf` |
 | CitePay recipient wallet | `0x5389688243328c26a92b301faEEAb5fbf9AFf105` |
 | Arc USDC token | `0x3600000000000000000000000000000000000000` |
 
@@ -40,6 +43,18 @@ This row is the provider proof tied directly to Shadow Float V2. The buyer was A
 | CitePay query | `6e6d9c2c-b988-438a-9930-0d6d40ff78b5` | 0.001 USDC query fee | accepted |
 | Argus repayment | [`0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699`](https://testnet.arcscan.app/tx/0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699) | 0.001 USDC | repaid |
 
+## Provider-Signed Delivery Receipt
+
+This row proves a provider signed for delivery after being paid through Shadow Float V2. The buyer was Driplet. The provider was CitePay. The recorded delivery hash equals the provider-signed EIP-712 digest.
+
+| Field | Value |
+| --- | --- |
+| Buyer agent | `0xb8C0297Bc883a5626424FFFf9ad1F860E0f64CCf` |
+| Provider | `0x5389688243328c26a92b301faEEAb5fbf9AFf105` |
+| Request hash | `0xd6cbfc4056f41fd4436f9c547a9d973d4dd6aa43923ba4d47da7f150e57208c8` |
+| Delivery hash | `0x85f1bdda605cf08c5b4a4f9938aacf25f64782d64906971f16257fab8fda7329` |
+| `recordProviderDelivery` tx | [`0x68e9bb81fbd84496656cc9fc41907d17e3fbbbed67cf75d681933a0ac43fd469`](https://testnet.arcscan.app/tx/0x68e9bb81fbd84496656cc9fc41907d17e3fbbbed67cf75d681933a0ac43fd469) |
+
 ## CitePay Confirmation
 
 CitePay confirmed:
@@ -49,6 +64,7 @@ CitePay confirmed:
 3. Creator payouts were triggered per query.
 4. Receipt trails are anchored through `CitePayMarket.sol` and publicly verifiable on ArcScan.
 5. The Argus Alpha query fee tx `0x552c7e32e34d9f06e03ca185f705637f9c66002d709d7d14c24d11edefdbc322` was accepted by CitePay and returned query ID `6e6d9c2c-b988-438a-9930-0d6d40ff78b5`.
+6. The Driplet request hash `0xd6cbfc4056f41fd4436f9c547a9d973d4dd6aa43923ba4d47da7f150e57208c8` has a provider-signed delivery receipt recorded on `ShadowFloat`.
 
 ## Why It Matters
 
@@ -61,4 +77,5 @@ The combined story is:
 3. External agents repay and restore capacity.
 4. Shadow can also pay an independent provider through CitePay's DirectTransfer flow.
 5. An external buyer agent can use Float V2 to pay that independent provider and then repay the line.
-6. Every payment and receipt is independently checkable from Arc testnet transactions.
+6. A provider can sign a delivery receipt for the exact paid request, and `ShadowFloat` stores that receipt onchain.
+7. Every payment and receipt is independently checkable from Arc testnet transactions.

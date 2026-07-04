@@ -157,6 +157,8 @@ const FLOAT_V2_PROOF = {
   argusCitePaySpendTx: "0x552c7e32e34d9f06e03ca185f705637f9c66002d709d7d14c24d11edefdbc322" as Hash,
   argusCitePayRepayTx: "0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699" as Hash,
   argusCitePayQueryId: "6e6d9c2c-b988-438a-9930-0d6d40ff78b5",
+  dripletCitePayDeliveryTx: "0x68e9bb81fbd84496656cc9fc41907d17e3fbbbed67cf75d681933a0ac43fd469" as Hash,
+  dripletCitePayDeliveryHash: "0x85f1bdda605cf08c5b4a4f9938aacf25f64782d64906971f16257fab8fda7329",
   citePaySponsorApproveTx: "0xa23a69aa34d4d3532ad1cc15718ca9a8537a9d085a9312937a2596ba319ad2af" as Hash,
   citePaySponsorOpenTx: "0xf2dabb1ce651330a389acd4d6cacee1a859dc4fc12f18459143dc0f60ee53540" as Hash,
   citePaySponsorSpendTx: "0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae" as Hash,
@@ -2179,9 +2181,9 @@ function App() {
           <p>Move M1 adapter allocation into a withdrawable custody model with cleaner release rules and stronger execution accountability.</p>
         </article>
         <article className="roadmapCard">
-          <span>next</span>
+          <span>matured</span>
           <strong>Provider delivery receipts</strong>
-          <p>Make provider-signed delivery receipts part of the standard public flow so payment and service delivery can be checked together.</p>
+          <p>CitePay signed a delivery receipt for a Driplet-paid request, and ShadowFloat recorded it onchain. Standardizing that receipt across every provider remains next.</p>
         </article>
         <article className="roadmapCard">
           <span>next</span>
@@ -3284,6 +3286,7 @@ function FloatV2CurrentPanel({
     { label: "Argus Alpha closed loop", href: txUrl(FLOAT_V2_PROOF.argusAlphaRepayTx), value: shortAddress(FLOAT_V2_PROOF.argusAlphaRepayTx) },
     { label: "Argus to CitePay loop", href: txUrl(FLOAT_V2_PROOF.argusCitePayRepayTx), value: shortAddress(FLOAT_V2_PROOF.argusCitePayRepayTx) },
     { label: "CitePay provider proof", href: txUrl(FLOAT_V2_PROOF.citePayProviderQueryTxs[0]), value: "5 paid queries" },
+    { label: "CitePay delivery receipt", href: txUrl(FLOAT_V2_PROOF.dripletCitePayDeliveryTx), value: shortAddress(FLOAT_V2_PROOF.dripletCitePayDeliveryTx) },
     { label: "CitePay sponsor line", href: txUrl(FLOAT_V2_PROOF.citePaySponsorOpenTx), value: shortAddress(FLOAT_V2_PROOF.citePaySponsorOpenTx) },
     { label: "Forum reserve reclaim", href: txUrl(FLOAT_V2_PROOF.forumSponsorCloseTx), value: shortAddress(FLOAT_V2_PROOF.forumSponsorCloseTx) },
     { label: "Forum live reserve", href: txUrl(FLOAT_V2_PROOF.forumSponsorReopenTx), value: shortAddress(FLOAT_V2_PROOF.forumSponsorReopenTx) },
@@ -6523,9 +6526,9 @@ function HomeProofOverview({
     {
       eyebrow: "provider proof",
       value: "CitePay",
-      label: "provider paid by Float",
-      body: "CitePay accepted an Argus-signed Float payment and returned a query receipt, then Argus repaid the line.",
-      href: txUrl(FLOAT_V2_PROOF.argusCitePaySpendTx),
+      label: "paid and delivery signed",
+      body: "CitePay accepted Float-paid requests, then signed an onchain delivery receipt for the Driplet-paid request.",
+      href: txUrl(FLOAT_V2_PROOF.dripletCitePayDeliveryTx),
       external: true,
     },
   ];

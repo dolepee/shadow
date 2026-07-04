@@ -105,5 +105,5 @@ curl -s https://shadow-arc.vercel.app/api/float?mode=v2
 ## What Is Not Claimed
 
 - The contract does not judge subjective provider service quality by itself.
-- Provider delivery receipts are implemented and tested, but they are not part of the standard live V2 proof loop yet.
+- One provider delivery receipt is recorded live for the Driplet to CitePay request. The standard verifier still focuses on payment, debt, repayment, and block behavior.
 - Invited builder activity is integration testing unless the other team explicitly approves stronger wording.

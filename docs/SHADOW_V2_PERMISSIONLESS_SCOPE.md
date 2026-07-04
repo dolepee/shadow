@@ -346,8 +346,8 @@ failure modes:
   early liquidity/provider activity remains testnet-small.
 - External builder proof must be named and inspectable. Placeholder labels like `REPLACE_builder` are not acceptable for
   final proof surfaces.
-- Current x402 provider proof is project-controlled unless an independent provider is actually paid and verified. Do not
-  imply otherwise.
+- Provider proof now includes CitePay paid through Float and one provider-signed delivery receipt recorded onchain for a
+  Driplet request. Do not imply every provider route has delivery receipts until that is standard.
 - Circle depth should be claimed only where load-bearing: Arc USDC and V2 direct provider payment now; x402 and Gateway
   only where the specific flow actually uses them.
 - "Agent runs your treasury without the keys" remains forbidden until the actor/account split and authorization model

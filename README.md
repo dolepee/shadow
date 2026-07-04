@@ -116,7 +116,7 @@ Argus Alpha then ran a second, provider-specific loop against CitePay:
 
 ### CitePay Provider Proof
 
-CitePay confirmed five paid provider queries from the Shadow execution wallet on Arc testnet. Shadow also paid CitePay once through a Float V2 draw signed by Argus Alpha. CitePay served the answer and returned query ID `6e6d9c2c-b988-438a-9930-0d6d40ff78b5`.
+CitePay confirmed five paid provider queries from the Shadow execution wallet on Arc testnet. Shadow also paid CitePay once through a Float V2 draw signed by Argus Alpha. CitePay served the answer and returned query ID `6e6d9c2c-b988-438a-9930-0d6d40ff78b5`. CitePay also signed a provider delivery receipt for a Driplet-paid request, and `ShadowFloat` recorded that receipt onchain.
 
 | # | Query fee tx | Amount | Status |
 | ---: | --- | ---: | --- |
@@ -125,6 +125,10 @@ CitePay confirmed five paid provider queries from the Shadow execution wallet on
 | 3 | [`0xb1b672...f48bd`](https://testnet.arcscan.app/tx/0xb1b6727138218b79ec829cd221db65bd4abe47b5a9b7afee8bdd42b14e1f48bd) | 0.001 USDC | confirmed |
 | 4 | [`0x88ef62...adef8`](https://testnet.arcscan.app/tx/0x88ef62f2ab2b13cbea658ca9f4d26ebd38c6e86aa8e0704dd7e51a676beadef8) | 0.001 USDC | confirmed |
 | 5 | [`0x85aea6...1311`](https://testnet.arcscan.app/tx/0x85aea6dfce5b589fa5a1e5526889d31ca9126385217614b42d0ad34656261311) | 0.001 USDC | confirmed |
+
+| Provider-signed delivery | Request hash | Delivery hash | Tx |
+| --- | --- | --- | --- |
+| Driplet to CitePay | `0xd6cbfc...7208c8` | `0x85f1bd...a7329` | [`0x68e9bb...fd469`](https://testnet.arcscan.app/tx/0x68e9bb81fbd84496656cc9fc41907d17e3fbbbed67cf75d681933a0ac43fd469) |
 
 Provider proof notes: [`docs/CITEPAY_PROVIDER_PROOF.md`](docs/CITEPAY_PROVIDER_PROOF.md)
 
@@ -257,7 +261,7 @@ Supporting M1 contracts are documented in [`docs/LEPTON_M1.md`](docs/LEPTON_M1.m
 - No production lending market.
 - No real Morpho vault integration yet.
 - No production treasury customer yet.
-- No EVM-native verification of subjective provider service quality. Provider delivery receipts are implemented and tested, but the standard live V2 verification loop currently proves payment and repayment, not service quality.
+- No EVM-native judgment of subjective provider service quality. One provider-signed delivery receipt is recorded for the Driplet to CitePay request, but the standard V2 verifier still focuses on payment, debt, repayment, and block behavior.
 
 ## Project Docs
 
