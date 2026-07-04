@@ -134,6 +134,6 @@ CitePay and Forum Tollgate have now completed non-operator sponsor runs. The pro
 
 Allowed claim:
 
-> Non-operator sponsors put their own Arc USDC behind Shadow Float V2 agent lines. Agents completed signed spend and repay loops through those externally sponsored reserves, and Forum Tollgate also closed the line and reclaimed the reserve.
+> Non-operator sponsors put their own Arc USDC behind Shadow Float V2 agent lines. Agents completed signed spend and repay loops through those externally sponsored reserves, and Forum Tollgate also proved reserve reclaim before reopening a fresh live reserve.
 
 Do not stretch this into a production lending market, a liquidity pool, or mainnet credit claim. It is a testnet proof that the external sponsor primitive works end to end.
