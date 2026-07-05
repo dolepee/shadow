@@ -11759,3 +11759,356 @@ body {
     line-height: 1.07;
   }
 }
+
+/* ============================================================
+   Shadow 2.1 launch surface
+   A cleaner capital-terminal treatment over the existing proof UI.
+   This removes the grid-line mock direction while preserving the
+   live data modules, mobile hardening, and proof hierarchy.
+   ============================================================ */
+body {
+  background:
+    linear-gradient(150deg, rgba(16, 36, 58, 0.88) 0%, rgba(6, 16, 29, 0.98) 42%, rgba(4, 10, 19, 1) 100%),
+    #06101c;
+  background-attachment: fixed;
+  background-size: auto;
+}
+
+.shell {
+  max-width: 1440px;
+  padding-top: 18px;
+}
+
+.nav {
+  background:
+    linear-gradient(180deg, rgba(8, 22, 37, 0.94), rgba(4, 12, 22, 0.92));
+  border-color: rgba(184, 211, 255, 0.16);
+  border-radius: 16px;
+  box-shadow:
+    0 28px 80px -64px rgba(0, 0, 0, 0.95),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+.hero {
+  background:
+    linear-gradient(135deg, rgba(11, 28, 46, 0.92), rgba(4, 12, 22, 0.96) 58%, rgba(5, 11, 20, 0.98)),
+    #06101c;
+  border-color: rgba(184, 211, 255, 0.16);
+  border-radius: 24px;
+  box-shadow:
+    0 44px 130px -92px rgba(0, 0, 0, 0.96),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  min-height: 690px;
+}
+
+.heroBackdropGrid {
+  background:
+    linear-gradient(120deg, rgba(52, 229, 255, 0.12), transparent 34%),
+    linear-gradient(290deg, rgba(77, 240, 168, 0.08), transparent 38%),
+    linear-gradient(180deg, rgba(184, 211, 255, 0.055), transparent 44%);
+  background-size: auto;
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.74) 52%, transparent 100%);
+}
+
+.heroBackdropTrail {
+  background:
+    linear-gradient(110deg, transparent 0 48%, rgba(52, 229, 255, 0.09) 48%, transparent 48.6% 100%),
+    linear-gradient(290deg, transparent 0 58%, rgba(77, 240, 168, 0.07) 58%, transparent 58.55% 100%);
+  opacity: 0.54;
+}
+
+.heroBackdropGlow--graphite,
+.heroBackdropGlow--signal {
+  display: none;
+}
+
+.heroGrid {
+  align-items: center;
+  gap: 58px;
+  grid-template-columns: minmax(0, 0.94fr) minmax(460px, 0.76fr);
+}
+
+.heroBadge {
+  background: rgba(52, 229, 255, 0.09);
+  border-color: rgba(52, 229, 255, 0.28);
+  color: #d6fbff;
+}
+
+.hero h1 {
+  color: #f7fbff;
+  font-size: 68px;
+  font-weight: 760;
+  line-height: 0.99;
+  max-width: 780px;
+  text-shadow: 0 18px 70px rgba(0, 0, 0, 0.38);
+}
+
+.hero .lede {
+  color: #c2d0e4;
+  font-size: 16.5px;
+  line-height: 1.64;
+  max-width: 650px;
+}
+
+.homeTruthStrip {
+  gap: 10px;
+  max-width: 700px;
+}
+
+.homeTruthItem {
+  background:
+    linear-gradient(180deg, rgba(184, 211, 255, 0.075), rgba(184, 211, 255, 0.025)),
+    rgba(5, 14, 25, 0.72);
+  border-color: rgba(184, 211, 255, 0.16);
+  border-radius: 12px;
+  min-height: 124px;
+}
+
+.homeTruthItem strong {
+  color: #f7fbff;
+  font-size: 26px;
+}
+
+.heroCtaPrimary {
+  border-radius: 11px;
+  box-shadow:
+    0 18px 50px -26px rgba(52, 229, 255, 0.95),
+    0 1px 0 rgba(255, 255, 255, 0.28) inset;
+}
+
+.heroCtaSecondary {
+  background: rgba(4, 12, 22, 0.46);
+  border-color: rgba(184, 211, 255, 0.18);
+  border-radius: 11px;
+}
+
+.heroTrust {
+  border-top-color: rgba(184, 211, 255, 0.12);
+}
+
+.heroLedger {
+  background:
+    linear-gradient(180deg, rgba(8, 22, 37, 0.96), rgba(4, 12, 22, 0.98)),
+    #06101c;
+  border-color: rgba(184, 211, 255, 0.18);
+  border-radius: 18px;
+  box-shadow:
+    0 44px 120px -76px rgba(0, 0, 0, 0.98),
+    0 0 0 1px rgba(52, 229, 255, 0.035),
+    0 1px 0 rgba(255, 255, 255, 0.065) inset;
+}
+
+.heroLedger::before {
+  background:
+    linear-gradient(180deg, rgba(52, 229, 255, 0.07), transparent 38%),
+    linear-gradient(90deg, rgba(77, 240, 168, 0.06), transparent 42%);
+}
+
+.heroLedgerHeader,
+.heroLedgerProof {
+  background: rgba(3, 9, 17, 0.78);
+  border-color: rgba(184, 211, 255, 0.12);
+}
+
+.heroLedgerIntent {
+  padding: 18px 20px;
+}
+
+.heroLedgerIntentBody {
+  background: rgba(52, 229, 255, 0.07);
+  border: 1px solid rgba(52, 229, 255, 0.16);
+  border-radius: 12px;
+  padding: 11px 12px;
+}
+
+.heroLedgerCell {
+  min-height: 192px;
+  padding: 20px;
+}
+
+.heroLedgerCell::before {
+  height: 2px;
+}
+
+.heroLedgerCellMain {
+  font-size: 34px;
+}
+
+.heroLedgerCellMeta {
+  border-radius: 9px;
+}
+
+.heroMetrics {
+  background: rgba(5, 14, 25, 0.72);
+  border-color: rgba(184, 211, 255, 0.14);
+  border-radius: 14px;
+}
+
+.heroMetric {
+  padding-bottom: 22px;
+  padding-top: 22px;
+}
+
+.heroMetricValue {
+  color: #f7fbff;
+  font-size: 27px;
+}
+
+.shadow2Console,
+.floatProofCockpit,
+.homeProofOverview,
+.floatPanel,
+.floatV2ActivityBoard,
+.floatDeskLineCard,
+.floatDeskJournal,
+.floatStandingBoard,
+.floatSponsorCapital,
+.treasuryHero,
+.treasuryEvidenceStrip,
+.treasuryProofPanel,
+.treasuryLiveVerifier,
+.builderFlowCard,
+.builderReferenceCard,
+.roadmapStatusBand article,
+.roadmapCard {
+  background:
+    linear-gradient(145deg, rgba(9, 24, 41, 0.95), rgba(4, 12, 22, 0.98)),
+    #06101c;
+  border-color: rgba(184, 211, 255, 0.15);
+  border-radius: 16px;
+  box-shadow:
+    0 30px 90px -76px rgba(0, 0, 0, 0.95),
+    0 1px 0 rgba(255, 255, 255, 0.045) inset;
+}
+
+.shadow2Console::before {
+  background:
+    linear-gradient(115deg, rgba(52, 229, 255, 0.085), transparent 34%),
+    linear-gradient(295deg, rgba(77, 240, 168, 0.06), transparent 36%);
+  background-size: auto;
+  mask-image: linear-gradient(90deg, #000, transparent 86%);
+}
+
+.shadow2ConsoleHeader h2 {
+  color: #f7fbff;
+  font-weight: 760;
+}
+
+.shadow2ConsoleRail {
+  background: rgba(3, 9, 17, 0.42);
+  border: 1px solid rgba(184, 211, 255, 0.11);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.shadow2ConsoleCard,
+.floatProofCockpitCard,
+.homeProofCard,
+.floatHeadlineStat,
+.treasuryHeroStat,
+.treasuryMetric {
+  background:
+    linear-gradient(180deg, rgba(184, 211, 255, 0.06), rgba(184, 211, 255, 0.02)),
+    rgba(3, 10, 19, 0.74);
+  border-color: rgba(184, 211, 255, 0.13);
+  border-radius: 12px;
+}
+
+.shadow2ConsoleCard > strong,
+.floatProofCockpitCard > strong,
+.homeProofCard strong,
+.floatHeadlineStat strong,
+.treasuryHeroStat strong {
+  font-weight: 760;
+}
+
+.floatProofCockpitHeader {
+  background: rgba(3, 9, 17, 0.55);
+  border-color: rgba(184, 211, 255, 0.12);
+}
+
+.pageHead {
+  background:
+    linear-gradient(180deg, rgba(8, 22, 37, 0.8), rgba(5, 14, 25, 0.35) 62%, transparent),
+    transparent;
+  background-size: auto;
+  border-bottom-color: rgba(184, 211, 255, 0.1);
+}
+
+.pageHead .pageTitle,
+.floatHeroCopy h1,
+.floatHeroCopy h2,
+.treasuryHeroCopy h1 {
+  color: #f7fbff;
+  font-weight: 760;
+}
+
+.pageNext {
+  background: rgba(184, 211, 255, 0.09);
+  border-color: rgba(184, 211, 255, 0.13);
+  border-radius: 16px;
+}
+
+.pageNextCard {
+  background: rgba(4, 12, 22, 0.76);
+}
+
+@media (max-width: 1080px) {
+  .heroGrid {
+    gap: 40px;
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    min-height: auto;
+  }
+
+  .hero h1 {
+    font-size: 54px;
+  }
+}
+
+@media (max-width: 720px) {
+  body {
+    background:
+      linear-gradient(150deg, rgba(12, 30, 50, 0.9), rgba(4, 10, 19, 1) 62%),
+      #06101c;
+    background-size: auto;
+  }
+
+  .hero {
+    border-radius: 18px;
+    padding: 34px 18px 22px;
+  }
+
+  .hero h1 {
+    font-size: 40px;
+    line-height: 1.04;
+  }
+
+  .hero .lede {
+    font-size: 14.5px;
+  }
+
+  .shadow2ConsoleRail {
+    align-items: stretch;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero h1 {
+    font-size: 33px;
+  }
+
+  .heroLedgerCell {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 390px) {
+  .hero h1 {
+    font-size: 30px;
+    line-height: 1.08;
+  }
+}
