@@ -11609,3 +11609,153 @@ body {
     flex-direction: column;
   }
 }
+
+/* ============================================================
+   Shadow 2.0 mobile hardening (presentation-only)
+   Fixes horizontal clipping at <=620/480/390px. Long monospace strings
+   get overflow-wrap:anywhere (which also shrinks their min-content so a
+   flex/grid child can no longer force the shell wider than the viewport),
+   flex/grid ancestors get min-width:0, the nav wraps to fit, the hero
+   console stacks, and headline sizes are clamped. Appended last to win
+   on source order. Nothing here changes data, logic, or copy.
+   ============================================================ */
+@media (max-width: 620px) {
+  /* Nav renders as grid on mobile via an earlier rule, and an earlier @520 rule
+     sets navWallet/navCta to width:100% which made the CTA overflow to ~544px.
+     Force a simple wrapping flex row and reset those child widths to auto so the
+     Wallet + Open Float buttons size to content. brand left, actions right,
+     links on their own full-width row. */
+  .nav {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 12px;
+    column-gap: 12px;
+    padding: 12px 14px;
+  }
+  .brand {
+    order: 1;
+    margin-right: auto;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .navActions {
+    order: 2;
+    display: flex !important;
+    width: auto !important;
+    max-width: 100%;
+    gap: 8px;
+    margin-left: 0;
+  }
+  .navActions .navWallet,
+  .navActions .navCta {
+    width: auto !important;
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+  .navLinks {
+    order: 3;
+    flex: 1 0 100%;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin: 2px 0 0;
+    justify-content: flex-start;
+  }
+
+  /* Let flexible content columns shrink below intrinsic content width. */
+  .heroGrid,
+  .heroCopy,
+  .heroGrid > *,
+  .heroCopy > *,
+  .shadow2ConsoleGrid,
+  .shadow2ConsoleCard,
+  .floatProofCockpitGrid,
+  .floatProofCockpitCard,
+  .homeProofGrid,
+  .homeProofCard,
+  .floatV2ActivityRows,
+  .floatV2ActivityRow,
+  .floatDeskRows,
+  .floatDeskRow,
+  .builderFlowCard,
+  .builderReferenceCard,
+  .roadmapCard {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Hero console: stack the PAID/REPAID split and wrap its mono lines. */
+  .heroLedger,
+  .heroLedgerSplit,
+  .heroLedgerIntent,
+  .heroLedgerIntentBody,
+  .heroLedgerCell {
+    min-width: 0;
+  }
+  .heroLedgerSplit {
+    grid-template-columns: 1fr;
+  }
+  .heroLedgerSplit::before {
+    display: none;
+  }
+  .heroLedgerIntentBody,
+  .heroLedgerProof,
+  .heroLedgerProofHash,
+  .heroLedgerProofChain,
+  .heroLedgerCellAddr,
+  .heroLedgerCellMain,
+  .heroLedgerCellMeta {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Headings and prose never push past the viewport. */
+  h1,
+  h2,
+  h3,
+  .pageTitle,
+  .pageLede,
+  .hero h1,
+  .floatHeroCopy h1,
+  .floatHeroCopy h2,
+  .treasuryHeroCopy h1 {
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+  .lede,
+  p {
+    overflow-wrap: anywhere;
+  }
+
+  /* Long mono tokens (hashes, API paths, script names) wrap in place. */
+  code,
+  .mono {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero h1 {
+    font-size: 31px;
+  }
+  .nav {
+    padding: 11px 13px;
+  }
+  .navLinks {
+    gap: 7px 14px;
+  }
+  .navLinks a,
+  .navLinks .navLink {
+    font-size: 12.5px;
+  }
+}
+
+@media (max-width: 390px) {
+  .hero h1 {
+    font-size: 24.5px;
+    line-height: 1.07;
+  }
+}
