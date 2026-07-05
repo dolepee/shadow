@@ -168,6 +168,11 @@ const FLOAT_V2_PROOF = {
   forumSponsorRepayTx: "0x48a81e86ccc7c49814929e44dca93d2f44f82322abff587903419a64e8302172" as Hash,
   forumSponsorCloseTx: "0xba995c10f06f14b876a6b4c19ad69cbfe023d878784961f6eaebb62a3aa16463" as Hash,
   forumSponsorReopenTx: "0xc8694da66f078d81c4199df813e8ee7b69941a14b6aef4531f6c35ca771da2e6" as Hash,
+  cctpBurnTx: "0x05c3731ef37af9748a9e1a700902cddda717c4e85016c2fbabdc3e07f3f74c69" as Hash,
+  cctpMintTx: "0xca5825f86fc178cb2cd21d41bc4ace4e958eaad0f0a363c7715007b577a18a82" as Hash,
+  cctpOpenLineTx: "0x8c3a5781517c8c0f8c8d0c2e88791e17fca509fecaf78fb8cbcfb6cf013631fe" as Hash,
+  cctpDrawTx: "0xa5dee9bb7424e0f2f4eccf13a0a2a2f32a617a227b18c1a242307bbdd92fba24" as Hash,
+  cctpRepayTx: "0x41e203d38209441761647f9c81ed1660eff7d4a6467089a7aaac58259a79f99c" as Hash,
   citePayProviderQueryTxs: [
     "0x3c74ba902d9494c7762f440affa0065ef4a2478b6e9cb4cb228e11cd689a9929",
     "0xc8ee30e0c2ab5943f472baf819fb17af8b39571665ba4ac408b9fe8d9343532a",
@@ -2038,6 +2043,8 @@ function App() {
         <HeroMetrics state={floatV2State} loading={floatV2Loading} error={floatV2Error} />
       </section>
 
+      <Shadow2ProtocolMap state={floatV2State} deskState={floatDeskState} />
+
       <HomeProofOverview state={floatV2State} loading={floatV2Loading} error={floatV2Error} />
 
       <section className="pageNext" aria-label="Shadow Float product paths">
@@ -2172,6 +2179,11 @@ function App() {
           <span>matured</span>
           <strong>Autonomous line scoring</strong>
           <p>Sponsored lines are re-scored by ShadowFloat from recorded paid, blocked, and repaid behavior after each action.</p>
+        </article>
+        <article>
+          <span>matured</span>
+          <strong>CCTP-funded reserve</strong>
+          <p>Sepolia USDC was burned, minted on Arc, locked as a Float reserve, drawn to pay CitePay, and repaid.</p>
         </article>
       </section>
       <section className="roadmapGrid" aria-label="Shadow Float roadmap">
@@ -3291,6 +3303,7 @@ function FloatV2CurrentPanel({
     { label: "CitePay sponsor line", href: txUrl(FLOAT_V2_PROOF.citePaySponsorOpenTx), value: shortAddress(FLOAT_V2_PROOF.citePaySponsorOpenTx) },
     { label: "Forum reserve reclaim", href: txUrl(FLOAT_V2_PROOF.forumSponsorCloseTx), value: shortAddress(FLOAT_V2_PROOF.forumSponsorCloseTx) },
     { label: "Forum live reserve", href: txUrl(FLOAT_V2_PROOF.forumSponsorReopenTx), value: shortAddress(FLOAT_V2_PROOF.forumSponsorReopenTx) },
+    { label: "CCTP-funded reserve", href: txUrl(FLOAT_V2_PROOF.cctpOpenLineTx), value: shortAddress(FLOAT_V2_PROOF.cctpOpenLineTx) },
     { label: "Obol signed spend", href: txUrl(FLOAT_V2_PROOF.obolSpendTx), value: shortAddress(FLOAT_V2_PROOF.obolSpendTx) },
   ];
 
@@ -3344,6 +3357,8 @@ function FloatV2CurrentPanel({
         <span>nonce and max debt checked onchain</span>
         <span>external agent lines active</span>
       </div>
+
+      <FloatV2ProofCockpit state={state} loading={loading} error={error} />
 
       <div className="floatMetricGrid">
         <FloatMetric label="external lines" value={showCount(state?.summary?.registeredExternalLines)} tone="allow" />
@@ -6447,6 +6462,76 @@ function HomeTruthStrip({
   );
 }
 
+function Shadow2ProtocolMap({
+  state,
+  deskState,
+}: {
+  state: FloatV2ActivityState | null;
+  deskState: FloatDeskState | null;
+}) {
+  const summary = state?.summary;
+  const deskCycles = deskState?.counts?.cycles;
+  const cards = [
+    {
+      eyebrow: "behavior",
+      metric: deskCycles !== undefined ? String(deskCycles) : "live",
+      title: "Desk decisions become receipt-linked rationale.",
+      body: "The autonomous desk proposes PAY, SKIP, or REPAY. Contract policy and signed intents decide what can execute.",
+    },
+    {
+      eyebrow: "capacity",
+      metric: summary?.registeredExternalLines !== undefined ? String(summary.registeredExternalLines) : "syncing",
+      title: "Sponsors back bounded agent lines.",
+      body: "Arc USDC stays reserved per agent line. No line can spend more capacity than the sponsor put behind it.",
+    },
+    {
+      eyebrow: "settlement",
+      metric: summary?.providerPaidUSDC ? `${formatFloatUSDC(summary.providerPaidUSDC)}` : "syncing",
+      title: "Providers are paid from contract custody.",
+      body: "The agent signs locally. ShadowFloat verifies the intent and pays the named provider only when policy passes.",
+    },
+    {
+      eyebrow: "consequence",
+      metric: summary?.openDebtAgents !== undefined ? String(summary.openDebtAgents) : "live",
+      title: "Debt and blocks stay visible.",
+      body: "Repayment restores capacity. Open debt remains labeled. Oversized requests are blocked before provider funds move.",
+    },
+  ];
+
+  return (
+    <section className="shadow2Console" aria-label="Shadow Float 2.0 product loop">
+      <div className="shadow2ConsoleHeader">
+        <div>
+          <p className="eyebrow">Shadow 2.0 · product loop</p>
+          <h2>Verified behavior becomes spendable capacity.</h2>
+        </div>
+        <Link to="/float#float-verifier" className="shadow2ConsoleVerify">
+          verify live
+        </Link>
+      </div>
+      <div className="shadow2ConsoleRail" aria-hidden="true">
+        <span>agent behavior</span>
+        <i />
+        <span>sponsor reserve</span>
+        <i />
+        <span>provider paid</span>
+        <i />
+        <span>repay or block</span>
+      </div>
+      <div className="shadow2ConsoleGrid">
+        {cards.map((card) => (
+          <article className="shadow2ConsoleCard" key={card.eyebrow}>
+            <span>{card.eyebrow}</span>
+            <strong>{card.metric}</strong>
+            <h3>{card.title}</h3>
+            <p>{card.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function HomeProofOverview({
   state,
   loading,
@@ -6490,6 +6575,14 @@ function HomeProofOverview({
       label: "external sponsors",
       body: "CitePay and Forum Tollgate keep live external reserves open. Forum also proved sponsor, spend, repay, and reserve reclaim.",
       href: txUrl(FLOAT_V2_PROOF.citePaySponsorOpenTx),
+      external: true,
+    },
+    {
+      eyebrow: "Circle CCTP",
+      value: "1 USDC",
+      label: "bridged into reserve",
+      body: "A Sepolia burn minted native Arc USDC, opened a Float reserve, paid CitePay, and repaid the line.",
+      href: txUrl(FLOAT_V2_PROOF.cctpOpenLineTx),
       external: true,
     },
     {
@@ -6572,6 +6665,73 @@ function HomeProofOverview({
         <a href="/api/float?mode=v2" target="_blank" rel="noreferrer">Open V2 activity API</a>
         <a href={FLOAT_V2_PROOF.sourcify} target="_blank" rel="noreferrer">View source match</a>
         <a href="https://github.com/dolepee/shadow" target="_blank" rel="noreferrer">View repository</a>
+      </div>
+    </section>
+  );
+}
+
+function FloatV2ProofCockpit({
+  state,
+  loading,
+  error,
+}: {
+  state: FloatV2ActivityState | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  const summary = state?.summary;
+  const showCount = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
+  const showUSDC = (value?: string | bigint | null) =>
+    value === undefined || value === null ? (loading ? "reading" : "unavailable") : `${formatFloatUSDC(value)} USDC`;
+  const cards = [
+    {
+      label: "reserve",
+      value: state?.totalSponsoredReserveUSDC ? `${formatFloatUSDC(state.totalSponsoredReserveUSDC)} USDC` : loading ? "reading" : "unavailable",
+      title: "sponsor-backed capacity",
+      body: "Reserved Arc USDC backs agent lines before a provider is paid.",
+      tone: "copy",
+    },
+    {
+      label: "intent",
+      value: showCount(summary?.signedIntents),
+      title: "bounded signatures",
+      body: "Provider, endpoint, amount, nonce, expiry, executor, and max debt are checked onchain.",
+      tone: "signal",
+    },
+    {
+      label: "provider paid",
+      value: showUSDC(summary?.providerPaidUSDC),
+      title: "contract custody spend",
+      body: "Float pays the named provider from reserve after the signed policy passes.",
+      tone: "copy",
+    },
+    {
+      label: "debt state",
+      value: showUSDC(summary?.activeDebtUSDC),
+      title: error ? "read needs review" : "repay or remain limited",
+      body: "Closed loops restore capacity; the live open-debt line stays labeled until repayment.",
+      tone: summary?.openDebtAgents ? "warn" : "copy",
+    },
+  ];
+
+  return (
+    <section className="floatProofCockpit" aria-label="Shadow Float V2 proof cockpit">
+      <div className="floatProofCockpitHeader">
+        <div>
+          <span>proof cockpit</span>
+          <strong>One live path: sponsor reserve → signed spend → provider paid → debt state.</strong>
+        </div>
+        <code>npm run float:v2-verify-live</code>
+      </div>
+      <div className="floatProofCockpitGrid">
+        {cards.map((card) => (
+          <article className={`floatProofCockpitCard ${card.tone}`} key={card.label}>
+            <span>{card.label}</span>
+            <strong>{card.value}</strong>
+            <h3>{card.title}</h3>
+            <p>{card.body}</p>
+          </article>
+        ))}
       </div>
     </section>
   );
