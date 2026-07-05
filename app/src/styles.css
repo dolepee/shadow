@@ -11740,6 +11740,7 @@ body {
 @media (max-width: 480px) {
   .hero h1 {
     font-size: 31px;
+    max-width: 330px;
   }
   .nav {
     padding: 11px 13px;
@@ -12078,12 +12079,13 @@ body {
 
   .hero {
     border-radius: 18px;
-    padding: 34px 18px 22px;
+    padding: 34px 16px 22px;
   }
 
   .hero h1 {
     font-size: 40px;
     line-height: 1.04;
+    text-wrap: normal;
   }
 
   .hero .lede {
@@ -12098,7 +12100,8 @@ body {
 
 @media (max-width: 480px) {
   .hero h1 {
-    font-size: 33px;
+    font-size: 27px;
+    max-width: 286px;
   }
 
   .heroLedgerCell {
@@ -12108,7 +12111,8 @@ body {
 
 @media (max-width: 390px) {
   .hero h1 {
-    font-size: 30px;
+    font-size: 25px;
     line-height: 1.08;
+    max-width: 270px;
   }
 }
