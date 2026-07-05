@@ -2362,7 +2362,7 @@ function TreasuryHero({ treasuryState }: {
           </a>
         </div>
         <div className="treasuryFlowFooter">
-          <span>strict verifier</span>
+          <span>V2 live verifier</span>
           <code>npm run float:v2-verify-live</code>
         </div>
       </aside>
@@ -2804,7 +2804,7 @@ function TreasuryLiveVerifierPanel({
 
 function TreasuryOnchainLinks() {
   const links = [
-    { label: "Strict V2 verifier", value: "npm run float:v2-verify-live", href: "https://github.com/dolepee/shadow" },
+    { label: "V2 live verifier", value: "npm run float:v2-verify-live", href: "https://github.com/dolepee/shadow" },
     { label: "V2 provider payment", value: shortAddress(FLOAT_V2_PROOF.directSpendTx), href: txUrl(FLOAT_V2_PROOF.directSpendTx) },
     { label: "V2 blocked spend", value: shortAddress(FLOAT_V2_PROOF.blockedSpendTx), href: txUrl(FLOAT_V2_PROOF.blockedSpendTx) },
     { label: "Vault allocation", value: shortAddress(TREASURY_PROOF.txs.allocation), href: txUrl(TREASURY_PROOF.txs.allocation) },
@@ -6349,7 +6349,7 @@ function SiteFooter() {
       title: "Builders",
       links: [
         { label: "Builder guide", href: "/builders" },
-        { label: "Strict V2 verifier", href: "https://github.com/dolepee/shadow" },
+        { label: "V2 live verifier", href: "https://github.com/dolepee/shadow" },
         { label: "Source on GitHub", href: "https://github.com/dolepee/shadow" },
       ],
     },
