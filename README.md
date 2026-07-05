@@ -161,7 +161,7 @@ Shadow uses Arc USDC as the settlement asset. The historical V1 path binds x402/
 
 Circle Gateway is documented as additive settlement plumbing over recorded Desk activity: two Desk PAY cycles totaling `0.002` USDC were settled through Gateway batching on Jul 2, 2026 and are served from `/api/settlements` under `deskRecords`. This is not the V2 provider payment path and is not counted as external traction; it shows how sub-cent Desk economics can batch through Circle tooling. Details: [`docs/GATEWAY.md`](docs/GATEWAY.md).
 
-Circle CCTP is exercised as a live acknowledgement path: Shadow verified a Sepolia USDC burn attestation through `/api/cctp-funding` on Jul 2, 2026. This proves attestation verification, not Arc minting or Float credit. Details: [`docs/CCTP.md`](docs/CCTP.md).
+Circle CCTP V2 is load-bearing, not a footnote. On Jul 5, 2026 a dollar burned on Ethereum Sepolia was minted natively on Arc and locked as the reserve behind a live Float sponsored line, which an autonomous agent then drew against to pay a provider and repaid in full (score `7500 -> 8250`, limit `0.025 -> 0.05` USDC, status `REPAID`). Remove the CCTP hop and that reserve does not exist on Arc. The six-transaction chain (burn `0x05c3731e` -> Iris attestation -> Arc mint `0xca5825f8` -> `openSponsoredLine` `0x8c3a5781` -> draw `0xa5dee9bb` -> repay `0x41e203d3`) plus a self-serve `/api/cctp-funding` acknowledgement route are in [`docs/CCTP.md`](docs/CCTP.md).
 
 Circle wallet tooling was explored for future onboarding, but it is not required for the current Float V2 spend path.
 

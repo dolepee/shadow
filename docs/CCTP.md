@@ -1,23 +1,69 @@
-# CCTP Follower Funding Groundwork
+# CCTP: Cross-Chain USDC That Funds a Live Float Line
 
-This pass adds the acknowledgement layer for "fund your mirror from any chain" without pretending that acknowledgement is the same as a Shadow Router deposit.
+Circle CCTP V2 is load-bearing in Shadow, not a footnote. A dollar burned on Ethereum
+Sepolia was minted natively on Arc and now backs a live Float sponsored credit line that an
+agent drew against and repaid in full. Remove the CCTP hop and that reserve does not exist on
+Arc. This page documents the end-to-end chain plus the self-serve acknowledgement route
+followers can use to fund their own mirrors from any supported chain.
 
-## What Ships
+## Load-bearing proof (Jul 5, 2026)
 
-- `/api/cctp-funding` verifies a Circle CCTP attestation for a supplied source-chain burn transaction.
-- The route stores an acknowledgement in KV when configured.
-- `app/scripts/cctp-verify.mjs` gives reviewers a one-command check against a burn transaction.
-- The response explicitly returns `credited: false` because the actual Arc mint plus `MirrorRouter.depositUSDC()` execution is a later integration step.
+USDC provably traveled Ethereum Sepolia -> Arc via Circle CCTP V2, became a Float sponsored
+reserve, was drawn by an autonomous agent to pay a provider, and was repaid. Every hop is a
+real transaction.
 
-## Flow
+| Step | Chain | Tx | Effect |
+| --- | --- | --- | --- |
+| 1. Burn | Ethereum Sepolia | [`0x05c3731e…f74c69`](https://sepolia.etherscan.io/tx/0x05c3731ef37af9748a9e1a700902cddda717c4e85016c2fbabdc3e07f3f74c69) | Burns 1 USDC via TokenMessengerV2, destination domain `26` (Arc), recipient `0xBDb1…1Fb8` |
+| 2. Attest | Circle Iris | `GET /v2/messages/0?transactionHash=0x05c3731e…` | Returns `status: complete` with the signed message |
+| 3. Mint | Arc testnet | [`0xca5825f8…a18a82`](https://explorer.testnet.arc.network/tx/0xca5825f86fc178cb2cd21d41bc4ace4e958eaad0f0a363c7715007b577a18a82) | `receiveMessage` on MessageTransmitterV2 mints 999900 atomic USDC to `0xBDb1…1Fb8` (100 atomic fast-transfer fee) |
+| 4. Open line | Arc testnet | [`0x8c3a5781…3631fe`](https://explorer.testnet.arc.network/tx/0x8c3a5781517c8c0f8c8d0c2e88791e17fca509fecaf78fb8cbcfb6cf013631fe) | `openSponsoredLine` locks 0.9 USDC of the minted dollar as reserve for agent `0xec28…76A8`, provider CitePay |
+| 5. Draw | Arc testnet | [`0xa5dee9bb…2fba24`](https://explorer.testnet.arc.network/tx/0xa5dee9bb7424e0f2f4eccf13a0a2a2f32a617a227b18c1a242307bbdd92fba24) | Agent signs an EIP-712 spend intent; `requestSignedSpend` pays CitePay 0.001 USDC from the bridged reserve |
+| 6. Repay | Arc testnet | [`0x41e203d3…a79f99c`](https://explorer.testnet.arc.network/tx/0x41e203d38209441761647f9c81ed1660eff7d4a6467089a7aaac58259a79f99c) | `repay` clears the 0.001 debt (approval [`0x282430bc…`](https://explorer.testnet.arc.network/tx/0x282430bc633626ffced8a05f721f669b92586d4bdc7e71b98ee99e9944307d32)); line status -> `REPAID` |
+
+After the clean loop the line reads: behavior score `7500 -> 8250`, credit limit `0.025 ->
+0.05 USDC` (score crossed the 8000 tier), active debt `0`, status `REPAID`. The autonomous
+underwriting rewarded the on-time repayment by growing the limit toward the reserve cap. This
+is the whole thesis in six transactions: cross-chain capital arrives, gets underwritten, does
+work, and settles.
+
+### Addresses
+
+| Role | Address |
+| --- | --- |
+| Source burn signer (Sepolia) | `0x8942F989343e4Ce8e4c8c0D7C648a6953ff3A5A2` |
+| Mint recipient / sponsor / executor (Arc) | `0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8` |
+| CCTP-funded agent line | `0xec28bfA6f4BcFf23933E21B7AbfB6D53287976A8` |
+| MessageTransmitterV2 (both chains) | `0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275` |
+| TokenMessengerV2 (both chains) | `0x8FE6B999DC680CcFDD5Bf7EB0974218be2542DAA` |
+| ShadowFloat V2 (Arc) | `0x20dcA96B0C487D94De885c726c956ffaF38b12C2` |
+| USDC (Arc) | `0x3600000000000000000000000000000000000000` |
+| CitePay provider | `0x5389688243328c26a92b301faEEAb5fbf9AFf105` |
+
+Anyone can re-verify the attestation for the burn without any Shadow secret:
+
+```bash
+curl -sS "https://iris-api-sandbox.circle.com/v2/messages/0?transactionHash=0x05c3731ef37af9748a9e1a700902cddda717c4e85016c2fbabdc3e07f3f74c69" | python3 -m json.tool
+```
+
+## Self-serve acknowledgement route
+
+Beyond the executed chain above, `/api/cctp-funding` lets a follower prove a burn from any
+supported source chain so Shadow can acknowledge their funding intent before the mint lands.
+It verifies the Circle attestation and records an acknowledgement; it deliberately returns
+`credited: false` because acknowledgement is not the same as an executed Arc mint plus router
+deposit. `app/scripts/cctp-verify.mjs` gives reviewers a one-command check.
+
+### Flow
 
 1. A follower burns USDC on a supported source testnet.
-2. The reviewer calls `/api/cctp-funding` with `burnTx`, `sourceDomain`, and optionally `follower` plus `expectedAmountAtomic`.
-3. Shadow queries Circle Iris sandbox for the burn attestation.
-4. If the attestation is complete, Shadow records an acknowledgement that the follower funding path is verified.
-5. A later worker can execute the Arc mint and router deposit using the attestation payload.
+2. The reviewer calls `/api/cctp-funding` with `burnTx`, `sourceDomain`, and optionally
+   `follower` plus `expectedAmountAtomic`.
+3. Shadow queries Circle Iris for the burn attestation.
+4. If the attestation is complete, Shadow records that the follower funding path is verified.
+5. A worker (or the manual chain above) executes the Arc mint and credits the follower.
 
-## Env
+### Env
 
 Required for live acknowledgement:
 
@@ -36,7 +82,7 @@ Script inputs:
 - `CCTP_EXPECTED_AMOUNT_ATOMIC`
 - `SHADOW_APP_URL`
 
-## Run
+### Run
 
 ```bash
 cd app
@@ -51,61 +97,16 @@ curl -sS https://shadow-arc.vercel.app/api/cctp-funding \
   -d '{"burnTx":"0x...","sourceDomain":0,"follower":"0x...","expectedAmountAtomic":"1000000"}'
 ```
 
-## Live acknowledgement proof (Jul 2, 2026)
-
-Shadow verified one live Circle CCTP V2 burn attestation through `/api/cctp-funding`.
-
-| Field | Value |
-| --- | --- |
-| Source chain | Ethereum Sepolia |
-| Source domain | `0` |
-| Destination domain | `26` (Arc testnet) |
-| Burn tx | [`0x55d7d984f7a1d41174ccce0edca0d0901511c40259f0af0266dcc3fd27b1baf9`](https://sepolia.etherscan.io/tx/0x55d7d984f7a1d41174ccce0edca0d0901511c40259f0af0266dcc3fd27b1baf9) |
-| Source wallet | `0x8942F989343e4Ce8e4c8c0D7C648a6953ff3A5A2` |
-| Acknowledged follower | `0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8` |
-| Amount | `1000000` atomic USDC |
-| Attestation status | `complete` |
-| Route response | `acknowledged: true`, `credited: false` |
-
-Verification command:
-
-```bash
-CCTP_BURN_TX=0x55d7d984f7a1d41174ccce0edca0d0901511c40259f0af0266dcc3fd27b1baf9 \
-CCTP_SOURCE_DOMAIN=0 \
-CCTP_FOLLOWER=0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8 \
-CCTP_EXPECTED_AMOUNT_ATOMIC=1000000 \
-pnpm --dir app cctp:verify
-```
-
-Trimmed response:
-
-```json
-{
-  "funding": {
-    "sourceDomain": 0,
-    "destinationDomain": 26,
-    "expectedAmountAtomic": "1000000",
-    "attestationStatus": "complete",
-    "acknowledged": true,
-    "credited": false,
-    "note": "Attestation verified. Funding is acknowledged for the follower; actual Shadow Router credit still requires mint/deposit execution on Arc."
-  },
-  "raw": {
-    "status": "complete",
-    "hasMessage": true,
-    "hasAttestation": true
-  }
-}
-```
-
 The route is honest by construction:
 
 - `acknowledged: true` only when Circle returns a complete attestation.
-- `credited: false` until a future Arc mint/deposit worker actually credits the follower in Shadow.
+- `credited: false` until an Arc mint/deposit actually credits the follower in Shadow.
 - Public errors are sanitized and do not echo raw upstream responses or tokens.
 
 ## References
 
 - Circle CCTP Iris attestation API: `GET /v2/messages/{sourceDomain}?transactionHash={burnTx}`
-- Circle Gateway multichain sample: `circlefin/arc-multichain-wallet`
+- CCTP V2 testnet contracts (same address across chains): MessageTransmitterV2
+  `0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275`, TokenMessengerV2
+  `0x8FE6B999DC680CcFDD5Bf7EB0974218be2542DAA`
 - Gateway domain used for Arc testnet in the Circle sample: `26`
