@@ -561,6 +561,8 @@ async function handleFloatV2(res: VercelLikeResponse) {
       return a.label.localeCompare(b.label);
     });
 
+    const returningAgents = visibleAgents.filter((agent) => Number(agent.signedIntents) > 1).length;
+    const returningSponsors = countReturningSponsors(visibleAgents);
     const summary = {
       registeredExternalLines: visibleAgents.filter((agent) => BigInt(agent.sponsorReserveUSDC) > 0n).length,
       signedIntents: visibleAgents.reduce((sum, agent) => sum + agent.signedIntents, 0),
@@ -571,6 +573,8 @@ async function handleFloatV2(res: VercelLikeResponse) {
       repaidUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.repaidUSDC), 0n).toString(),
       activeDebtUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.activeDebtUSDC), 0n).toString(),
       blockedUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.blockedUSDC), 0n).toString(),
+      returningAgents,
+      returningSponsors,
     };
 
     res.status(200).json({
@@ -716,6 +720,8 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     if (b.statusName === "REPAID" && a.statusName !== "REPAID") return 1;
     return a.label.localeCompare(b.label);
   });
+  const returningAgents = visibleAgents.filter((agent) => Number(agent.signedIntents) > 1).length;
+  const returningSponsors = countReturningSponsors(visibleAgents);
 
   return {
     ok: true,
@@ -740,6 +746,8 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       repaidUSDC: "92000",
       activeDebtUSDC: "10000",
       blockedUSDC: "0",
+      returningAgents,
+      returningSponsors,
     },
     agents: visibleAgents,
     selfTestAgents: [],
@@ -821,6 +829,15 @@ function snapshotV2Agent(input: {
     repayTx: input.repayTx,
     latestTxHash: input.latestTxHash,
   };
+}
+
+function countReturningSponsors(agents: Array<{ sponsor: Address; signedIntents: number }>): number {
+  const intentCountBySponsor = new Map<string, number>();
+  for (const agent of agents) {
+    const sponsor = getAddress(agent.sponsor).toLowerCase();
+    intentCountBySponsor.set(sponsor, (intentCountBySponsor.get(sponsor) || 0) + Number(agent.signedIntents));
+  }
+  return [...intentCountBySponsor.values()].filter((count) => count > 1).length;
 }
 
 async function handleFloatDesk(res: VercelLikeResponse, req: VercelLikeRequest) {

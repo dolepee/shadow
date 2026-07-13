@@ -10,7 +10,21 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { createWalletClient, custom, getAddress, keccak256, parseAbi, parseAbiItem, parseUnits, stringToBytes, type Address, type Hash, type Hex } from "viem";
+import {
+  createWalletClient,
+  custom,
+  getAddress,
+  hashTypedData,
+  isAddress,
+  keccak256,
+  parseAbi,
+  parseAbiItem,
+  parseUnits,
+  stringToBytes,
+  type Address,
+  type Hash,
+  type Hex,
+} from "viem";
 import {
   toCircleSmartAccount,
   toModularTransport,
@@ -99,6 +113,99 @@ const PRESETS: Record<PresetKey, Preset> = {
     maxRiskLevel: 3,
     minBpsOut: 9000,
   },
+};
+
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
+const BYTES32_PATTERN = /^0x[0-9a-fA-F]{64}$/;
+const FLOAT_V2_USDC = getAddress(
+  (addresses.usdc || "0x3600000000000000000000000000000000000000") as `0x${string}`,
+);
+const FLOAT_V2_DEFAULT_PROVIDER = getAddress(
+  (import.meta.env.VITE_FLOAT_PROVIDER ||
+    import.meta.env.FLOAT_PROVIDER ||
+    "0x8ddf06fE8985988d3e0883F945E891BD57084937") as `0x${string}`,
+);
+const FLOAT_V2_DEFAULT_ENDPOINT_HASH =
+  (import.meta.env.VITE_FLOAT_ENDPOINT_HASH ||
+    import.meta.env.FLOAT_ENDPOINT_HASH ||
+    "0x54f180bcd31ab4c3401b23bc78cb3eeb89f85d42a3b43e3d06a692b91d941160") as `0x${string}`;
+const FLOAT_SPEND_INTENT_TYPES = {
+  FloatSpendIntent: [
+    { name: "agent", type: "address" },
+    { name: "provider", type: "address" },
+    { name: "endpointHash", type: "bytes32" },
+    { name: "amountUSDC", type: "uint256" },
+    { name: "maxDebtUSDC", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+    { name: "expiry", type: "uint256" },
+    { name: "executor", type: "address" },
+    { name: "reason", type: "string" },
+  ],
+} as const;
+
+type BuilderIntentTypedData = {
+  domain: {
+    name: string;
+    version: string;
+    chainId: number;
+    verifyingContract: Address;
+  };
+  types: {
+    FloatSpendIntent: {
+      name: string;
+      type: string;
+    }[];
+  };
+  primaryType: "FloatSpendIntent";
+  message: {
+    agent: Address;
+    provider: Address;
+    endpointHash: `0x${string}`;
+    amountUSDC: string;
+    maxDebtUSDC: string;
+    nonce: string;
+    expiry: string;
+    executor: Address;
+    reason: string;
+  };
+};
+
+type BuilderSignedIntentPacket = {
+  intent: {
+    agent: Address;
+    provider: Address;
+    endpointHash: `0x${string}`;
+    amountUSDC: string;
+    maxDebtUSDC: string;
+    nonce: string;
+    expiry: string;
+    executor: Address;
+    reason: string;
+    float: Address;
+    chainId: number;
+  };
+  typedData: BuilderIntentTypedData;
+  signature?: string;
+  digest: `0x${string}`;
+  requestHash: `0x${string}`;
+};
+
+type BuilderFlowStatus = {
+  label: string;
+  detail?: string;
+  error?: string;
+  txs?: { label: string; hash: Hash }[];
+};
+
+type SponsorPreflight = {
+  sponsor: Address;
+  existingSponsor: Address;
+  lineWallet: Address;
+  reserveUSDC: bigint;
+  balanceUSDC: bigint;
+  allowanceUSDC: bigint;
+  nativeBalance: bigint;
+  checkedAt: number;
 };
 
 type ExternalSignedLabel = { kind: "obol" | "builder"; eyebrow: string; title: string };
@@ -569,6 +676,8 @@ type FloatV2ActivityState = {
     paidSpends: number;
     repaidLifecycles: number;
     openDebtAgents: number;
+    returningAgents: number;
+    returningSponsors: number;
     providerPaidUSDC: string;
     repaidUSDC: string;
     activeDebtUSDC: string;
@@ -693,6 +802,8 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
     paidSpends: 12,
     repaidLifecycles: 11,
     openDebtAgents: 1,
+    returningAgents: 2,
+    returningSponsors: 1,
     providerPaidUSDC: "102000",
     repaidUSDC: "92000",
     activeDebtUSDC: "10000",
@@ -1236,6 +1347,8 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     paidSpends: visibleAgents.reduce((sum, agent) => sum + agent.providerPaidCount, 0),
     repaidLifecycles: visibleAgents.reduce((sum, agent) => sum + agent.repaidCount, 0),
     openDebtAgents: visibleAgents.filter((agent) => BigInt(agent.activeDebtUSDC) > 0n).length,
+    returningAgents: visibleAgents.filter((agent) => agent.signedIntents > 1).length,
+    returningSponsors: countFloatV2ReturningSponsors(visibleAgents),
     providerPaidUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.providerPaidUSDC), 0n).toString(),
     repaidUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.repaidUSDC), 0n).toString(),
     activeDebtUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.activeDebtUSDC), 0n).toString(),
@@ -1324,6 +1437,15 @@ async function readFloatV2AutonomousScore(client: PublicClient, agent: Address, 
     args: [agent],
     blockNumber,
   }) as Promise<FloatV2AutonomousScoreRead>;
+}
+
+function countFloatV2ReturningSponsors(agents: Array<Pick<FloatV2AgentState, "sponsor" | "signedIntents">>): number {
+  const intentCountBySponsor = new Map<string, number>();
+  for (const agent of agents) {
+    const sponsor = getAddress(agent.sponsor).toLowerCase();
+    intentCountBySponsor.set(sponsor, (intentCountBySponsor.get(sponsor) || 0) + agent.signedIntents);
+  }
+  return [...intentCountBySponsor.values()].filter((count) => count > 1).length;
 }
 
 function App() {
@@ -2106,6 +2228,13 @@ function App() {
           a bounded intent; V2 verifies it onchain, pays the named provider from sponsor reserve, and records the debt trail.
         </p>
       </section>
+      <FloatBuilderPilot
+        account={account}
+        state={floatV2State}
+        loading={floatV2Loading}
+        onAccountChange={setAccount}
+        onRefresh={refreshFloatV2}
+      />
       <section className="builderFlowGrid" aria-label="Builder integration flow">
         <article className="builderFlowCard">
           <span>1</span>
@@ -2149,6 +2278,16 @@ function App() {
           <code>float-builder-sign.mjs · float-builder-repay.mjs</code>
           <p>Reference helpers for local signing and repayment. Builders can also construct calls with their own signer.</p>
         </article>
+        <a
+          className="builderReferenceCard"
+          href="https://github.com/dolepee/shadow/blob/main/docs/PILOT_RECRUITMENT.md"
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          <span>pilot handoff</span>
+          <strong>Run three unassisted cycles</strong>
+          <p>Participant roles, safe defaults, proof requirements, repeat-use target, and reserve-reclaim finish line.</p>
+        </a>
       </section>
     </div>
   );
@@ -2277,6 +2416,694 @@ function App() {
       <SiteFooter />
     </main>
   );
+}
+
+function FloatBuilderPilot({
+  account,
+  state,
+  loading,
+  onAccountChange,
+  onRefresh,
+}: {
+  account?: Address;
+  state: FloatV2ActivityState | null;
+  loading: boolean;
+  onAccountChange: (account: Address) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const [agentAddress, setAgentAddress] = useState("");
+  const [providerAddress, setProviderAddress] = useState<string>(FLOAT_V2_DEFAULT_PROVIDER);
+  const [endpointHash, setEndpointHash] = useState<string>(FLOAT_V2_DEFAULT_ENDPOINT_HASH);
+  const [reserveAmount, setReserveAmount] = useState("0.05");
+  const [maxPerRequest, setMaxPerRequest] = useState("0.01");
+  const [dailyLimit, setDailyLimit] = useState("0.05");
+  const [lineDays, setLineDays] = useState("7");
+  const [providerDays, setProviderDays] = useState("7");
+  const [mandateLabel, setMandateLabel] = useState("builder-pilot");
+  const [sponsorPreflight, setSponsorPreflight] = useState<SponsorPreflight | null>(null);
+  const [sponsorBusy, setSponsorBusy] = useState(false);
+  const [sponsorStatus, setSponsorStatus] = useState<BuilderFlowStatus>({
+    label: "Preflight required",
+    detail: "Connect the sponsor wallet and check the line before approving USDC.",
+  });
+
+  const [intentProvider, setIntentProvider] = useState<string>(FLOAT_V2_DEFAULT_PROVIDER);
+  const [intentEndpointHash, setIntentEndpointHash] = useState<string>(FLOAT_V2_DEFAULT_ENDPOINT_HASH);
+  const [intentAmount, setIntentAmount] = useState("0.01");
+  const [intentMaxDebt, setIntentMaxDebt] = useState("");
+  const [intentHours, setIntentHours] = useState("24");
+  const [intentExecutor, setIntentExecutor] = useState("");
+  const [intentReason, setIntentReason] = useState("My agent buys one approved provider response for its current task.");
+  const [intentPacket, setIntentPacket] = useState<BuilderSignedIntentPacket | null>(null);
+  const [intentBusy, setIntentBusy] = useState(false);
+  const [intentStatus, setIntentStatus] = useState<BuilderFlowStatus>({
+    label: "Agent signature required",
+    detail: "Switch the connected wallet to the agent address before creating the intent.",
+  });
+
+  const [repayDebt, setRepayDebt] = useState<bigint | null>(null);
+  const [repayBalance, setRepayBalance] = useState<bigint | null>(null);
+  const [repayAmount, setRepayAmount] = useState("");
+  const [repayBusy, setRepayBusy] = useState(false);
+  const [repayStatus, setRepayStatus] = useState<BuilderFlowStatus>({
+    label: "Debt not loaded",
+    detail: "Connect the agent wallet to read and repay its current line debt.",
+  });
+
+  const returningAgents = state?.summary?.returningAgents;
+  const returningSponsors = state?.summary?.returningSponsors;
+  const blockedActions = state?.agents?.reduce((sum, agent) => sum + agent.blockedCount, 0);
+  const metricValue = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
+
+  function sponsorInputs() {
+    const agent = parseBuilderAddress(agentAddress, "Agent");
+    const provider = parseBuilderAddress(providerAddress, "Provider");
+    const endpoint = parseBuilderBytes32(endpointHash, "Endpoint hash");
+    const reserveUSDC = parseBuilderUSDC(reserveAmount, "Reserve");
+    const maxPerRequestUSDC = parseBuilderUSDC(maxPerRequest, "Maximum per request");
+    const dailyLimitUSDC = parseBuilderUSDC(dailyLimit, "Daily limit");
+    if (maxPerRequestUSDC > reserveUSDC) throw new Error("Maximum per request cannot exceed the reserve.");
+    if (dailyLimitUSDC > reserveUSDC) throw new Error("Daily limit cannot exceed the reserve.");
+    if (maxPerRequestUSDC > dailyLimitUSDC) throw new Error("Maximum per request cannot exceed the daily limit.");
+    const lineTtlDays = parseBuilderInteger(lineDays, "Line duration", 1, 30);
+    const providerTtlDays = parseBuilderInteger(providerDays, "Provider duration", 1, lineTtlDays);
+    if (mandateLabel.trim().length < 3) throw new Error("Mandate label must be at least three characters.");
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    return {
+      agent,
+      provider,
+      endpointHash: endpoint,
+      reserveUSDC,
+      maxPerRequestUSDC,
+      dailyLimitUSDC,
+      lineExpiry: now + BigInt(lineTtlDays * 86_400),
+      providerExpiry: now + BigInt(providerTtlDays * 86_400),
+      mandateId: keccak256(stringToBytes(`shadow-float:pilot:${mandateLabel.trim()}:${agent}`)),
+    };
+  }
+
+  async function inspectSponsor(config: ReturnType<typeof sponsorInputs>, sponsor: Address): Promise<SponsorPreflight> {
+    const [lineSponsor, line, balanceUSDC, allowanceUSDC, nativeBalance] = await Promise.all([
+      publicClient.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lineSponsors", args: [config.agent] }),
+      publicClient.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [config.agent] }),
+      publicClient.readContract({ address: FLOAT_V2_USDC, abi: erc20Abi, functionName: "balanceOf", args: [sponsor] }),
+      publicClient.readContract({ address: FLOAT_V2_USDC, abi: erc20Abi, functionName: "allowance", args: [sponsor, FLOAT_V2_CONTRACT] }),
+      publicClient.getBalance({ address: sponsor }),
+    ]);
+    return {
+      sponsor,
+      existingSponsor: getAddress((lineSponsor as FloatV2SponsorLineRead)[0]),
+      lineWallet: getAddress((line as FloatV2LineRead)[0]),
+      reserveUSDC: config.reserveUSDC,
+      balanceUSDC: balanceUSDC as bigint,
+      allowanceUSDC: allowanceUSDC as bigint,
+      nativeBalance,
+      checkedAt: Date.now(),
+    };
+  }
+
+  function sponsorReadinessError(preflight: SponsorPreflight): string | null {
+    if (preflight.existingSponsor !== ZERO_ADDRESS || preflight.lineWallet !== ZERO_ADDRESS) {
+      return `Agent already has a line (${preflight.existingSponsor !== ZERO_ADDRESS ? `sponsor ${shortAddress(preflight.existingSponsor)}` : "non-sponsored"}). Choose a fresh agent address.`;
+    }
+    if (preflight.balanceUSDC < preflight.reserveUSDC) {
+      return `Sponsor has ${formatFloatUSDC(preflight.balanceUSDC)} USDC; ${formatFloatUSDC(preflight.reserveUSDC)} USDC is required.`;
+    }
+    if (preflight.nativeBalance === 0n) return "Sponsor wallet has no Arc testnet gas balance.";
+    return null;
+  }
+
+  async function runSponsorPreflight() {
+    setSponsorBusy(true);
+    setSponsorStatus({ label: "Checking sponsor setup" });
+    try {
+      const config = sponsorInputs();
+      const { account: sponsor } = await connectBuilderWallet(onAccountChange);
+      const preflight = await inspectSponsor(config, sponsor);
+      setSponsorPreflight(preflight);
+      const blocked = sponsorReadinessError(preflight);
+      if (blocked) throw new Error(blocked);
+      setSponsorStatus({
+        label: preflight.allowanceUSDC >= config.reserveUSDC ? "Ready to open" : "Approval required",
+        detail:
+          preflight.allowanceUSDC >= config.reserveUSDC
+            ? "Reserve allowance and wallet balances are sufficient."
+            : `Approve ${formatFloatUSDC(config.reserveUSDC)} USDC to ShadowFloat before opening the line.`,
+      });
+    } catch (error) {
+      setSponsorStatus({ label: "Preflight blocked", error: errorMessage(error) });
+    } finally {
+      setSponsorBusy(false);
+    }
+  }
+
+  async function approveSponsorReserve() {
+    setSponsorBusy(true);
+    setSponsorStatus({ label: "Checking reserve approval" });
+    try {
+      const config = sponsorInputs();
+      const { account: sponsor, wallet } = await connectBuilderWallet(onAccountChange);
+      const preflight = await inspectSponsor(config, sponsor);
+      setSponsorPreflight(preflight);
+      const blocked = sponsorReadinessError(preflight);
+      if (blocked) throw new Error(blocked);
+      if (preflight.allowanceUSDC >= config.reserveUSDC) {
+        setSponsorStatus({ label: "Already approved", detail: "Current allowance covers the requested reserve." });
+        return;
+      }
+      const hash = await wallet.writeContract({
+        account: sponsor,
+        address: FLOAT_V2_USDC,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [FLOAT_V2_CONTRACT, config.reserveUSDC],
+        chain: arcTestnet,
+      });
+      await waitForBuilderTransaction(hash, "Reserve approval");
+      setSponsorPreflight({ ...preflight, allowanceUSDC: config.reserveUSDC, checkedAt: Date.now() });
+      setSponsorStatus({
+        label: "Reserve approved",
+        detail: "The next transaction opens the line and transfers the bounded reserve into ShadowFloat.",
+        txs: [{ label: "approval", hash }],
+      });
+    } catch (error) {
+      setSponsorStatus({ label: "Approval failed", error: errorMessage(error) });
+    } finally {
+      setSponsorBusy(false);
+    }
+  }
+
+  async function openSponsorLine() {
+    setSponsorBusy(true);
+    setSponsorStatus({ label: "Rechecking line and allowance" });
+    try {
+      const config = sponsorInputs();
+      const { account: sponsor, wallet } = await connectBuilderWallet(onAccountChange);
+      const preflight = await inspectSponsor(config, sponsor);
+      setSponsorPreflight(preflight);
+      const blocked = sponsorReadinessError(preflight);
+      if (blocked) throw new Error(blocked);
+      if (preflight.allowanceUSDC < config.reserveUSDC) throw new Error("Approve the reserve before opening the line.");
+      const hash = await wallet.writeContract({
+        account: sponsor,
+        address: FLOAT_V2_CONTRACT,
+        abi: floatV2Abi,
+        functionName: "openSponsoredLine",
+        args: [
+          config.agent,
+          config.reserveUSDC,
+          config.mandateId,
+          config.lineExpiry,
+          config.provider,
+          config.endpointHash,
+          config.maxPerRequestUSDC,
+          config.dailyLimitUSDC,
+          config.providerExpiry,
+        ],
+        chain: arcTestnet,
+      });
+      await waitForBuilderTransaction(hash, "Sponsored line opening");
+      setSponsorStatus({
+        label: "Sponsored line opened",
+        detail: `${formatFloatUSDC(config.reserveUSDC)} USDC is reserved for ${shortAddress(config.agent)} under the signed provider bounds.`,
+        txs: [{ label: "open line", hash }],
+      });
+      await onRefresh();
+    } catch (error) {
+      setSponsorStatus({ label: "Line opening failed", error: errorMessage(error) });
+    } finally {
+      setSponsorBusy(false);
+    }
+  }
+
+  async function createAndSignIntent() {
+    setIntentBusy(true);
+    setIntentStatus({ label: "Building typed data" });
+    try {
+      const provider = parseBuilderAddress(intentProvider, "Provider");
+      const endpoint = parseBuilderBytes32(intentEndpointHash, "Endpoint hash");
+      const amountUSDC = parseBuilderUSDC(intentAmount, "Spend amount");
+      const ttlHours = parseBuilderInteger(intentHours, "Intent lifetime", 1, 168);
+      const reason = intentReason.trim();
+      if (reason.length < 12) throw new Error("Give the agent a truthful reason of at least 12 characters.");
+      const { account: agent, wallet } = await connectBuilderWallet(onAccountChange);
+      const params = new URLSearchParams({
+        action: "intent",
+        agent,
+        provider,
+        endpointHash: endpoint,
+        amountUSDC: amountUSDC.toString(),
+        nonce: createBuilderNonce(),
+        ttl: String(ttlHours * 3_600),
+        reason,
+      });
+      if (intentMaxDebt.trim()) params.set("maxDebtUSDC", parseBuilderUSDC(intentMaxDebt, "Maximum debt").toString());
+      if (intentExecutor.trim()) params.set("executor", parseBuilderAddress(intentExecutor, "Executor"));
+      const response = await fetch(`/api/float-tools?${params.toString()}`);
+      const packet = (await response.json()) as BuilderSignedIntentPacket & { error?: string };
+      if (!response.ok || packet.error) throw new Error(packet.error || `Intent request failed with ${response.status}.`);
+      if (getAddress(packet.intent.agent) !== agent) throw new Error("Intent API returned a different agent address.");
+      if (getAddress(packet.intent.float) !== FLOAT_V2_CONTRACT || packet.intent.chainId !== arcTestnet.id) {
+        throw new Error("Intent API returned the wrong contract or chain.");
+      }
+      if (packet.digest.toLowerCase() !== packet.requestHash.toLowerCase()) throw new Error("Intent digest and request hash differ.");
+      const message = {
+        agent: getAddress(packet.typedData.message.agent),
+        provider: getAddress(packet.typedData.message.provider),
+        endpointHash: parseBuilderBytes32(packet.typedData.message.endpointHash, "Signed endpoint hash"),
+        amountUSDC: BigInt(packet.typedData.message.amountUSDC),
+        maxDebtUSDC: BigInt(packet.typedData.message.maxDebtUSDC),
+        nonce: BigInt(packet.typedData.message.nonce),
+        expiry: BigInt(packet.typedData.message.expiry),
+        executor: getAddress(packet.typedData.message.executor),
+        reason: packet.typedData.message.reason,
+      };
+      const localDigest = hashTypedData({
+        domain: packet.typedData.domain,
+        types: FLOAT_SPEND_INTENT_TYPES,
+        primaryType: "FloatSpendIntent",
+        message,
+      });
+      if (localDigest.toLowerCase() !== packet.digest.toLowerCase()) {
+        throw new Error("Intent API digest does not match the locally reconstructed EIP-712 payload.");
+      }
+      const signature = await wallet.signTypedData({
+        account: agent,
+        domain: packet.typedData.domain,
+        types: FLOAT_SPEND_INTENT_TYPES,
+        primaryType: "FloatSpendIntent",
+        message,
+      });
+      setIntentPacket({ ...packet, signature });
+      setIntentStatus({
+        label: "Intent signed locally",
+        detail: "No transaction or provider payment has happened yet. Submit the signed packet in the next step.",
+      });
+    } catch (error) {
+      setIntentPacket(null);
+      setIntentStatus({ label: "Intent signing failed", error: errorMessage(error) });
+    } finally {
+      setIntentBusy(false);
+    }
+  }
+
+  async function submitSignedIntent() {
+    if (!intentPacket?.signature) {
+      setIntentStatus({ label: "Submission blocked", error: "Create and sign an intent first." });
+      return;
+    }
+    setIntentBusy(true);
+    setIntentStatus({ label: "Submitting signed intent" });
+    try {
+      const { account: executor, wallet } = await connectBuilderWallet(onAccountChange);
+      const intent = intentPacket.intent;
+      if (getAddress(intent.executor) !== ZERO_ADDRESS && getAddress(intent.executor) !== executor) {
+        throw new Error(`This intent is restricted to executor ${intent.executor}.`);
+      }
+      const hash = await wallet.writeContract({
+        account: executor,
+        address: FLOAT_V2_CONTRACT,
+        abi: floatV2Abi,
+        functionName: "requestSignedSpend",
+        args: [
+          {
+            agent: getAddress(intent.agent),
+            provider: getAddress(intent.provider),
+            endpointHash: parseBuilderBytes32(intent.endpointHash, "Endpoint hash"),
+            amountUSDC: BigInt(intent.amountUSDC),
+            maxDebtUSDC: BigInt(intent.maxDebtUSDC),
+            nonce: BigInt(intent.nonce),
+            expiry: BigInt(intent.expiry),
+            executor: getAddress(intent.executor),
+            reason: intent.reason,
+          },
+          intentPacket.signature as Hex,
+        ],
+        chain: arcTestnet,
+      });
+      await waitForBuilderTransaction(hash, "Signed spend submission");
+      setIntentStatus({
+        label: "Signed intent confirmed",
+        detail: "The V2 receipt records whether policy allowed payment or blocked it before funds moved.",
+        txs: [{ label: "signed spend", hash }],
+      });
+      await onRefresh();
+    } catch (error) {
+      setIntentStatus({ label: "Intent submission failed", error: errorMessage(error) });
+    } finally {
+      setIntentBusy(false);
+    }
+  }
+
+  async function copyIntentPacket() {
+    if (!intentPacket) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(intentPacket, null, 2));
+      setIntentStatus({ label: "Signed packet copied", detail: "A relayer can submit this packet without receiving the agent key." });
+    } catch (error) {
+      setIntentStatus({ label: "Copy failed", error: errorMessage(error) });
+    }
+  }
+
+  async function loadAgentDebt() {
+    setRepayBusy(true);
+    setRepayStatus({ label: "Reading agent debt" });
+    try {
+      const { account: agent } = await connectBuilderWallet(onAccountChange);
+      const [line, balance] = await Promise.all([
+        publicClient.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [agent] }),
+        publicClient.readContract({ address: FLOAT_V2_USDC, abi: erc20Abi, functionName: "balanceOf", args: [agent] }),
+      ]);
+      const currentLine = line as FloatV2LineRead;
+      if (getAddress(currentLine[0]) !== agent) throw new Error("Connected wallet is not the wallet assigned to this Float line.");
+      const debt = currentLine[4];
+      setRepayDebt(debt);
+      setRepayBalance(balance as bigint);
+      setRepayAmount(debt > 0n ? formatFloatUSDC(debt) : "");
+      setRepayStatus({
+        label: debt > 0n ? "Debt loaded" : "No active debt",
+        detail: debt > 0n ? `${formatFloatUSDC(debt)} USDC is open; wallet balance is ${formatFloatUSDC(balance as bigint)} USDC.` : "This line has no debt to repay.",
+      });
+    } catch (error) {
+      setRepayStatus({ label: "Debt read failed", error: errorMessage(error) });
+    } finally {
+      setRepayBusy(false);
+    }
+  }
+
+  async function repayAgentDebt() {
+    setRepayBusy(true);
+    setRepayStatus({ label: "Rechecking repayment" });
+    try {
+      const amountUSDC = parseBuilderUSDC(repayAmount, "Repayment amount");
+      const { account: agent, wallet } = await connectBuilderWallet(onAccountChange);
+      const [line, balance, allowance] = await Promise.all([
+        publicClient.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [agent] }),
+        publicClient.readContract({ address: FLOAT_V2_USDC, abi: erc20Abi, functionName: "balanceOf", args: [agent] }),
+        publicClient.readContract({ address: FLOAT_V2_USDC, abi: erc20Abi, functionName: "allowance", args: [agent, FLOAT_V2_CONTRACT] }),
+      ]);
+      const currentLine = line as FloatV2LineRead;
+      const debt = currentLine[4];
+      if (getAddress(currentLine[0]) !== agent) throw new Error("Connected wallet is not the wallet assigned to this Float line.");
+      if (debt === 0n) throw new Error("This line has no active debt.");
+      if (amountUSDC > debt) throw new Error(`Repayment cannot exceed the ${formatFloatUSDC(debt)} USDC debt.`);
+      if ((balance as bigint) < amountUSDC) throw new Error(`Agent wallet needs ${formatFloatUSDC(amountUSDC)} USDC to repay.`);
+      const txs: { label: string; hash: Hash }[] = [];
+      if ((allowance as bigint) < amountUSDC) {
+        const approvalHash = await wallet.writeContract({
+          account: agent,
+          address: FLOAT_V2_USDC,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [FLOAT_V2_CONTRACT, amountUSDC],
+          chain: arcTestnet,
+        });
+        await waitForBuilderTransaction(approvalHash, "Repayment approval");
+        txs.push({ label: "repay approval", hash: approvalHash });
+      }
+      const requestHash = keccak256(
+        stringToBytes(
+          JSON.stringify({
+            v: 1,
+            domain: "shadow-float:builder-repay",
+            agent,
+            amountUSDC: amountUSDC.toString(),
+            nonce: createBuilderNonce(),
+          }),
+        ),
+      );
+      const repayHash = await wallet.writeContract({
+        account: agent,
+        address: FLOAT_V2_CONTRACT,
+        abi: floatV2Abi,
+        functionName: "repay",
+        args: [agent, amountUSDC, requestHash],
+        chain: arcTestnet,
+      });
+      await waitForBuilderTransaction(repayHash, "Float repayment");
+      txs.push({ label: "repayment", hash: repayHash });
+      setRepayDebt(debt - amountUSDC);
+      setRepayBalance((balance as bigint) - amountUSDC);
+      setRepayAmount("");
+      setRepayStatus({
+        label: debt === amountUSDC ? "Debt cleared" : "Partial repayment confirmed",
+        detail: debt === amountUSDC ? "Capacity is restored and the lifecycle is closed." : `${formatFloatUSDC(debt - amountUSDC)} USDC debt remains.`,
+        txs,
+      });
+      await onRefresh();
+    } catch (error) {
+      setRepayStatus({ label: "Repayment failed", error: errorMessage(error) });
+    } finally {
+      setRepayBusy(false);
+    }
+  }
+
+  return (
+    <section className="builderPilot" id="self-serve-float" aria-label="Self-serve Shadow Float pilot">
+      <div className="builderPilotHeader">
+        <div>
+          <p className="pageEyebrow">self-serve pilot · Arc testnet</p>
+          <h2>Open, use, and repay a real sponsor-backed line.</h2>
+          <p>Every write targets the deployed V2 contract. Wallet prompts stay explicit, and no agent or sponsor key is collected by Shadow.</p>
+        </div>
+        <div className="builderWalletState">
+          <span>connected wallet</span>
+          <strong>{account ? shortAddress(account) : "not connected"}</strong>
+          <small>Switch accounts between the sponsor and agent stages.</small>
+        </div>
+      </div>
+
+      <div className="builderPilotMetrics" aria-label="Chain-derived pilot metrics">
+        <FloatFact label="returning agents" value={metricValue(returningAgents)} />
+        <FloatFact label="returning sponsors" value={metricValue(returningSponsors)} />
+        <FloatFact label="signed intents" value={metricValue(state?.summary?.signedIntents)} />
+        <FloatFact label="closed loops" value={metricValue(state?.summary?.repaidLifecycles)} />
+        <FloatFact label="policy blocks" value={metricValue(blockedActions)} />
+      </div>
+
+      <div className="builderPilotGrid">
+        <article
+          className="builderWorkbench builderWorkbenchSponsor"
+          aria-busy={sponsorBusy}
+          aria-describedby="sponsor-flow-status"
+        >
+          <header>
+            <span>01 · sponsor</span>
+            <h3>Reserve capital and open the line</h3>
+            <p>Preflight reads the agent, sponsor balance, allowance, and existing line before any transaction.</p>
+          </header>
+          <div className="builderFieldGrid">
+            <label className="builderField builderFieldWide">
+              <span>Agent address</span>
+              <input value={agentAddress} onChange={(event) => setAgentAddress(event.target.value)} placeholder="0x agent wallet" spellCheck={false} />
+            </label>
+            <label className="builderField builderFieldWide">
+              <span>Provider address</span>
+              <input value={providerAddress} onChange={(event) => setProviderAddress(event.target.value)} spellCheck={false} />
+            </label>
+            <label className="builderField builderFieldWide">
+              <span>Endpoint hash</span>
+              <input value={endpointHash} onChange={(event) => setEndpointHash(event.target.value)} spellCheck={false} />
+            </label>
+            <label className="builderField">
+              <span>Reserve USDC</span>
+              <input inputMode="decimal" value={reserveAmount} onChange={(event) => setReserveAmount(event.target.value)} />
+            </label>
+            <label className="builderField">
+              <span>Max / request</span>
+              <input inputMode="decimal" value={maxPerRequest} onChange={(event) => setMaxPerRequest(event.target.value)} />
+            </label>
+            <label className="builderField">
+              <span>Daily limit</span>
+              <input inputMode="decimal" value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} />
+            </label>
+            <label className="builderField">
+              <span>Line days</span>
+              <input inputMode="numeric" value={lineDays} onChange={(event) => setLineDays(event.target.value)} />
+            </label>
+            <label className="builderField">
+              <span>Provider days</span>
+              <input inputMode="numeric" value={providerDays} onChange={(event) => setProviderDays(event.target.value)} />
+            </label>
+            <label className="builderField">
+              <span>Mandate label</span>
+              <input value={mandateLabel} onChange={(event) => setMandateLabel(event.target.value)} />
+            </label>
+          </div>
+          {sponsorPreflight && (
+            <div className="builderReadout">
+              <span>balance {formatFloatUSDC(sponsorPreflight.balanceUSDC)} USDC</span>
+              <span>allowance {formatFloatUSDC(sponsorPreflight.allowanceUSDC)} USDC</span>
+              <span>checked {new Date(sponsorPreflight.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+            </div>
+          )}
+          <div className="builderActionRow">
+            <button type="button" onClick={runSponsorPreflight} disabled={sponsorBusy}>1. Preflight</button>
+            <button type="button" onClick={approveSponsorReserve} disabled={sponsorBusy}>2. Approve reserve</button>
+            <button type="button" className="primary" onClick={openSponsorLine} disabled={sponsorBusy}>3. Open line</button>
+          </div>
+          <BuilderStatus id="sponsor-flow-status" status={sponsorStatus} />
+        </article>
+
+        <article className="builderWorkbench" aria-busy={intentBusy} aria-describedby="intent-flow-status">
+          <header>
+            <span>02 · agent</span>
+            <h3>Sign and submit a bounded spend</h3>
+            <p>The connected agent signs EIP-712 typed data. The private key stays inside its wallet.</p>
+          </header>
+          <div className="builderFieldGrid">
+            <label className="builderField builderFieldWide">
+              <span>Provider address</span>
+              <input value={intentProvider} onChange={(event) => setIntentProvider(event.target.value)} spellCheck={false} />
+            </label>
+            <label className="builderField builderFieldWide">
+              <span>Endpoint hash</span>
+              <input value={intentEndpointHash} onChange={(event) => setIntentEndpointHash(event.target.value)} spellCheck={false} />
+            </label>
+            <label className="builderField">
+              <span>Spend USDC</span>
+              <input inputMode="decimal" value={intentAmount} onChange={(event) => setIntentAmount(event.target.value)} />
+            </label>
+            <label className="builderField">
+              <span>Max debt USDC</span>
+              <input inputMode="decimal" value={intentMaxDebt} onChange={(event) => setIntentMaxDebt(event.target.value)} placeholder="auto" />
+            </label>
+            <label className="builderField">
+              <span>Lifetime hours</span>
+              <input inputMode="numeric" value={intentHours} onChange={(event) => setIntentHours(event.target.value)} />
+            </label>
+            <label className="builderField builderFieldWide">
+              <span>Executor, optional</span>
+              <input value={intentExecutor} onChange={(event) => setIntentExecutor(event.target.value)} placeholder="open to any relayer" spellCheck={false} />
+            </label>
+            <label className="builderField builderFieldWide">
+              <span>Truthful reason</span>
+              <textarea value={intentReason} onChange={(event) => setIntentReason(event.target.value)} rows={3} />
+            </label>
+          </div>
+          {intentPacket && (
+            <div className="builderIntentReceipt">
+              <span>signed request hash</span>
+              <code>{intentPacket.requestHash}</code>
+              <small>expires {new Date(Number(intentPacket.intent.expiry) * 1000).toLocaleString()}</small>
+            </div>
+          )}
+          <div className="builderActionRow">
+            <button type="button" onClick={createAndSignIntent} disabled={intentBusy}>1. Create + sign</button>
+            <button type="button" onClick={copyIntentPacket} disabled={!intentPacket || intentBusy}>Copy packet</button>
+            <button type="button" className="primary" onClick={submitSignedIntent} disabled={!intentPacket || intentBusy}>2. Submit V2 spend</button>
+          </div>
+          <BuilderStatus id="intent-flow-status" status={intentStatus} />
+        </article>
+
+        <article
+          className="builderWorkbench builderWorkbenchRepay"
+          aria-busy={repayBusy}
+          aria-describedby="repay-flow-status"
+        >
+          <header>
+            <span>03 · repay</span>
+            <h3>Restore the agent line</h3>
+            <p>Use the agent wallet holding repayment USDC. The flow approves only the requested amount, then records repayment on V2.</p>
+          </header>
+          <div className="builderRepaySnapshot">
+            <FloatFact label="active debt" value={repayDebt === null ? "not loaded" : `${formatFloatUSDC(repayDebt)} USDC`} />
+            <FloatFact label="agent balance" value={repayBalance === null ? "not loaded" : `${formatFloatUSDC(repayBalance)} USDC`} />
+          </div>
+          <label className="builderField">
+            <span>Repay USDC</span>
+            <input inputMode="decimal" value={repayAmount} onChange={(event) => setRepayAmount(event.target.value)} placeholder="load full debt" />
+          </label>
+          <div className="builderActionRow">
+            <button type="button" onClick={loadAgentDebt} disabled={repayBusy}>1. Load debt</button>
+            <button type="button" className="primary" onClick={repayAgentDebt} disabled={repayBusy || !repayAmount}>2. Approve + repay</button>
+          </div>
+          <BuilderStatus id="repay-flow-status" status={repayStatus} />
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function BuilderStatus({ id, status }: { id: string; status: BuilderFlowStatus }) {
+  return (
+    <div id={id} className={`builderStatus${status.error ? " error" : ""}`} role="status" aria-live="polite">
+      <strong>{status.label}</strong>
+      {status.detail && <span>{status.detail}</span>}
+      {status.txs?.length ? (
+        <div>
+          {status.txs.map((tx) => (
+            <a key={`${tx.label}-${tx.hash}`} href={txUrl(tx.hash)} target="_blank" rel="noreferrer noopener">
+              {tx.label} · {shortAddress(tx.hash)}
+            </a>
+          ))}
+        </div>
+      ) : null}
+      {status.error && <span>{status.error}</span>}
+    </div>
+  );
+}
+
+async function connectBuilderWallet(onAccountChange: (account: Address) => void) {
+  const ethereum = window.ethereum;
+  if (!ethereum) throw new Error("Install a browser wallet to use the self-serve flow.");
+  const accounts = (await ethereum.request({ method: "eth_requestAccounts" })) as Address[];
+  if (!accounts[0] || !isAddress(accounts[0])) throw new Error("The wallet did not return a valid account.");
+  await switchToArc();
+  const account = getAddress(accounts[0]);
+  onAccountChange(account);
+  return {
+    account,
+    wallet: createWalletClient({ account, chain: arcTestnet, transport: custom(ethereum) }),
+  };
+}
+
+function parseBuilderAddress(value: string, label: string): Address {
+  if (!isAddress(value.trim())) throw new Error(`${label} must be a valid address.`);
+  const address = getAddress(value.trim());
+  if (address === ZERO_ADDRESS) throw new Error(`${label} cannot be the zero address.`);
+  return address;
+}
+
+function parseBuilderBytes32(value: string, label: string): Hex {
+  const normalized = value.trim();
+  if (!BYTES32_PATTERN.test(normalized)) throw new Error(`${label} must be a 32-byte hex value.`);
+  return normalized as Hex;
+}
+
+function parseBuilderUSDC(value: string, label: string): bigint {
+  let amount: bigint;
+  try {
+    amount = parseUnits(value.trim(), 6);
+  } catch {
+    throw new Error(`${label} must be a valid USDC amount with at most six decimals.`);
+  }
+  if (amount <= 0n) throw new Error(`${label} must be greater than zero.`);
+  return amount;
+}
+
+function parseBuilderInteger(value: string, label: string, minimum: number, maximum: number): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`${label} must be a whole number from ${minimum} to ${maximum}.`);
+  }
+  return parsed;
+}
+
+function createBuilderNonce(): string {
+  const random = new Uint32Array(2);
+  crypto.getRandomValues(random);
+  return (BigInt(Date.now()) * 2n ** 64n + (BigInt(random[0]) << 32n) + BigInt(random[1])).toString();
+}
+
+async function waitForBuilderTransaction(hash: Hash, label: string) {
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+  if (receipt.status !== "success") throw new Error(`${label} reverted: ${hash}`);
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
 function RouteScroll() {
@@ -3697,6 +4524,8 @@ function FloatV2ActivityBoard({
         <FloatFact label="signed intents" value={showCount(state?.summary?.signedIntents)} />
         <FloatFact label="provider paid" value={showUSDC(state?.summary?.providerPaidUSDC)} />
         <FloatFact label="closed loops" value={showCount(state?.summary?.repaidLifecycles)} />
+        <FloatFact label="returning agents" value={showCount(state?.summary?.returningAgents)} />
+        <FloatFact label="returning sponsors" value={showCount(state?.summary?.returningSponsors)} />
         <FloatFact label="open debt" value={showUSDC(state?.summary?.activeDebtUSDC)} />
         <FloatFact label="top contract score" value={topScore > 0 ? String(topScore) : loading ? "reading" : "unavailable"} />
       </div>

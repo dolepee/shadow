@@ -839,6 +839,7 @@ async function handleScore(req: Req, res: Res) {
 }
 
 async function handleIntent(req: Req, res: Res) {
+  res.setHeader("Cache-Control", "no-store");
   const agentParam = readParam(req, "agent") || readParam(req, "address");
   const reason = clean(readParam(req, "reason"));
   if (!agentParam || !isAddress(agentParam)) {
