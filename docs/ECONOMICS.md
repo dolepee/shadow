@@ -1,123 +1,91 @@
-# Shadow Economics
+# Shadow Float Economics
 
-Shadow's economic design is intentionally simple for v1: source agents earn when followers copy, followers keep control through policy, and the protocol can later take a small fee to fund reliability and insurance. No token is required for v1.
+Shadow Float gives an autonomous agent bounded Arc USDC spending capacity backed by a sponsor-specific reserve. The current deployment proves the accounting and control loop on Arc testnet. It is not a pooled credit market, an interest-bearing product, or evidence of production revenue.
 
-## Current Testnet Flow
+## Current Economic Loop
 
-When a follower copies an intent:
-
-1. `MirrorRouter` checks the follower policy.
-2. If the policy passes, the router executes the swap through the configured execution path.
-3. The router charges a mirror fee from the copied amount.
-4. The source agent receives its kickback at the receipt event.
-5. The follower receives a `COPIED` receipt and a tracked position.
-
-When a follower blocks an intent:
-
-1. `MirrorRouter` emits a `BLOCKED` receipt with the exact policy reason.
-2. No swap executes for that follower.
-3. No mirror fee accrues for that follower.
-4. The follower balance remains untouched.
-
-This matters because refusal is not a failed transaction. It is a product outcome with a receipt.
+1. A sponsor approves and deposits Arc USDC through `openSponsoredLine(...)`.
+2. `ShadowFloat` assigns the agent a behavior-derived credit limit capped by that deposited reserve.
+3. The sponsor sets the provider, endpoint hash, per-request cap, daily cap, and mandate expiry for the line.
+4. The agent signs a bounded `FloatSpendIntent` without transferring its key or pre-funding its wallet.
+5. If the intent and line policy pass, `ShadowFloat` pays the named provider from contract custody and records debt against the agent.
+6. Repayment reduces debt and restores available capacity, subject to the contract's behavior-based line refresh.
+7. The sponsor can close the line and reclaim its full reserve only when debt is zero.
+8. If the sponsor defaults an unpaid line, the contract writes off the debt and returns only the reserve remainder.
 
 ## Participants
 
-| Participant | What they do | What they earn or protect |
+| Participant | Supplies | Receives or protects |
 | --- | --- | --- |
-| Source agent | Publishes intents and competes for followers | Mirror fee kickback, reputation, distribution |
-| Follower | Deposits USDC and sets risk policy | Policy-controlled exposure, receipt trail, optional PnL |
-| Shadow protocol | Routes intents, enforces policy, indexes receipts | Future protocol fee and reserve |
-| Circle/Arc ecosystem | Provides USDC, gas, finality, and account onboarding rails | More USDC-denominated agent activity |
+| Sponsor | A reserve dedicated to one agent line and its provider policy | Reserve reclaim after repayment; bounded loss exposure if the line defaults |
+| Agent | A signed intent and repayment | Access to approved paid services without pre-funding each agent wallet |
+| Provider | The approved service or API response | Arc USDC paid directly from `ShadowFloat` when the request passes policy |
+| Shadow | Contract enforcement, accounting, receipts, and verification surfaces | No meaningful live revenue on the current V2 deployment |
 
-## Fee Model
+## Reserve And Loss Accounting
 
-### V4 Testnet
+Sponsored capital is isolated in the accounting even though USDC is held by the same contract:
 
-- Mirror fee is charged only on `COPIED` receipts.
-- Source-agent kickback is paid from the mirror fee.
-- `BLOCKED` receipts do not charge a mirror fee.
-- Protocol fee is not the main testnet story.
+- `totalSponsoredReserveUSDC` tracks sponsor reserve obligations.
+- `totalSponsoredAvailableCreditUSDC` tracks currently available sponsored capacity.
+- Owner withdrawals must leave enough USDC to cover owner-managed available credit plus all sponsored reserve.
+- A sponsor cannot close while its agent has active debt.
+- A normal close returns the full recorded reserve to the sponsor-selected recipient.
+- A default returns `reserve - active debt`; the unpaid debt is recorded in `totalDefaultedUSDC` and `defaultedDebtUSDC(agent)`.
 
-### Mainnet Candidate
+The sponsor therefore bears nonpayment risk up to the dedicated reserve. The provider does not wait for the agent to repay: it receives USDC when the approved spend executes.
 
-Recommended mainnet model:
+## Capacity And Debt
 
-- mirror fee: visible per copied intent
-- source-agent share: majority of mirror fee
-- protocol share: small basis-point fee
-- reserve destination: insurance, monitoring, incident response, and development
+For sponsored lines:
 
-The key constraint: followers must be able to understand fees before following. If a fee cannot be explained in one sentence, it does not belong in v1.
+- initial and refreshed credit limits are the lower of the behavior-derived recommendation and the sponsor reserve;
+- a successful spend reduces available capacity by provider amount plus any configured protocol fee;
+- active debt increases by the same amount;
+- a signed `maxDebtUSDC` caps cumulative debt after the proposed spend;
+- partial repayment reduces debt and restores the corresponding capacity;
+- blocked, denied, frozen, expired, or over-limit requests move no provider funds.
 
-## Insurance Reserve
+Repayment history can improve the behavior-derived recommendation, but the line can never exceed its sponsor reserve.
 
-Shadow should not pretend an insurance reserve exists before it is funded. The mainnet path is:
+## Fees And Revenue
 
-1. route a small protocol fee from `COPIED` receipts into a reserve
-2. publish reserve balance and inflows
-3. define eligible incidents narrowly
-4. keep source-agent strategy losses out of scope
+The contract supports an owner-configured fee of at most 10% through `feeBps`. When non-zero, the fee is added to agent debt and recorded in `totalFeesAccruedUSDC`; the provider still receives only the signed provider amount.
 
-Eligible reserve uses can include:
+The current V2 deployment has `feeBps = 0`. Therefore:
 
-- UI or relayer incidents
-- monitoring failures
-- audited protocol bugs
-- emergency response costs
+- current V2 activity is product and accounting proof, not meaningful protocol revenue;
+- testnet provider payments are transaction volume, not Shadow revenue;
+- no sponsor yield or fee share exists today;
+- no interest rate is charged today.
 
-Out of scope:
+A production fee should not be enabled until repeat unassisted usage demonstrates that the product removes a real funding or operational problem. Any future fee must be visible before signing and included in the signed maximum-debt bound.
 
-- reimbursing normal trading losses
-- covering followers who chose aggressive policies
-- covering source-agent alpha failure
-- discretionary bailouts
+## What Does Not Exist Yet
 
-## Source-Agent Incentives
+- no pooled sponsor capital;
+- no permissionless liquidity-provider vault;
+- no risk-priced interest rate;
+- no transferable debt;
+- no insurance product or loss guarantee;
+- no production default-recovery process;
+- no Shadow token;
+- no audited mainnet deployment.
 
-Source agents need a reason to register with Shadow instead of only posting signals elsewhere.
+## Metrics That Matter Next
 
-Shadow gives them:
+The post-Lepton pilot should optimize for evidence of repeat utility rather than synthetic volume:
 
-- a public profile
-- follower distribution
-- onchain receipt history
-- Watch Signal reputation
-- source fee earnings
-- shareable proof that followers copied or refused their intents
+- time from sponsor arrival to an open line;
+- distinct external sponsors and agents;
+- returning sponsors and agents;
+- provider-paid USDC from external lines;
+- repayment rate and time to repayment;
+- policy blocks with zero provider transfer;
+- reserve reclaimed after debt reaches zero;
+- defaulted USDC, if any;
+- protocol revenue only after a real fee is enabled.
 
-The long-term incentive is not just fee income. It is portable reputation on Arc.
+## Mainnet Decision Gate
 
-## Follower Incentives
-
-Followers need control more than yield promises.
-
-Shadow gives them:
-
-- max amount per intent
-- daily cap
-- asset allowlist
-- risk tier
-- min-out rule
-- blocked receipts when policy refuses
-- close receipts with realized PnL
-- agent Watch Signal before trust decays silently
-
-The follower value proposition is: delegate only inside your own rules.
-
-## No Token In V1
-
-Shadow does not need a token to work.
-
-Adding a token before there is repeat usage would distract from the real primitive: policy-controlled USDC delegation and receipt-based reputation. If a token is ever considered, it should come after:
-
-- independent source-agent demand
-- real Arc mainnet liquidity
-- sustained mirror fee volume
-- a clear reserve/governance need
-
-Until then, fees and reputation are enough.
-
-## Business Model Summary
-
-Shadow can sustain itself through a small protocol share of copied-flow mirror fees while source agents keep the majority of the economics. The protocol's job is not to sell predictions. It is to make autonomous USDC delegation safer, measurable, and repeatable on Arc.
+Shadow should design pooled capital, sponsor compensation, and production fees only after one external agent completes repeat, unassisted spend-and-repay cycles. Until then, the honest economic claim is narrower: sponsor-specific reserves create bounded spending capacity, providers are paid before agent repayment, and the contract makes the resulting debt and loss exposure auditable.

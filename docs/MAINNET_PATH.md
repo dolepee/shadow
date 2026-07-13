@@ -1,151 +1,146 @@
-# Shadow Mainnet Path
+# Shadow Float Mainnet Path
 
-Shadow's hackathon build proves the primitive on Arc Testnet: one source intent can produce different outcomes per follower, with copied and blocked receipts emitted onchain in the same transaction. The mainnet path turns that primitive into the policy and reputation layer for autonomous trading agents on Arc.
+Shadow Float's current product is a sponsor-backed USDC spending line for autonomous agents on Arc testnet. A sponsor can open a line without Shadow owner approval, the agent signs each bounded spend, `ShadowFloat` pays the approved provider directly, debt opens onchain, and repayment restores capacity.
 
-## Mainnet Thesis
+The next milestone is not another contract or adapter. It is making this deployed loop self-serve and proving repeat, unassisted use before Arc mainnet.
 
-If USDC becomes the rail for autonomous agents, then agents need more than wallets. They need:
+## Current Testnet Baseline
 
-- policy-controlled delegation before capital moves
-- refusal receipts when policy blocks spend
-- earned reputation from copy, block, close, and PnL events
-- onboarding that does not require a native gas-token detour
+The deployed V2 contract at `0x20dcA96B0C487D94De885c726c956ffaF38b12C2` currently provides:
 
-Shadow is designed to be that layer on Arc. Source agents publish standardized intents. Followers set risk policies. The router executes only what passes policy and emits a receipt for every outcome.
+- public `openSponsoredLine(...)` creation funded by the caller's Arc USDC;
+- sponsor-specific provider, endpoint, per-request, daily, and expiry policy;
+- EIP-712 `FloatSpendIntent` verification for signer, provider, endpoint, amount, cumulative maximum debt, nonce, expiry, and optional executor;
+- direct provider payment from contract custody;
+- onchain debt, partial or full repayment, restored capacity, and default accounting;
+- deterministic line refresh from contract-stored paid, blocked, denied, error, and repayment behavior;
+- sponsor-only mandate updates and debt-free reserve reclaim;
+- owner-withdrawal checks that preserve sponsored reserves;
+- provider-signed delivery receipts for paid requests;
+- a public activity API and a 26-check no-secret verifier.
 
-## What Is Live On Arc Testnet
+V1 receipts and M1 mandate adapters remain historical and supporting evidence. They are not the primary mainnet product path.
 
-- `MirrorRouter` enforces per-follower policy and emits `MirrorReceipt(COPIED | BLOCKED, reason, ...)`.
-- `ShadowAMM` executes controlled USDC to ARCETH swaps for the demo execution path.
-- `closePosition` reverse-swaps copied positions and emits `PositionClosed` with realized PnL in basis points.
-- Circle Modular Wallets plus Gas Station sponsor passkey follower onboarding.
-- Three cron source agents publish intents every 10 minutes.
-- `agent/src/headless-follower.ts` proves a pure agent can follow, watch receipts, and close positions without using the browser.
-- `POST /api/agent/follow-plan` exposes a lightweight agent-facing onboarding helper.
-- Watch Signal computes Healthy / Watch / Stop from receipts and realized PnL.
-- 30 distinct follower wallets are registered on the router, with highlighted external passkey receipts in the README.
+## Current Boundaries
 
-## What Is Controlled Or Testnet-Scoped
+- Arc and all reserves are testnet-only.
+- The contracts have extensive tests but no production security audit.
+- External lifecycles were real and wallet-attributed, but onboarding was still assisted by Shadow.
+- The web product explains and verifies the loop; it does not yet guide every sponsor and agent action end to end.
+- Sponsor capital is dedicated per line; there is no pooled liquidity.
+- The deployed V2 protocol fee is zero and there is no meaningful protocol revenue.
+- Behavior scoring uses only contract-recorded Float activity; it does not import a portable external reputation history.
+- Provider delivery receipts prove provider acknowledgement, not subjective service quality.
+- Default is an explicit reserve write-off path, not a production collections or recovery system.
 
-- Source registration is owner-managed in V4.
-- `ShadowAMM` is a controlled testnet AMM, not a production DEX.
-- ARCETH is a mock/test asset for the demo pair.
-- Source agents are currently run by the Shadow team through cron.
-- Pilot veto is a derived UI label joined to an onchain receipt and reasoning packet. The raw onchain receipt remains the source of truth.
-- ERC-8004 is referenced as source identity metadata. Shadow does not claim a full ERC-8004 registry write in V4.
+## Phase 1: Self-Serve Pilot
 
-These constraints are deliberate. They keep the hackathon proof deterministic while isolating the mainnet work that must be hardened.
+Goal: an external sponsor and agent complete the lifecycle without Shadow coordinating transactions or handling either key.
 
-## Mainnet Milestones
+Required product path:
 
-### 1. Permissionless Source Registration
+1. Sponsor connects a wallet, selects the agent and provider policy, approves USDC, and opens the line.
+2. Agent obtains the exact EIP-712 payload and signs locally.
+3. A permitted executor submits the intent through public tooling.
+4. The contract pays the named provider and exposes the resulting debt.
+5. Agent repays independently.
+6. Sponsor can update policy or reclaim reserve after debt reaches zero.
 
-Goal: any Arc team can register a source agent without Shadow manually adding it.
+Pilot completion requires the same external agent to complete at least three spend-and-repay cycles on separate occasions, one genuine policy block with no provider transfer, and final sponsor reserve reclaim. Time to first line, repayment rate, returning participants, and every transaction hash must be public.
 
-Planned shape:
+No V2 redeploy is required for this phase.
 
-- source agent stakes USDC to register
-- strategy URI and metadata hash are stored with the source
-- optional ERC-8004 identity reference is attached
-- registration creates a Shadow profile immediately
-- abuse controls start simple: minimum bond, source cap, and owner emergency pause
+## Phase 2: Integration Surface
 
-Why it matters: Shadow becomes a marketplace of independent agents, not one team's three personas.
+Goal: make the dashboard one client of a stable agent-facing interface rather than the only usable path.
 
-### 2. Earned Reputation As The Primary Ranking
+Minimum surface:
 
-Goal: rank source agents by receipts, not marketing copy.
+- typed sponsor-line transaction builders;
+- typed intent generation and local signing helpers;
+- signed-spend submission and status lookup;
+- partial and full repayment helpers;
+- sponsor policy update and debt-free close helpers;
+- event and receipt subscriptions;
+- a provider integration guide for payment and delivery acknowledgement;
+- stable error codes for block and denial outcomes.
 
-Inputs:
+The public SDK must reproduce contract behavior; it must not introduce a trusted Shadow approval layer.
 
-- copied receipt count
-- blocked receipt count
-- close count
-- realized PnL average
-- source fee earned
-- follower retention
-- policy violation rate
-- Watch Signal state over time
+## Phase 3: Production Hardening
 
-Why it matters: a source agent earns distribution only when followers can verify its history from Arc logs.
+Goal: make the existing primitive safe to deploy with real value.
 
-### 3. Real Liquidity Integration
+Required work:
 
-Goal: replace the controlled AMM path with production-grade Arc liquidity when mainnet venues are ready.
+- independent smart-contract security review;
+- explicit pause, incident-response, and key-management runbooks;
+- production monitoring for reserve solvency, active debt, expired mandates, failed repayments, defaults, and RPC/indexing divergence;
+- property and invariant coverage for concurrent sponsored lines and production-sized values;
+- deployment reproducibility and source verification;
+- migration policy for contract upgrades or replacement deployments;
+- data-retention and provider-delivery dispute boundaries;
+- legal review of spending-line, debt, sponsor, and default terminology.
 
-Candidate paths:
+Testnet success is not a substitute for this gate.
 
-- native Arc AMM or DEX once available
-- Uniswap V4-style pool/hook if supported
-- Circle-aligned USDC routes when available
-- controlled AMM retained only as a test and simulation environment
+## Phase 4: Capital And Risk Model
 
-Why it matters: the hackathon AMM proves execution. Mainnet needs real liquidity, real assets, and realistic slippage.
+Goal: decide whether repeat demand justifies moving beyond one sponsor per line.
 
-### 4. Source-Agent Integrator Onboarding
+Questions that require evidence before implementation:
 
-Goal: launch with external source agents, not only Shadow-run agents.
+- Who supplies capital: agent operators, providers, protocols, or independent liquidity providers?
+- Why does a sponsor fund the line, and how is that sponsor compensated?
+- Which behavior is predictive enough to change limits or pricing?
+- What evidence is portable across agent platforms without becoming operator-attested scoring?
+- How are defaults aged, challenged, recovered, and disclosed?
+- Should capital remain dedicated per line or become pooled?
+- Which fee pays for monitoring, losses, and protocol operations?
 
-Target:
+Do not deploy pooled capital, sponsor yield, risk-priced rates, or transferable debt until repeat usage and loss assumptions can be measured.
 
-- 3 to 5 independent source teams before mainnet launch
-- each team registers one source
-- each source gets a public profile
-- each source publishes at least one testnet intent
-- each source shares its Shadow profile publicly
+## Phase 5: Arc Mainnet Launch
 
-Why it matters: Arc needs a visible agent economy. Shadow should become the consumer-safe surface for that economy.
+Mainnet launch requires:
 
-### 5. Insurance Reserve And Fee Policy
+- Arc mainnet and native USDC support suitable for the product;
+- completed production-hardening gate;
+- at least one repeat external pilot with no Shadow-operated transaction steps;
+- a documented capital source and loss-bearing model;
+- audited deployment and verified source;
+- provider integrations that deliver a real service for the paid request;
+- live reserve, debt, repayment, block, default, and fee monitoring;
+- honest mainnet terms that avoid guaranteed, risk-free, or collateral-free claims.
 
-Goal: make Shadow sustainable without introducing a token in v1.
-
-Planned shape:
-
-- mirror fee remains visible per copied receipt
-- source agent keeps the majority of the fee as a routing incentive
-- protocol fee starts small and funds an insurance/reserve account
-- reserve can later cover UI relays, monitoring, incident response, and policy research
-
-Why it matters: a mainnet protocol needs an economic loop, not just a demo fee.
-
-### 6. Agent API And SDK
-
-Goal: make Shadow usable by other agents without dashboard scraping.
-
-Minimum SDK surface:
-
-- `getSources()`
-- `getSourceReputation(source)`
-- `buildFollowPlan(source, follower, preset)`
-- `publishIntent(intent)`
-- `getReceipts(follower | source | intentId)`
-- `watchReceipts(callback)`
-- `closePosition(intentId)`
-
-Why it matters: the dashboard is one client. The protocol surface should be the product.
+The initial mainnet launch should retain dedicated sponsor reserves unless evidence supports a pooled model.
 
 ## What Does Not Change
 
-- Shadow does not guarantee profit.
-- Shadow does not custody assets outside the router accounting path.
-- Shadow does not hide blocked outcomes.
-- Shadow does not convert Pilot labels into fake onchain enums.
-- Shadow keeps refusal receipts as first-class outcomes, not errors.
+- Sponsors control their line-specific provider policy.
+- Agents keep their signing keys.
+- Signed intents remain nonce-bound, expiry-bound, and contract-specific.
+- Blocked actions move no provider funds.
+- Debt and available capacity remain independently readable.
+- Repayment, default, and reserve reclaim remain receipted outcomes.
+- Historical V1 and M1 activity stays labeled separately from the current V2 product.
 
-## Mainnet Readiness Checklist
+## Readiness Checklist
 
-- [ ] permissionless bonded source registration
-- [ ] at least 3 external source agents
-- [ ] real Arc liquidity integration
-- [ ] public SDK or typed API helper
-- [ ] reserve/fee policy documented and tested
-- [ ] admin controls documented
-- [ ] emergency pause and source disable policy documented
-- [ ] deployment runbook
-- [ ] monitoring for failed publishes, failed closes, and abnormal block ratios
-- [ ] mainnet demo with one copied, one blocked, one closed position, and one reputation update
+- [x] Permissionless sponsor-funded line creation on Arc testnet
+- [x] Contract-verified signed provider spend
+- [x] Debt, repayment, restored capacity, block, and default accounting
+- [x] External sponsor and agent proof lifecycles
+- [x] Public API and no-secret verifier
+- [ ] Guided self-serve sponsor flow
+- [ ] Public agent signing, submission, and repayment flow
+- [ ] Three repeat unassisted cycles from one external agent
+- [ ] One unassisted policy block and sponsor reserve reclaim
+- [ ] Independent security review
+- [ ] Production monitoring and incident runbook
+- [ ] Evidence-backed capital and fee model
+- [ ] Audited Arc mainnet deployment
 
-## One-Line Mainnet Pitch
+## One-Line Direction
 
-Shadow is the policy and reputation layer for autonomous trading agents on Arc: source agents publish intents, followers delegate USDC with risk limits, and every copy or refusal becomes an onchain receipt.
+Shadow Float is moving from a proven sponsor-backed spending primitive to a self-serve capital layer where autonomous agents can pay approved providers before each wallet is funded, then earn reusable capacity through repayment.
