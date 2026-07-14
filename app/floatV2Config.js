@@ -6,6 +6,18 @@ export const FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE = 9_000n;
 
 export const FLOAT_V2_STATUS_NAMES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"];
 
+// Provenance is intentionally explicit: an unrecognized sponsor is not
+// promoted to external traction merely because it differs from the operator.
+export const FLOAT_V2_SHADOW_CONTROLLED_SPONSORS = [
+  "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8",
+  "0x43553CaeE153496200d37644cE28775B2b2b522E",
+];
+
+export const FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS = [
+  "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+  "0x12F25B721Cc21c38495e33A4c8524dd0B647ba03",
+];
+
 export const FLOAT_V2_TRACKED_EXTERNAL_AGENTS = [
   { label: "Forum", agent: "0x13585c6004fbA9D7D49219a6435B68348fD30770" },
   { label: "CitePay", agent: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" },

@@ -69,8 +69,10 @@ import {
   FLOAT_V2_CONTRACT,
   FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE,
   FLOAT_V2_DEPLOY_BLOCK,
+  FLOAT_V2_SHADOW_CONTROLLED_SPONSORS,
   FLOAT_V2_STATUS_NAMES,
   FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
+  FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
   floatV2Abi,
   floatV2IntentConsumedEvent,
   floatV2ReceiptEvent,
@@ -116,6 +118,12 @@ const PRESETS: Record<PresetKey, Preset> = {
 };
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
+const SHADOW_CONTROLLED_SPONSOR_KEYS = new Set(
+  FLOAT_V2_SHADOW_CONTROLLED_SPONSORS.map((address: string) => getAddress(address).toLowerCase()),
+);
+const VERIFIED_EXTERNAL_SPONSOR_KEYS = new Set(
+  FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS.map((address: string) => getAddress(address).toLowerCase()),
+);
 const BYTES32_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 const FLOAT_V2_USDC = getAddress(
   (addresses.usdc || "0x3600000000000000000000000000000000000000") as `0x${string}`,
@@ -621,6 +629,8 @@ type FloatV2AgentState = {
   label: string;
   category: "external" | "self-test";
   agent: Address;
+  agentOwner?: Address;
+  agentProvenance?: "verified-external-signer" | "unverified";
   wallet: Address;
   score: number;
   creditLimitUSDC: string;
@@ -645,6 +655,7 @@ type FloatV2AgentState = {
     cappedLimitUSDC: string;
   };
   sponsor: Address;
+  sponsorProvenance?: "verified-external" | "shadow-controlled" | "unverified" | "none";
   sponsorReserveUSDC: string;
   sponsorState?: "active-reserve" | "closed-reserve-reclaimed" | "none";
   signedIntents: number;
@@ -671,7 +682,9 @@ type FloatV2ActivityState = {
   totalAvailableCreditUSDC?: string;
   totalSponsoredReserveUSDC?: string;
   summary?: {
-    registeredExternalLines: number;
+    trackedExternalAgentLines: number;
+    externallySponsoredLines: number;
+    operatorSponsoredLines: number;
     signedIntents: number;
     paidSpends: number;
     repaidLifecycles: number;
@@ -797,13 +810,15 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
   totalAvailableCreditUSDC: "540000",
   totalSponsoredReserveUSDC: "600000",
   summary: {
-    registeredExternalLines: 10,
+    trackedExternalAgentLines: 10,
+    externallySponsoredLines: 2,
+    operatorSponsoredLines: 8,
     signedIntents: 12,
     paidSpends: 12,
     repaidLifecycles: 11,
     openDebtAgents: 1,
-    returningAgents: 2,
-    returningSponsors: 1,
+    returningAgents: 0,
+    returningSponsors: 0,
     providerPaidUSDC: "102000",
     repaidUSDC: "92000",
     activeDebtUSDC: "10000",
@@ -1201,6 +1216,8 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     label: string;
     category: "external" | "self-test";
     agent: Address;
+    agentOwner: Address;
+    agentProvenance: "verified-external-signer" | "unverified";
     spendTx?: Hash;
     repayTx?: Hash;
     latestTxHash?: Hash;
@@ -1225,6 +1242,8 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
       label: trackedEntry?.label || "V2 proof agent",
       category: trackedEntry ? "external" : "self-test",
       agent,
+      agentOwner: agent,
+      agentProvenance: trackedEntry ? "verified-external-signer" : "unverified",
       spendTx: trackedEntry?.spendTx,
       repayTx: trackedEntry?.repayTx,
       signedIntents: 0,
@@ -1291,6 +1310,8 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
         label: stats.label,
         category: stats.category,
         agent: stats.agent,
+        agentOwner: stats.agentOwner,
+        agentProvenance: stats.agentProvenance,
         wallet: line[0],
         score: Number(line[1]),
         creditLimitUSDC: line[2].toString(),
@@ -1315,6 +1336,7 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
           cappedLimitUSDC: autonomousScore[2].toString(),
         },
         sponsor: sponsorLine[0],
+        sponsorProvenance: classifyFloatV2SponsorProvenance(sponsorLine[0]),
         sponsorReserveUSDC,
         sponsorState,
         signedIntents: stats.signedIntents,
@@ -1341,14 +1363,17 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
       if (aDebt !== bDebt) return bDebt - aDebt;
       return a.label.localeCompare(b.label);
     });
+  const provenance = summarizeFloatV2PilotProvenance(visibleAgents);
   const summary = {
-    registeredExternalLines: visibleAgents.filter((agent) => BigInt(agent.sponsorReserveUSDC) > 0n).length,
+    trackedExternalAgentLines: provenance.trackedExternalAgentLines,
+    externallySponsoredLines: provenance.externallySponsoredLines,
+    operatorSponsoredLines: provenance.operatorSponsoredLines,
     signedIntents: visibleAgents.reduce((sum, agent) => sum + agent.signedIntents, 0),
     paidSpends: visibleAgents.reduce((sum, agent) => sum + agent.providerPaidCount, 0),
     repaidLifecycles: visibleAgents.reduce((sum, agent) => sum + agent.repaidCount, 0),
     openDebtAgents: visibleAgents.filter((agent) => BigInt(agent.activeDebtUSDC) > 0n).length,
-    returningAgents: visibleAgents.filter((agent) => agent.signedIntents > 1).length,
-    returningSponsors: countFloatV2ReturningSponsors(visibleAgents),
+    returningAgents: provenance.returningAgents,
+    returningSponsors: provenance.returningSponsors,
     providerPaidUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.providerPaidUSDC), 0n).toString(),
     repaidUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.repaidUSDC), 0n).toString(),
     activeDebtUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.activeDebtUSDC), 0n).toString(),
@@ -1446,6 +1471,49 @@ function countFloatV2ReturningSponsors(agents: Array<Pick<FloatV2AgentState, "sp
     intentCountBySponsor.set(sponsor, (intentCountBySponsor.get(sponsor) || 0) + agent.signedIntents);
   }
   return [...intentCountBySponsor.values()].filter((count) => count > 1).length;
+}
+
+function classifyFloatV2SponsorProvenance(sponsor: Address): NonNullable<FloatV2AgentState["sponsorProvenance"]> {
+  const key = getAddress(sponsor).toLowerCase();
+  if (key === ZERO_ADDRESS.toLowerCase()) return "none";
+  if (SHADOW_CONTROLLED_SPONSOR_KEYS.has(key)) return "shadow-controlled";
+  if (VERIFIED_EXTERNAL_SPONSOR_KEYS.has(key)) return "verified-external";
+  return "unverified";
+}
+
+function floatV2SponsorProvenance(agent: FloatV2AgentState): NonNullable<FloatV2AgentState["sponsorProvenance"]> {
+  return agent.sponsorProvenance || classifyFloatV2SponsorProvenance(agent.sponsor);
+}
+
+function floatV2SponsorProvenanceLabel(agent: FloatV2AgentState): string {
+  const provenance = floatV2SponsorProvenance(agent);
+  if (provenance === "verified-external") return "verified external sponsor";
+  if (provenance === "shadow-controlled") return "Shadow operator sponsor";
+  if (provenance === "none") return "no active sponsor";
+  return "unverified sponsor";
+}
+
+function summarizeFloatV2PilotProvenance(agents: FloatV2AgentState[]) {
+  const trackedExternalAgents = agents.filter(
+    (agent) =>
+      agent.category === "external" &&
+      (agent.agentProvenance || "verified-external-signer") === "verified-external-signer" &&
+      BigInt(agent.sponsorReserveUSDC) > 0n,
+  );
+  const externallySponsoredAgents = trackedExternalAgents.filter(
+    (agent) => floatV2SponsorProvenance(agent) === "verified-external",
+  );
+  const operatorSponsoredAgents = trackedExternalAgents.filter(
+    (agent) => floatV2SponsorProvenance(agent) === "shadow-controlled",
+  );
+
+  return {
+    trackedExternalAgentLines: trackedExternalAgents.length,
+    externallySponsoredLines: externallySponsoredAgents.length,
+    operatorSponsoredLines: operatorSponsoredAgents.length,
+    returningAgents: externallySponsoredAgents.filter((agent) => agent.signedIntents > 1).length,
+    returningSponsors: countFloatV2ReturningSponsors(externallySponsoredAgents),
+  };
 }
 
 function App() {
@@ -2472,7 +2540,6 @@ function FloatBuilderPilot({
 
   const returningAgents = state?.summary?.returningAgents;
   const returningSponsors = state?.summary?.returningSponsors;
-  const blockedActions = state?.agents?.reduce((sum, agent) => sum + agent.blockedCount, 0);
   const metricValue = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
 
   function sponsorInputs() {
@@ -2874,11 +2941,11 @@ function FloatBuilderPilot({
       </div>
 
       <div className="builderPilotMetrics" aria-label="Chain-derived pilot metrics">
-        <FloatFact label="returning agents" value={metricValue(returningAgents)} />
-        <FloatFact label="returning sponsors" value={metricValue(returningSponsors)} />
-        <FloatFact label="signed intents" value={metricValue(state?.summary?.signedIntents)} />
-        <FloatFact label="closed loops" value={metricValue(state?.summary?.repaidLifecycles)} />
-        <FloatFact label="policy blocks" value={metricValue(blockedActions)} />
+        <FloatFact label="tracked external agent lines" value={metricValue(state?.summary?.trackedExternalAgentLines)} />
+        <FloatFact label="externally sponsored lines" value={metricValue(state?.summary?.externallySponsoredLines)} />
+        <FloatFact label="operator-sponsored lines" value={metricValue(state?.summary?.operatorSponsoredLines)} />
+        <FloatFact label="unassisted returning agents" value={metricValue(returningAgents)} />
+        <FloatFact label="returning external sponsors" value={metricValue(returningSponsors)} />
       </div>
 
       <div className="builderPilotGrid">
@@ -4188,7 +4255,7 @@ function FloatV2CurrentPanel({
       <FloatV2ProofCockpit state={state} loading={loading} error={error} />
 
       <div className="floatMetricGrid">
-        <FloatMetric label="external lines" value={showCount(state?.summary?.registeredExternalLines)} tone="allow" />
+        <FloatMetric label="tracked agent lines" value={showCount(state?.summary?.trackedExternalAgentLines)} tone="allow" />
         <FloatMetric label="signed intents" value={showCount(state?.summary?.signedIntents)} tone="allow" />
         <FloatMetric label="provider paid" value={showUSDC(state?.summary?.providerPaidUSDC)} tone="allow" />
         <FloatMetric label="closed loops" value={showCount(state?.summary?.repaidLifecycles)} tone="allow" />
@@ -4520,12 +4587,14 @@ function FloatV2ActivityBoard({
       </div>
 
       <div className="floatV2ActivityStats">
-        <FloatFact label="registered lines" value={showCount(state?.summary?.registeredExternalLines)} />
+        <FloatFact label="tracked external agent lines" value={showCount(state?.summary?.trackedExternalAgentLines)} />
+        <FloatFact label="externally sponsored lines" value={showCount(state?.summary?.externallySponsoredLines)} />
+        <FloatFact label="operator-sponsored lines" value={showCount(state?.summary?.operatorSponsoredLines)} />
         <FloatFact label="signed intents" value={showCount(state?.summary?.signedIntents)} />
         <FloatFact label="provider paid" value={showUSDC(state?.summary?.providerPaidUSDC)} />
         <FloatFact label="closed loops" value={showCount(state?.summary?.repaidLifecycles)} />
-        <FloatFact label="returning agents" value={showCount(state?.summary?.returningAgents)} />
-        <FloatFact label="returning sponsors" value={showCount(state?.summary?.returningSponsors)} />
+        <FloatFact label="unassisted returning agents" value={showCount(state?.summary?.returningAgents)} />
+        <FloatFact label="returning external sponsors" value={showCount(state?.summary?.returningSponsors)} />
         <FloatFact label="open debt" value={showUSDC(state?.summary?.activeDebtUSDC)} />
         <FloatFact label="top contract score" value={topScore > 0 ? String(topScore) : loading ? "reading" : "unavailable"} />
       </div>
@@ -4545,7 +4614,8 @@ function FloatV2ActivityBoard({
               <>
                 <div className="floatV2ActivityIdentity">
                   <strong>{agent.label}</strong>
-                  <small>{shortAddress(agent.agent)}</small>
+                  <small>owner {shortAddress(agent.agentOwner || agent.agent)} · verified external signer</small>
+                  <small>{floatV2SponsorProvenanceLabel(agent)} · {shortAddress(agent.sponsor)}</small>
                 </div>
                 <div className="floatV2ActivityMetric">
                   <span>lifecycle</span>
@@ -7241,7 +7311,7 @@ function HomeTruthStrip({
   deskLoading: boolean;
 }) {
   const deskCycles = deskState?.counts?.cycles;
-  const externalLines = floatState?.summary?.registeredExternalLines;
+  const trackedExternalAgentLines = floatState?.summary?.trackedExternalAgentLines;
   const showCount = (value: number | undefined, fallback: string) => (value === undefined ? fallback : String(value));
   const truths: Array<
     { label: string; value: string; body: string; to: string; href?: never } |
@@ -7254,9 +7324,9 @@ function HomeTruthStrip({
       to: "/float#desk-journal",
     },
     {
-      label: "outside graph",
-      value: showCount(externalLines, "9"),
-      body: "External agents and external sponsors are visible.",
+      label: "external signers",
+      value: showCount(trackedExternalAgentLines, "10"),
+      body: "Tracked agent ownership and sponsor provenance stay separate.",
       to: "/float#v2-activity",
     },
     {
@@ -7309,9 +7379,9 @@ function Shadow2ProtocolMap({
     },
     {
       eyebrow: "capacity",
-      metric: summary?.registeredExternalLines !== undefined ? String(summary.registeredExternalLines) : "syncing",
-      title: "Sponsors back bounded agent lines.",
-      body: "Arc USDC stays reserved per agent line. No line can spend more capacity than the sponsor put behind it.",
+      metric: summary?.externallySponsoredLines !== undefined ? String(summary.externallySponsoredLines) : "syncing",
+      title: "External sponsors back bounded agent lines.",
+      body: "Two verified non-operator sponsors reserved Arc USDC. Operator-sponsored lines remain labeled separately.",
     },
     {
       eyebrow: "settlement",
@@ -7391,16 +7461,16 @@ function HomeProofOverview({
       external: true,
     },
     {
-      eyebrow: "external lines",
-      value: countValue(summary?.registeredExternalLines),
-      label: "registered agents",
-      body: "External builders can give their agents sponsor-backed capacity without sending keys, gas, or approvals to Shadow.",
+      eyebrow: "tracked agent lines",
+      value: countValue(summary?.trackedExternalAgentLines),
+      label: "verified external signers",
+      body: "Agent ownership is tracked separately from whether Shadow or an outside sponsor supplied the reserve.",
       href: "/float#v2-activity",
       external: false,
     },
     {
       eyebrow: "external sponsor capital",
-      value: "2",
+      value: countValue(summary?.externallySponsoredLines),
       label: "external sponsors",
       body: "CitePay and Forum Tollgate keep live external reserves open. Forum also proved sponsor, spend, repay, and reserve reclaim.",
       href: txUrl(FLOAT_V2_PROOF.citePaySponsorOpenTx),
@@ -7584,7 +7654,7 @@ function HeroMetrics({
     return loading ? "..." : "n/a";
   };
   const items: Array<{ label: string; value: string }> = [
-    { label: "external lines", value: countValue(summary?.registeredExternalLines) },
+    { label: "tracked agent lines", value: countValue(summary?.trackedExternalAgentLines) },
     { label: "signed intents", value: countValue(summary?.signedIntents) },
     { label: "closed loops", value: countValue(summary?.repaidLifecycles) },
     { label: "open debt lines", value: countValue(summary?.openDebtAgents) },

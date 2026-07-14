@@ -15,8 +15,10 @@ import {
   FLOAT_V2_CONTRACT,
   FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE,
   FLOAT_V2_DEPLOY_BLOCK,
+  FLOAT_V2_SHADOW_CONTROLLED_SPONSORS,
   FLOAT_V2_STATUS_NAMES,
   FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
+  FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
   floatV2Abi,
   floatV2IntentConsumedEvent,
   floatV2ReceiptEvent,
@@ -84,6 +86,57 @@ type FloatV2AgentStats = FloatV2TrackedExternalAgent & {
   blockedUSDC: bigint;
   latestTxHash?: Hash;
 };
+
+type FloatV2AgentProvenance = "verified-external-signer" | "unverified";
+type FloatV2SponsorProvenance = "verified-external" | "shadow-controlled" | "unverified" | "none";
+
+type FloatV2ProvenanceAgent = {
+  category: string;
+  agentProvenance: FloatV2AgentProvenance;
+  sponsor: Address;
+  sponsorProvenance: FloatV2SponsorProvenance;
+  sponsorReserveUSDC: string;
+  signedIntents: number;
+};
+
+const SHADOW_CONTROLLED_SPONSOR_KEYS = new Set(
+  FLOAT_V2_SHADOW_CONTROLLED_SPONSORS.map((address: Address) => getAddress(address).toLowerCase()),
+);
+const VERIFIED_EXTERNAL_SPONSOR_KEYS = new Set(
+  FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS.map((address: Address) => getAddress(address).toLowerCase()),
+);
+
+function classifySponsorProvenance(sponsor: Address): FloatV2SponsorProvenance {
+  const key = getAddress(sponsor).toLowerCase();
+  if (key === ZERO_ADDRESS.toLowerCase()) return "none";
+  if (SHADOW_CONTROLLED_SPONSOR_KEYS.has(key)) return "shadow-controlled";
+  if (VERIFIED_EXTERNAL_SPONSOR_KEYS.has(key)) return "verified-external";
+  return "unverified";
+}
+
+function hasActiveSponsoredLine(agent: FloatV2ProvenanceAgent): boolean {
+  return agent.sponsorProvenance !== "none" && BigInt(agent.sponsorReserveUSDC) > 0n;
+}
+
+export function summarizeFloatV2Provenance(agents: FloatV2ProvenanceAgent[]) {
+  const trackedExternalAgents = agents.filter(
+    (agent) => agent.category === "external" && agent.agentProvenance === "verified-external-signer" && hasActiveSponsoredLine(agent),
+  );
+  const externallySponsoredAgents = trackedExternalAgents.filter(
+    (agent) => agent.sponsorProvenance === "verified-external",
+  );
+  const operatorSponsoredAgents = trackedExternalAgents.filter(
+    (agent) => agent.sponsorProvenance === "shadow-controlled",
+  );
+
+  return {
+    trackedExternalAgentLines: trackedExternalAgents.length,
+    externallySponsoredLines: externallySponsoredAgents.length,
+    operatorSponsoredLines: operatorSponsoredAgents.length,
+    returningAgents: externallySponsoredAgents.filter((agent) => Number(agent.signedIntents) > 1).length,
+    returningSponsors: countReturningSponsors(externallySponsoredAgents),
+  };
+}
 
 type FloatV2Line = readonly [
   wallet: Address,
@@ -512,6 +565,8 @@ async function handleFloatV2(res: VercelLikeResponse) {
           label: entry.label,
           category: "external",
           agent: entry.agent,
+          agentOwner: entry.agent,
+          agentProvenance: "verified-external-signer" as const,
           wallet: line[0],
           score: Number(line[1]),
           creditLimitUSDC: line[2].toString(),
@@ -536,6 +591,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
             cappedLimitUSDC: autonomousScore[2].toString(),
           },
           sponsor: sponsorLine[0],
+          sponsorProvenance: classifySponsorProvenance(sponsorLine[0]),
           sponsorReserveUSDC,
           sponsorState,
           signedIntents: entry.signedIntents,
@@ -561,10 +617,11 @@ async function handleFloatV2(res: VercelLikeResponse) {
       return a.label.localeCompare(b.label);
     });
 
-    const returningAgents = visibleAgents.filter((agent) => Number(agent.signedIntents) > 1).length;
-    const returningSponsors = countReturningSponsors(visibleAgents);
+    const provenance = summarizeFloatV2Provenance(visibleAgents);
     const summary = {
-      registeredExternalLines: visibleAgents.filter((agent) => BigInt(agent.sponsorReserveUSDC) > 0n).length,
+      trackedExternalAgentLines: provenance.trackedExternalAgentLines,
+      externallySponsoredLines: provenance.externallySponsoredLines,
+      operatorSponsoredLines: provenance.operatorSponsoredLines,
       signedIntents: visibleAgents.reduce((sum, agent) => sum + agent.signedIntents, 0),
       paidSpends: visibleAgents.reduce((sum, agent) => sum + agent.providerPaidCount, 0),
       repaidLifecycles: visibleAgents.reduce((sum, agent) => sum + agent.repaidCount, 0),
@@ -573,8 +630,8 @@ async function handleFloatV2(res: VercelLikeResponse) {
       repaidUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.repaidUSDC), 0n).toString(),
       activeDebtUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.activeDebtUSDC), 0n).toString(),
       blockedUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.blockedUSDC), 0n).toString(),
-      returningAgents,
-      returningSponsors,
+      returningAgents: provenance.returningAgents,
+      returningSponsors: provenance.returningSponsors,
     };
 
     res.status(200).json({
@@ -720,8 +777,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     if (b.statusName === "REPAID" && a.statusName !== "REPAID") return 1;
     return a.label.localeCompare(b.label);
   });
-  const returningAgents = visibleAgents.filter((agent) => Number(agent.signedIntents) > 1).length;
-  const returningSponsors = countReturningSponsors(visibleAgents);
+  const provenance = summarizeFloatV2Provenance(visibleAgents);
 
   return {
     ok: true,
@@ -737,7 +793,9 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     totalAvailableCreditUSDC: "540000",
     totalSponsoredReserveUSDC: "600000",
     summary: {
-      registeredExternalLines: 10,
+      trackedExternalAgentLines: provenance.trackedExternalAgentLines,
+      externallySponsoredLines: provenance.externallySponsoredLines,
+      operatorSponsoredLines: provenance.operatorSponsoredLines,
       signedIntents: 12,
       paidSpends: 12,
       repaidLifecycles: 11,
@@ -746,8 +804,8 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       repaidUSDC: "92000",
       activeDebtUSDC: "10000",
       blockedUSDC: "0",
-      returningAgents,
-      returningSponsors,
+      returningAgents: provenance.returningAgents,
+      returningSponsors: provenance.returningSponsors,
     },
     agents: visibleAgents,
     selfTestAgents: [],
@@ -793,10 +851,13 @@ function snapshotV2Agent(input: {
   const agent = getAddress(input.agent);
   const wallet = getAddress(input.wallet || agent);
   const sponsorReserveUSDC = input.sponsorReserveUSDC ?? "50000";
+  const sponsor = getAddress(input.sponsor || OPERATOR_SPONSOR);
   return {
     label: input.label,
     category: "external",
     agent,
+    agentOwner: agent,
+    agentProvenance: "verified-external-signer" as const,
     wallet,
     score,
     creditLimitUSDC: input.creditLimitUSDC ?? "50000",
@@ -813,7 +874,8 @@ function snapshotV2Agent(input: {
       recommendedLimitUSDC: score >= 9000 ? "1000000" : score >= 8250 ? "50000" : "25000",
       cappedLimitUSDC: input.creditLimitUSDC ?? "50000",
     },
-    sponsor: getAddress(input.sponsor || OPERATOR_SPONSOR),
+    sponsor,
+    sponsorProvenance: classifySponsorProvenance(sponsor),
     sponsorReserveUSDC,
     sponsorState:
       input.sponsorState ||

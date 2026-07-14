@@ -52,7 +52,7 @@ Reference paths remain available for non-browser agents:
 
 ## Public evidence
 
-Each cycle records the participant roles, transaction hashes, signed request hash, provider amount, debt before and after, repayment, and contract score refresh. The public activity board reports returning agents and sponsors from chain-derived signed-use counts.
+Each cycle records the participant roles, transaction hashes, signed request hash, provider amount, debt before and after, repayment, and contract score refresh. The public activity board keeps agent ownership separate from sponsor provenance. Returning pilot counters include only verified externally sponsored lines and therefore remain `0` until an unassisted participant repeats.
 
 The pilot target is:
 
@@ -66,4 +66,3 @@ The pilot target is:
 ## Safety boundary
 
 This is an Arc testnet integration pilot. Use only testnet funds. Verify the contract address, provider address, endpoint hash, amounts, expiry, and connected wallet before every signature or transaction. An EIP-712 signature authorizes only the provider, endpoint, amount, cumulative debt ceiling, nonce, expiry, and optional executor shown in the wallet prompt.
-

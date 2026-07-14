@@ -34,13 +34,17 @@ Live V2 activity currently shown on the site:
 
 | Metric | Count |
 | --- | ---: |
-| External lines | 10 |
+| Tracked external-agent lines | 10 |
+| Verified externally sponsored lines | 2 |
+| Operator-sponsored external-agent lines | 8 |
+| Unassisted returning agents | 0 |
+| Returning external sponsors | 0 |
 | Signed intents | 12 |
 | Provider paid spends | 12 |
 | Closed borrow-repay lifecycles | 11 |
 | Open debt lines | 1 |
 
-The live board shows 10 external lines. Forum, CitePay, Crux, Driplet, all three Argus agents, CitePay sponsor, and Forum Tollgate sponsor have closed signed spend and repay loops. Driplet ran a fresh second provider-specific loop against CitePay before submission and repaid it. Forum Tollgate also proved sponsor reserve reclaim, then reopened a fresh reserve that remains live through judging. Argus Alpha used Float V2 to pay CitePay for a provider answer and repaid that second draw. Obol has a provider-paid V2 spend with repayment intentionally left open and labeled on the live board, so the proof carries one live, contract-capped debt line alongside the closed loops.
+The live board tracks 10 independently controlled external-agent signers. Eight lines were funded by Shadow's operator and remain valid integration proof, but they are not counted as unassisted pilot traction. CitePay and Forum Tollgate funded the other two lines from verified non-operator sponsor wallets. Neither externally sponsored line has repeated yet, so the honest unassisted returning baseline is `0` agents and `0` sponsors. Driplet and Argus Alpha each completed a second operator-sponsored provider loop; Obol has a provider-paid V2 spend with repayment intentionally left open and labeled on the live board.
 
 ### Autonomous Underwriting Is Deployed
 
