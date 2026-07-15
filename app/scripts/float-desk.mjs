@@ -17,6 +17,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { FLOAT_V2_CONTRACT, FLOAT_V2_TRACKED_EXTERNAL_AGENTS } from "../floatV2Config.js";
+import { createRpcReadQueue } from "./rpc-read-queue.mjs";
 
 const env = {
   ...readEnv(".env"),
@@ -61,6 +62,10 @@ const FLOAT_API_URL = clean(env.DESK_FLOAT_API_URL) || "https://shadow-arc.verce
 const CITEPAY_API_URL = clean(env.DESK_CITEPAY_API_URL) || "https://citepay-markets.vercel.app/api/ask";
 const DESK_CYCLE = clean(env.FLOAT_DESK_CYCLE) || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const NOW = Math.floor(Date.now() / 1000);
+const RPC_READ_RETRY_ATTEMPTS = positiveInteger(env.DESK_RPC_READ_RETRY_ATTEMPTS, 6);
+const RPC_READ_RETRY_BASE_MS = nonNegativeInteger(env.DESK_RPC_READ_RETRY_BASE_MS, 750);
+const RPC_READ_RETRY_MAX_MS = nonNegativeInteger(env.DESK_RPC_READ_RETRY_MAX_MS, 8_000);
+const RPC_READ_SPACING_MS = nonNegativeInteger(env.DESK_RPC_READ_SPACING_MS, 350);
 
 const PROVIDERS = {
   citepay: {
@@ -98,8 +103,20 @@ const chain = defineChain({
   rpcUrls: { default: { http: [RPC] } },
 });
 const publicClient = createPublicClient({ chain, transport: http(RPC, { timeout: 60_000, retryCount: 3 }) });
+const rpcReadClient = createPublicClient({ chain, transport: http(RPC, { timeout: 60_000, retryCount: 0 }) });
 const executorWallet = createWalletClient({ account: executor, chain, transport: http(RPC, { timeout: 60_000, retryCount: 3 }) });
 const deskAgentWallet = createWalletClient({ account: deskAgent, chain, transport: http(RPC, { timeout: 60_000, retryCount: 3 }) });
+const rpcRead = createRpcReadQueue({
+  maxAttempts: RPC_READ_RETRY_ATTEMPTS,
+  baseDelayMs: RPC_READ_RETRY_BASE_MS,
+  maxDelayMs: RPC_READ_RETRY_MAX_MS,
+  spacingMs: RPC_READ_SPACING_MS,
+  onRetry: ({ label, attempt, maxAttempts, delayMs, error }) => {
+    console.warn(
+      `transient RPC read failure for ${label}; retry ${attempt + 1}/${maxAttempts} in ${delayMs}ms: ${sanitizeError(error)}`,
+    );
+  },
+});
 
 const floatAbi = parseAbi([
   "function requestSignedSpend((address agent,address provider,bytes32 endpointHash,uint256 amountUSDC,uint256 maxDebtUSDC,uint256 nonce,uint256 expiry,address executor,string reason) intent, bytes signature) returns (bytes32 receiptHash, bool allowed, uint8 reason)",
@@ -210,11 +227,11 @@ async function readDeskState(history) {
       readFloat("lineProviderMandates", [LAB_AGENT, PROVIDERS.citepay.provider]),
       readFloat("lineProviderMandates", [LAB_AGENT, PROVIDERS.shadow.provider]),
       readFloat("treasuryBalanceUSDC", []),
-      publicClient.readContract({ address: USDC, abi: ercAbi, functionName: "balanceOf", args: [FLOAT] }),
-      publicClient.getBalance({ address: executor.address }),
-      publicClient.readContract({ address: USDC, abi: ercAbi, functionName: "balanceOf", args: [LAB_AGENT] }),
-      publicClient.getBalance({ address: LAB_AGENT }),
-      publicClient.readContract({ address: USDC, abi: ercAbi, functionName: "allowance", args: [LAB_AGENT, FLOAT] }),
+      readUsdcBalance(FLOAT),
+      readNativeBalance(executor.address),
+      readUsdcBalance(LAB_AGENT),
+      readNativeBalance(LAB_AGENT),
+      readUsdcAllowance(LAB_AGENT, FLOAT),
     ]);
   const line = lineView(labLineRaw);
   const mandates = {
@@ -472,7 +489,7 @@ async function executePay(decision, entry) {
   const [allowed, reason] = await readFloat("previewSpend", [intent.agent, intent.provider, intent.endpointHash, intent.amountUSDC, digest]);
   if (!allowed) return { blockedByPreview: true, requestHash: digest, reason: Number(reason) };
 
-  const providerBefore = await publicClient.readContract({ address: USDC, abi: ercAbi, functionName: "balanceOf", args: [intent.provider] });
+  const providerBefore = await readUsdcBalance(intent.provider);
   const txHash = await executorWallet.writeContract({
     address: FLOAT,
     abi: floatAbi,
@@ -483,7 +500,7 @@ async function executePay(decision, entry) {
   });
   const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 120_000 });
   if (receipt.status !== "success") throw new Error(`requestSignedSpend reverted: ${txHash}`);
-  const providerAfter = await publicClient.readContract({ address: USDC, abi: ercAbi, functionName: "balanceOf", args: [intent.provider] });
+  const providerAfter = await readUsdcBalance(intent.provider);
   const intentConsumed = receipt.logs.some((log) => {
     if (getAddress(log.address) !== FLOAT) return false;
     const decoded = decodeLog(intentConsumedEvent, log);
@@ -517,7 +534,7 @@ async function executeRepay(state, rationale) {
   if (debt === 0n) return { skipped: true, reason: "NO_DEBT" };
   if (!LIVE) return { dryRun: true, amountUSDC: debt.toString() };
 
-  const allowance = await publicClient.readContract({ address: USDC, abi: ercAbi, functionName: "allowance", args: [LAB_AGENT, FLOAT] });
+  const allowance = await readUsdcAllowance(LAB_AGENT, FLOAT);
   const txs = {};
   if (allowance < debt) {
     const approveTx = await deskAgentWallet.writeContract({
@@ -694,7 +711,25 @@ function summarizeFloatApi(api) {
 }
 
 async function readFloat(functionName, args) {
-  return publicClient.readContract({ address: FLOAT, abi: floatAbi, functionName, args });
+  return rpcRead(`ShadowFloat.${functionName}`, () =>
+    rpcReadClient.readContract({ address: FLOAT, abi: floatAbi, functionName, args }),
+  );
+}
+
+async function readUsdcBalance(address) {
+  return rpcRead(`USDC.balanceOf(${address})`, () =>
+    rpcReadClient.readContract({ address: USDC, abi: ercAbi, functionName: "balanceOf", args: [address] }),
+  );
+}
+
+async function readUsdcAllowance(owner, spender) {
+  return rpcRead(`USDC.allowance(${owner},${spender})`, () =>
+    rpcReadClient.readContract({ address: USDC, abi: ercAbi, functionName: "allowance", args: [owner, spender] }),
+  );
+}
+
+async function readNativeBalance(address) {
+  return rpcRead(`native balance(${address})`, () => rpcReadClient.getBalance({ address }));
 }
 
 async function loadDeskHistory(kv) {
@@ -931,6 +966,24 @@ function readEnv(path) {
 
 function clean(value) {
   return value?.replace(/\\n/g, "").trim() || undefined;
+}
+
+function positiveInteger(value, fallback) {
+  const normalized = clean(value);
+  const parsed = normalized === undefined ? fallback : Number(normalized);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throw new Error(`expected a positive integer, received ${value}`);
+  }
+  return parsed;
+}
+
+function nonNegativeInteger(value, fallback) {
+  const normalized = clean(value);
+  const parsed = normalized === undefined ? fallback : Number(normalized);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error(`expected a non-negative integer, received ${value}`);
+  }
+  return parsed;
 }
 
 function normalizeKey(value) {

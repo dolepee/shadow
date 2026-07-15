@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
-      ARC_RPC_URL: "https://rpc.testnet.arc.network"
+      ARC_RPC_URL: ${{ secrets.ARC_RPC_URL || secrets.ARC_PUBLIC_RPC_URL || 'https://rpc.testnet.arc.network' }}
       ARC_USDC: "0x3600000000000000000000000000000000000000"
       SHADOW_FLOAT: "0x20dcA96B0C487D94De885c726c956ffaF38b12C2"
       FLOAT_DESK_LIVE: "1"
@@ -36,6 +36,10 @@ jobs:
       DESK_CITEPAY_AMOUNT_ATOMIC: "1000"
       DESK_CITEPAY_DAILY_LIMIT_ATOMIC: "30000"
       DESK_CITEPAY_QUERY: "What changed in Shadow Float V2's agent credit graph today?"
+      DESK_RPC_READ_SPACING_MS: "350"
+      DESK_RPC_READ_RETRY_ATTEMPTS: "6"
+      DESK_RPC_READ_RETRY_BASE_MS: "750"
+      DESK_RPC_READ_RETRY_MAX_MS: "8000"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,6 +51,8 @@ jobs:
       - name: install app deps
         working-directory: app
         run: pnpm install --no-frozen-lockfile --ignore-workspace
+      - name: test RPC read guard
+        run: node --test app/scripts/rpc-read-queue.test.mjs
       - name: run Float Desk
         run: |
           if [ "${{ github.event.inputs.setup_mandate }}" = "true" ]; then
