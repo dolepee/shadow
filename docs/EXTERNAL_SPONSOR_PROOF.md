@@ -40,7 +40,7 @@ Forum Tollgate completed the full sponsor lifecycle. The sponsor opened the rese
 | Bind spend intent | [`0x0bd8271279c6fcde28cc4de51b5f54be4842a8c1e3ed304a221c6281db20f75f`](https://testnet.arcscan.app/tx/0x0bd8271279c6fcde28cc4de51b5f54be4842a8c1e3ed304a221c6281db20f75f) |
 | Repay | [`0x48a81e86ccc7c49814929e44dca93d2f44f82322abff587903419a64e8302172`](https://testnet.arcscan.app/tx/0x48a81e86ccc7c49814929e44dca93d2f44f82322abff587903419a64e8302172) |
 | `closeSponsoredLine` | [`0xba995c10f06f14b876a6b4c19ad69cbfe023d878784961f6eaebb62a3aa16463`](https://testnet.arcscan.app/tx/0xba995c10f06f14b876a6b4c19ad69cbfe023d878784961f6eaebb62a3aa16463) |
-| Reopen live reserve | [`0xc8694da66f078d81c4199df813e8ee7b69941a14b6aef4531f6c35ca771da2e6`](https://testnet.arcscan.app/tx/0xc8694da66f078d81c4199df813e8ee7b69941a14b6aef4531f6c35ca771da2e6) |
+| Reopen reserve | [`0xc8694da66f078d81c4199df813e8ee7b69941a14b6aef4531f6c35ca771da2e6`](https://testnet.arcscan.app/tx/0xc8694da66f078d81c4199df813e8ee7b69941a14b6aef4531f6c35ca771da2e6) |
 
 | Field | Value |
 | --- | --- |
@@ -48,8 +48,8 @@ Forum Tollgate completed the full sponsor lifecycle. The sponsor opened the rese
 | Agent | `0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C` |
 | Reserve | `50000` atomic USDC |
 | Spend amount | `10000` atomic USDC |
-| End state | repaid, reserve reclaimed once, fresh reserve live |
+| End state | repaid, reserve reclaimed once, then reopened; current expiry is chain-derived on the live board |
 
 ## Claim Boundary
 
-This proves the permissionless sponsor path with non-operator wallets. It does not claim a production lending market, a liquidity pool, or mainnet credit risk. The testnet proof is narrower and stronger: outside wallets supplied sponsor reserve, agents used V2 signed intents, providers were paid from contract custody, debt was repaid, one sponsor reclaimed the reserve, and that sponsor reopened a fresh live reserve.
+This proves the permissionless sponsor path with non-operator wallets. It does not claim a production lending market, a liquidity pool, or mainnet credit risk. The testnet proof is narrower and stronger: outside wallets supplied sponsor reserve, agents used V2 signed intents, providers were paid from contract custody, debt was repaid, one sponsor reclaimed the reserve, and that sponsor reopened a fresh reserve.

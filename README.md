@@ -7,7 +7,7 @@ Agents need paid data, compute, and APIs before they have money of their own. On
 Three things are true on this testnet right now:
 
 1. **An autonomous desk runs the book.** An LLM-driven desk decides what to buy, its one-sentence rationale rides inside the signed intent, and the intent digest becomes the onchain `requestHash`, so every decision is cryptographically bound to its receipt. After the desk's first clean lifecycle, the contract raised the desk's own credit limit from behavior alone.
-2. **Outside projects use it with their own wallets.** Ten external lines from outside builder teams, a cross-project loop where one team's agent borrowed Shadow credit to pay another team's API, and two external sponsors who put their own USDC behind agent lines. Forum Tollgate proved reserve reclaim, then reopened a live reserve for judging.
+2. **Outside projects use it with their own wallets.** Ten external lines from outside builder teams, a cross-project loop where one team's agent borrowed Shadow credit to pay another team's API, and two external sponsors who put their own USDC behind agent lines. Forum Tollgate proved reserve reclaim, then reopened a reserve for judging.
 3. **Anyone can verify all of it with one command and no keys.** `npm run float:v2-verify-live` re-derives the proof loop against the public Arc RPC, 26 checks.
 
 Live app: https://shadow-arc.vercel.app
@@ -94,9 +94,9 @@ CitePay became the first live external sponsor on Shadow Float V2. Forum Tollgat
 
 | Sponsor proof | Sponsor wallet | Agent | Key tx | State |
 | --- | --- | --- | --- | --- |
-| CitePay live reserve | `0x5389...f105` | `0xdfDE...044f` | [`0xf2dabb...53540`](https://testnet.arcscan.app/tx/0xf2dabb1ce651330a389acd4d6cacee1a859dc4fc12f18459143dc0f60ee53540) | live reserve, repaid |
+| CitePay sponsored reserve | `0x5389...f105` | `0xdfDE...044f` | [`0xf2dabb...53540`](https://testnet.arcscan.app/tx/0xf2dabb1ce651330a389acd4d6cacee1a859dc4fc12f18459143dc0f60ee53540) | one repaid cycle; current expiry on live board |
 | Forum Tollgate reclaim | `0x12F2...ba03` | `0x645b...139C` | [`0xba995c...16463`](https://testnet.arcscan.app/tx/0xba995c10f06f14b876a6b4c19ad69cbfe023d878784961f6eaebb62a3aa16463) | reserve reclaimed |
-| Forum Tollgate live reserve | `0x12F2...ba03` | `0x645b...139C` | [`0xc8694d...da2e6`](https://testnet.arcscan.app/tx/0xc8694da66f078d81c4199df813e8ee7b69941a14b6aef4531f6c35ca771da2e6) | reopened live reserve |
+| Forum Tollgate reopened reserve | `0x12F2...ba03` | `0x645b...139C` | [`0xc8694d...da2e6`](https://testnet.arcscan.app/tx/0xc8694da66f078d81c4199df813e8ee7b69941a14b6aef4531f6c35ca771da2e6) | reopen proof; current expiry on live board |
 
 External sponsor runbook: [`docs/EXTERNAL_SPONSOR_V2.md`](docs/EXTERNAL_SPONSOR_V2.md)
 

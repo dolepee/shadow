@@ -65,7 +65,7 @@ FLOAT_V2_DAILY_LIMIT_ATOMIC=50000 \
 npm run float:v2-sponsor-line
 ```
 
-The script prints the sponsor, agent, reserve, provider mandate, transaction hashes, and the resulting line state. If the same sponsor already owns the line, it refreshes the provider mandate instead of opening a second line.
+The script prints the sponsor, agent, reserve, provider mandate, transaction hashes, and the resulting line state. If the same sponsor owns a live line, it refreshes only the provider mandate. If that line expired with zero debt, it reclaims the reserve and reopens the line with fresh expiries. Renewal fails closed while debt remains.
 
 ## Agent Signs The Spend Intent
 
@@ -134,6 +134,6 @@ CitePay and Forum Tollgate have now completed non-operator sponsor runs. The pro
 
 Allowed claim:
 
-> Non-operator sponsors put their own Arc USDC behind Shadow Float V2 agent lines. Agents completed signed spend and repay loops through those externally sponsored reserves, and Forum Tollgate also proved reserve reclaim before reopening a fresh live reserve.
+> Non-operator sponsors put their own Arc USDC behind Shadow Float V2 agent lines. Agents completed signed spend and repay loops through those externally sponsored reserves, and Forum Tollgate also proved reserve reclaim before reopening a fresh reserve. Current spendability is read from the live line expiry, not inferred from a historical transaction.
 
 Do not stretch this into a production lending market, a liquidity pool, or mainnet credit claim. It is a testnet proof that the external sponsor primitive works end to end.

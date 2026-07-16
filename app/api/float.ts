@@ -157,13 +157,27 @@ function classifySponsorProvenance(sponsor: Address): FloatV2SponsorProvenance {
   return "unverified";
 }
 
-function hasActiveSponsoredLine(agent: FloatV2ProvenanceAgent): boolean {
+function hasSponsoredReserve(agent: FloatV2ProvenanceAgent): boolean {
   return agent.sponsorProvenance !== "none" && BigInt(agent.sponsorReserveUSDC) > 0n;
+}
+
+function classifySponsorState(
+  reserveUSDC: bigint,
+  lineExpiry: bigint,
+  activeDebtUSDC: bigint,
+  repaidCount: number,
+): "active-reserve" | "expired-reserve-reclaimable" | "expired-debt-open" | "closed-reserve-reclaimed" | "none" {
+  if (reserveUSDC > 0n) {
+    const expired = lineExpiry !== 0n && BigInt(Math.floor(Date.now() / 1000)) > lineExpiry;
+    if (expired) return activeDebtUSDC > 0n ? "expired-debt-open" : "expired-reserve-reclaimable";
+    return "active-reserve";
+  }
+  return repaidCount > 0 && activeDebtUSDC === 0n ? "closed-reserve-reclaimed" : "none";
 }
 
 export function summarizeFloatV2Provenance(agents: FloatV2ProvenanceAgent[]) {
   const trackedExternalAgents = agents.filter(
-    (agent) => agent.category === "external" && agent.agentProvenance === "verified-external-signer" && hasActiveSponsoredLine(agent),
+    (agent) => agent.category === "external" && agent.agentProvenance === "verified-external-signer" && hasSponsoredReserve(agent),
   );
   const externallySponsoredAgents = trackedExternalAgents.filter(
     (agent) => agent.sponsorProvenance === "verified-external",
@@ -619,6 +633,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
       stateContracts.push(
         { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [entry.agent] },
         { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lineSponsors", args: [entry.agent] },
+        { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lineExpiries", args: [entry.agent] },
         { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "behaviorStats", args: [entry.agent] },
         { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "autonomousLineScore", args: [entry.agent] },
       );
@@ -638,20 +653,16 @@ async function handleFloatV2(res: VercelLikeResponse) {
     const [treasuryBalance, totalAvailableCredit, totalSponsoredReserve] = stateResults.slice(0, 3) as [bigint, bigint, bigint];
 
     const agents = statEntries.map((entry, index) => {
-      const offset = 3 + index * 4;
+      const offset = 3 + index * 5;
       const line = stateResults[offset] as FloatV2Line;
       const sponsorLine = stateResults[offset + 1] as FloatV2SponsorLine;
-      const behaviorStats = stateResults[offset + 2] as FloatV2BehaviorStats;
-      const autonomousScore = stateResults[offset + 3] as FloatV2AutonomousScore;
+      const lineExpiry = stateResults[offset + 2] as bigint;
+      const behaviorStats = stateResults[offset + 3] as FloatV2BehaviorStats;
+      const autonomousScore = stateResults[offset + 4] as FloatV2AutonomousScore;
       const status = Number(line[5]);
       const lastReview = line[6].toString();
       const sponsorReserveUSDC = sponsorLine[1].toString();
-      const sponsorState =
-        sponsorLine[1] > 0n
-          ? "active-reserve"
-          : entry.repaidCount > 0 && line[2] === 0n && line[4] === 0n
-            ? "closed-reserve-reclaimed"
-            : "none";
+      const sponsorState = classifySponsorState(sponsorLine[1], lineExpiry, line[4], entry.repaidCount);
       return {
         label: entry.label,
         category: "external",
@@ -667,6 +678,8 @@ async function handleFloatV2(res: VercelLikeResponse) {
         statusName: FLOAT_V2_STATUS_NAMES[status] || "UNKNOWN",
         lastReview,
         lastReviewISO: line[6] > 0n ? new Date(Number(line[6]) * 1000).toISOString() : null,
+        lineExpiry: lineExpiry.toString(),
+        lineExpiryISO: lineExpiry > 0n ? new Date(Number(lineExpiry) * 1000).toISOString() : null,
         scoredByContract: true,
         behavior: {
           paidBound: Number(behaviorStats[0]),
@@ -796,6 +809,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       label: "CitePay sponsor",
       agent: "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f",
       sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+      lineExpiry: "1783595095",
       lastReview: "1784200294",
       spendTx: "0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae",
       repayTx: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe",
@@ -860,8 +874,8 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       statusName: "ELIGIBLE",
       lastReview: "1784200302",
       sponsor: "0x12F25B721Cc21c38495e33A4c8524dd0B647ba03",
+      lineExpiry: "1783785148",
       sponsorReserveUSDC: "50000",
-      sponsorState: "active-reserve",
       autonomousScore: { score: 7500, recommendedLimitUSDC: "25000", cappedLimitUSDC: "25000" },
       signedIntents: 1,
       paid: 1,
@@ -944,6 +958,7 @@ function snapshotV2Agent(input: {
   sponsor?: Address | string;
   sponsorReserveUSDC?: string;
   sponsorState?: string;
+  lineExpiry?: string;
   autonomousScore?: { score: number; recommendedLimitUSDC: string; cappedLimitUSDC: string };
   signedIntents?: number;
   paid?: number;
@@ -967,6 +982,7 @@ function snapshotV2Agent(input: {
   const wallet = getAddress(input.wallet || agent);
   const sponsorReserveUSDC = input.sponsorReserveUSDC ?? "50000";
   const sponsor = getAddress(input.sponsor || OPERATOR_SPONSOR);
+  const lineExpiry = input.lineExpiry ?? "0";
   return {
     label: input.label,
     category: "external",
@@ -982,6 +998,8 @@ function snapshotV2Agent(input: {
     statusName,
     lastReview: input.lastReview,
     lastReviewISO: new Date(Number(input.lastReview) * 1000).toISOString(),
+    lineExpiry,
+    lineExpiryISO: BigInt(lineExpiry) > 0n ? new Date(Number(lineExpiry) * 1000).toISOString() : null,
     scoredByContract: true,
     behavior: {
       paidBound: 0,
@@ -1001,7 +1019,7 @@ function snapshotV2Agent(input: {
     sponsorReserveUSDC,
     sponsorState:
       input.sponsorState ||
-      (BigInt(sponsorReserveUSDC) > 0n ? "active-reserve" : input.repayTx ? "closed-reserve-reclaimed" : "none"),
+      classifySponsorState(BigInt(sponsorReserveUSDC), BigInt(lineExpiry), BigInt(input.activeDebtUSDC ?? "0"), repaid),
     signedIntents: input.signedIntents ?? paid,
     providerPaidCount: paid,
     repaidCount: repaid,

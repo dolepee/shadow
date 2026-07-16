@@ -207,9 +207,15 @@ type BuilderFlowStatus = {
 };
 
 type SponsorPreflight = {
+  agent: Address;
   sponsor: Address;
   existingSponsor: Address;
+  existingReserveUSDC: bigint;
   lineWallet: Address;
+  activeDebtUSDC: bigint;
+  lineExpiry: bigint;
+  providerExpiry: bigint;
+  providerMandateActive: boolean;
   reserveUSDC: bigint;
   balanceUSDC: bigint;
   allowanceUSDC: bigint;
@@ -301,6 +307,7 @@ const FLOAT_V2_LOG_CHUNK_SIZE = FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE;
 
 type FloatV2LineRead = readonly [Address, number, bigint, bigint, bigint, number, bigint, `0x${string}`, bigint, bigint];
 type FloatV2SponsorLineRead = readonly [Address, bigint];
+type FloatV2ProviderMandateRead = readonly [`0x${string}`, bigint, bigint, bigint, boolean];
 type FloatV2BehaviorStatsRead = readonly [number, number, number, number, number, number];
 type FloatV2AutonomousScoreRead = readonly [number, bigint, bigint];
 
@@ -641,6 +648,8 @@ type FloatV2AgentState = {
   statusName: string;
   lastReview?: string;
   lastReviewISO?: string | null;
+  lineExpiry?: string;
+  lineExpiryISO?: string | null;
   scoredByContract?: boolean;
   behavior?: {
     paidBound: number;
@@ -658,7 +667,12 @@ type FloatV2AgentState = {
   sponsor: Address;
   sponsorProvenance?: "verified-external" | "shadow-controlled" | "unverified" | "none";
   sponsorReserveUSDC: string;
-  sponsorState?: "active-reserve" | "closed-reserve-reclaimed" | "none";
+  sponsorState?:
+    | "active-reserve"
+    | "expired-reserve-reclaimable"
+    | "expired-debt-open"
+    | "closed-reserve-reclaimed"
+    | "none";
   signedIntents: number;
   providerPaidCount: number;
   repaidCount: number;
@@ -986,12 +1000,14 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       statusName: "REPAID",
       lastReview: "1784200294",
       lastReviewISO: "2026-07-16T11:11:34.000Z",
+      lineExpiry: "1783595095",
+      lineExpiryISO: "2026-07-09T11:04:55.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
       sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address,
       sponsorReserveUSDC: "50000",
-      sponsorState: "active-reserve",
+      sponsorState: "expired-reserve-reclaimable",
       signedIntents: 1,
       providerPaidCount: 1,
       repaidCount: 1,
@@ -1016,12 +1032,14 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       statusName: "ELIGIBLE",
       lastReview: "1784200302",
       lastReviewISO: "2026-07-16T11:11:42.000Z",
+      lineExpiry: "1783785148",
+      lineExpiryISO: "2026-07-11T15:52:28.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 0, repaid: 0, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 7500, recommendedLimitUSDC: "25000", cappedLimitUSDC: "25000" },
       sponsor: "0x12F25B721Cc21c38495e33A4c8524dd0B647ba03" as Address,
       sponsorReserveUSDC: "50000",
-      sponsorState: "active-reserve",
+      sponsorState: "expired-reserve-reclaimable",
       signedIntents: 1,
       providerPaidCount: 1,
       repaidCount: 1,
@@ -1307,20 +1325,16 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
 
   const agents = await Promise.all(
     [...statsByAgent.values()].map(async (stats): Promise<FloatV2AgentState> => {
-      const [line, sponsorLine, behaviorStats, autonomousScore] = await Promise.all([
+      const [line, sponsorLine, lineExpiry, behaviorStats, autonomousScore] = await Promise.all([
         readFloatV2Line(client, stats.agent, latestBlock),
         readFloatV2SponsorLine(client, stats.agent, latestBlock),
+        readFloatV2LineExpiry(client, stats.agent, latestBlock),
         readFloatV2BehaviorStats(client, stats.agent, latestBlock),
         readFloatV2AutonomousScore(client, stats.agent, latestBlock),
       ]);
       const status = Number(line[5]);
       const sponsorReserveUSDC = sponsorLine[1].toString();
-      const sponsorState =
-        sponsorLine[1] > 0n
-          ? "active-reserve"
-          : stats.repaidCount > 0 && line[2] === 0n && line[4] === 0n
-            ? "closed-reserve-reclaimed"
-            : "none";
+      const sponsorState = classifyFloatV2SponsorState(sponsorLine[1], lineExpiry, line[4], stats.repaidCount);
       return {
         label: stats.label,
         category: stats.category,
@@ -1336,6 +1350,8 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
         statusName: FLOAT_V2_STATUS_NAMES[status] || "UNKNOWN",
         lastReview: line[6].toString(),
         lastReviewISO: line[6] > 0n ? new Date(Number(line[6]) * 1000).toISOString() : null,
+        lineExpiry: lineExpiry.toString(),
+        lineExpiryISO: lineExpiry > 0n ? new Date(Number(lineExpiry) * 1000).toISOString() : null,
         scoredByContract: true,
         behavior: {
           paidBound: Number(behaviorStats[0]),
@@ -1459,6 +1475,16 @@ async function readFloatV2SponsorLine(client: PublicClient, agent: Address, bloc
   }) as Promise<FloatV2SponsorLineRead>;
 }
 
+async function readFloatV2LineExpiry(client: PublicClient, agent: Address, blockNumber: bigint) {
+  return client.readContract({
+    address: FLOAT_V2_CONTRACT,
+    abi: floatV2Abi,
+    functionName: "lineExpiries",
+    args: [agent],
+    blockNumber,
+  }) as Promise<bigint>;
+}
+
 async function readFloatV2BehaviorStats(client: PublicClient, agent: Address, blockNumber: bigint) {
   return client.readContract({
     address: FLOAT_V2_CONTRACT,
@@ -1506,6 +1532,20 @@ function floatV2SponsorProvenanceLabel(agent: FloatV2AgentState): string {
   if (provenance === "shadow-controlled") return "Shadow operator sponsor";
   if (provenance === "none") return "no active sponsor";
   return "unverified sponsor";
+}
+
+function classifyFloatV2SponsorState(
+  reserveUSDC: bigint,
+  lineExpiry: bigint,
+  activeDebtUSDC: bigint,
+  repaidCount: number,
+): NonNullable<FloatV2AgentState["sponsorState"]> {
+  if (reserveUSDC > 0n) {
+    const expired = lineExpiry !== 0n && BigInt(Math.floor(Date.now() / 1000)) > lineExpiry;
+    if (expired) return activeDebtUSDC > 0n ? "expired-debt-open" : "expired-reserve-reclaimable";
+    return "active-reserve";
+  }
+  return repaidCount > 0 && activeDebtUSDC === 0n ? "closed-reserve-reclaimed" : "none";
 }
 
 function summarizeFloatV2PilotProvenance(agents: FloatV2AgentState[]) {
@@ -2395,7 +2435,7 @@ function App() {
         <article>
           <span>matured</span>
           <strong>External sponsor capital</strong>
-          <p>CitePay and Forum Tollgate opened external sponsored lines; Forum proved reserve reclaim, then reopened a live reserve.</p>
+          <p>CitePay and Forum Tollgate opened external sponsored lines; Forum also proved reserve reclaim and reopen.</p>
         </article>
         <article>
           <span>matured</span>
@@ -2556,6 +2596,7 @@ function FloatBuilderPilot({
   const returningAgents = state?.summary?.returningAgents;
   const returningSponsors = state?.summary?.returningSponsors;
   const metricValue = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
+  const sponsorAction = sponsorPreflight ? sponsorPreflightAction(sponsorPreflight) : "open";
 
   function sponsorInputs() {
     const agent = parseBuilderAddress(agentAddress, "Agent");
@@ -2585,17 +2626,33 @@ function FloatBuilderPilot({
   }
 
   async function inspectSponsor(config: ReturnType<typeof sponsorInputs>, sponsor: Address): Promise<SponsorPreflight> {
-    const [lineSponsor, line, balanceUSDC, allowanceUSDC, nativeBalance] = await Promise.all([
+    const [lineSponsor, line, lineExpiry, providerMandate, balanceUSDC, allowanceUSDC, nativeBalance] = await Promise.all([
       publicClient.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lineSponsors", args: [config.agent] }),
       publicClient.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [config.agent] }),
+      publicClient.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lineExpiries", args: [config.agent] }),
+      publicClient.readContract({
+        address: FLOAT_V2_CONTRACT,
+        abi: floatV2Abi,
+        functionName: "lineProviderMandates",
+        args: [config.agent, config.provider],
+      }),
       publicClient.readContract({ address: FLOAT_V2_USDC, abi: erc20Abi, functionName: "balanceOf", args: [sponsor] }),
       publicClient.readContract({ address: FLOAT_V2_USDC, abi: erc20Abi, functionName: "allowance", args: [sponsor, FLOAT_V2_CONTRACT] }),
       publicClient.getBalance({ address: sponsor }),
     ]);
+    const sponsorLine = lineSponsor as FloatV2SponsorLineRead;
+    const agentLine = line as FloatV2LineRead;
+    const mandate = providerMandate as FloatV2ProviderMandateRead;
     return {
+      agent: config.agent,
       sponsor,
-      existingSponsor: getAddress((lineSponsor as FloatV2SponsorLineRead)[0]),
-      lineWallet: getAddress((line as FloatV2LineRead)[0]),
+      existingSponsor: getAddress(sponsorLine[0]),
+      existingReserveUSDC: sponsorLine[1],
+      lineWallet: getAddress(agentLine[0]),
+      activeDebtUSDC: agentLine[4],
+      lineExpiry: lineExpiry as bigint,
+      providerExpiry: mandate[3],
+      providerMandateActive: mandate[4],
       reserveUSDC: config.reserveUSDC,
       balanceUSDC: balanceUSDC as bigint,
       allowanceUSDC: allowanceUSDC as bigint,
@@ -2604,12 +2661,30 @@ function FloatBuilderPilot({
     };
   }
 
+  function sponsorPreflightAction(preflight: SponsorPreflight): "open" | "refresh" | "renew" | "blocked" {
+    const hasSponsor = preflight.existingSponsor !== ZERO_ADDRESS;
+    const hasLine = preflight.lineWallet !== ZERO_ADDRESS;
+    if (!hasSponsor && !hasLine) return "open";
+    if (preflight.existingSponsor !== preflight.sponsor || preflight.lineWallet !== preflight.agent) return "blocked";
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    return preflight.lineExpiry !== 0n && now > preflight.lineExpiry ? "renew" : "refresh";
+  }
+
   function sponsorReadinessError(preflight: SponsorPreflight): string | null {
-    if (preflight.existingSponsor !== ZERO_ADDRESS || preflight.lineWallet !== ZERO_ADDRESS) {
-      return `Agent already has a line (${preflight.existingSponsor !== ZERO_ADDRESS ? `sponsor ${shortAddress(preflight.existingSponsor)}` : "non-sponsored"}). Choose a fresh agent address.`;
+    const action = sponsorPreflightAction(preflight);
+    if (action === "blocked") {
+      return `Agent already has a line controlled by ${
+        preflight.existingSponsor !== ZERO_ADDRESS ? `sponsor ${shortAddress(preflight.existingSponsor)}` : "a non-sponsored owner"
+      }.`;
     }
-    if (preflight.balanceUSDC < preflight.reserveUSDC) {
-      return `Sponsor has ${formatFloatUSDC(preflight.balanceUSDC)} USDC; ${formatFloatUSDC(preflight.reserveUSDC)} USDC is required.`;
+    if (action === "renew" && preflight.activeDebtUSDC > 0n) {
+      return `Expired line still has ${formatFloatUSDC(preflight.activeDebtUSDC)} USDC debt. Repay it before renewing.`;
+    }
+    if (action !== "refresh") {
+      const usableBalance = preflight.balanceUSDC + (action === "renew" ? preflight.existingReserveUSDC : 0n);
+      if (usableBalance < preflight.reserveUSDC) {
+        return `Sponsor will have ${formatFloatUSDC(usableBalance)} USDC available; ${formatFloatUSDC(preflight.reserveUSDC)} USDC is required.`;
+      }
     }
     if (preflight.nativeBalance === 0n) return "Sponsor wallet has no Arc testnet gas balance.";
     return null;
@@ -2625,12 +2700,23 @@ function FloatBuilderPilot({
       setSponsorPreflight(preflight);
       const blocked = sponsorReadinessError(preflight);
       if (blocked) throw new Error(blocked);
+      const action = sponsorPreflightAction(preflight);
+      if (action === "refresh") {
+        setSponsorStatus({
+          label: "Ready to refresh",
+          detail: `The existing ${formatFloatUSDC(preflight.existingReserveUSDC)} USDC reserve stays in place; only the provider mandate changes.`,
+        });
+        return;
+      }
+      const actionLabel = action === "renew" ? "renew" : "open";
       setSponsorStatus({
-        label: preflight.allowanceUSDC >= config.reserveUSDC ? "Ready to open" : "Approval required",
+        label: preflight.allowanceUSDC >= config.reserveUSDC ? `Ready to ${actionLabel}` : "Approval required",
         detail:
           preflight.allowanceUSDC >= config.reserveUSDC
-            ? "Reserve allowance and wallet balances are sufficient."
-            : `Approve ${formatFloatUSDC(config.reserveUSDC)} USDC to ShadowFloat before opening the line.`,
+            ? action === "renew"
+              ? "Renewal will reclaim the expired reserve, then reopen the line with fresh expiries."
+              : "Reserve allowance and wallet balances are sufficient."
+            : `Approve ${formatFloatUSDC(config.reserveUSDC)} USDC to ShadowFloat before ${actionLabel}ing the line.`,
       });
     } catch (error) {
       setSponsorStatus({ label: "Preflight blocked", error: errorMessage(error) });
@@ -2649,6 +2735,11 @@ function FloatBuilderPilot({
       setSponsorPreflight(preflight);
       const blocked = sponsorReadinessError(preflight);
       if (blocked) throw new Error(blocked);
+      const action = sponsorPreflightAction(preflight);
+      if (action === "refresh") {
+        setSponsorStatus({ label: "No approval needed", detail: "Refreshing a provider mandate does not move or add reserve USDC." });
+        return;
+      }
       if (preflight.allowanceUSDC >= config.reserveUSDC) {
         setSponsorStatus({ label: "Already approved", detail: "Current allowance covers the requested reserve." });
         return;
@@ -2665,7 +2756,10 @@ function FloatBuilderPilot({
       setSponsorPreflight({ ...preflight, allowanceUSDC: config.reserveUSDC, checkedAt: Date.now() });
       setSponsorStatus({
         label: "Reserve approved",
-        detail: "The next transaction opens the line and transfers the bounded reserve into ShadowFloat.",
+        detail:
+          action === "renew"
+            ? "The next action reclaims the expired reserve, then reopens the line with fresh bounds."
+            : "The next transaction opens the line and transfers the bounded reserve into ShadowFloat.",
         txs: [{ label: "approval", hash }],
       });
     } catch (error) {
@@ -2675,9 +2769,9 @@ function FloatBuilderPilot({
     }
   }
 
-  async function openSponsorLine() {
+  async function openOrRefreshSponsorLine() {
     setSponsorBusy(true);
-    setSponsorStatus({ label: "Rechecking line and allowance" });
+    setSponsorStatus({ label: "Rechecking sponsored line" });
     try {
       const config = sponsorInputs();
       const { account: sponsor, wallet } = await connectBuilderWallet(onAccountChange);
@@ -2685,7 +2779,60 @@ function FloatBuilderPilot({
       setSponsorPreflight(preflight);
       const blocked = sponsorReadinessError(preflight);
       if (blocked) throw new Error(blocked);
-      if (preflight.allowanceUSDC < config.reserveUSDC) throw new Error("Approve the reserve before opening the line.");
+      const action = sponsorPreflightAction(preflight);
+      if (action === "refresh") {
+        const hash = await wallet.writeContract({
+          account: sponsor,
+          address: FLOAT_V2_CONTRACT,
+          abi: floatV2Abi,
+          functionName: "setSponsoredProviderMandate",
+          args: [
+            config.agent,
+            config.provider,
+            config.endpointHash,
+            config.maxPerRequestUSDC,
+            config.dailyLimitUSDC,
+            config.providerExpiry,
+            true,
+          ],
+          chain: arcTestnet,
+        });
+        await waitForBuilderTransaction(hash, "Provider mandate refresh");
+        setSponsorStatus({
+          label: "Provider mandate refreshed",
+          detail: "The existing sponsor reserve is unchanged and the provider bounds have a fresh expiry.",
+          txs: [{ label: "refresh mandate", hash }],
+        });
+        await onRefresh();
+        return;
+      }
+      if (preflight.allowanceUSDC < config.reserveUSDC) {
+        throw new Error(`Approve the reserve before ${action === "renew" ? "renewing" : "opening"} the line.`);
+      }
+      const txs: { label: string; hash: Hash }[] = [];
+      if (action === "renew") {
+        const requestHash = keccak256(
+          stringToBytes(
+            JSON.stringify({
+              v: 1,
+              domain: "shadow-float:builder-renew",
+              sponsor,
+              agent: config.agent,
+              nonce: createBuilderNonce(),
+            }),
+          ),
+        );
+        const closeHash = await wallet.writeContract({
+          account: sponsor,
+          address: FLOAT_V2_CONTRACT,
+          abi: floatV2Abi,
+          functionName: "closeSponsoredLine",
+          args: [config.agent, sponsor, requestHash],
+          chain: arcTestnet,
+        });
+        await waitForBuilderTransaction(closeHash, "Expired line reclaim");
+        txs.push({ label: "reclaim expired line", hash: closeHash });
+      }
       const hash = await wallet.writeContract({
         account: sponsor,
         address: FLOAT_V2_CONTRACT,
@@ -2704,11 +2851,12 @@ function FloatBuilderPilot({
         ],
         chain: arcTestnet,
       });
-      await waitForBuilderTransaction(hash, "Sponsored line opening");
+      await waitForBuilderTransaction(hash, action === "renew" ? "Sponsored line renewal" : "Sponsored line opening");
+      txs.push({ label: action === "renew" ? "reopen line" : "open line", hash });
       setSponsorStatus({
-        label: "Sponsored line opened",
-        detail: `${formatFloatUSDC(config.reserveUSDC)} USDC is reserved for ${shortAddress(config.agent)} under the signed provider bounds.`,
-        txs: [{ label: "open line", hash }],
+        label: action === "renew" ? "Sponsored line renewed" : "Sponsored line opened",
+        detail: `${formatFloatUSDC(config.reserveUSDC)} USDC is reserved for ${shortAddress(config.agent)} under fresh provider bounds.`,
+        txs,
       });
       await onRefresh();
     } catch (error) {
@@ -2971,8 +3119,8 @@ function FloatBuilderPilot({
         >
           <header>
             <span>01 · sponsor</span>
-            <h3>Reserve capital and open the line</h3>
-            <p>Preflight reads the agent, sponsor balance, allowance, and existing line before any transaction.</p>
+            <h3>Open, refresh, or renew the line</h3>
+            <p>Preflight reads ownership, expiry, debt, balance, and allowance before any transaction.</p>
           </header>
           <div className="builderFieldGrid">
             <label className="builderField builderFieldWide">
@@ -3014,15 +3162,21 @@ function FloatBuilderPilot({
           </div>
           {sponsorPreflight && (
             <div className="builderReadout">
+              <span>action {sponsorAction}</span>
               <span>balance {formatFloatUSDC(sponsorPreflight.balanceUSDC)} USDC</span>
               <span>allowance {formatFloatUSDC(sponsorPreflight.allowanceUSDC)} USDC</span>
+              {sponsorPreflight.existingSponsor !== ZERO_ADDRESS && (
+                <span>held reserve {formatFloatUSDC(sponsorPreflight.existingReserveUSDC)} USDC</span>
+              )}
               <span>checked {new Date(sponsorPreflight.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
             </div>
           )}
           <div className="builderActionRow">
             <button type="button" onClick={runSponsorPreflight} disabled={sponsorBusy}>1. Preflight</button>
             <button type="button" onClick={approveSponsorReserve} disabled={sponsorBusy}>2. Approve reserve</button>
-            <button type="button" className="primary" onClick={openSponsorLine} disabled={sponsorBusy}>3. Open line</button>
+            <button type="button" className="primary" onClick={openOrRefreshSponsorLine} disabled={sponsorBusy}>
+              3. {sponsorAction === "refresh" ? "Refresh mandate" : sponsorAction === "renew" ? "Renew line" : "Open line"}
+            </button>
           </div>
           <BuilderStatus id="sponsor-flow-status" status={sponsorStatus} />
         </article>
@@ -4210,7 +4364,7 @@ function FloatV2CurrentPanel({
     { label: "CitePay delivery receipt", href: txUrl(FLOAT_V2_PROOF.dripletCitePayDeliveryTx), value: shortAddress(FLOAT_V2_PROOF.dripletCitePayDeliveryTx) },
     { label: "CitePay sponsor line", href: txUrl(FLOAT_V2_PROOF.citePaySponsorOpenTx), value: shortAddress(FLOAT_V2_PROOF.citePaySponsorOpenTx) },
     { label: "Forum reserve reclaim", href: txUrl(FLOAT_V2_PROOF.forumSponsorCloseTx), value: shortAddress(FLOAT_V2_PROOF.forumSponsorCloseTx) },
-    { label: "Forum live reserve", href: txUrl(FLOAT_V2_PROOF.forumSponsorReopenTx), value: shortAddress(FLOAT_V2_PROOF.forumSponsorReopenTx) },
+    { label: "Forum reserve reopen proof", href: txUrl(FLOAT_V2_PROOF.forumSponsorReopenTx), value: shortAddress(FLOAT_V2_PROOF.forumSponsorReopenTx) },
     { label: "CCTP-funded reserve", href: txUrl(FLOAT_V2_PROOF.cctpOpenLineTx), value: shortAddress(FLOAT_V2_PROOF.cctpOpenLineTx) },
     { label: "Obol signed spend", href: txUrl(FLOAT_V2_PROOF.obolSpendTx), value: shortAddress(FLOAT_V2_PROOF.obolSpendTx) },
   ];
@@ -4263,7 +4417,7 @@ function FloatV2CurrentPanel({
         </div>
         <span>sponsor reserve pays providers</span>
         <span>nonce and max debt checked onchain</span>
-        <span>external agent lines active</span>
+        <span>external agent histories tracked</span>
       </div>
 
       <FloatV2ProofCockpit state={state} loading={loading} error={error} />
@@ -4368,15 +4522,28 @@ function FloatV2SponsorCapitalPanel({ state }: { state: FloatV2ActivityState | n
   const totalSponsoredReserve = state?.totalSponsoredReserveUSDC
     ? `${formatFloatUSDC(state.totalSponsoredReserveUSDC)} USDC`
     : "reading";
+  const stateByAgent = new Map((state?.agents || []).map((agent) => [agent.agent.toLowerCase(), agent]));
+  const sponsorPresentation = (agent: string) => {
+    const sponsorState = stateByAgent.get(agent.toLowerCase())?.sponsorState;
+    if (sponsorState === "active-reserve") return { status: "live reserve", tone: "live" };
+    if (sponsorState === "expired-debt-open") return { status: "expired · debt open", tone: "expired" };
+    if (sponsorState === "expired-reserve-reclaimable") return { status: "expired · reclaimable", tone: "expired" };
+    if (sponsorState === "closed-reserve-reclaimed") return { status: "reserve reclaimed", tone: "reclaimed" };
+    return { status: "state unavailable", tone: "" };
+  };
+  const spendableReserveCount = [...stateByAgent.values()].filter(
+    (agent) => agent.sponsorProvenance === "verified-external" && agent.sponsorState === "active-reserve",
+  ).length;
+  const citePayAgent = "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f";
+  const forumAgent = "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C";
   const sponsorRuns = [
     {
       name: "CitePay",
-      status: "live reserve",
-      tone: "live",
+      ...sponsorPresentation(citePayAgent),
       sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
-      agent: "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f",
+      agent: citePayAgent,
       reserve: "0.05 USDC",
-      body: "CitePay opened a non-operator reserve for a specific agent line. The spend was repaid, and the reserve remains live.",
+      body: "CitePay opened a non-operator reserve and completed a signed spend-and-repay cycle. Current spendability is read from the line expiry above.",
       steps: [
         { label: "approve reserve", tx: FLOAT_V2_PROOF.citePaySponsorApproveTx },
         { label: "openSponsoredLine", tx: FLOAT_V2_PROOF.citePaySponsorOpenTx },
@@ -4386,18 +4553,17 @@ function FloatV2SponsorCapitalPanel({ state }: { state: FloatV2ActivityState | n
     },
     {
       name: "Forum Tollgate",
-      status: "live reserve",
-      tone: "live",
+      ...sponsorPresentation(forumAgent),
       sponsor: "0x12F25B721Cc21c38495e33A4c8524dd0B647ba03",
-      agent: "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C",
+      agent: forumAgent,
       reserve: "0.05 USDC",
-      body: "Forum Tollgate proved the full sponsor path, reclaimed its first reserve, then reopened a fresh 0.05 USDC reserve and left it live through judging.",
+      body: "Forum Tollgate proved sponsor, spend, repay, reserve reclaim, and reopen. Current spendability is read from the line expiry above.",
       steps: [
         { label: "openSponsoredLine", tx: FLOAT_V2_PROOF.forumSponsorOpenTx },
         { label: "spend", tx: FLOAT_V2_PROOF.forumSponsorSpendTx },
         { label: "repay", tx: FLOAT_V2_PROOF.forumSponsorRepayTx },
         { label: "closeSponsoredLine", tx: FLOAT_V2_PROOF.forumSponsorCloseTx },
-        { label: "reopen live line", tx: FLOAT_V2_PROOF.forumSponsorReopenTx },
+        { label: "reopen line", tx: FLOAT_V2_PROOF.forumSponsorReopenTx },
       ],
     },
   ];
@@ -4418,9 +4584,9 @@ function FloatV2SponsorCapitalPanel({ state }: { state: FloatV2ActivityState | n
         </div>
         <div className="floatSponsorCapitalStats">
           <FloatFact label="sponsor runs" value="2" />
-          <FloatFact label="live reserve" value="CitePay" />
-          <FloatFact label="reclaimed" value="Forum" />
-          <FloatFact label="total reserve on V2" value={totalSponsoredReserve} />
+          <FloatFact label="spendable reserves" value={String(spendableReserveCount)} />
+          <FloatFact label="reclaim proof" value="Forum" />
+          <FloatFact label="reserve held on V2" value={totalSponsoredReserve} />
         </div>
       </div>
       <div className="floatSponsorCapitalGrid">
@@ -4491,6 +4657,9 @@ function classifyFloatV2Lifecycle(agent: FloatV2AgentState): {
 } {
   const activeDebt = asAtomicUSDC(agent.activeDebtUSDC);
   if (agent.repaidCount > 0 && activeDebt === 0n) {
+    if (agent.sponsorState === "expired-reserve-reclaimable") {
+      return { label: "closed", detail: "signed, paid, repaid · reserve expired and reclaimable", tone: "closed" };
+    }
     if (agent.sponsorState === "closed-reserve-reclaimed" || (asAtomicUSDC(agent.sponsorReserveUSDC) === 0n && asAtomicUSDC(agent.creditLimitUSDC) === 0n)) {
       return { label: "closed", detail: "paid, repaid, reserve reclaimed", tone: "closed" };
     }
@@ -4502,6 +4671,8 @@ function classifyFloatV2Lifecycle(agent: FloatV2AgentState): {
       label: "open debt",
       detail: isObol
         ? "one open-debt exhibit, repayment pending"
+        : agent.sponsorState === "expired-debt-open"
+          ? "line expired, debt repayment required"
         : agent.providerPaidCount > 0
           ? "provider paid, repayment pending"
           : "debt open, payment log syncing",
@@ -7483,7 +7654,7 @@ function HomeProofOverview({
       eyebrow: "external sponsor capital",
       value: countValue(summary?.externallySponsoredLines),
       label: "external sponsors",
-      body: "CitePay and Forum Tollgate keep live external reserves open. Forum also proved sponsor, spend, repay, and reserve reclaim.",
+      body: "CitePay and Forum Tollgate funded external reserves and completed repaid cycles. The live board exposes whether each line is spendable, expired, or reclaimed.",
       href: txUrl(FLOAT_V2_PROOF.citePaySponsorOpenTx),
       external: true,
     },

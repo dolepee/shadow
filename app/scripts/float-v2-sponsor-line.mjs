@@ -16,7 +16,8 @@ import { privateKeyToAccount } from "viem/accounts";
 // This is the smallest external-sponsor handoff:
 //   1. sponsor approves the V2 Float contract for the reserve;
 //   2. sponsor calls openSponsoredLine for the target agent;
-//   3. if the same sponsor already owns the line, sponsor only refreshes the provider mandate.
+//   3. if the same sponsor owns an active line, sponsor refreshes the provider mandate;
+//   4. if that line expired with zero debt, sponsor reclaims and reopens it.
 //
 // Required env:
 //   SHADOW_FLOAT=0x...
@@ -89,7 +90,9 @@ const wallet = createWalletClient({ account: sponsor, chain, transport: http(RPC
 const floatAbi = parseAbi([
   "function openSponsoredLine(address agent,uint256 reserveUSDC,bytes32 mandateId,uint64 lineExpiry,address provider,bytes32 endpointHash,uint256 maxPerRequestUSDC,uint256 dailyLimitUSDC,uint64 providerExpiry) returns (bytes32)",
   "function setSponsoredProviderMandate(address agent,address provider,bytes32 endpointHash,uint256 maxPerRequestUSDC,uint256 dailyLimitUSDC,uint64 expiry,bool active)",
+  "function closeSponsoredLine(address agent,address recipient,bytes32 requestHash) returns (bytes32)",
   "function lineSponsors(address agent) view returns (address sponsor,uint256 reserveUSDC)",
+  "function lineExpiries(address agent) view returns (uint64)",
   "function lines(address agent) view returns (address wallet,uint16 score,uint256 creditLimitUSDC,uint256 availableCreditUSDC,uint256 activeDebtUSDC,uint8 status,uint64 lastReview,bytes32 mandateId,uint64 day,uint256 spentTodayUSDC)",
   "function autonomousLineScore(address agent) view returns (uint16 score,uint256 recommendedLimitUSDC,uint256 cappedLimitUSDC)",
   "function lineProviderMandates(address agent,address provider) view returns (bytes32 endpointHash,uint256 maxPerRequestUSDC,uint256 dailyLimitUSDC,uint64 expiry,bool active)",
@@ -105,18 +108,16 @@ console.log(`max req  ${formatUnits(MAX_PER_REQUEST, 6)} USDC`);
 console.log(`daily    ${formatUnits(DAILY_LIMIT, 6)} USDC`);
 if (DRY_RUN) console.log("dryRun   true");
 
-const [balance, allowance, gas, existingSponsor, existingLine, scorePreview] = await Promise.all([
+const [balance, allowance, gas, existingSponsor, existingLine, existingLineExpiry, scorePreview] = await Promise.all([
   publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [sponsor.address] }),
   publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [sponsor.address, FLOAT] }),
   publicClient.getBalance({ address: sponsor.address }),
   publicClient.readContract({ address: FLOAT, abi: floatAbi, functionName: "lineSponsors", args: [AGENT] }),
   publicClient.readContract({ address: FLOAT, abi: floatAbi, functionName: "lines", args: [AGENT] }),
+  publicClient.readContract({ address: FLOAT, abi: floatAbi, functionName: "lineExpiries", args: [AGENT] }),
   publicClient.readContract({ address: FLOAT, abi: floatAbi, functionName: "autonomousLineScore", args: [AGENT] }),
 ]);
 
-if (balance < RESERVE) {
-  throw new Error(`sponsor needs ${formatUnits(RESERVE, 6)} USDC reserve, has ${formatUnits(balance, 6)} USDC`);
-}
 if (gas === 0n) throw new Error("sponsor wallet has no native Arc gas");
 
 const txs = {};
@@ -125,6 +126,17 @@ const isExistingLine = existingSponsorAddress !== zeroAddress();
 if (isExistingLine && existingSponsorAddress !== sponsor.address) {
   throw new Error(`agent already has a sponsored line from ${existingSponsorAddress}`);
 }
+const lineExpired = isExistingLine && existingLineExpiry !== 0n && now > existingLineExpiry;
+const action = !isExistingLine ? "open_sponsored_line" : lineExpired ? "renew_expired_line" : "refresh_provider_mandate";
+if (lineExpired && existingLine[4] > 0n) {
+  throw new Error(`expired line has ${formatUnits(existingLine[4], 6)} USDC active debt; repay before renewal`);
+}
+const usableBalance = balance + (lineExpired ? existingSponsor[1] : 0n);
+if (action !== "refresh_provider_mandate" && usableBalance < RESERVE) {
+  throw new Error(
+    `sponsor needs ${formatUnits(RESERVE, 6)} USDC after reclaim, but only ${formatUnits(usableBalance, 6)} USDC is available`,
+  );
+}
 
 if (DRY_RUN) {
   console.log(
@@ -132,7 +144,7 @@ if (DRY_RUN) {
       {
         ok: true,
         dryRun: true,
-        action: isExistingLine ? "refresh_provider_mandate" : "open_sponsored_line",
+        action,
         sponsor: sponsor.address,
         agent: AGENT,
         float: FLOAT,
@@ -144,9 +156,11 @@ if (DRY_RUN) {
         dailyLimitUSDC: DAILY_LIMIT.toString(),
         sponsorUSDCBalance: balance.toString(),
         currentAllowance: allowance.toString(),
+        existingLineExpiry: existingLineExpiry.toString(),
+        existingReserveUSDC: existingSponsor[1].toString(),
         existingLine: lineToJson(existingLine),
         currentAutonomousScoreView: scoreToJson(scorePreview),
-        expectedOpeningLine: isExistingLine
+        expectedOpeningLine: action === "refresh_provider_mandate"
           ? null
           : {
               score: 7500,
@@ -162,7 +176,7 @@ if (DRY_RUN) {
   process.exit(0);
 }
 
-if (!isExistingLine && allowance < RESERVE) {
+if (action !== "refresh_provider_mandate" && allowance < RESERVE) {
   const approveTx = await wallet.writeContract({
     address: USDC,
     abi: erc20Abi,
@@ -175,7 +189,7 @@ if (!isExistingLine && allowance < RESERVE) {
   await waitSuccess(approveTx, "approve sponsor reserve");
 }
 
-if (isExistingLine) {
+if (action === "refresh_provider_mandate") {
   const mandateTx = await writeFloat("setSponsoredProviderMandate", [
     AGENT,
     PROVIDER,
@@ -187,6 +201,14 @@ if (isExistingLine) {
   ]);
   txs.setSponsoredProviderMandate = mandateTx;
 } else {
+  if (action === "renew_expired_line") {
+    const closeTx = await writeFloat("closeSponsoredLine", [
+      AGENT,
+      sponsor.address,
+      randomHash(`renew-expired-${sponsor.address}-${AGENT}`),
+    ]);
+    txs.closeSponsoredLine = closeTx;
+  }
   const mandateId = randomHash(`external-sponsor-${sponsor.address}-${AGENT}`);
   const openTx = await writeFloat("openSponsoredLine", [
     AGENT,
@@ -211,7 +233,7 @@ const [lineAfter, sponsorAfter, mandateAfter, scoreAfter] = await Promise.all([
 
 const ok =
   getAddress(sponsorAfter[0]) === sponsor.address &&
-  sponsorAfter[1] === RESERVE &&
+  sponsorAfter[1] === (action === "refresh_provider_mandate" ? existingSponsor[1] : RESERVE) &&
   getAddress(lineAfter[0]) === AGENT &&
   mandateAfter[0].toLowerCase() === ENDPOINT_HASH.toLowerCase() &&
   mandateAfter[1] === MAX_PER_REQUEST &&
@@ -222,7 +244,7 @@ console.log(
   JSON.stringify(
     {
       ok,
-      action: isExistingLine ? "refresh_provider_mandate" : "open_sponsored_line",
+      action,
       float: FLOAT,
       usdc: USDC,
       sponsor: sponsor.address,

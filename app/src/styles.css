@@ -1246,6 +1246,10 @@ body,
   background: linear-gradient(135deg, rgba(50, 215, 255, 0.09), rgba(184, 211, 255, 0.04));
 }
 
+.floatSponsorCapitalCard.expired {
+  background: linear-gradient(135deg, rgba(255, 181, 71, 0.09), rgba(184, 211, 255, 0.04));
+}
+
 .floatSponsorCapitalCard header {
   align-items: flex-start;
   display: flex;

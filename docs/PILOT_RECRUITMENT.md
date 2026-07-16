@@ -41,6 +41,8 @@ These values are testnet defaults, not production credit terms. The contract may
 7. Repeat on two later occasions. On one attempt, intentionally exceed an agreed policy bound so the contract records a block with no provider transfer.
 8. After debt is zero, the sponsor may close the line and reclaim the remaining reserve through `closeSponsoredLine`.
 
+For an existing line, the same sponsor uses the same first panel. A live line refreshes only its provider mandate. An expired zero-debt line is reclaimed and reopened with fresh expiries; the UI presents both transactions explicitly. Renewal is blocked until any active debt is repaid.
+
 Reference paths remain available for non-browser agents:
 
 - Sponsor line: `npm run float:v2-sponsor-line`
