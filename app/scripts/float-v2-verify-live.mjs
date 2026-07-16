@@ -9,6 +9,7 @@ import {
   parseAbi,
   parseAbiItem,
 } from "viem";
+import { createRpcReadQueue } from "./rpc-read-queue.mjs";
 
 const env = {
   ...readEnv(new URL("../../.env", import.meta.url)),
@@ -76,7 +77,18 @@ const chain = defineChain({
   nativeCurrency: { decimals: 18, name: "Arc", symbol: "ARC" },
   rpcUrls: { default: { http: [rpcUrl] } },
 });
-const publicClient = createPublicClient({ chain, transport: http(rpcUrl, { timeout: 60_000, retryCount: 3 }) });
+const publicClient = createPublicClient({ chain, transport: http(rpcUrl, { timeout: 15_000, retryCount: 0 }) });
+const rpcRead = createRpcReadQueue({
+  maxAttempts: 6,
+  baseDelayMs: 750,
+  maxDelayMs: 8_000,
+  spacingMs: 350,
+  onRetry: ({ label, attempt, maxAttempts, delayMs, error }) => {
+    console.error(
+      `transient RPC read failure for ${label}; retry ${attempt + 1}/${maxAttempts} in ${delayMs}ms: ${rpcErrorMessage(error)}`,
+    );
+  },
+});
 
 const floatAbi = parseAbi([
   "function owner() view returns (address)",
@@ -108,7 +120,7 @@ const floatReceiptEvent = parseAbiItem(
 
 const checks = [];
 const txs = await loadProofTransactions();
-const deployedCode = await publicClient.getBytecode({ address: proof.float });
+const deployedCode = await rpcRead("ShadowFloat bytecode", () => publicClient.getBytecode({ address: proof.float }));
 const codeSize = hexByteLength(deployedCode);
 
 const [
@@ -128,21 +140,21 @@ const [
   directReceiptHash,
   blockedReceiptHash,
 ] = await Promise.all([
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "owner" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "usdc" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "feeBps" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "lineSponsors", args: [proof.agent] }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "lines", args: [proof.agent] }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "totalSponsoredReserveUSDC" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "totalSponsoredAvailableCreditUSDC" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "totalProviderPaidUSDC" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "totalDebtOpenedUSDC" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "totalRepaidUSDC" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "totalBlockedUSDC" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "treasuryBalanceUSDC" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "totalAvailableCreditUSDC" }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "receiptByRequestHash", args: [proof.directRequestHash] }),
-  publicClient.readContract({ address: proof.float, abi: floatAbi, functionName: "receiptByRequestHash", args: [proof.blockedRequestHash] }),
+  readFloat("owner"),
+  readFloat("usdc"),
+  readFloat("feeBps"),
+  readFloat("lineSponsors", [proof.agent]),
+  readFloat("lines", [proof.agent]),
+  readFloat("totalSponsoredReserveUSDC"),
+  readFloat("totalSponsoredAvailableCreditUSDC"),
+  readFloat("totalProviderPaidUSDC"),
+  readFloat("totalDebtOpenedUSDC"),
+  readFloat("totalRepaidUSDC"),
+  readFloat("totalBlockedUSDC"),
+  readFloat("treasuryBalanceUSDC"),
+  readFloat("totalAvailableCreditUSDC"),
+  readFloat("receiptByRequestHash", [proof.directRequestHash]),
+  readFloat("receiptByRequestHash", [proof.blockedRequestHash]),
 ]);
 
 check("V2 deploy tx succeeded at expected address", txs.deploy.status === "success" && sameAddress(txs.deploy.contractAddress, proof.float), txDetail(txs.deploy));
@@ -177,12 +189,7 @@ check("behavior lifted the line to the sponsor reserve cap", Number(line[1]) >= 
 const directIntent = findIntent(txs.directSpend, proof.directRequestHash);
 check("direct spend consumed the agent's signed intent", Boolean(directIntent), directIntent?.detail || "missing FloatIntentConsumed");
 if (directIntent) {
-  const used = await publicClient.readContract({
-    address: proof.float,
-    abi: floatAbi,
-    functionName: "intentNonceUsed",
-    args: [proof.agent, directIntent.nonce],
-  });
+  const used = await readFloat("intentNonceUsed", [proof.agent, directIntent.nonce]);
   check("direct intent nonce is used on-chain", Boolean(used), directIntent.nonce.toString());
 }
 
@@ -204,12 +211,7 @@ check(
 const blockedIntent = findIntent(txs.blockedSpend, proof.blockedRequestHash);
 check("blocked overrun consumed the agent's signed intent", Boolean(blockedIntent), blockedIntent?.detail || "missing FloatIntentConsumed");
 if (blockedIntent) {
-  const used = await publicClient.readContract({
-    address: proof.float,
-    abi: floatAbi,
-    functionName: "intentNonceUsed",
-    args: [proof.agent, blockedIntent.nonce],
-  });
+  const used = await readFloat("intentNonceUsed", [proof.agent, blockedIntent.nonce]);
   check("blocked intent nonce is used on-chain", Boolean(used), blockedIntent.nonce.toString());
 }
 
@@ -307,7 +309,7 @@ async function loadProofTransactions() {
 }
 
 async function txReceipt(hash) {
-  const receipt = await publicClient.getTransactionReceipt({ hash });
+  const receipt = await rpcRead(`transaction receipt ${hash}`, () => publicClient.getTransactionReceipt({ hash }));
   return {
     hash,
     status: receipt.status,
@@ -315,6 +317,12 @@ async function txReceipt(hash) {
     contractAddress: receipt.contractAddress,
     logs: receipt.logs,
   };
+}
+
+async function readFloat(functionName, args = []) {
+  return rpcRead(`ShadowFloat.${functionName}`, () =>
+    publicClient.readContract({ address: proof.float, abi: floatAbi, functionName, args }),
+  );
 }
 
 function check(name, ok, detail = "") {
@@ -418,6 +426,13 @@ function txDetail(tx) {
 function hexByteLength(hex) {
   if (!hex || hex === "0x") return 0;
   return (hex.length - 2) / 2;
+}
+
+function rpcErrorMessage(error) {
+  if (error && typeof error === "object") {
+    return String(error.shortMessage || error.message || error.details || "RPC read failed");
+  }
+  return String(error);
 }
 
 function readEnv(path) {

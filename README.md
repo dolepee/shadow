@@ -206,6 +206,8 @@ curl -s https://shadow-arc.vercel.app/api/desk
 
 `npm run float:v2-verify-live` re-derives the canonical V2 proof loop against the public Arc RPC in 26 checks with no keys: the sponsor line was opened, the agent's signed intent paid the provider from contract custody, an oversized overrun was blocked with no funds moved, debt was repaid, and the line was restored. One external line (Obol) is intentionally left open to show a live, contract-capped debt exposure; the verifier surfaces that open debt and confirms it stays within the documented `0.02` USDC bound, so the one command a judge runs stays green while the open-debt exhibit remains visible.
 
+The V2 activity API does not replay the full contract history on every page load. Its committed checkpoint contains a complete event scan through Arc block `52,107,468`; each request scans only newer blocks and advances the same validated checkpoint in KV. Responses label `source: live-rpc` when current chain reads complete and `source: verified-checkpoint` with `degraded: true` when the public RPC is unavailable, so a transport failure cannot become a timeout or be presented as live data.
+
 Full local checks before changing code:
 
 ```bash

@@ -12,6 +12,7 @@ import {
   type Hash,
 } from "viem";
 import {
+  FLOAT_V2_ACTIVITY_CHECKPOINT,
   FLOAT_V2_CONTRACT,
   FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE,
   FLOAT_V2_DEPLOY_BLOCK,
@@ -24,6 +25,7 @@ import {
   floatV2ReceiptEvent,
   type FloatV2TrackedExternalAgent,
 } from "../floatV2Config.js";
+import { createRpcReadQueue } from "../scripts/rpc-read-queue.mjs";
 
 export const config = { maxDuration: 20 };
 
@@ -50,7 +52,12 @@ const DEFAULT_SELF_TEST_AGENTS = [
 ] as const;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
 const OPERATOR_SPONSOR = "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address;
+const ARC_MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as Address;
 const RPC_TRANSPORT_OPTIONS = { timeout: 60_000, retryCount: 3 } as const;
+const FLOAT_V2_RPC_TRANSPORT_OPTIONS = { timeout: 3_000, retryCount: 0 } as const;
+const FLOAT_V2_ACTIVITY_CACHE_KEY = "float:v2:activity-checkpoint";
+const FLOAT_V2_LIVE_BUDGET_MS = 12_000;
+const FLOAT_V2_RPC_READ_SPACING_MS = 125;
 
 type VercelLikeRequest = {
   method?: string;
@@ -85,6 +92,42 @@ type FloatV2AgentStats = FloatV2TrackedExternalAgent & {
   repaidUSDC: bigint;
   blockedUSDC: bigint;
   latestTxHash?: Hash;
+};
+
+type FloatV2ActivityCheckpointEntry = {
+  agent: Address;
+  signedIntents: number;
+  providerPaidCount: number;
+  repaidCount: number;
+  blockedCount: number;
+  providerPaidUSDC: bigint;
+  repaidUSDC: bigint;
+  blockedUSDC: bigint;
+  latestTxHash?: Hash;
+};
+
+type FloatV2ActivityCheckpointRecord = {
+  blockNumber: bigint;
+  checkedAt: string;
+  source: "source-checkpoint" | "kv-checkpoint";
+  agents: FloatV2ActivityCheckpointEntry[];
+};
+
+type SerializedFloatV2ActivityCheckpoint = {
+  version: 1;
+  blockNumber: string;
+  checkedAt: string;
+  agents: Array<{
+    agent: Address;
+    signedIntents: number;
+    providerPaidCount: number;
+    repaidCount: number;
+    blockedCount: number;
+    providerPaidUSDC: string;
+    repaidUSDC: string;
+    blockedUSDC: string;
+    latestTxHash?: Hash;
+  }>;
 };
 
 type FloatV2AgentProvenance = "verified-external-signer" | "unverified";
@@ -510,103 +553,150 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
 }
 
 async function handleFloatV2(res: VercelLikeResponse) {
+  res.setHeader("Cache-Control", "public, s-maxage=45, stale-while-revalidate=300");
   try {
+    const deadlineAt = Date.now() + FLOAT_V2_LIVE_BUDGET_MS;
     const rpcUrl = cleanEnv(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || "https://rpc.testnet.arc.network";
     const client = createPublicClient({
       chain: arcTestnet(rpcUrl),
-      transport: http(rpcUrl, RPC_TRANSPORT_OPTIONS),
+      transport: http(rpcUrl, FLOAT_V2_RPC_TRANSPORT_OPTIONS),
     });
-    const latestBlock = await client.getBlockNumber();
+    const rpcQueue = createRpcReadQueue({
+      maxAttempts: 3,
+      baseDelayMs: 250,
+      maxDelayMs: 1_000,
+      spacingMs: FLOAT_V2_RPC_READ_SPACING_MS,
+    });
+    const rpcRead = <T>(label: string, operation: () => Promise<T>) =>
+      rpcQueue(label, async () => {
+        if (Date.now() >= deadlineAt) throw new Error("Float V2 live read budget exhausted");
+        return operation();
+      });
+    const [latestBlock, checkpoint] = await Promise.all([
+      rpcRead("eth_blockNumber", () => client.getBlockNumber()),
+      readFloatV2ActivityCheckpoint(),
+    ]);
+    if (checkpoint.blockNumber > latestBlock) {
+      throw new Error(`Float V2 checkpoint ${checkpoint.blockNumber} is ahead of Arc block ${latestBlock}`);
+    }
+
+    const checkpointByAgent = new Map(checkpoint.agents.map((entry) => [entry.agent.toLowerCase(), entry]));
     const stats = new Map<string, FloatV2AgentStats>();
 
     for (const entry of FLOAT_V2_TRACKED_EXTERNAL_AGENTS) {
       const agent = getAddress(entry.agent);
+      const baseline = checkpointByAgent.get(agent.toLowerCase());
+      if (!baseline) throw new Error(`Float V2 checkpoint is missing tracked agent ${agent}`);
       stats.set(agent.toLowerCase(), {
         ...entry,
         agent,
-        signedIntents: 0,
-        providerPaidCount: 0,
-        repaidCount: 0,
-        blockedCount: 0,
-        providerPaidUSDC: 0n,
-        repaidUSDC: 0n,
-        blockedUSDC: 0n,
+        signedIntents: baseline.signedIntents,
+        providerPaidCount: baseline.providerPaidCount,
+        repaidCount: baseline.repaidCount,
+        blockedCount: baseline.blockedCount,
+        providerPaidUSDC: baseline.providerPaidUSDC,
+        repaidUSDC: baseline.repaidUSDC,
+        blockedUSDC: baseline.blockedUSDC,
+        latestTxHash: baseline.latestTxHash,
       });
     }
 
-    const logWarnings = await enrichFloatV2StatsFromLogs(client as FloatV2LogClient, stats, latestBlock);
+    const scanFromBlock = checkpoint.blockNumber + 1n;
+    const logWarnings =
+      scanFromBlock <= latestBlock
+        ? await enrichFloatV2StatsFromLogs(client as FloatV2LogClient, stats, scanFromBlock, latestBlock, rpcRead)
+        : [];
     if (logWarnings.length > 0) {
       throw new Error(`incomplete V2 log read: ${logWarnings.slice(0, 2).join("; ")}`);
     }
-    const [treasuryBalance, totalAvailableCredit, totalSponsoredReserve] = (await Promise.all([
-      client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "treasuryBalanceUSDC", blockNumber: latestBlock }),
-      client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "totalAvailableCreditUSDC", blockNumber: latestBlock }),
-      client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "totalSponsoredReserveUSDC", blockNumber: latestBlock }),
-    ])) as [bigint, bigint, bigint];
-
-    const agents = await Promise.all(
-      [...stats.values()].map(async (entry) => {
-        const [line, sponsorLine, behaviorStats, autonomousScore] = (await Promise.all([
-          client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [entry.agent], blockNumber: latestBlock }),
-          client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lineSponsors", args: [entry.agent], blockNumber: latestBlock }),
-          client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "behaviorStats", args: [entry.agent], blockNumber: latestBlock }),
-          client.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "autonomousLineScore", args: [entry.agent], blockNumber: latestBlock }),
-        ])) as [FloatV2Line, FloatV2SponsorLine, FloatV2BehaviorStats, FloatV2AutonomousScore];
-        const status = Number(line[5]);
-        const lastReview = line[6].toString();
-        const sponsorReserveUSDC = sponsorLine[1].toString();
-        const sponsorState =
-          sponsorLine[1] > 0n
-            ? "active-reserve"
-            : entry.repaidCount > 0 && line[2] === 0n && line[4] === 0n
-              ? "closed-reserve-reclaimed"
-              : "none";
-        return {
-          label: entry.label,
-          category: "external",
-          agent: entry.agent,
-          agentOwner: entry.agent,
-          agentProvenance: "verified-external-signer" as const,
-          wallet: line[0],
-          score: Number(line[1]),
-          creditLimitUSDC: line[2].toString(),
-          availableCreditUSDC: line[3].toString(),
-          activeDebtUSDC: line[4].toString(),
-          status,
-          statusName: FLOAT_V2_STATUS_NAMES[status] || "UNKNOWN",
-          lastReview,
-          lastReviewISO: line[6] > 0n ? new Date(Number(line[6]) * 1000).toISOString() : null,
-          scoredByContract: true,
-          behavior: {
-            paidBound: Number(behaviorStats[0]),
-            signedExternalPaid: Number(behaviorStats[1]),
-            repaid: Number(behaviorStats[2]),
-            blocked: Number(behaviorStats[3]),
-            denied: Number(behaviorStats[4]),
-            errorCount: Number(behaviorStats[5]),
-          },
-          autonomousScore: {
-            score: Number(autonomousScore[0]),
-            recommendedLimitUSDC: autonomousScore[1].toString(),
-            cappedLimitUSDC: autonomousScore[2].toString(),
-          },
-          sponsor: sponsorLine[0],
-          sponsorProvenance: classifySponsorProvenance(sponsorLine[0]),
-          sponsorReserveUSDC,
-          sponsorState,
-          signedIntents: entry.signedIntents,
-          providerPaidCount: entry.providerPaidCount,
-          repaidCount: entry.repaidCount,
-          blockedCount: entry.blockedCount,
-          providerPaidUSDC: entry.providerPaidUSDC.toString(),
-          repaidUSDC: entry.repaidUSDC.toString(),
-          blockedUSDC: entry.blockedUSDC.toString(),
-          spendTx: entry.spendTx,
-          repayTx: entry.repayTx,
-          latestTxHash: entry.latestTxHash,
-        };
+    const statEntries = [...stats.values()];
+    const stateContracts: Array<{ address: Address; abi: typeof floatV2Abi; functionName: string; args?: readonly unknown[] }> = [
+      { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "treasuryBalanceUSDC" },
+      { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "totalAvailableCreditUSDC" },
+      { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "totalSponsoredReserveUSDC" },
+    ];
+    for (const entry of statEntries) {
+      stateContracts.push(
+        { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [entry.agent] },
+        { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lineSponsors", args: [entry.agent] },
+        { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "behaviorStats", args: [entry.agent] },
+        { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "autonomousLineScore", args: [entry.agent] },
+      );
+    }
+    const stateResults = (await rpcRead("ShadowFloat V2 state multicall", () =>
+      client.multicall({
+        contracts: stateContracts as any,
+        multicallAddress: ARC_MULTICALL3,
+        allowFailure: false,
+        batchSize: 16_384,
+        blockNumber: latestBlock,
       }),
-    );
+    )) as unknown[];
+    if (stateResults.length !== stateContracts.length) {
+      throw new Error(`Float V2 multicall returned ${stateResults.length}/${stateContracts.length} results`);
+    }
+    const [treasuryBalance, totalAvailableCredit, totalSponsoredReserve] = stateResults.slice(0, 3) as [bigint, bigint, bigint];
+
+    const agents = statEntries.map((entry, index) => {
+      const offset = 3 + index * 4;
+      const line = stateResults[offset] as FloatV2Line;
+      const sponsorLine = stateResults[offset + 1] as FloatV2SponsorLine;
+      const behaviorStats = stateResults[offset + 2] as FloatV2BehaviorStats;
+      const autonomousScore = stateResults[offset + 3] as FloatV2AutonomousScore;
+      const status = Number(line[5]);
+      const lastReview = line[6].toString();
+      const sponsorReserveUSDC = sponsorLine[1].toString();
+      const sponsorState =
+        sponsorLine[1] > 0n
+          ? "active-reserve"
+          : entry.repaidCount > 0 && line[2] === 0n && line[4] === 0n
+            ? "closed-reserve-reclaimed"
+            : "none";
+      return {
+        label: entry.label,
+        category: "external",
+        agent: entry.agent,
+        agentOwner: entry.agent,
+        agentProvenance: "verified-external-signer" as const,
+        wallet: line[0],
+        score: Number(line[1]),
+        creditLimitUSDC: line[2].toString(),
+        availableCreditUSDC: line[3].toString(),
+        activeDebtUSDC: line[4].toString(),
+        status,
+        statusName: FLOAT_V2_STATUS_NAMES[status] || "UNKNOWN",
+        lastReview,
+        lastReviewISO: line[6] > 0n ? new Date(Number(line[6]) * 1000).toISOString() : null,
+        scoredByContract: true,
+        behavior: {
+          paidBound: Number(behaviorStats[0]),
+          signedExternalPaid: Number(behaviorStats[1]),
+          repaid: Number(behaviorStats[2]),
+          blocked: Number(behaviorStats[3]),
+          denied: Number(behaviorStats[4]),
+          errorCount: Number(behaviorStats[5]),
+        },
+        autonomousScore: {
+          score: Number(autonomousScore[0]),
+          recommendedLimitUSDC: autonomousScore[1].toString(),
+          cappedLimitUSDC: autonomousScore[2].toString(),
+        },
+        sponsor: sponsorLine[0],
+        sponsorProvenance: classifySponsorProvenance(sponsorLine[0]),
+        sponsorReserveUSDC,
+        sponsorState,
+        signedIntents: entry.signedIntents,
+        providerPaidCount: entry.providerPaidCount,
+        repaidCount: entry.repaidCount,
+        blockedCount: entry.blockedCount,
+        providerPaidUSDC: entry.providerPaidUSDC.toString(),
+        repaidUSDC: entry.repaidUSDC.toString(),
+        blockedUSDC: entry.blockedUSDC.toString(),
+        spendTx: entry.spendTx,
+        repayTx: entry.repayTx,
+        latestTxHash: entry.latestTxHash,
+      };
+    });
 
     const visibleAgents = agents.sort((a, b) => {
       const aDebt = BigInt(a.activeDebtUSDC) > 0n ? 1 : 0;
@@ -634,8 +724,12 @@ async function handleFloatV2(res: VercelLikeResponse) {
       returningSponsors: provenance.returningSponsors,
     };
 
+    const checkpointPersisted = await writeFloatV2ActivityCheckpoint(latestBlock, stats);
+
     res.status(200).json({
       ok: true,
+      source: "live-rpc",
+      degraded: false,
       mode: "shadow-float-v2-activity",
       checkedAt: new Date().toISOString(),
       chainId: ARC_CHAIN_ID,
@@ -647,9 +741,16 @@ async function handleFloatV2(res: VercelLikeResponse) {
       summary,
       agents: visibleAgents,
       selfTestAgents: [],
+      activityCheckpoint: {
+        source: checkpoint.source,
+        baseBlock: checkpoint.blockNumber.toString(),
+        scannedFromBlock: scanFromBlock <= latestBlock ? scanFromBlock.toString() : null,
+        persistedThroughBlock: checkpointPersisted ? latestBlock.toString() : null,
+      },
       logFetch: {
-        fromBlock: FLOAT_V2_DEPLOY_BLOCK.toString(),
+        fromBlock: scanFromBlock <= latestBlock ? scanFromBlock.toString() : null,
         toBlock: latestBlock.toString(),
+        checkpointBlock: checkpoint.blockNumber.toString(),
         complete: logWarnings.length === 0,
         warnings: logWarnings,
       },
@@ -670,32 +771,32 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       repaid: 2,
       providerPaidUSDC: "11000",
       repaidUSDC: "11000",
-      lastReview: "1783097083",
+      lastReview: "1784200309",
       latestTxHash: "0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699",
     }),
     snapshotV2Agent({
       label: "Argus Beta",
       agent: "0x7D4897489BFC663b90BaAF5B0803d18ae0ca817c",
-      lastReview: "1783097087",
+      lastReview: "1784200317",
       latestTxHash: "0xac1b0d231b0d19ebcb8e18877e7fcffbb2cbf990f204f648c288053bb597d679",
     }),
     snapshotV2Agent({
       label: "Argus Gamma",
       agent: "0x43e0630025FD0339bE1fA04d3d75Daf355F50c89",
-      lastReview: "1783097092",
+      lastReview: "1784200325",
       latestTxHash: "0xad8301ca4edbbed18bc7204d8da9be53492116649a326728ad0ca5bc19bb1682",
     }),
     snapshotV2Agent({
       label: "CitePay",
       agent: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
-      lastReview: "1783097071",
+      lastReview: "1784200279",
       latestTxHash: "0x0090b55caa8553540e38b886e09e5b88fdda051254305eb36676e9dd8f842ad2",
     }),
     snapshotV2Agent({
       label: "CitePay sponsor",
       agent: "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f",
       sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
-      lastReview: "1783097079",
+      lastReview: "1784200294",
       spendTx: "0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae",
       repayTx: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe",
       latestTxHash: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe",
@@ -703,7 +804,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     snapshotV2Agent({
       label: "Crux",
       agent: "0x9972fF27a2EADBDB8414072736395236E0BF0092",
-      lastReview: "1783097075",
+      lastReview: "1784200287",
       spendTx: "0x6fd0e59360decc8fdecd56c8bf1a448569d72e6e5706d862e50c816d50b29a7d",
       repayTx: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368",
       latestTxHash: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368",
@@ -712,7 +813,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       label: "Driplet",
       agent: "0xb8C0297Bc883a5626424FFFf9ad1F860E0f64CCf",
       score: 9000,
-      lastReview: "1783177611",
+      lastReview: "1784200340",
       autonomousScore: { score: 9000, recommendedLimitUSDC: "1000000", cappedLimitUSDC: "50000" },
       signedIntents: 2,
       paid: 2,
@@ -726,7 +827,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     snapshotV2Agent({
       label: "Forum",
       agent: "0x13585c6004fbA9D7D49219a6435B68348fD30770",
-      lastReview: "1783097067",
+      lastReview: "1784200272",
       latestTxHash: "0xfba85515afe3fa1c9bae84b244bb874657756bd1656612d8b71b0686f412892e",
     }),
     snapshotV2Agent({
@@ -738,7 +839,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       activeDebtUSDC: "10000",
       status: 2,
       statusName: "LIMITED",
-      lastReview: "1783097096",
+      lastReview: "1784200332",
       signedIntents: 1,
       paid: 1,
       repaid: 0,
@@ -757,7 +858,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       activeDebtUSDC: "0",
       status: 1,
       statusName: "ELIGIBLE",
-      lastReview: "1783180351",
+      lastReview: "1784200302",
       sponsor: "0x12F25B721Cc21c38495e33A4c8524dd0B647ba03",
       sponsorReserveUSDC: "50000",
       sponsorState: "active-reserve",
@@ -765,6 +866,8 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       signedIntents: 1,
       paid: 1,
       repaid: 1,
+      behaviorPaid: 0,
+      behaviorRepaid: 0,
       providerPaidUSDC: "10000",
       repaidUSDC: "10000",
       spendTx: "0x0bd8271279c6fcde28cc4de51b5f54be4842a8c1e3ed304a221c6281db20f75f",
@@ -781,17 +884,18 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
 
   return {
     ok: true,
-    source: "verified-snapshot",
+    source: "verified-checkpoint",
     degraded: true,
     fallbackReason: sanitizeError(error),
     mode: "shadow-float-v2-activity",
-    checkedAt: "2026-07-04T16:09:45.543Z",
+    checkedAt: FLOAT_V2_ACTIVITY_CHECKPOINT.checkedAt,
+    servedAt: new Date().toISOString(),
     chainId: ARC_CHAIN_ID,
     float: FLOAT_V2_CONTRACT,
-    latestBlock: "50171303",
-    treasuryBalanceUSDC: "595275",
-    totalAvailableCreditUSDC: "540000",
-    totalSponsoredReserveUSDC: "600000",
+    latestBlock: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber.toString(),
+    treasuryBalanceUSDC: "1523203",
+    totalAvailableCreditUSDC: "590000",
+    totalSponsoredReserveUSDC: "1500000",
     summary: {
       trackedExternalAgentLines: provenance.trackedExternalAgentLines,
       externallySponsoredLines: provenance.externallySponsoredLines,
@@ -809,12 +913,19 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     },
     agents: visibleAgents,
     selfTestAgents: [],
+    activityCheckpoint: {
+      source: "source-checkpoint",
+      baseBlock: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber.toString(),
+      scannedFromBlock: null,
+      persistedThroughBlock: null,
+    },
     logFetch: {
       fromBlock: FLOAT_V2_DEPLOY_BLOCK.toString(),
-      toBlock: "50171303",
+      toBlock: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber.toString(),
+      checkpointBlock: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber.toString(),
       complete: true,
       fallback: true,
-      warnings: [`live V2 read fell back to verified snapshot: ${sanitizeError(error)}`],
+      warnings: [`live V2 read fell back to verified checkpoint: ${sanitizeError(error)}`],
     },
   };
 }
@@ -837,6 +948,8 @@ function snapshotV2Agent(input: {
   signedIntents?: number;
   paid?: number;
   repaid?: number;
+  behaviorPaid?: number;
+  behaviorRepaid?: number;
   providerPaidUSDC?: string;
   repaidUSDC?: string;
   spendTx?: string;
@@ -846,6 +959,8 @@ function snapshotV2Agent(input: {
   const score = input.score ?? 8250;
   const paid = input.paid ?? 1;
   const repaid = input.repaid ?? 1;
+  const behaviorPaid = input.behaviorPaid ?? paid;
+  const behaviorRepaid = input.behaviorRepaid ?? repaid;
   const status = input.status ?? 5;
   const statusName = input.statusName || FLOAT_V2_STATUS_NAMES[status] || "UNKNOWN";
   const agent = getAddress(input.agent);
@@ -868,7 +983,14 @@ function snapshotV2Agent(input: {
     lastReview: input.lastReview,
     lastReviewISO: new Date(Number(input.lastReview) * 1000).toISOString(),
     scoredByContract: true,
-    behavior: { paidBound: 0, signedExternalPaid: paid, repaid, blocked: 0, denied: 0, errorCount: 0 },
+    behavior: {
+      paidBound: 0,
+      signedExternalPaid: behaviorPaid,
+      repaid: behaviorRepaid,
+      blocked: 0,
+      denied: 0,
+      errorCount: 0,
+    },
     autonomousScore: input.autonomousScore || {
       score,
       recommendedLimitUSDC: score >= 9000 ? "1000000" : score >= 8250 ? "50000" : "25000",
@@ -958,14 +1080,24 @@ async function handleFloatDesk(res: VercelLikeResponse, req: VercelLikeRequest) 
   }
 }
 
-async function enrichFloatV2StatsFromLogs(client: FloatV2LogClient, stats: Map<string, FloatV2AgentStats>, latestBlock: bigint) {
+async function enrichFloatV2StatsFromLogs(
+  client: FloatV2LogClient,
+  stats: Map<string, FloatV2AgentStats>,
+  fromBlock: bigint,
+  latestBlock: bigint,
+  rpcRead: <T>(label: string, operation: () => Promise<T>) => Promise<T>,
+) {
   const warnings: string[] = [];
-  for (let start = FLOAT_V2_DEPLOY_BLOCK; start <= latestBlock; start += FLOAT_V2_LOG_CHUNK_SIZE) {
+  for (let start = fromBlock; start <= latestBlock; start += FLOAT_V2_LOG_CHUNK_SIZE) {
     const end = start + FLOAT_V2_LOG_CHUNK_SIZE - 1n > latestBlock ? latestBlock : start + FLOAT_V2_LOG_CHUNK_SIZE - 1n;
     try {
       const [intentLogs, receiptLogs] = await Promise.all([
-        getLogsWithRetry(client, { address: FLOAT_V2_CONTRACT, event: floatV2IntentConsumedEvent, fromBlock: start, toBlock: end }),
-        getLogsWithRetry(client, { address: FLOAT_V2_CONTRACT, event: floatV2ReceiptEvent, fromBlock: start, toBlock: end }),
+        rpcRead(`FloatIntentConsumed logs ${start}-${end}`, () =>
+          client.getLogs({ address: FLOAT_V2_CONTRACT, event: floatV2IntentConsumedEvent, fromBlock: start, toBlock: end }),
+        ),
+        rpcRead(`FloatReceipt logs ${start}-${end}`, () =>
+          client.getLogs({ address: FLOAT_V2_CONTRACT, event: floatV2ReceiptEvent, fromBlock: start, toBlock: end }),
+        ),
       ]);
       for (const log of intentLogs) {
         const intent = decodeFloatV2Log(log, floatV2IntentConsumedEvent);
@@ -1476,6 +1608,147 @@ function serializeSourceSummary(summary: SourceSummaryAcc) {
     repaidUSDC: summary.repaidUSDC.toString(),
     lifecycleClosedCount: summary.lifecycleClosedCount,
   };
+}
+
+function sourceFloatV2ActivityCheckpoint(): FloatV2ActivityCheckpointRecord {
+  return {
+    blockNumber: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber,
+    checkedAt: FLOAT_V2_ACTIVITY_CHECKPOINT.checkedAt,
+    source: "source-checkpoint",
+    agents: FLOAT_V2_ACTIVITY_CHECKPOINT.agents.map((entry) => ({
+      agent: getAddress(entry.agent),
+      signedIntents: entry.signedIntents,
+      providerPaidCount: entry.providerPaidCount,
+      repaidCount: entry.repaidCount,
+      blockedCount: entry.blockedCount,
+      providerPaidUSDC: BigInt(entry.providerPaidUSDC),
+      repaidUSDC: BigInt(entry.repaidUSDC),
+      blockedUSDC: BigInt(entry.blockedUSDC),
+      latestTxHash: entry.latestTxHash,
+    })),
+  };
+}
+
+async function readFloatV2ActivityCheckpoint(): Promise<FloatV2ActivityCheckpointRecord> {
+  const source = sourceFloatV2ActivityCheckpoint();
+  const kv = floatV2KvConfig();
+  if (!kv) return source;
+
+  try {
+    const response = await fetch(`${kv.url}/get/${encodeURIComponent(FLOAT_V2_ACTIVITY_CACHE_KEY)}`, {
+      headers: { authorization: `Bearer ${kv.token}` },
+      signal: AbortSignal.timeout(1_000),
+    });
+    if (!response.ok) return source;
+    const json = (await response.json()) as { result?: string | null };
+    if (!json.result) return source;
+    const parsed = parseFloatV2ActivityCheckpoint(JSON.parse(json.result));
+    if (!parsed || parsed.blockNumber < source.blockNumber) return source;
+    return parsed;
+  } catch {
+    return source;
+  }
+}
+
+async function writeFloatV2ActivityCheckpoint(latestBlock: bigint, stats: Map<string, FloatV2AgentStats>): Promise<boolean> {
+  const kv = floatV2KvConfig();
+  if (!kv) return false;
+
+  const agents = FLOAT_V2_TRACKED_EXTERNAL_AGENTS.map((tracked) => {
+    const agent = getAddress(tracked.agent);
+    const entry = stats.get(agent.toLowerCase());
+    if (!entry) throw new Error(`cannot persist missing Float V2 activity for ${agent}`);
+    return {
+      agent,
+      signedIntents: entry.signedIntents,
+      providerPaidCount: entry.providerPaidCount,
+      repaidCount: entry.repaidCount,
+      blockedCount: entry.blockedCount,
+      providerPaidUSDC: entry.providerPaidUSDC.toString(),
+      repaidUSDC: entry.repaidUSDC.toString(),
+      blockedUSDC: entry.blockedUSDC.toString(),
+      latestTxHash: entry.latestTxHash,
+    };
+  });
+  const record: SerializedFloatV2ActivityCheckpoint = {
+    version: 1,
+    blockNumber: latestBlock.toString(),
+    checkedAt: new Date().toISOString(),
+    agents,
+  };
+
+  try {
+    const response = await fetch(`${kv.url}/set/${encodeURIComponent(FLOAT_V2_ACTIVITY_CACHE_KEY)}`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${kv.token}`, "content-type": "application/json" },
+      body: JSON.stringify(record),
+      signal: AbortSignal.timeout(1_000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function parseFloatV2ActivityCheckpoint(value: unknown): FloatV2ActivityCheckpointRecord | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Partial<SerializedFloatV2ActivityCheckpoint>;
+  if (record.version !== 1 || !record.blockNumber || !/^\d+$/.test(record.blockNumber) || !Array.isArray(record.agents)) return null;
+
+  const expectedAgents = new Set(FLOAT_V2_TRACKED_EXTERNAL_AGENTS.map((entry) => getAddress(entry.agent).toLowerCase()));
+  const seen = new Set<string>();
+  const agents: FloatV2ActivityCheckpointEntry[] = [];
+  for (const raw of record.agents) {
+    if (!raw || !isAddress(raw.agent)) return null;
+    const agent = getAddress(raw.agent);
+    const key = agent.toLowerCase();
+    if (!expectedAgents.has(key) || seen.has(key)) return null;
+    if (
+      !isNonNegativeSafeInteger(raw.signedIntents) ||
+      !isNonNegativeSafeInteger(raw.providerPaidCount) ||
+      !isNonNegativeSafeInteger(raw.repaidCount) ||
+      !isNonNegativeSafeInteger(raw.blockedCount) ||
+      !isAtomicAmount(raw.providerPaidUSDC) ||
+      !isAtomicAmount(raw.repaidUSDC) ||
+      !isAtomicAmount(raw.blockedUSDC) ||
+      (raw.latestTxHash !== undefined && !/^0x[0-9a-fA-F]{64}$/.test(raw.latestTxHash))
+    ) {
+      return null;
+    }
+    seen.add(key);
+    agents.push({
+      agent,
+      signedIntents: raw.signedIntents,
+      providerPaidCount: raw.providerPaidCount,
+      repaidCount: raw.repaidCount,
+      blockedCount: raw.blockedCount,
+      providerPaidUSDC: BigInt(raw.providerPaidUSDC),
+      repaidUSDC: BigInt(raw.repaidUSDC),
+      blockedUSDC: BigInt(raw.blockedUSDC),
+      latestTxHash: raw.latestTxHash,
+    });
+  }
+  if (seen.size !== expectedAgents.size) return null;
+  return {
+    blockNumber: BigInt(record.blockNumber),
+    checkedAt: typeof record.checkedAt === "string" ? record.checkedAt : "unknown",
+    source: "kv-checkpoint",
+    agents,
+  };
+}
+
+function floatV2KvConfig(): { url: string; token: string } | null {
+  const url = cleanEnv(process.env.KV_REST_API_URL);
+  const token = cleanEnv(process.env.KV_REST_API_TOKEN);
+  return url && token ? { url: url.replace(/\/$/, ""), token } : null;
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isAtomicAmount(value: unknown): value is string {
+  return typeof value === "string" && /^\d+$/.test(value);
 }
 
 async function readFloatLoopRuns(): Promise<FloatLoopRun[]> {

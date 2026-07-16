@@ -67,6 +67,7 @@ import {
 } from "./chain";
 import {
   FLOAT_V2_CONTRACT,
+  FLOAT_V2_ACTIVITY_CHECKPOINT,
   FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE,
   FLOAT_V2_DEPLOY_BLOCK,
   FLOAT_V2_SHADOW_CONTROLLED_SPONSORS,
@@ -672,9 +673,12 @@ type FloatV2AgentState = {
 
 type FloatV2ActivityState = {
   ok?: boolean;
-  source?: "live" | "verified-snapshot";
+  source?: "live" | "live-rpc" | "verified-snapshot" | "verified-checkpoint";
+  degraded?: boolean;
+  fallbackReason?: string;
   mode?: string;
   checkedAt?: string;
+  servedAt?: string;
   chainId?: number;
   float?: Address;
   latestBlock?: string;
@@ -706,6 +710,12 @@ type FloatV2ActivityState = {
   };
   error?: string;
 };
+
+function isFloatV2CheckpointState(state: FloatV2ActivityState | null): boolean {
+  return Boolean(
+    state?.degraded || state?.source === "verified-checkpoint" || state?.source === "verified-snapshot",
+  );
+}
 
 type FloatDeskEntry = {
   ok?: boolean | null;
@@ -800,15 +810,16 @@ type FloatDeskState = {
 
 const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
   ok: true,
-  source: "verified-snapshot",
+  source: "verified-checkpoint",
+  degraded: true,
   mode: "shadow-float-v2-activity",
-  checkedAt: "2026-07-04T16:09:45.543Z",
+  checkedAt: FLOAT_V2_ACTIVITY_CHECKPOINT.checkedAt,
   chainId: arcTestnet.id,
   float: FLOAT_V2_CONTRACT,
-  latestBlock: "50171303",
-  treasuryBalanceUSDC: "595275",
-  totalAvailableCreditUSDC: "540000",
-  totalSponsoredReserveUSDC: "600000",
+  latestBlock: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber.toString(),
+  treasuryBalanceUSDC: "1523203",
+  totalAvailableCreditUSDC: "590000",
+  totalSponsoredReserveUSDC: "1500000",
   summary: {
     trackedExternalAgentLines: 10,
     externallySponsoredLines: 2,
@@ -836,8 +847,8 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
-      lastReview: "1782870038",
-      lastReviewISO: "2026-07-01T01:40:38.000Z",
+      lastReview: "1784200309",
+      lastReviewISO: "2026-07-16T11:11:49.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 2, repaid: 2, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 9000, recommendedLimitUSDC: "1000000", cappedLimitUSDC: "50000" },
@@ -863,8 +874,8 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
-      lastReview: "1782645116",
-      lastReviewISO: "2026-06-28T11:11:56.000Z",
+      lastReview: "1784200317",
+      lastReviewISO: "2026-07-16T11:11:57.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
@@ -890,8 +901,8 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
-      lastReview: "1782645128",
-      lastReviewISO: "2026-06-28T11:12:08.000Z",
+      lastReview: "1784200325",
+      lastReviewISO: "2026-07-16T11:12:05.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
@@ -917,8 +928,8 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
-      lastReview: "1782510847",
-      lastReviewISO: "2026-06-26T21:54:07.000Z",
+      lastReview: "1784200279",
+      lastReviewISO: "2026-07-16T11:11:19.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
@@ -944,8 +955,8 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
-      lastReview: "1782542835",
-      lastReviewISO: "2026-06-27T06:47:15.000Z",
+      lastReview: "1784200287",
+      lastReviewISO: "2026-07-16T11:11:27.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
@@ -973,8 +984,8 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
-      lastReview: "1782990434",
-      lastReviewISO: "2026-07-02T11:07:14.000Z",
+      lastReview: "1784200294",
+      lastReviewISO: "2026-07-16T11:11:34.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
@@ -1003,8 +1014,8 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 1,
       statusName: "ELIGIBLE",
-      lastReview: "1783180351",
-      lastReviewISO: "2026-07-04T15:52:31.000Z",
+      lastReview: "1784200302",
+      lastReviewISO: "2026-07-16T11:11:42.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 0, repaid: 0, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 7500, recommendedLimitUSDC: "25000", cappedLimitUSDC: "25000" },
@@ -1033,8 +1044,8 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
-      lastReview: "1783177611",
-      lastReviewISO: "2026-07-04T15:06:51.000Z",
+      lastReview: "1784200340",
+      lastReviewISO: "2026-07-16T11:12:20.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 2, repaid: 2, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 9000, recommendedLimitUSDC: "1000000", cappedLimitUSDC: "50000" },
@@ -1062,8 +1073,8 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "0",
       status: 5,
       statusName: "REPAID",
-      lastReview: "1782500200",
-      lastReviewISO: "2026-06-26T18:56:40.000Z",
+      lastReview: "1784200272",
+      lastReviewISO: "2026-07-16T11:11:12.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 1, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
@@ -1089,8 +1100,8 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       activeDebtUSDC: "10000",
       status: 2,
       statusName: "LIMITED",
-      lastReview: "1782568032",
-      lastReviewISO: "2026-06-27T13:47:12.000Z",
+      lastReview: "1784200332",
+      lastReviewISO: "2026-07-16T11:12:12.000Z",
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 1, repaid: 0, blocked: 0, denied: 0, errorCount: 0 },
       autonomousScore: { score: 7850, recommendedLimitUSDC: "25000", cappedLimitUSDC: "25000" },
@@ -1110,7 +1121,7 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
   selfTestAgents: [],
   logFetch: {
     fromBlock: FLOAT_V2_DEPLOY_BLOCK.toString(),
-    toBlock: "50171303",
+    toBlock: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber.toString(),
     complete: true,
     warnings: [],
   },
@@ -1175,7 +1186,7 @@ const TREASURY_PROOF = {
 
 async function fetchFloatV2Activity(): Promise<FloatV2ActivityState> {
   try {
-    const res = await fetch(`/api/float?mode=v2&ts=${Date.now()}`, { cache: "no-store" });
+    const res = await fetch("/api/float?mode=v2");
     const data = await res.json();
     if (res.ok && data?.ok && data?.logFetch?.complete !== false) return data as FloatV2ActivityState;
     if (res.ok && data?.ok && data?.logFetch?.complete === false) {
@@ -1183,9 +1194,13 @@ async function fetchFloatV2Activity(): Promise<FloatV2ActivityState> {
     }
     throw new Error(data?.error || `V2 API returned ${res.status}`);
   } catch (error) {
-    console.warn("Falling back to browser V2 read", error);
+    console.warn("Falling back to the verified V2 checkpoint", error);
+    return {
+      ...FLOAT_V2_VERIFIED_SNAPSHOT,
+      servedAt: new Date().toISOString(),
+      fallbackReason: error instanceof Error ? error.message : String(error),
+    };
   }
-  return fetchFloatV2ActivityFromRpc();
 }
 
 async function fetchFloatDeskJournal(): Promise<FloatDeskState> {
@@ -1638,7 +1653,7 @@ function App() {
     setFloatV2Loading(true);
     try {
       const data = await fetchFloatV2Activity();
-      setFloatV2State({ ...data, source: "live" });
+      setFloatV2State(data);
       setFloatV2Error(null);
     } catch (error) {
       setFloatV2State(FLOAT_V2_VERIFIED_SNAPSHOT);
@@ -4178,12 +4193,11 @@ function FloatV2CurrentPanel({
   deskLoading: boolean;
   deskError: string | null;
 }) {
-  const isSnapshot = state?.source === "verified-snapshot";
-  const isSnapshotFallback = isSnapshot && Boolean(error);
+  const isCheckpoint = isFloatV2CheckpointState(state);
   const showCount = (value: number | undefined) => (value === undefined ? (loading ? "reading" : "unavailable") : String(value));
   const showUSDC = (value?: string | bigint | null) => (value === undefined || value === null ? (loading ? "reading" : "unavailable") : `${formatFloatUSDC(value)} USDC`);
-  const statusText = isSnapshotFallback ? "verified fallback" : error ? "V2 read needs review" : loading && !state ? "reading V2" : "V2 active";
-  const statusTone = error && !isSnapshot ? "pending" : "configured";
+  const statusText = isCheckpoint ? "verified checkpoint" : error ? "V2 read needs review" : loading && !state ? "reading V2" : "V2 active";
+  const statusTone = error && !isCheckpoint ? "pending" : "configured";
   const anchors = [
     { label: "V2 contract source", href: FLOAT_V2_PROOF.sourcify, value: shortAddress(FLOAT_V2_CONTRACT) },
     { label: "signed provider payment", href: txUrl(FLOAT_V2_PROOF.directSpendTx), value: shortAddress(FLOAT_V2_PROOF.directSpendTx) },
@@ -4509,9 +4523,8 @@ function describeFloatV2Behavior(agent: FloatV2AgentState): string {
     if (agent.providerPaidCount > 0 || agent.repaidCount > 0) return `paid ${agent.providerPaidCount} · repaid ${agent.repaidCount}`;
     return "behavior syncing";
   }
-  const behaviorPaid = behavior.signedExternalPaid + behavior.paidBound;
-  const paid = behaviorPaid > 0 ? behaviorPaid : agent.providerPaidCount;
-  const repaid = behavior.repaid > 0 ? behavior.repaid : agent.repaidCount;
+  const paid = behavior.signedExternalPaid + behavior.paidBound;
+  const repaid = behavior.repaid;
   const parts = [`paid ${paid}`, `repaid ${repaid}`];
   if (behavior.blocked > 0) parts.push(`blocked ${behavior.blocked}`);
   if (behavior.denied > 0) parts.push(`denied ${behavior.denied}`);
@@ -4536,12 +4549,11 @@ function FloatV2ActivityBoard({
   error: string | null;
 }) {
   const agents = state?.agents || [];
-  const isSnapshot = state?.source === "verified-snapshot";
+  const isCheckpoint = isFloatV2CheckpointState(state);
   const checkedAt = state?.checkedAt
     ? new Date(state.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : null;
-  const isSnapshotFallback = isSnapshot && Boolean(error);
-  const statusLabel = isSnapshotFallback ? "verified fallback" : error ? "V2 read needs review" : loading && !state ? "reading V2 activity" : "live V2 activity";
+  const statusLabel = isCheckpoint ? "verified checkpoint" : error ? "V2 read needs review" : loading && !state ? "reading V2 activity" : "live V2 activity";
   const closed = state?.summary?.repaidLifecycles ?? 0;
   const openDebt = state?.summary?.openDebtAgents ?? 0;
   const topScore = agents.reduce((max, agent) => Math.max(max, agent.autonomousScore?.score ?? agent.score ?? 0), 0);
@@ -4552,7 +4564,7 @@ function FloatV2ActivityBoard({
     <section className="floatV2ActivityBoard" id="v2-activity" aria-label="Shadow Float V2 external activity">
       <div className="floatBoxHeader">
         <span>external agent board</span>
-        <small>{checkedAt ? `${isSnapshotFallback ? "snapshot" : "updated"} ${checkedAt}` : statusLabel}</small>
+        <small>{checkedAt ? `${isCheckpoint ? "checkpoint" : "updated"} ${checkedAt}` : statusLabel}</small>
       </div>
       <div className="floatV2ActivityIntro">
         <div>
@@ -4561,7 +4573,7 @@ function FloatV2ActivityBoard({
             Closed means the agent signed a V2 intent, ShadowFloat paid the provider from sponsor reserve, and the same line
             was repaid. Open debt means the provider payment is already bound and the agent has not repaid yet.
             Sponsored lines are scored by the contract from behavior stats after paid, blocked, and repaid actions.
-            {isSnapshotFallback ? " Showing a verified fallback snapshot while the live feed recovers." : ""}
+            {isCheckpoint ? " Showing the verified checkpoint while the live Arc read recovers." : ""}
           </p>
         </div>
         <a href="/api/float?mode=v2" target="_blank" rel="noreferrer">
@@ -4599,7 +4611,7 @@ function FloatV2ActivityBoard({
         <FloatFact label="top contract score" value={topScore > 0 ? String(topScore) : loading ? "reading" : "unavailable"} />
       </div>
 
-      {error && !isSnapshot ? (
+      {error && !isCheckpoint ? (
         <div className="floatV2ActivityEmpty">
           <strong>V2 activity read failed</strong>
           <span>{error}</span>
@@ -7442,15 +7454,14 @@ function HomeProofOverview({
 }) {
   const summary = state?.summary;
   const topContractScore = (state?.agents || []).reduce((max, agent) => Math.max(max, agent.autonomousScore?.score ?? agent.score ?? 0), 0);
-  const isSnapshot = state?.source === "verified-snapshot";
-  const isSnapshotFallback = isSnapshot && Boolean(error);
+  const isCheckpoint = isFloatV2CheckpointState(state);
   const countValue = (value: number | undefined) => {
     if (value !== undefined) return String(value);
     if (error) return "unavailable";
     return loading ? "reading" : "not loaded";
   };
-  const statusLabel = isSnapshotFallback ? "verified fallback" : error ? "V2 read failed" : loading && !state ? "reading V2" : "Float V2 live";
-  const statusClass = error && !isSnapshot ? "error" : "live";
+  const statusLabel = isCheckpoint ? "verified checkpoint" : error ? "V2 read failed" : loading && !state ? "reading V2" : "Float V2 live";
+  const statusClass = error && !isCheckpoint ? "error" : "live";
   const cards = [
     {
       eyebrow: "current contract",
@@ -7646,8 +7657,7 @@ function HeroMetrics({
   error: string | null;
 }) {
   const summary = state?.summary;
-  const isSnapshot = state?.source === "verified-snapshot";
-  const isSnapshotFallback = isSnapshot && Boolean(error);
+  const isCheckpoint = isFloatV2CheckpointState(state);
   const countValue = (value: number | undefined) => {
     if (value !== undefined) return String(value);
     if (error) return "n/a";
@@ -7671,8 +7681,8 @@ function HeroMetrics({
         ))}
       </div>
       <span className="heroMetricsNote">
-        {isSnapshotFallback
-          ? "Showing a verified V2 snapshot while the live counter read recovers."
+        {isCheckpoint
+          ? "Showing the verified V2 checkpoint while the live Arc read recovers."
           : error
             ? "Float V2 counters are temporarily unavailable."
             : "Live counters come from the current Float V2 activity feed."}

@@ -4,6 +4,127 @@ export const FLOAT_V2_CONTRACT = "0x20dcA96B0C487D94De885c726c956ffaF38b12C2";
 export const FLOAT_V2_DEPLOY_BLOCK = 48_837_320n;
 export const FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE = 9_000n;
 
+// Complete FloatIntentConsumed/FloatReceipt scan through this Arc block.
+// API requests seed from this checkpoint and scan only newer blocks; successful
+// incremental scans advance the checkpoint in KV. This keeps the public board
+// live without replaying millions of historical blocks on every request.
+export const FLOAT_V2_ACTIVITY_CHECKPOINT = {
+  blockNumber: 52_107_468n,
+  checkedAt: "2026-07-16T13:13:40.908Z",
+  agents: [
+    {
+      agent: "0x13585c6004fbA9D7D49219a6435B68348fD30770",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0xfba85515afe3fa1c9bae84b244bb874657756bd1656612d8b71b0686f412892e",
+    },
+    {
+      agent: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0x0090b55caa8553540e38b886e09e5b88fdda051254305eb36676e9dd8f842ad2",
+    },
+    {
+      agent: "0x9972fF27a2EADBDB8414072736395236E0BF0092",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0xd7744d749c02fa7f1f458d391ceca16929a49410e86bed5ce46e745b0064c368",
+    },
+    {
+      agent: "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe",
+    },
+    {
+      agent: "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0x48a81e86ccc7c49814929e44dca93d2f44f82322abff587903419a64e8302172",
+    },
+    {
+      agent: "0x5c0b33b209f510868E07792Edc46c3792B0b92EC",
+      signedIntents: 2,
+      providerPaidCount: 2,
+      repaidCount: 2,
+      blockedCount: 0,
+      providerPaidUSDC: "11000",
+      repaidUSDC: "11000",
+      blockedUSDC: "0",
+      latestTxHash: "0x0f50d4c2b6eac8b2cdee64ac484eaf425453f9db13ad92c2db19e2a867ff3699",
+    },
+    {
+      agent: "0x7D4897489BFC663b90BaAF5B0803d18ae0ca817c",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0xac1b0d231b0d19ebcb8e18877e7fcffbb2cbf990f204f648c288053bb597d679",
+    },
+    {
+      agent: "0x43e0630025FD0339bE1fA04d3d75Daf355F50c89",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "0",
+      latestTxHash: "0xad8301ca4edbbed18bc7204d8da9be53492116649a326728ad0ca5bc19bb1682",
+    },
+    {
+      agent: "0xd39AcD18d4aB66f31e3f1931953374d4a546ABA3",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 0,
+      blockedCount: 0,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "0",
+      blockedUSDC: "0",
+      latestTxHash: "0x78567fc68238c6b309aa26916bbf3f456d4da20de27ecb4e9e6a7d3a245acc8a",
+    },
+    {
+      agent: "0xb8C0297Bc883a5626424FFFf9ad1F860E0f64CCf",
+      signedIntents: 2,
+      providerPaidCount: 2,
+      repaidCount: 2,
+      blockedCount: 0,
+      providerPaidUSDC: "11000",
+      repaidUSDC: "11000",
+      blockedUSDC: "0",
+      latestTxHash: "0x5ace712f258220aa891d3c786458ede15ba8a5e281173e66571807a3a93aa13e",
+    },
+  ],
+};
+
 export const FLOAT_V2_STATUS_NAMES = ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"];
 
 // Provenance is intentionally explicit: an unrecognized sponsor is not

@@ -7,9 +7,28 @@ export type FloatV2TrackedExternalAgent = {
   repayTx?: Hash;
 };
 
+export type FloatV2ActivityCheckpointEntry = {
+  agent: Address;
+  signedIntents: number;
+  providerPaidCount: number;
+  repaidCount: number;
+  blockedCount: number;
+  providerPaidUSDC: string;
+  repaidUSDC: string;
+  blockedUSDC: string;
+  latestTxHash?: Hash;
+};
+
+export type FloatV2ActivityCheckpoint = {
+  blockNumber: bigint;
+  checkedAt: string;
+  agents: readonly FloatV2ActivityCheckpointEntry[];
+};
+
 export declare const FLOAT_V2_CONTRACT: Address;
 export declare const FLOAT_V2_DEPLOY_BLOCK: bigint;
 export declare const FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE: bigint;
+export declare const FLOAT_V2_ACTIVITY_CHECKPOINT: FloatV2ActivityCheckpoint;
 export declare const FLOAT_V2_STATUS_NAMES: readonly ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"];
 export declare const FLOAT_V2_SHADOW_CONTROLLED_SPONSORS: readonly Address[];
 export declare const FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS: readonly Address[];

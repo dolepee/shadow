@@ -51,8 +51,8 @@ jobs:
       - name: install app deps
         working-directory: app
         run: pnpm install --no-frozen-lockfile --ignore-workspace
-      - name: test RPC read guard
-        run: node --test app/scripts/rpc-read-queue.test.mjs
+      - name: test RPC read guard and activity checkpoint
+        run: node --test app/scripts/rpc-read-queue.test.mjs app/scripts/float-v2-checkpoint.test.mjs
       - name: run Float Desk
         run: |
           if [ "${{ github.event.inputs.setup_mandate }}" = "true" ]; then
