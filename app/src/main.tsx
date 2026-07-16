@@ -1572,6 +1572,8 @@ function summarizeFloatV2PilotProvenance(agents: FloatV2AgentState[]) {
 }
 
 function App() {
+  const { pathname } = useLocation();
+  const isBuilderRoute = pathname === "/builders";
   const [state, setState] = useState<ShadowState | null>(null);
   const [loading, setLoading] = useState(false);
   const [account, setAccount] = useState<Address>();
@@ -1661,10 +1663,11 @@ function App() {
   }
 
   useEffect(() => {
+    if (isBuilderRoute) return;
     refreshLepton();
     const interval = setInterval(refreshLepton, 20_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isBuilderRoute]);
 
   async function refreshFloat() {
     setFloatLoading(true);

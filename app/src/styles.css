@@ -11657,6 +11657,7 @@ body {
   color: var(--ink-soft);
   cursor: pointer;
   font: 600 11px/1 var(--mono);
+  min-height: 44px;
   padding: 11px 13px;
 }
 
@@ -11931,6 +11932,7 @@ body {
 
   .builderActionRow button {
     flex: 1 1 100%;
+    min-height: 48px;
   }
 
   .heroLedgerCell {
