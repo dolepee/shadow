@@ -59,7 +59,7 @@ contract MockFeeRouter is IFeeRouter {
     }
 
     address public _usdc;
-    uint256 public nextSplitId = 1;
+    uint256 public nextSplitId = 0;
 
     mapping(uint256 => Split) private splits;
     mapping(uint256 => mapping(address => uint256)) public splitClaimable;
@@ -95,6 +95,8 @@ contract MockFeeRouter is IFeeRouter {
     function pay(uint256 splitId, uint256 amount) external virtual {
         Split storage split = splits[splitId];
         require(split.recipients.length > 0, "split not found");
+
+        require(IERC20(_usdc).transferFrom(msg.sender, address(this), amount), "transferFrom splitter");
 
         split.totalRouted += amount;
 
@@ -279,9 +281,17 @@ contract CanaryMirrorRouterFeeRouterTest {
         require(splitter.protocolFeesUSDC() == 0, "protocol should not locally accrue when routed");
         require(mock.totalClaimableOf(forumPayout) == expectedSourceShare, "forum payout incorrect");
         require(mock.totalClaimableOf(address(this)) == expectedProtocolShare, "protocol routing share incorrect");
+        require(
+            mock.totalClaimableOf(address(splitter)) == 0,
+            "splitter should forward routed funds without retaining claimable"
+        );
+        require(
+            usdc.balanceOf(address(mock)) == (USDC * MIRROR_FEE_BPS) / BPS, "feerouter should hold routed principal"
+        );
 
         (bool hasSplit, uint256 splitId) = splitter.splitIdOf(address(forumSource));
         require(hasSplit, "forum split missing");
+        require(splitId == 0, "forum split id should remain valid when zero-based");
         require(mock.splitAt(splitId).totalRouted == (USDC * MIRROR_FEE_BPS) / BPS, "split routing total incorrect");
     }
 

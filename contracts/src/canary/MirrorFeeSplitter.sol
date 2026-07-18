@@ -213,7 +213,6 @@ contract MirrorFeeSplitter {
         if (msg.sender != address(this)) revert OnlySelf();
         uint256 splitId = _splitIdBySource[sourceAgent];
         if (!_hasSplit[sourceAgent]) revert NotConfigured();
-        if (splitId == 0) revert NotConfigured();
 
         if (!usdc.approve(address(feeRouter), mirrorFeeUSDC)) revert TransferFailed();
         feeRouter.pay(splitId, mirrorFeeUSDC);
