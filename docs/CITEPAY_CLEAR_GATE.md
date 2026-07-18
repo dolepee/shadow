@@ -78,7 +78,9 @@ The replacement key must have only `mandate:create,clear:check`; it must not hav
 
 The checkpoint is local operational evidence and is ignored by Git. Its state is
 `cleared_not_submitted` before the first chain write and changes to `confirmed` only after the Float
-transaction and receipt hash are available. A conflicting checkpoint for the same request hash fails closed.
+transaction is proven to have paid the provider exactly. A successful blocked transaction is instead
+recorded as `blocked_no_payment`; it never confirms the clearance as paid. A conflicting checkpoint for
+the same request hash fails closed.
 
 ## Settlement boundary
 

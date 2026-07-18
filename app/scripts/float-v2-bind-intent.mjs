@@ -17,6 +17,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import {
   confirmCitePayClearanceCheckpoint,
   persistCitePayClearanceCheckpoint,
+  recordBlockedCitePayClearanceCheckpoint,
 } from "./citepay-clear-checkpoint.mjs";
 import { runCitePayClearGate } from "./citepay-clear-gate.mjs";
 
@@ -80,6 +81,7 @@ const floatAbi = parseAbi([
   "function setSponsoredProviderMandate(address agent,address provider,bytes32 endpointHash,uint256 maxPerRequestUSDC,uint256 dailyLimitUSDC,uint64 expiry,bool active)",
   "function intentNonceUsed(address agent,uint256 nonce) view returns (bool)",
   "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
+  "function paidSpendCommitments(bytes32 requestHash) view returns (bytes32)",
   "function providerDeliveryByRequestHash(bytes32 requestHash) view returns (bytes32)",
 ]);
 const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
@@ -130,21 +132,30 @@ const existingReceipt = await publicClient.readContract({
   args: [requestHash],
 });
 if (!isZeroHash(existingReceipt)) {
+  const paidSpendCommitment = await publicClient.readContract({
+    address: float,
+    abi: floatAbi,
+    functionName: "paidSpendCommitments",
+    args: [requestHash],
+  });
+  const providerPaid = !isZeroHash(paidSpendCommitment);
   console.log(
     JSON.stringify(
       {
-        ok: true,
+        ok: providerPaid,
         alreadyBound: true,
+        providerPaid,
         float,
         requestHash,
         receiptHash: existingReceipt,
+        paidSpendCommitment,
         verifyUrl: `https://shadow-arc.vercel.app/api/float-tools?action=verify&hash=${requestHash}`,
       },
       null,
       2,
     ),
   );
-  process.exit(0);
+  process.exit(providerPaid ? 0 : 1);
 }
 
 // This is deliberately before every write, including a sponsored-provider
@@ -220,11 +231,6 @@ const providerTransfer = receipt.logs.find((log) => {
   );
 });
 const providerDelta = providerAfter - providerBefore;
-const citepayCheckpointSummary = await confirmCitePayClearanceCheckpoint({
-  checkpoint: citepayCheckpoint,
-  txHash,
-  receiptHash,
-});
 
 const checks = {
   digestMatches: true,
@@ -236,6 +242,17 @@ const checks = {
   receiptRecorded: !isZeroHash(receiptHash),
   providerPaidExactAmount: Boolean(providerTransfer) && providerDelta === intent.amountUSDC,
 };
+let citepayCheckpointSummary = citepayCheckpoint.summary;
+if (checks.txSucceeded && checks.receiptRecorded) {
+  const finalizeCheckpoint = checks.providerPaidExactAmount
+    ? confirmCitePayClearanceCheckpoint
+    : recordBlockedCitePayClearanceCheckpoint;
+  citepayCheckpointSummary = await finalizeCheckpoint({
+    checkpoint: citepayCheckpoint,
+    txHash,
+    receiptHash,
+  });
+}
 const ok = Object.values(checks).every(Boolean);
 const result = {
   ok,

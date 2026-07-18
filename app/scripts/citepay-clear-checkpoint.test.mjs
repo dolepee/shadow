@@ -7,6 +7,7 @@ import {
   CitePayCheckpointError,
   confirmCitePayClearanceCheckpoint,
   persistCitePayClearanceCheckpoint,
+  recordBlockedCitePayClearanceCheckpoint,
 } from "./citepay-clear-checkpoint.mjs";
 
 const requestHash = `0x${"ab".repeat(32)}`;
@@ -75,6 +76,7 @@ test("persists a secret-free mode-600 checkpoint before spend and confirms it af
   const after = JSON.parse(await readFile(checkpoint.filePath, "utf8"));
   assert.equal(after.transaction.txHash, `0x${"55".repeat(32)}`);
   assert.equal(after.transaction.receiptHash, `0x${"66".repeat(32)}`);
+  assert.equal(after.transaction.providerPaid, true);
   assert.equal(after.confirmedAt, "2026-07-18T12:01:00.000Z");
 
   await assert.rejects(
@@ -87,7 +89,42 @@ test("persists a secret-free mode-600 checkpoint before spend and confirms it af
       intent,
       cwd,
     }),
-    (error) => error instanceof CitePayCheckpointError && error.code === "checkpoint_already_confirmed",
+    (error) => error instanceof CitePayCheckpointError && error.code === "checkpoint_terminal",
+  );
+});
+
+test("a successful blocked Float receipt is terminal but never confirmed as paid", async (t) => {
+  const cwd = await mkdtemp(join(tmpdir(), "shadow-citepay-blocked-"));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const checkpoint = await persistCitePayClearanceCheckpoint({
+    env: {},
+    clearance,
+    requestHash,
+    float: "0x4444444444444444444444444444444444444444",
+    chainId: 5_042_002,
+    intent,
+    cwd,
+  });
+
+  const blocked = await recordBlockedCitePayClearanceCheckpoint({
+    checkpoint,
+    txHash: `0x${"77".repeat(32)}`,
+    receiptHash: `0x${"88".repeat(32)}`,
+    cwd,
+  });
+  assert.equal(blocked.status, "blocked_no_payment");
+  const record = JSON.parse(await readFile(checkpoint.filePath, "utf8"));
+  assert.equal(record.status, "blocked_no_payment");
+  assert.equal(record.transaction.providerPaid, false);
+
+  await assert.rejects(
+    confirmCitePayClearanceCheckpoint({
+      checkpoint,
+      txHash: `0x${"77".repeat(32)}`,
+      receiptHash: `0x${"88".repeat(32)}`,
+      cwd,
+    }),
+    (error) => error instanceof CitePayCheckpointError && error.code === "checkpoint_conflict",
   );
 });
 

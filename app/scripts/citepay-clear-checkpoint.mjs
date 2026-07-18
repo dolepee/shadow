@@ -82,10 +82,10 @@ export async function persistCitePayClearanceCheckpoint({
         "an existing CitePay checkpoint has different bindings for this Float requestHash",
       );
     }
-    if (existing.status === "confirmed") {
+    if (["confirmed", "blocked_no_payment"].includes(existing.status)) {
       throw new CitePayCheckpointError(
-        "checkpoint_already_confirmed",
-        "this CitePay clearance is already bound to a confirmed Float transaction",
+        "checkpoint_terminal",
+        "this CitePay clearance is already bound to a terminal Float transaction outcome",
       );
     }
     if (existing.status !== "cleared_not_submitted") {
@@ -124,6 +124,44 @@ export async function confirmCitePayClearanceCheckpoint({
   cwd = process.cwd(),
   now = () => new Date(),
 }) {
+  return finalizeCitePayClearanceCheckpoint({
+    checkpoint,
+    txHash,
+    receiptHash,
+    status: "confirmed",
+    providerPaid: true,
+    cwd,
+    now,
+  });
+}
+
+export async function recordBlockedCitePayClearanceCheckpoint({
+  checkpoint,
+  txHash,
+  receiptHash,
+  cwd = process.cwd(),
+  now = () => new Date(),
+}) {
+  return finalizeCitePayClearanceCheckpoint({
+    checkpoint,
+    txHash,
+    receiptHash,
+    status: "blocked_no_payment",
+    providerPaid: false,
+    cwd,
+    now,
+  });
+}
+
+async function finalizeCitePayClearanceCheckpoint({
+  checkpoint,
+  txHash,
+  receiptHash,
+  status,
+  providerPaid,
+  cwd,
+  now,
+}) {
   if (!checkpoint?.filePath) return checkpoint?.summary ?? { enabled: false, status: "disabled" };
 
   const normalizedTxHash = bytes32(txHash, "txHash");
@@ -136,14 +174,16 @@ export async function confirmCitePayClearanceCheckpoint({
     );
   }
 
-  if (record.status === "confirmed") {
+  if (["confirmed", "blocked_no_payment"].includes(record.status)) {
     if (
-      record.transaction?.txHash !== normalizedTxHash
+      record.status !== status
+      || record.transaction?.txHash !== normalizedTxHash
       || record.transaction?.receiptHash !== normalizedReceiptHash
+      || record.transaction?.providerPaid !== providerPaid
     ) {
       throw new CitePayCheckpointError(
         "checkpoint_conflict",
-        "the CitePay checkpoint is already bound to a different Float transaction",
+        "the CitePay checkpoint is already bound to a different Float transaction outcome",
       );
     }
     return publicSummary(record, cwd, checkpoint.filePath, true);
@@ -154,11 +194,12 @@ export async function confirmCitePayClearanceCheckpoint({
 
   const confirmed = {
     ...record,
-    status: "confirmed",
+    status,
     confirmedAt: now().toISOString(),
     transaction: {
       txHash: normalizedTxHash,
       receiptHash: normalizedReceiptHash,
+      providerPaid,
     },
   };
   await atomicWriteJson(checkpoint.filePath, confirmed);
@@ -242,7 +283,7 @@ function validRecord(record) {
     || typeof record !== "object"
     || record.version !== 1
     || record.integration !== "citepay-clear"
-    || !["cleared_not_submitted", "confirmed"].includes(record.status)
+    || !["cleared_not_submitted", "confirmed", "blocked_no_payment"].includes(record.status)
     || !/^shcp_[0-9a-f]{24}$/.test(record.checkpointId || "")
     || !/^sha256:[0-9a-f]{64}$/.test(record.bindingHash || "")
     || !record.binding
@@ -255,7 +296,8 @@ function validRecord(record) {
 
   if (record.status === "cleared_not_submitted") return record.transaction === null;
   return /^0x[0-9a-f]{64}$/.test(record.transaction?.txHash || "")
-    && /^0x[0-9a-f]{64}$/.test(record.transaction?.receiptHash || "");
+    && /^0x[0-9a-f]{64}$/.test(record.transaction?.receiptHash || "")
+    && record.transaction?.providerPaid === (record.status === "confirmed");
 }
 
 function address(value, field) {
