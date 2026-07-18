@@ -10,15 +10,30 @@ import {
   hashTypedData,
   http,
   parseAbi,
-  parseAbiItem,
   recoverTypedDataAddress,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import {
+  confirmCitePayClearanceCheckpoint,
+  persistCitePayClearanceCheckpoint,
+  recordBlockedCitePayClearanceCheckpoint,
+  recoverCitePayClearanceCheckpoint,
+} from "./citepay-clear-checkpoint.mjs";
+import { runCitePayClearGate } from "./citepay-clear-gate.mjs";
+import {
+  findBoundDirectProviderPayment,
+  findExactDirectProviderTransfer,
+  intentConsumedEvent,
+} from "./float-v2-payment-evidence.mjs";
+import { FLOAT_V2_DEPLOY_BLOCK } from "../floatV2Config.js";
 
 // Binds an external builder's V2 FloatSpendIntent JSON.
 //
 // Input JSON shape:
-//   { "intent": { ... }, "signature": "0x...", "digest": "0x..." }
+//   { "intent": { ... }, "signature": "0x...", "digest": "0x...", "citepayClear": { ... } }
+//
+// citepayClear is required only when CITEPAY_CLEAR_ENABLED=1. It contains
+// { claim, quote, source } using CitePay Clear's source schema.
 //
 // Usage:
 //   FLOAT_EXECUTOR_PRIVATE_KEY=0x... \
@@ -72,13 +87,9 @@ const floatAbi = parseAbi([
   "function setSponsoredProviderMandate(address agent,address provider,bytes32 endpointHash,uint256 maxPerRequestUSDC,uint256 dailyLimitUSDC,uint64 expiry,bool active)",
   "function intentNonceUsed(address agent,uint256 nonce) view returns (bool)",
   "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
+  "function paidSpendCommitments(bytes32 requestHash) view returns (bytes32)",
   "function providerDeliveryByRequestHash(bytes32 requestHash) view returns (bytes32)",
 ]);
-const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
-const intentConsumedEvent = parseAbiItem(
-  "event FloatIntentConsumed(address indexed agent, address indexed signer, uint256 indexed nonce, bytes32 requestHash)",
-);
-
 const domain = { name: "ShadowFloat", version: "1", chainId: CHAIN_ID, verifyingContract: float };
 const types = {
   FloatSpendIntent: [
@@ -115,8 +126,6 @@ if (getAddress(recovered) !== intent.agent) {
   throw new Error(`signature recovers ${recovered}, expected agent ${intent.agent}`);
 }
 
-const providerMandateTx = await maybeRefreshSponsoredProviderMandate();
-
 const existingReceipt = await publicClient.readContract({
   address: float,
   abi: floatAbi,
@@ -124,22 +133,76 @@ const existingReceipt = await publicClient.readContract({
   args: [requestHash],
 });
 if (!isZeroHash(existingReceipt)) {
+  const paidSpendCommitment = await publicClient.readContract({
+    address: float,
+    abi: floatAbi,
+    functionName: "paidSpendCommitments",
+    args: [requestHash],
+  });
+  const clearEnabled = clean(env.CITEPAY_CLEAR_ENABLED) === "1";
+  const paymentEvidence = clearEnabled
+    ? await findBoundDirectProviderPayment({
+        publicClient,
+        float,
+        usdc: USDC,
+        intent,
+        requestHash,
+        fromBlock: FLOAT_V2_DEPLOY_BLOCK,
+      })
+    : { txHash: null, providerPaidExactAmount: !isZeroHash(paidSpendCommitment) };
+  const providerPaid = paymentEvidence.providerPaidExactAmount && !isZeroHash(paidSpendCommitment);
+  const citepayCheckpoint = await recoverCitePayClearanceCheckpoint({
+    env,
+    requestHash,
+    float,
+    chainId: CHAIN_ID,
+    intent,
+    txHash: paymentEvidence.txHash,
+    receiptHash: existingReceipt,
+    paidSpendCommitment,
+    directProviderPayment: paymentEvidence.providerPaidExactAmount,
+  });
   console.log(
     JSON.stringify(
       {
-        ok: true,
+        ok: providerPaid,
         alreadyBound: true,
+        providerPaid,
         float,
         requestHash,
+        txHash: paymentEvidence.txHash,
         receiptHash: existingReceipt,
+        paidSpendCommitment,
+        citepayCheckpoint,
         verifyUrl: `https://shadow-arc.vercel.app/api/float-tools?action=verify&hash=${requestHash}`,
       },
       null,
       2,
     ),
   );
-  process.exit(0);
+  process.exit(providerPaid ? 0 : 1);
 }
+
+// This is deliberately before every write, including a sponsored-provider
+// mandate refresh. Any CitePay error or non-CLEARED decision fails closed.
+const citepayClearance = await runCitePayClearGate({
+  env,
+  payload,
+  requestHash,
+  signedReason: intent.reason,
+  provider: intent.provider,
+  endpointHash: intent.endpointHash,
+  amountUSDC: intent.amountUSDC,
+});
+const citepayCheckpoint = await persistCitePayClearanceCheckpoint({
+  env,
+  clearance: citepayClearance,
+  requestHash,
+  float,
+  chainId: CHAIN_ID,
+  intent,
+});
+const providerMandateTx = await maybeRefreshSponsoredProviderMandate();
 
 const [previewAllowed, previewReason] = await publicClient.readContract({
   address: float,
@@ -169,11 +232,12 @@ console.error(`requestSignedSpend: ${txHash}`);
 const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 120_000 });
 if (receipt.status !== "success") throw new Error(`requestSignedSpend reverted: ${txHash}`);
 
-const [providerAfter, lineAfter, consumed, receiptHash, deliveryHash] = await Promise.all([
+const [providerAfter, lineAfter, consumed, receiptHash, paidSpendCommitment, deliveryHash] = await Promise.all([
   publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [intent.provider] }),
   publicClient.readContract({ address: float, abi: floatAbi, functionName: "lines", args: [intent.agent] }),
   publicClient.readContract({ address: float, abi: floatAbi, functionName: "intentNonceUsed", args: [intent.agent, intent.nonce] }),
   publicClient.readContract({ address: float, abi: floatAbi, functionName: "receiptByRequestHash", args: [requestHash] }),
+  publicClient.readContract({ address: float, abi: floatAbi, functionName: "paidSpendCommitments", args: [requestHash] }),
   publicClient.readContract({ address: float, abi: floatAbi, functionName: "providerDeliveryByRequestHash", args: [requestHash] }),
 ]);
 
@@ -182,17 +246,15 @@ const intentConsumed = receipt.logs.some((log) => {
   const decoded = decodeLog(intentConsumedEvent, log);
   return Boolean(decoded && decoded.args.requestHash?.toLowerCase() === requestHash.toLowerCase());
 });
-const providerTransfer = receipt.logs.find((log) => {
-  if (getAddress(log.address) !== USDC) return false;
-  const decoded = decodeLog(transferEvent, log);
-  return Boolean(
-    decoded &&
-      getAddress(decoded.args.from) === float &&
-      getAddress(decoded.args.to) === intent.provider &&
-      decoded.args.value === intent.amountUSDC,
-  );
+const providerTransfer = findExactDirectProviderTransfer({
+  logs: receipt.logs,
+  float,
+  usdc: USDC,
+  provider: intent.provider,
+  amountUSDC: intent.amountUSDC,
 });
 const providerDelta = providerAfter - providerBefore;
+const providerPaidFromReceipt = Boolean(providerTransfer) && !isZeroHash(paidSpendCommitment);
 
 const checks = {
   digestMatches: true,
@@ -202,8 +264,21 @@ const checks = {
   intentConsumed: Boolean(intentConsumed),
   nonceMarkedUsed: Boolean(consumed),
   receiptRecorded: !isZeroHash(receiptHash),
-  providerPaidExactAmount: Boolean(providerTransfer) && providerDelta === intent.amountUSDC,
+  paidSpendRecorded: !isZeroHash(paidSpendCommitment),
+  providerPaidExactAmount: providerPaidFromReceipt,
 };
+let citepayCheckpointSummary = citepayCheckpoint.summary;
+if (checks.txSucceeded && checks.receiptRecorded) {
+  const finalizeCheckpoint = checks.providerPaidExactAmount
+    ? confirmCitePayClearanceCheckpoint
+    : recordBlockedCitePayClearanceCheckpoint;
+  citepayCheckpointSummary = await finalizeCheckpoint({
+    checkpoint: citepayCheckpoint,
+    txHash,
+    receiptHash,
+    paidSpendCommitment,
+  });
+}
 const ok = Object.values(checks).every(Boolean);
 const result = {
   ok,
@@ -220,7 +295,9 @@ const result = {
   amountUSDC: intent.amountUSDC.toString(),
   maxDebtUSDC: intent.maxDebtUSDC.toString(),
   nonce: intent.nonce.toString(),
-  providerPaidUSDC: providerDelta.toString(),
+  providerPaidUSDC: providerTransfer ? intent.amountUSDC.toString() : "0",
+  providerBalanceDeltaUSDC: providerDelta.toString(),
+  providerBalanceDeltaMatches: providerDelta === intent.amountUSDC,
   lineSponsor: {
     sponsor: sponsorBefore[0],
     reserveUSDC: sponsorBefore[1].toString(),
@@ -229,7 +306,10 @@ const result = {
   lineBefore: lineView(lineBefore),
   lineAfter: lineView(lineAfter),
   receiptHash,
+  paidSpendCommitment,
   providerDeliveryHash: deliveryHash,
+  citepayClearance,
+  citepayCheckpoint: citepayCheckpointSummary,
   checks,
   citepayDirectTransfer: {
     endpoint: "https://citepay-markets.vercel.app/api/ask",

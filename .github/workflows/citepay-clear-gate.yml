@@ -1,0 +1,41 @@
+name: citepay-clear-gate
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/citepay-clear-gate.yml"
+      - ".env.example"
+      - "app/scripts/citepay-clear-*.mjs"
+      - "app/scripts/float-v2-bind-intent.mjs"
+      - "app/scripts/float-v2-payment-evidence*.mjs"
+      - "docs/CITEPAY_CLEAR_GATE.md"
+      - "package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-safety-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: Install app dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile --ignore-workspace
+      - name: Run fail-closed CitePay compatibility and checkpoint tests
+        run: npm run float:v2-clear-gate:test
+      - name: Confirm scripts parse
+        run: |
+          node --check app/scripts/citepay-clear-gate.mjs
+          node --check app/scripts/citepay-clear-checkpoint.mjs
+          node --check app/scripts/citepay-clear-commit.mjs
+          node --check app/scripts/float-v2-bind-intent.mjs
+          node --check app/scripts/float-v2-payment-evidence.mjs
