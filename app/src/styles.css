@@ -12113,6 +12113,276 @@ body {
   }
 }
 
+/* Forum FeeRouter canary: an unframed evidence band on the Records route. */
+.forumCanaryProof {
+  border-bottom: 1px solid rgba(184, 211, 255, 0.14);
+  border-top: 1px solid rgba(184, 211, 255, 0.14);
+  margin-top: 34px;
+  padding: 34px 0;
+  scroll-margin-top: 92px;
+}
+
+.forumCanaryHeader {
+  align-items: start;
+  display: grid;
+  gap: 32px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.forumCanaryHeader h2 {
+  color: #f7fbff;
+  font-size: 34px;
+  font-weight: 740;
+  letter-spacing: 0;
+  line-height: 1.08;
+  margin: 0;
+  max-width: 820px;
+}
+
+.forumCanaryHeader p:not(.eyebrow) {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.62;
+  margin: 14px 0 0;
+  max-width: 820px;
+}
+
+.forumCanaryStatus {
+  align-items: flex-start;
+  display: flex;
+  gap: 11px;
+  min-width: 214px;
+  padding-top: 4px;
+}
+
+.forumCanaryStatus > span {
+  background: var(--copy);
+  border-radius: 50%;
+  box-shadow: 0 0 18px rgba(77, 240, 168, 0.42);
+  flex: 0 0 auto;
+  height: 8px;
+  margin-top: 5px;
+  width: 8px;
+}
+
+.forumCanaryStatus div {
+  display: grid;
+  gap: 5px;
+}
+
+.forumCanaryStatus small,
+.forumCanaryStatus code,
+.forumCanaryMetrics span,
+.forumCanaryMetrics small,
+.forumCanarySubhead span,
+.forumCanaryTransactions span,
+.forumCanaryTransactions small,
+.forumCanaryReferences span,
+.forumCanaryBoundary {
+  font-family: var(--mono);
+}
+
+.forumCanaryStatus small,
+.forumCanaryMetrics span,
+.forumCanarySubhead span {
+  color: var(--ink-faint);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.forumCanaryStatus strong {
+  color: var(--copy);
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.forumCanaryStatus code {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.forumCanaryMetrics {
+  border-bottom: 1px solid rgba(184, 211, 255, 0.12);
+  border-top: 1px solid rgba(184, 211, 255, 0.12);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-top: 28px;
+}
+
+.forumCanaryMetrics > div {
+  min-width: 0;
+  padding: 18px 16px;
+}
+
+.forumCanaryMetrics > div + div {
+  border-left: 1px solid rgba(184, 211, 255, 0.12);
+}
+
+.forumCanaryMetrics strong {
+  color: var(--ink);
+  display: block;
+  font-family: var(--mono);
+  font-size: 27px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1;
+  margin-top: 10px;
+}
+
+.forumCanaryMetrics small {
+  color: var(--copy);
+  display: block;
+  font-size: 10px;
+  margin-top: 8px;
+}
+
+.forumCanaryTrace {
+  display: grid;
+  gap: 34px;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  margin-top: 30px;
+}
+
+.forumCanaryTransactions,
+.forumCanaryReferences {
+  display: grid;
+  min-width: 0;
+}
+
+.forumCanarySubhead {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.forumCanarySubhead strong {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 640;
+}
+
+.forumCanaryTransactions a,
+.forumCanaryReferences a {
+  align-items: center;
+  border-top: 1px solid rgba(184, 211, 255, 0.1);
+  color: var(--ink);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px 0;
+  text-decoration: none;
+}
+
+.forumCanaryTransactions a {
+  grid-template-columns: minmax(115px, 0.7fr) minmax(125px, 1fr) auto;
+}
+
+.forumCanaryReferences a {
+  grid-template-columns: minmax(135px, 1fr) auto;
+}
+
+.forumCanaryTransactions a:hover,
+.forumCanaryReferences a:hover {
+  color: var(--copy);
+}
+
+.forumCanaryTransactions span,
+.forumCanaryReferences span {
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.forumCanaryTransactions small {
+  color: var(--ink-soft);
+  font-size: 10px;
+}
+
+.forumCanaryTransactions code,
+.forumCanaryReferences code {
+  color: currentColor;
+  font-family: var(--mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.forumCanaryBoundary {
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  line-height: 1.6;
+  margin: 24px 0 0;
+  max-width: 1040px;
+}
+
+@media (max-width: 900px) {
+  .forumCanaryHeader,
+  .forumCanaryTrace {
+    grid-template-columns: 1fr;
+  }
+
+  .forumCanaryMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .forumCanaryMetrics > div + div {
+    border-left: 0;
+  }
+
+  .forumCanaryMetrics > div:nth-child(even) {
+    border-left: 1px solid rgba(184, 211, 255, 0.12);
+  }
+
+  .forumCanaryMetrics > div:nth-child(n + 3) {
+    border-top: 1px solid rgba(184, 211, 255, 0.12);
+  }
+}
+
+@media (max-width: 720px) {
+  .forumCanaryProof {
+    margin-top: 26px;
+    padding: 28px 0;
+  }
+
+  .forumCanaryHeader {
+    gap: 22px;
+  }
+
+  .forumCanaryHeader h2 {
+    font-size: 27px;
+    line-height: 1.12;
+  }
+
+  .forumCanaryStatus {
+    min-width: 0;
+  }
+
+  .forumCanaryMetrics > div {
+    padding: 15px 10px;
+  }
+
+  .forumCanaryMetrics strong {
+    font-size: 22px;
+  }
+
+  .forumCanaryTrace {
+    gap: 28px;
+  }
+
+  .forumCanaryTransactions a,
+  .forumCanaryReferences a {
+    align-items: start;
+    gap: 6px;
+    grid-template-columns: 1fr;
+  }
+
+  .forumCanaryTransactions code,
+  .forumCanaryReferences code {
+    text-align: left;
+  }
+}
+
 /* ============================================================
    Shadow 2.1 launch surface
    A cleaner capital-terminal treatment over the existing proof UI.

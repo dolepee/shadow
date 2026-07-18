@@ -102,6 +102,28 @@ External sponsor runbook: [`docs/EXTERNAL_SPONSOR_V2.md`](docs/EXTERNAL_SPONSOR_
 
 External sponsor proof notes: [`docs/EXTERNAL_SPONSOR_PROOF.md`](docs/EXTERNAL_SPONSOR_PROOF.md)
 
+### Forum FeeRouter Canary
+
+Forum also completed a separate, bounded integration with Shadow's mirror-fee path. This is distinct from Forum's Float sponsor line: Forum published one intent from its own wallet into an isolated canary router, and the canary routed the `0.000010 USDC` mirror fee through Forum's deployed FeeRouterV1. Split `205` allocated exactly `0.000007 USDC` to Forum and `0.000003 USDC` to Shadow. Both recipients claimed, routing returned to disabled, local fallback stayed untouched, and both temporary allowances returned to zero.
+
+| Canary proof | Value |
+| --- | --- |
+| Network | Arc Testnet, chain id `5042002` |
+| Canary router | [`0xC86C...939A`](https://testnet.arcscan.app/address/0xC86C5e032A2e81E6Df7B0A60BC6cC830F52d939A) |
+| Fee splitter | [`0xE901...eaca`](https://testnet.arcscan.app/address/0xE901a54dDE4243940EEceD8C57F29fef5eC6eaca) |
+| Forum FeeRouterV1 | [`0xeff9...bf59`](https://testnet.arcscan.app/address/0xeff9bc359e8f2a5eabce55af3f1bb24f98eabf59) |
+| Forum publish | [`0xccbd...0b16`](https://testnet.arcscan.app/tx/0xccbd877f593099d75e6ac5004dd9c102c075c0ee64ea64f1b90f37c719b80b16) |
+| Routing disabled | [`0xe1fc...e855`](https://testnet.arcscan.app/tx/0xe1fcd5045676c2159cf6f9c97264d53299550a62d2c0a55c7faa03acc876e855) |
+| Forum claim, `7` atomic | [`0x58ac...9c21`](https://testnet.arcscan.app/tx/0x58acbe0ba50e58e77c83a088a6320a1696b5363cbecf3b0a0b94998ea3f99c21) |
+| Shadow claim, `3` atomic | [`0x80f2...bf37`](https://testnet.arcscan.app/tx/0x80f29de9c8b4dae23c805763c90901618ffe07756bfee77117b8bcc4ab16bf37) |
+| Final state | allocation `7/3`; outstanding `0/0`; fallback `0/0`; allowances `0/0`; routing disabled |
+
+Public result: https://shadow-arc.vercel.app/proofs/forum-feerouter-canary.json
+
+Verifier and rollout notes: [`docs/FORUM_FEEROUTER_CANARY.md`](docs/FORUM_FEEROUTER_CANARY.md)
+
+This is external integration proof from a single dust-sized Arc testnet canary. It is not production routing, organic revenue, a production optimization, or independent security validation. Shadow's existing local-accrual router remains the production default.
+
 ### Argus Three-Agent Lifecycle
 
 Argus ran three agent lines through Shadow Float V2. Each row shows a signed V2 spend that paid the provider from sponsor reserve, then a repayment that restored the line.
@@ -271,3 +293,4 @@ Supporting M1 contracts are documented in [`docs/LEPTON_M1.md`](docs/LEPTON_M1.m
 - Mainnet path: [`docs/MAINNET_PATH.md`](docs/MAINNET_PATH.md)
 - Economics: [`docs/ECONOMICS.md`](docs/ECONOMICS.md)
 - Roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- Forum FeeRouter canary: [`docs/FORUM_FEEROUTER_CANARY.md`](docs/FORUM_FEEROUTER_CANARY.md)
