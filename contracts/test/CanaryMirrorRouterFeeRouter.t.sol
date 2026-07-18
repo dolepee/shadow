@@ -29,7 +29,10 @@ contract CanaryActor {
         router.followSource(sourceAgent, maxAmountPerIntent, dailyCap, allowedAsset, maxRiskLevel, 10_000);
     }
 
-    function publish(CanaryMirrorRouter router, CanaryMirrorRouter.TradeIntent calldata intent) external returns (uint256) {
+    function publish(CanaryMirrorRouter router, CanaryMirrorRouter.TradeIntent calldata intent)
+        external
+        returns (uint256)
+    {
         return router.publishIntent(intent);
     }
 
@@ -70,10 +73,7 @@ contract MockFeeRouter is IFeeRouter {
         return _usdc;
     }
 
-    function createSplit(address[] calldata recipients, uint16[] calldata bps)
-        external
-        returns (uint256 splitId)
-    {
+    function createSplit(address[] calldata recipients, uint16[] calldata bps) external returns (uint256 splitId) {
         require(recipients.length > 0, "no recipients");
         require(recipients.length == bps.length, "mismatched lengths");
         uint256 totalBps;
@@ -168,9 +168,7 @@ contract CanaryMirrorRouterFeeRouterTest {
     CanaryActor public rivalSource;
     CanaryActor public follower;
 
-    function _setup(address forumPayout, bool routingEnabled, bool failRouter)
-        internal
-    {
+    function _setup(address forumPayout, bool routingEnabled, bool failRouter) internal {
         usdc = new MockAsset("Arc Test USDC", "USDC", 6);
         arceth = new MockAsset("Arc Test ETH", "ARCETH", 18);
 
@@ -182,20 +180,10 @@ contract CanaryMirrorRouterFeeRouterTest {
         follower = new CanaryActor();
 
         registry.registerSource(
-            address(forumSource),
-            "Forum",
-            "ipfs://forum",
-            7_600,
-            0x8004A818BFB912233c491871b3d84c89A494BD9e,
-            1
+            address(forumSource), "Forum", "ipfs://forum", 7_600, 0x8004A818BFB912233c491871b3d84c89A494BD9e, 1
         );
         registry.registerSource(
-            address(rivalSource),
-            "Rival",
-            "ipfs://rival",
-            7_500,
-            0x8004A818BFB912233c491871b3d84c89A494BD9e,
-            2
+            address(rivalSource), "Rival", "ipfs://rival", 7_500, 0x8004A818BFB912233c491871b3d84c89A494BD9e, 2
         );
 
         usdc.mint(address(this), 1_000_000 * USDC);
@@ -209,7 +197,8 @@ contract CanaryMirrorRouterFeeRouterTest {
         } else {
             feeRouter = new MockFeeRouter(address(usdc));
         }
-        splitter = new MirrorFeeSplitter(address(usdc), address(feeRouter), address(this), address(forumSource), forumPayout);
+        splitter =
+            new MirrorFeeSplitter(address(usdc), address(feeRouter), address(this), address(forumSource), forumPayout);
         router = new CanaryMirrorRouter(address(usdc), address(amm), address(registry), address(splitter));
 
         splitter.setAuthorizedRouter(address(router));
@@ -221,14 +210,7 @@ contract CanaryMirrorRouterFeeRouterTest {
     }
 
     function _publishIntent(CanaryActor source) internal {
-        follower.follow(
-            router,
-            address(source),
-            2 * USDC,
-            5 * USDC,
-            address(arceth),
-            3
-        );
+        follower.follow(router, address(source), 2 * USDC, 5 * USDC, address(arceth), 3);
 
         CanaryMirrorRouter.TradeIntent memory intent = CanaryMirrorRouter.TradeIntent({
             asset: address(arceth),
@@ -256,7 +238,10 @@ contract CanaryMirrorRouterFeeRouterTest {
         _publishIntent(rivalSource);
 
         (uint256 expectedSourceShare, uint256 expectedProtocolShare) = _expectedMirrorFeeShares();
-        require(splitter.sourceKickbackUSDC(address(rivalSource)) == expectedSourceShare, "rival source local share incorrect");
+        require(
+            splitter.sourceKickbackUSDC(address(rivalSource)) == expectedSourceShare,
+            "rival source local share incorrect"
+        );
         require(splitter.protocolFeesUSDC() == expectedProtocolShare, "rival protocol local share incorrect");
         require(mock.totalClaimableOf(address(rivalSource)) == 0, "non-forum source should not hit fee router");
         require(mock.totalClaimableOf(address(this)) == 0, "protocol should not be claimable for non-forum source");
@@ -270,7 +255,10 @@ contract CanaryMirrorRouterFeeRouterTest {
         _publishIntent(forumSource);
 
         (uint256 expectedSourceShare, uint256 expectedProtocolShare) = _expectedMirrorFeeShares();
-        require(splitter.sourceKickbackUSDC(address(forumSource)) == expectedSourceShare, "forum source should fallback when routing disabled");
+        require(
+            splitter.sourceKickbackUSDC(address(forumSource)) == expectedSourceShare,
+            "forum source should fallback when routing disabled"
+        );
         require(splitter.protocolFeesUSDC() == expectedProtocolShare, "protocol should fallback when routing disabled");
         require(mock.totalClaimableOf(address(0xC0DE)) == 0, "forum fee should not hit fee router when disabled");
         require(mock.totalClaimableOf(address(this)) == 0, "protocol should be zero when fallback");
@@ -285,7 +273,9 @@ contract CanaryMirrorRouterFeeRouterTest {
         _publishIntent(forumSource);
 
         (uint256 expectedSourceShare, uint256 expectedProtocolShare) = _expectedMirrorFeeShares();
-        require(splitter.sourceKickbackUSDC(address(forumSource)) == 0, "forum source should not locally accrue when routed");
+        require(
+            splitter.sourceKickbackUSDC(address(forumSource)) == 0, "forum source should not locally accrue when routed"
+        );
         require(splitter.protocolFeesUSDC() == 0, "protocol should not locally accrue when routed");
         require(mock.totalClaimableOf(forumPayout) == expectedSourceShare, "forum payout incorrect");
         require(mock.totalClaimableOf(address(this)) == expectedProtocolShare, "protocol routing share incorrect");
@@ -302,8 +292,13 @@ contract CanaryMirrorRouterFeeRouterTest {
         _publishIntent(forumSource);
 
         (uint256 expectedSourceShare, uint256 expectedProtocolShare) = _expectedMirrorFeeShares();
-        require(splitter.sourceKickbackUSDC(address(forumSource)) == expectedSourceShare, "fee router failure should fallback to source share");
-        require(splitter.protocolFeesUSDC() == expectedProtocolShare, "fee router failure should fallback to protocol share");
+        require(
+            splitter.sourceKickbackUSDC(address(forumSource)) == expectedSourceShare,
+            "fee router failure should fallback to source share"
+        );
+        require(
+            splitter.protocolFeesUSDC() == expectedProtocolShare, "fee router failure should fallback to protocol share"
+        );
     }
 
     function testClaimsAndUnauthorizedCallerPaths() public {

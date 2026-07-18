@@ -30,9 +30,7 @@ interface IFeeRouter {
 
     function usdc() external view returns (address);
 
-    function createSplit(address[] calldata recipients, uint16[] calldata bps)
-        external
-        returns (uint256 splitId);
+    function createSplit(address[] calldata recipients, uint16[] calldata bps) external returns (uint256 splitId);
 
     function pay(uint256 splitId, uint256 amount) external;
 

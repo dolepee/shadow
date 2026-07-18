@@ -212,14 +212,7 @@ contract CanaryMirrorRouter {
         if (!registry.isRegistered(msg.sender)) revert UnregisteredSource();
 
         intentId = nextIntentId++;
-        emit IntentPublished(
-            intentId,
-            msg.sender,
-            intent.asset,
-            intent.amountUSDC,
-            intent.riskLevel,
-            intent.intentHash
-        );
+        emit IntentPublished(intentId, msg.sender, intent.asset, intent.amountUSDC, intent.riskLevel, intent.intentHash);
 
         address[] storage followers = followersBySource[msg.sender];
         for (uint256 i = 0; i < followers.length; i++) {
@@ -227,12 +220,9 @@ contract CanaryMirrorRouter {
         }
     }
 
-    function _processFollower(
-        uint256 intentId,
-        address sourceAgent,
-        address follower,
-        TradeIntent calldata intent
-    ) internal {
+    function _processFollower(uint256 intentId, address sourceAgent, address follower, TradeIntent calldata intent)
+        internal
+    {
         if (!policies[follower][sourceAgent].active) return;
 
         if (intent.asset != address(amm.asset())) {
@@ -251,24 +241,11 @@ contract CanaryMirrorRouter {
 
         RiskPolicy.Policy storage policy = policies[follower][sourceAgent];
         RiskPolicy.BlockReason reason = policy.evaluate(
-            followerBalanceUSDC[follower],
-            intent.asset,
-            intent.amountUSDC,
-            intent.riskLevel,
-            intent.expiry
+            followerBalanceUSDC[follower], intent.asset, intent.amountUSDC, intent.riskLevel, intent.expiry
         );
 
         if (reason != RiskPolicy.BlockReason.NONE) {
-            emit MirrorReceipt(
-                intentId,
-                follower,
-                sourceAgent,
-                ReceiptStatus.BLOCKED,
-                reason,
-                intent.amountUSDC,
-                0,
-                0
-            );
+            emit MirrorReceipt(intentId, follower, sourceAgent, ReceiptStatus.BLOCKED, reason, intent.amountUSDC, 0, 0);
             return;
         }
 
@@ -320,12 +297,8 @@ contract CanaryMirrorRouter {
         uint256 assetOut = amm.swapExactUSDCForAsset(address(this), intent.amountUSDC, followerMinOut);
         require(usdc.approve(address(amm), 0), "APPROVE_RESET_FAILED");
 
-        positions[intentId][follower] = Position({
-            usdcIn: intent.amountUSDC,
-            assetAmount: assetOut,
-            sourceAgent: sourceAgent,
-            closed: false
-        });
+        positions[intentId][follower] =
+            Position({usdcIn: intent.amountUSDC, assetAmount: assetOut, sourceAgent: sourceAgent, closed: false});
 
         emit MirrorReceipt(
             intentId,

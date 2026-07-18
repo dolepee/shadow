@@ -104,8 +104,8 @@ contract MirrorFeeSplitter {
         address forumPayout_
     ) {
         if (
-            usdc_ == address(0) || feeRouter_ == address(0) || protocolFeeRecipient_ == address(0) || forumSource_ == address(0)
-                || forumPayout_ == address(0)
+            usdc_ == address(0) || feeRouter_ == address(0) || protocolFeeRecipient_ == address(0)
+                || forumSource_ == address(0) || forumPayout_ == address(0)
         ) revert ZeroRecipient();
 
         IFeeRouter candidateRouter = IFeeRouter(feeRouter_);
@@ -182,21 +182,24 @@ contract MirrorFeeSplitter {
         // while the operator has enabled it, and ONLY once its split is preconfigured.
         // Every other source, Forum-while-disabled, and the unconfigured case all use
         // Shadow's existing local accrual path — zero FeeRouter interaction.
-        bool routable =
-            externalRoutingEnabled && sourceAgent == forumSource && _hasSplit[forumSource];
+        bool routable = externalRoutingEnabled && sourceAgent == forumSource && _hasSplit[forumSource];
 
         if (!routable) {
             sourceKickbackUSDC[sourceAgent] += sourceShareUSDC;
             protocolFeesUSDC += protocolShareUSDC;
             emit MirrorFeeAccruedFallback(
-                sourceAgent, sourceShareUSDC, protocolShareUSDC, bytes("not routable: non-forum, disabled, or unconfigured")
+                sourceAgent,
+                sourceShareUSDC,
+                protocolShareUSDC,
+                bytes("not routable: non-forum, disabled, or unconfigured")
             );
             return;
         }
 
         try this.routeFee(sourceAgent, mirrorFeeUSDC) {
-            // routed atomically through FeeRouter's audited split
-        } catch (bytes memory reason) {
+        // routed atomically through FeeRouter's audited split
+        }
+        catch (bytes memory reason) {
             sourceKickbackUSDC[sourceAgent] += sourceShareUSDC;
             protocolFeesUSDC += protocolShareUSDC;
             emit MirrorFeeAccruedFallback(sourceAgent, sourceShareUSDC, protocolShareUSDC, reason);
