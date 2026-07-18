@@ -14,11 +14,19 @@ import {
   recoverTypedDataAddress,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import {
+  confirmCitePayClearanceCheckpoint,
+  persistCitePayClearanceCheckpoint,
+} from "./citepay-clear-checkpoint.mjs";
+import { runCitePayClearGate } from "./citepay-clear-gate.mjs";
 
 // Binds an external builder's V2 FloatSpendIntent JSON.
 //
 // Input JSON shape:
-//   { "intent": { ... }, "signature": "0x...", "digest": "0x..." }
+//   { "intent": { ... }, "signature": "0x...", "digest": "0x...", "citepayClear": { ... } }
+//
+// citepayClear is required only when CITEPAY_CLEAR_ENABLED=1. It contains
+// { claim, quote, source } using CitePay Clear's source schema.
 //
 // Usage:
 //   FLOAT_EXECUTOR_PRIVATE_KEY=0x... \
@@ -115,8 +123,6 @@ if (getAddress(recovered) !== intent.agent) {
   throw new Error(`signature recovers ${recovered}, expected agent ${intent.agent}`);
 }
 
-const providerMandateTx = await maybeRefreshSponsoredProviderMandate();
-
 const existingReceipt = await publicClient.readContract({
   address: float,
   abi: floatAbi,
@@ -140,6 +146,27 @@ if (!isZeroHash(existingReceipt)) {
   );
   process.exit(0);
 }
+
+// This is deliberately before every write, including a sponsored-provider
+// mandate refresh. Any CitePay error or non-CLEARED decision fails closed.
+const citepayClearance = await runCitePayClearGate({
+  env,
+  payload,
+  requestHash,
+  signedReason: intent.reason,
+  provider: intent.provider,
+  endpointHash: intent.endpointHash,
+  amountUSDC: intent.amountUSDC,
+});
+const citepayCheckpoint = await persistCitePayClearanceCheckpoint({
+  env,
+  clearance: citepayClearance,
+  requestHash,
+  float,
+  chainId: CHAIN_ID,
+  intent,
+});
+const providerMandateTx = await maybeRefreshSponsoredProviderMandate();
 
 const [previewAllowed, previewReason] = await publicClient.readContract({
   address: float,
@@ -193,6 +220,11 @@ const providerTransfer = receipt.logs.find((log) => {
   );
 });
 const providerDelta = providerAfter - providerBefore;
+const citepayCheckpointSummary = await confirmCitePayClearanceCheckpoint({
+  checkpoint: citepayCheckpoint,
+  txHash,
+  receiptHash,
+});
 
 const checks = {
   digestMatches: true,
@@ -230,6 +262,8 @@ const result = {
   lineAfter: lineView(lineAfter),
   receiptHash,
   providerDeliveryHash: deliveryHash,
+  citepayClearance,
+  citepayCheckpoint: citepayCheckpointSummary,
   checks,
   citepayDirectTransfer: {
     endpoint: "https://citepay-markets.vercel.app/api/ask",
