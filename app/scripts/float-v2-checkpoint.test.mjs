@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
   FLOAT_V2_ACTIVITY_CHECKPOINT,
   FLOAT_V2_DEPLOY_BLOCK,
   FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
+  countFloatV2VerifiedReturningSponsors,
 } from "../floatV2Config.js";
 
 test("activity checkpoint covers every tracked external agent exactly once", () => {
@@ -40,15 +42,53 @@ test("activity checkpoint preserves the verified V2 totals", () => {
   );
 
   assert.deepEqual(totals, {
-    signedIntents: 12,
-    providerPaidCount: 12,
-    repaidCount: 11,
+    signedIntents: 13,
+    providerPaidCount: 13,
+    repaidCount: 12,
     blockedCount: 0,
-    providerPaidUSDC: 102_000n,
-    repaidUSDC: 92_000n,
+    providerPaidUSDC: 107_000n,
+    repaidUSDC: 97_000n,
     blockedUSDC: 0n,
   });
   for (const entry of FLOAT_V2_ACTIVITY_CHECKPOINT.agents) {
     assert.match(entry.latestTxHash || "", /^0x[0-9a-f]{64}$/i);
   }
+});
+
+test("renewed CitePay line preserves retired history and proves one returning sponsor", () => {
+  const citePaySponsor = "0x5389688243328c26a92b301faeeab5fbf9aff105";
+  const citePayLines = FLOAT_V2_TRACKED_EXTERNAL_AGENTS.filter(
+    (entry) => entry.verifiedSponsor?.toLowerCase() === citePaySponsor,
+  );
+
+  assert.equal(citePayLines.length, 2);
+  assert.equal(citePayLines.filter((entry) => entry.retired).length, 1);
+  assert.equal(new Set(citePayLines.map((entry) => entry.agent.toLowerCase())).size, 2);
+
+  const trackedWithActivity = FLOAT_V2_TRACKED_EXTERNAL_AGENTS.map((entry) => {
+    const checkpoint = FLOAT_V2_ACTIVITY_CHECKPOINT.agents.find(
+      (candidate) => candidate.agent.toLowerCase() === entry.agent.toLowerCase(),
+    );
+    assert.ok(checkpoint);
+    return { ...entry, signedIntents: checkpoint.signedIntents };
+  });
+
+  assert.equal(countFloatV2VerifiedReturningSponsors(trackedWithActivity), 1);
+  assert.equal(
+    countFloatV2VerifiedReturningSponsors(
+      trackedWithActivity.filter((entry) => !entry.retired),
+    ),
+    0,
+  );
+});
+
+test("frontend fallback identifies the renewed CitePay reserve as verified external capital", () => {
+  const source = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
+  const renewedLine = source.match(
+    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?sponsorState: "active-reserve",/,
+  );
+
+  assert.ok(renewedLine, "renewed CitePay fallback line must remain present");
+  assert.match(renewedLine[0], /sponsorProvenance: "verified-external"/);
+  assert.match(source, /floatV2SponsorProvenance\(agent\) === "verified-external"/);
 });

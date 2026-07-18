@@ -20,6 +20,7 @@ import {
   FLOAT_V2_STATUS_NAMES,
   FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
+  countFloatV2VerifiedReturningSponsors,
   floatV2Abi,
   floatV2IntentConsumedEvent,
   floatV2ReceiptEvent,
@@ -137,6 +138,7 @@ type FloatV2ProvenanceAgent = {
   category: string;
   agentProvenance: FloatV2AgentProvenance;
   sponsor: Address;
+  verifiedSponsor?: Address;
   sponsorProvenance: FloatV2SponsorProvenance;
   sponsorReserveUSDC: string;
   signedIntents: number;
@@ -185,13 +187,19 @@ export function summarizeFloatV2Provenance(agents: FloatV2ProvenanceAgent[]) {
   const operatorSponsoredAgents = trackedExternalAgents.filter(
     (agent) => agent.sponsorProvenance === "shadow-controlled",
   );
+  const externallySponsoredHistory = agents.filter(
+    (agent) =>
+      agent.category === "external" &&
+      agent.agentProvenance === "verified-external-signer" &&
+      Number(agent.signedIntents) > 0,
+  );
 
   return {
     trackedExternalAgentLines: trackedExternalAgents.length,
     externallySponsoredLines: externallySponsoredAgents.length,
     operatorSponsoredLines: operatorSponsoredAgents.length,
     returningAgents: externallySponsoredAgents.filter((agent) => Number(agent.signedIntents) > 1).length,
-    returningSponsors: countReturningSponsors(externallySponsoredAgents),
+    returningSponsors: countFloatV2VerifiedReturningSponsors(externallySponsoredHistory),
   };
 }
 
@@ -689,12 +697,14 @@ async function handleFloatV2(res: VercelLikeResponse) {
           denied: Number(behaviorStats[4]),
           errorCount: Number(behaviorStats[5]),
         },
+        behaviorStateReset: Boolean(entry.retired),
         autonomousScore: {
           score: Number(autonomousScore[0]),
           recommendedLimitUSDC: autonomousScore[1].toString(),
           cappedLimitUSDC: autonomousScore[2].toString(),
         },
         sponsor: sponsorLine[0],
+        verifiedSponsor: entry.verifiedSponsor ? getAddress(entry.verifiedSponsor) : undefined,
         sponsorProvenance: classifySponsorProvenance(sponsorLine[0]),
         sponsorReserveUSDC,
         sponsorState,
@@ -806,14 +816,40 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       latestTxHash: "0x0090b55caa8553540e38b886e09e5b88fdda051254305eb36676e9dd8f842ad2",
     }),
     snapshotV2Agent({
-      label: "CitePay sponsor",
+      label: "CitePay sponsor (retired line)",
       agent: "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f",
-      sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
-      lineExpiry: "1783595095",
-      lastReview: "1784200294",
+      wallet: ZERO_ADDRESS,
+      score: 0,
+      creditLimitUSDC: "0",
+      availableCreditUSDC: "0",
+      status: 4,
+      statusName: "REVOKED",
+      sponsor: ZERO_ADDRESS,
+      verifiedSponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+      sponsorReserveUSDC: "0",
+      sponsorState: "closed-reserve-reclaimed",
+      lineExpiry: "0",
+      lastReview: "1784399293",
+      autonomousScore: { score: 0, recommendedLimitUSDC: "0", cappedLimitUSDC: "0" },
+      behaviorPaid: 0,
+      behaviorRepaid: 0,
+      behaviorStateReset: true,
       spendTx: "0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae",
       repayTx: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe",
-      latestTxHash: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe",
+      latestTxHash: "0x2d91c37cc23ff8f342614bb9070e82efb37d0d588b15a43a3685c92786074e0d",
+    }),
+    snapshotV2Agent({
+      label: "CitePay sponsor (renewed line)",
+      agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
+      sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+      verifiedSponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+      lineExpiry: "1792175302",
+      lastReview: "1784399312",
+      providerPaidUSDC: "5000",
+      repaidUSDC: "5000",
+      spendTx: "0x9007d0e8f66c0bc641caaa305266d50aeb5e2e969ff3edbbd8122542ed08eae4",
+      repayTx: "0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911",
+      latestTxHash: "0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911",
     }),
     snapshotV2Agent({
       label: "Crux",
@@ -914,12 +950,12 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       trackedExternalAgentLines: provenance.trackedExternalAgentLines,
       externallySponsoredLines: provenance.externallySponsoredLines,
       operatorSponsoredLines: provenance.operatorSponsoredLines,
-      signedIntents: 12,
-      paidSpends: 12,
-      repaidLifecycles: 11,
+      signedIntents: 13,
+      paidSpends: 13,
+      repaidLifecycles: 12,
       openDebtAgents: 1,
-      providerPaidUSDC: "102000",
-      repaidUSDC: "92000",
+      providerPaidUSDC: "107000",
+      repaidUSDC: "97000",
       activeDebtUSDC: "10000",
       blockedUSDC: "0",
       returningAgents: provenance.returningAgents,
@@ -956,6 +992,7 @@ function snapshotV2Agent(input: {
   statusName?: string;
   lastReview: string;
   sponsor?: Address | string;
+  verifiedSponsor?: Address | string;
   sponsorReserveUSDC?: string;
   sponsorState?: string;
   lineExpiry?: string;
@@ -965,6 +1002,7 @@ function snapshotV2Agent(input: {
   repaid?: number;
   behaviorPaid?: number;
   behaviorRepaid?: number;
+  behaviorStateReset?: boolean;
   providerPaidUSDC?: string;
   repaidUSDC?: string;
   spendTx?: string;
@@ -1009,12 +1047,14 @@ function snapshotV2Agent(input: {
       denied: 0,
       errorCount: 0,
     },
+    behaviorStateReset: input.behaviorStateReset || undefined,
     autonomousScore: input.autonomousScore || {
       score,
       recommendedLimitUSDC: score >= 9000 ? "1000000" : score >= 8250 ? "50000" : "25000",
       cappedLimitUSDC: input.creditLimitUSDC ?? "50000",
     },
     sponsor,
+    verifiedSponsor: input.verifiedSponsor ? getAddress(input.verifiedSponsor) : undefined,
     sponsorProvenance: classifySponsorProvenance(sponsor),
     sponsorReserveUSDC,
     sponsorState:
@@ -1031,15 +1071,6 @@ function snapshotV2Agent(input: {
     repayTx: input.repayTx,
     latestTxHash: input.latestTxHash,
   };
-}
-
-function countReturningSponsors(agents: Array<{ sponsor: Address; signedIntents: number }>): number {
-  const intentCountBySponsor = new Map<string, number>();
-  for (const agent of agents) {
-    const sponsor = getAddress(agent.sponsor).toLowerCase();
-    intentCountBySponsor.set(sponsor, (intentCountBySponsor.get(sponsor) || 0) + Number(agent.signedIntents));
-  }
-  return [...intentCountBySponsor.values()].filter((count) => count > 1).length;
 }
 
 async function handleFloatDesk(res: VercelLikeResponse, req: VercelLikeRequest) {
