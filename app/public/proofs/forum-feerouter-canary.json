@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "label": "bounded external-builder integration pilot",
+  "network": {
+    "name": "Arc Testnet",
+    "chainId": 5042002,
+    "finalBlock": 52468594
+  },
+  "scope": {
+    "isolatedCanary": true,
+    "productionRouterChanged": false,
+    "productionRoutingClaimed": false,
+    "organicRevenueClaimed": false,
+    "independentSecurityValidationClaimed": false
+  },
+  "participants": {
+    "forumSource": "0x13585c6004fbA9D7D49219a6435B68348fD30770",
+    "shadowProtocolRecipient": "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8"
+  },
+  "contracts": {
+    "canaryAsset": "0x3fC41Bf6F74BdE7a0707D45c9FD85b2792BDDAD5",
+    "isolatedAmm": "0x22d0F9Dd0b5fBE48674f1439B21522f8D2BE6126",
+    "sourceRegistry": "0x563BFab2719C5dfb3572B74ef0A031D2e1FCB39f",
+    "mirrorFeeSplitter": "0xE901a54dDE4243940EEceD8C57F29fef5eC6eaca",
+    "canaryMirrorRouter": "0xC86C5e032A2e81E6Df7B0A60BC6cC830F52d939A",
+    "feeRouterV1": "0xeff9bc359e8f2a5eabce55af3f1bb24f98eabf59",
+    "arcUsdc": "0x3600000000000000000000000000000000000000"
+  },
+  "followerPolicy": {
+    "follower": "0xE1f57719d54642270766Bba912603B37C3Ca956c",
+    "maxAmountPerIntentAtomicUSDC": "10000",
+    "dailyCapAtomicUSDC": "10000",
+    "allowedAsset": "0x3fC41Bf6F74BdE7a0707D45c9FD85b2792BDDAD5",
+    "maxRiskLevel": 1,
+    "minBpsOut": 9000
+  },
+  "transactions": {
+    "forumBaselineClaim": "0xa4326f90de4ac332451c0e92704b0d86dde53d2a5bad8a75f453bb601fdcf4ef",
+    "shadowBaselineClaim": "0x5f7970a6d69f56819f5fe1656c07c0e5425cbd539bfaa9484c1d7d9afb2acfb2",
+    "routingEnabled": "0x050f4ec89b58eafc8f2e1d45c97db49447fedb508066fb5a8dee12513d70907e",
+    "forumPublish": "0xccbd877f593099d75e6ac5004dd9c102c075c0ee64ea64f1b90f37c719b80b16",
+    "routingDisabled": "0xe1fcd5045676c2159cf6f9c97264d53299550a62d2c0a55c7faa03acc876e855",
+    "shadowClaim": "0x80f29de9c8b4dae23c805763c90901618ffe07756bfee77117b8bcc4ab16bf37",
+    "forumClaim": "0x58acbe0ba50e58e77c83a088a6320a1696b5363cbecf3b0a0b94998ea3f99c21"
+  },
+  "result": {
+    "verifier": "CANARY_COMPLETE",
+    "splitId": "205",
+    "confirmedPublishTransactions": 1,
+    "copiedAmountAtomicUSDC": "10000",
+    "mirrorFeeAtomicUSDC": "10",
+    "forumAllocationAtomicUSDC": "7",
+    "shadowAllocationAtomicUSDC": "3",
+    "forumClaimAtomicUSDC": "7",
+    "shadowClaimAtomicUSDC": "3",
+    "forumOutstandingAtomicUSDC": "0",
+    "shadowOutstandingAtomicUSDC": "0",
+    "forumFallbackAtomicUSDC": "0",
+    "shadowFallbackAtomicUSDC": "0",
+    "splitterToFeeRouterAllowanceAtomicUSDC": "0",
+    "routerToSplitterAllowanceAtomicUSDC": "0",
+    "externalRoutingEnabled": false
+  }
+}

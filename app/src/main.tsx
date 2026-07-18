@@ -54,6 +54,7 @@ import {
   publicClient,
   routerAbi,
   shortAddress,
+  arcExplorerUrl,
   txUrl,
   v4StyleArcAdapterAbi,
   type AgentSignal,
@@ -303,6 +304,27 @@ const FLOAT_V2_PROOF = {
     "0x85aea6dfce5b589fa5a1e5526889d31ca9126385217614b42d0ad34656261311",
   ] as readonly Hash[],
 };
+
+const FORUM_FEEROUTER_CANARY = {
+  finalBlock: 52_468_594,
+  splitId: 205,
+  forumShareAtomicUSDC: 7,
+  protocolShareAtomicUSDC: 3,
+  totalFeeAtomicUSDC: 10,
+  addresses: {
+    forum: "0x13585c6004fbA9D7D49219a6435B68348fD30770" as Address,
+    router: "0xC86C5e032A2e81E6Df7B0A60BC6cC830F52d939A" as Address,
+    splitter: "0xE901a54dDE4243940EEceD8C57F29fef5eC6eaca" as Address,
+    feeRouter: "0xeFf9bc359e8f2a5eabce55af3f1bb24F98eaBF59" as Address,
+  },
+  txs: {
+    publish: "0xccbd877f593099d75e6ac5004dd9c102c075c0ee64ea64f1b90f37c719b80b16" as Hash,
+    routingDisabled: "0xe1fcd5045676c2159cf6f9c97264d53299550a62d2c0a55c7faa03acc876e855" as Hash,
+    forumClaim: "0x58acbe0ba50e58e77c83a088a6320a1696b5363cbecf3b0a0b94998ea3f99c21" as Hash,
+    protocolClaim: "0x80f29de9c8b4dae23c805763c90901618ffe07756bfee77117b8bcc4ab16bf37" as Hash,
+  },
+} as const;
+
 const FLOAT_V2_LOG_CHUNK_SIZE = FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE;
 
 type FloatV2LineRead = readonly [Address, number, bigint, bigint, bigint, number, bigint, `0x${string}`, bigint, bigint];
@@ -2324,6 +2346,7 @@ function App() {
     <>
       <TreasuryHero treasuryState={treasuryState} />
       <TreasuryEvidenceStrip treasuryState={treasuryState} />
+      <ForumFeeRouterCanaryProof />
       <TreasuryRailSplit leptonState={leptonState} />
       <TreasuryLiveVerifierPanel state={treasuryState} loading={treasuryLoading} error={treasuryError} />
       <TreasuryOnchainLinks />
@@ -3896,6 +3919,122 @@ function TreasuryOnchainLinks() {
   );
 }
 
+function ForumFeeRouterCanaryProof() {
+  const transactions = [
+    { label: "Forum published", detail: "one bounded dust intent", hash: FORUM_FEEROUTER_CANARY.txs.publish },
+    { label: "Routing disabled", detail: "canary gate returned off", hash: FORUM_FEEROUTER_CANARY.txs.routingDisabled },
+    { label: "Forum claimed", detail: "7 atomic USDC", hash: FORUM_FEEROUTER_CANARY.txs.forumClaim },
+    { label: "Shadow claimed", detail: "3 atomic USDC", hash: FORUM_FEEROUTER_CANARY.txs.protocolClaim },
+  ];
+  const contracts = [
+    { label: "Canary router", address: FORUM_FEEROUTER_CANARY.addresses.router },
+    { label: "Fee splitter", address: FORUM_FEEROUTER_CANARY.addresses.splitter },
+    { label: "Forum FeeRouter", address: FORUM_FEEROUTER_CANARY.addresses.feeRouter },
+  ];
+
+  return (
+    <section className="forumCanaryProof" id="forum-feerouter-canary" aria-label="Forum FeeRouter external integration proof">
+      <div className="forumCanaryHeader">
+        <div>
+          <p className="eyebrow">external integration · isolated Arc testnet canary</p>
+          <h2>One outside agent routed one fee. Every atomic unit reconciled.</h2>
+          <p>
+            Forum published a single intent from its own wallet. Shadow's isolated canary copied it, routed the mirror fee
+            through Forum's FeeRouter, and returned routing to disabled before either recipient claimed.
+          </p>
+        </div>
+        <div className="forumCanaryStatus" aria-label="Canary verification status">
+          <span />
+          <div>
+            <small>final verifier</small>
+            <strong>CANARY COMPLETE</strong>
+            <code>block {FORUM_FEEROUTER_CANARY.finalBlock.toLocaleString("en-US")}</code>
+          </div>
+        </div>
+      </div>
+
+      <div className="forumCanaryMetrics" aria-label="Forum canary result">
+        <div>
+          <span>confirmed publishes</span>
+          <strong>1</strong>
+        </div>
+        <div>
+          <span>fee routed</span>
+          <strong>{FORUM_FEEROUTER_CANARY.totalFeeAtomicUSDC}</strong>
+          <small>atomic USDC</small>
+        </div>
+        <div>
+          <span>Forum / Shadow</span>
+          <strong>{FORUM_FEEROUTER_CANARY.forumShareAtomicUSDC} / {FORUM_FEEROUTER_CANARY.protocolShareAtomicUSDC}</strong>
+          <small>exact 70 / 30</small>
+        </div>
+        <div>
+          <span>outstanding</span>
+          <strong>0 / 0</strong>
+          <small>both claimed</small>
+        </div>
+        <div>
+          <span>post-condition</span>
+          <strong>OFF</strong>
+          <small>external routing</small>
+        </div>
+      </div>
+
+      <div className="forumCanaryTrace">
+        <div className="forumCanaryTransactions" aria-label="Forum canary transactions">
+          <div className="forumCanarySubhead">
+            <span>transaction trace</span>
+            <strong>Signer and transfer evidence</strong>
+          </div>
+          {transactions.map((transaction) => (
+            <a href={txUrl(transaction.hash)} target="_blank" rel="noreferrer" key={transaction.label}>
+              <span>{transaction.label}</span>
+              <small>{transaction.detail}</small>
+              <code>{shortAddress(transaction.hash)}</code>
+            </a>
+          ))}
+        </div>
+
+        <div className="forumCanaryReferences" aria-label="Forum canary contracts and evidence">
+          <div className="forumCanarySubhead">
+            <span>reproduce</span>
+            <strong>Contracts and proof artifact</strong>
+          </div>
+          {contracts.map((contract) => (
+            <a
+              href={`${arcExplorerUrl}/address/${contract.address}`}
+              target="_blank"
+              rel="noreferrer"
+              key={contract.label}
+            >
+              <span>{contract.label}</span>
+              <code>{shortAddress(contract.address)}</code>
+            </a>
+          ))}
+          <a href="/proofs/forum-feerouter-canary.json" target="_blank" rel="noreferrer">
+            <span>Public result JSON</span>
+            <code>7 / 3 · zero outstanding</code>
+          </a>
+          <a
+            href="https://github.com/dolepee/shadow/blob/main/docs/FORUM_FEEROUTER_CANARY.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span>Verifier runbook</span>
+            <code>source and commands</code>
+          </a>
+        </div>
+      </div>
+
+      <p className="forumCanaryBoundary">
+        Bounded external-builder integration pilot. The canary used isolated contracts and dust-sized Arc testnet USDC;
+        it is not production routing, organic revenue, or independent security validation. Final state: split allocation
+        7 / 3, outstanding 0 / 0, fallback 0 / 0, temporary allowances 0 / 0, routing disabled.
+      </p>
+    </section>
+  );
+}
+
 function TreasuryValidationPanel() {
   const validationRows = [
     {
@@ -3915,8 +4054,8 @@ function TreasuryValidationPanel() {
     },
     {
       label: "Forum",
-      status: "sponsor reclaim receipt",
-      detail: "Forum Tollgate appears on the sponsor proof path with open reserve, agent spend, agent repay, reserve reclaim, and reopened reserve transactions.",
+      status: "FeeRouter canary settled",
+      detail: "Forum published one intent into an isolated canary. The 10-atomic fee split 7/3, both recipients claimed, and routing returned disabled.",
     },
   ];
 
@@ -7708,6 +7847,14 @@ function HomeProofOverview({
       body: "CitePay accepted Float-paid requests, then signed an onchain delivery receipt for the Driplet-paid request.",
       href: txUrl(FLOAT_V2_PROOF.dripletCitePayDeliveryTx),
       external: true,
+    },
+    {
+      eyebrow: "cross-agent fee routing",
+      value: "7 / 3",
+      label: "Forum canary settled",
+      body: "Forum published from its own wallet. The isolated FeeRouter canary split and paid both shares, then returned routing to disabled.",
+      href: "/records#forum-feerouter-canary",
+      external: false,
     },
   ];
 
