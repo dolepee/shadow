@@ -18,6 +18,7 @@ import {
   confirmCitePayClearanceCheckpoint,
   persistCitePayClearanceCheckpoint,
   recordBlockedCitePayClearanceCheckpoint,
+  recoverCitePayClearanceCheckpoint,
 } from "./citepay-clear-checkpoint.mjs";
 import { runCitePayClearGate } from "./citepay-clear-gate.mjs";
 
@@ -139,6 +140,15 @@ if (!isZeroHash(existingReceipt)) {
     args: [requestHash],
   });
   const providerPaid = !isZeroHash(paidSpendCommitment);
+  const citepayCheckpoint = await recoverCitePayClearanceCheckpoint({
+    env,
+    requestHash,
+    float,
+    chainId: CHAIN_ID,
+    intent,
+    receiptHash: existingReceipt,
+    paidSpendCommitment,
+  });
   console.log(
     JSON.stringify(
       {
@@ -149,6 +159,7 @@ if (!isZeroHash(existingReceipt)) {
         requestHash,
         receiptHash: existingReceipt,
         paidSpendCommitment,
+        citepayCheckpoint,
         verifyUrl: `https://shadow-arc.vercel.app/api/float-tools?action=verify&hash=${requestHash}`,
       },
       null,
@@ -207,11 +218,12 @@ console.error(`requestSignedSpend: ${txHash}`);
 const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 120_000 });
 if (receipt.status !== "success") throw new Error(`requestSignedSpend reverted: ${txHash}`);
 
-const [providerAfter, lineAfter, consumed, receiptHash, deliveryHash] = await Promise.all([
+const [providerAfter, lineAfter, consumed, receiptHash, paidSpendCommitment, deliveryHash] = await Promise.all([
   publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [intent.provider] }),
   publicClient.readContract({ address: float, abi: floatAbi, functionName: "lines", args: [intent.agent] }),
   publicClient.readContract({ address: float, abi: floatAbi, functionName: "intentNonceUsed", args: [intent.agent, intent.nonce] }),
   publicClient.readContract({ address: float, abi: floatAbi, functionName: "receiptByRequestHash", args: [requestHash] }),
+  publicClient.readContract({ address: float, abi: floatAbi, functionName: "paidSpendCommitments", args: [requestHash] }),
   publicClient.readContract({ address: float, abi: floatAbi, functionName: "providerDeliveryByRequestHash", args: [requestHash] }),
 ]);
 
@@ -240,7 +252,9 @@ const checks = {
   intentConsumed: Boolean(intentConsumed),
   nonceMarkedUsed: Boolean(consumed),
   receiptRecorded: !isZeroHash(receiptHash),
-  providerPaidExactAmount: Boolean(providerTransfer) && providerDelta === intent.amountUSDC,
+  paidSpendRecorded: !isZeroHash(paidSpendCommitment),
+  providerPaidExactAmount:
+    Boolean(providerTransfer) && providerDelta === intent.amountUSDC && !isZeroHash(paidSpendCommitment),
 };
 let citepayCheckpointSummary = citepayCheckpoint.summary;
 if (checks.txSucceeded && checks.receiptRecorded) {
@@ -251,6 +265,7 @@ if (checks.txSucceeded && checks.receiptRecorded) {
     checkpoint: citepayCheckpoint,
     txHash,
     receiptHash,
+    paidSpendCommitment,
   });
 }
 const ok = Object.values(checks).every(Boolean);
@@ -278,6 +293,7 @@ const result = {
   lineBefore: lineView(lineBefore),
   lineAfter: lineView(lineAfter),
   receiptHash,
+  paidSpendCommitment,
   providerDeliveryHash: deliveryHash,
   citepayClearance,
   citepayCheckpoint: citepayCheckpointSummary,

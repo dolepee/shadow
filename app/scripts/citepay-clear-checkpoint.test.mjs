@@ -8,6 +8,7 @@ import {
   confirmCitePayClearanceCheckpoint,
   persistCitePayClearanceCheckpoint,
   recordBlockedCitePayClearanceCheckpoint,
+  recoverCitePayClearanceCheckpoint,
 } from "./citepay-clear-checkpoint.mjs";
 
 const requestHash = `0x${"ab".repeat(32)}`;
@@ -68,6 +69,7 @@ test("persists a secret-free mode-600 checkpoint before spend and confirms it af
     checkpoint,
     txHash: `0x${"55".repeat(32)}`,
     receiptHash: `0x${"66".repeat(32)}`,
+    paidSpendCommitment: `0x${"aa".repeat(32)}`,
     cwd,
     now: () => new Date("2026-07-18T12:01:00.000Z"),
   });
@@ -77,6 +79,7 @@ test("persists a secret-free mode-600 checkpoint before spend and confirms it af
   assert.equal(after.transaction.txHash, `0x${"55".repeat(32)}`);
   assert.equal(after.transaction.receiptHash, `0x${"66".repeat(32)}`);
   assert.equal(after.transaction.providerPaid, true);
+  assert.equal(after.transaction.paidSpendCommitment, `0x${"aa".repeat(32)}`);
   assert.equal(after.confirmedAt, "2026-07-18T12:01:00.000Z");
 
   await assert.rejects(
@@ -122,9 +125,74 @@ test("a successful blocked Float receipt is terminal but never confirmed as paid
       checkpoint,
       txHash: `0x${"77".repeat(32)}`,
       receiptHash: `0x${"88".repeat(32)}`,
+      paidSpendCommitment: `0x${"99".repeat(32)}`,
       cwd,
     }),
     (error) => error instanceof CitePayCheckpointError && error.code === "checkpoint_conflict",
+  );
+});
+
+test("recovers a paid checkpoint after a crash without resubmitting or losing known tx metadata", async (t) => {
+  const cwd = await mkdtemp(join(tmpdir(), "shadow-citepay-recovery-"));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const input = {
+    env: { CITEPAY_CLEAR_ENABLED: "1" },
+    clearance,
+    requestHash,
+    float: "0x4444444444444444444444444444444444444444",
+    chainId: 5_042_002,
+    intent,
+    cwd,
+  };
+  const checkpoint = await persistCitePayClearanceCheckpoint(input);
+  const recovered = await recoverCitePayClearanceCheckpoint({
+    ...input,
+    receiptHash: `0x${"55".repeat(32)}`,
+    paidSpendCommitment: `0x${"66".repeat(32)}`,
+  });
+  assert.equal(recovered.status, "confirmed");
+  const recoveredRecord = JSON.parse(await readFile(checkpoint.filePath, "utf8"));
+  assert.equal(recoveredRecord.transaction.txHash, null);
+  assert.equal(recoveredRecord.transaction.recovered, true);
+  assert.equal(recoveredRecord.transaction.providerPaid, true);
+
+  const normalCwd = await mkdtemp(join(tmpdir(), "shadow-citepay-normal-retry-"));
+  t.after(() => rm(normalCwd, { recursive: true, force: true }));
+  const normalInput = { ...input, cwd: normalCwd };
+  const normalCheckpoint = await persistCitePayClearanceCheckpoint(normalInput);
+  await confirmCitePayClearanceCheckpoint({
+    checkpoint: normalCheckpoint,
+    txHash: `0x${"77".repeat(32)}`,
+    receiptHash: `0x${"88".repeat(32)}`,
+    paidSpendCommitment: `0x${"99".repeat(32)}`,
+    cwd: normalCwd,
+  });
+  const normalRetry = await recoverCitePayClearanceCheckpoint({
+    ...normalInput,
+    receiptHash: `0x${"88".repeat(32)}`,
+    paidSpendCommitment: `0x${"99".repeat(32)}`,
+  });
+  assert.equal(normalRetry.status, "confirmed");
+  const normalRecord = JSON.parse(await readFile(normalCheckpoint.filePath, "utf8"));
+  assert.equal(normalRecord.transaction.txHash, `0x${"77".repeat(32)}`);
+  assert.equal(normalRecord.transaction.recovered, false);
+});
+
+test("enabled recovery fails closed when its pre-spend checkpoint is missing", async (t) => {
+  const cwd = await mkdtemp(join(tmpdir(), "shadow-citepay-missing-recovery-"));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  await assert.rejects(
+    recoverCitePayClearanceCheckpoint({
+      env: { CITEPAY_CLEAR_ENABLED: "1" },
+      requestHash,
+      float: "0x4444444444444444444444444444444444444444",
+      chainId: 5_042_002,
+      intent,
+      receiptHash: `0x${"55".repeat(32)}`,
+      paidSpendCommitment: `0x${"66".repeat(32)}`,
+      cwd,
+    }),
+    (error) => error instanceof CitePayCheckpointError && error.code === "checkpoint_missing",
   );
 });
 

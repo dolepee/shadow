@@ -3,6 +3,7 @@ import { chmod, lstat, mkdir, open, readFile, rename, rm } from "node:fs/promise
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 const DEFAULT_CHECKPOINT_DIR = ".tmp/citepay-clearances";
+const ZERO_BYTES32 = `0x${"00".repeat(32)}`;
 
 export class CitePayCheckpointError extends Error {
   constructor(code, message) {
@@ -30,18 +31,7 @@ export async function persistCitePayClearanceCheckpoint({
   }
 
   const normalizedRequestHash = bytes32(requestHash, "requestHash");
-  const binding = {
-    requestHash: normalizedRequestHash,
-    chainId: safeInteger(chainId, "chainId"),
-    float: address(float, "float"),
-    agent: address(intent?.agent, "intent.agent"),
-    provider: address(intent?.provider, "intent.provider"),
-    endpointHash: bytes32(intent?.endpointHash, "intent.endpointHash"),
-    amountUSDC: unsignedInteger(intent?.amountUSDC, "intent.amountUSDC"),
-    nonce: unsignedInteger(intent?.nonce, "intent.nonce"),
-    expiry: unsignedInteger(intent?.expiry, "intent.expiry"),
-    reason: requiredString(intent?.reason, "intent.reason"),
-  };
+  const binding = normalizeBinding({ requestHash: normalizedRequestHash, float, chainId, intent });
   const citepay = {
     decision: exact(clearance.decision, "CLEARED", "clearance.decision"),
     clearanceId: prefixed(clearance.clearanceId, "clr_", "clearance.clearanceId"),
@@ -121,6 +111,7 @@ export async function confirmCitePayClearanceCheckpoint({
   checkpoint,
   txHash,
   receiptHash,
+  paidSpendCommitment,
   cwd = process.cwd(),
   now = () => new Date(),
 }) {
@@ -128,6 +119,7 @@ export async function confirmCitePayClearanceCheckpoint({
     checkpoint,
     txHash,
     receiptHash,
+    paidSpendCommitment,
     status: "confirmed",
     providerPaid: true,
     cwd,
@@ -139,6 +131,7 @@ export async function recordBlockedCitePayClearanceCheckpoint({
   checkpoint,
   txHash,
   receiptHash,
+  paidSpendCommitment = ZERO_BYTES32,
   cwd = process.cwd(),
   now = () => new Date(),
 }) {
@@ -146,8 +139,62 @@ export async function recordBlockedCitePayClearanceCheckpoint({
     checkpoint,
     txHash,
     receiptHash,
+    paidSpendCommitment,
     status: "blocked_no_payment",
     providerPaid: false,
+    cwd,
+    now,
+  });
+}
+
+export async function recoverCitePayClearanceCheckpoint({
+  env,
+  requestHash,
+  float,
+  chainId,
+  intent,
+  receiptHash,
+  paidSpendCommitment,
+  cwd = process.cwd(),
+  now = () => new Date(),
+}) {
+  if (String(env?.CITEPAY_CLEAR_ENABLED ?? "").trim() !== "1") {
+    return { enabled: false, status: "disabled" };
+  }
+
+  const normalizedRequestHash = bytes32(requestHash, "requestHash");
+  const directory = checkpointDirectory(env?.CITEPAY_CLEAR_CHECKPOINT_DIR, cwd);
+  const filePath = join(directory, `${normalizedRequestHash.slice(2)}.json`);
+  const record = await readExisting(filePath);
+  if (!record) {
+    throw new CitePayCheckpointError(
+      "checkpoint_missing",
+      "an enabled CitePay request is already bound on-chain but has no local clearance checkpoint",
+    );
+  }
+
+  const binding = normalizeBinding({ requestHash: normalizedRequestHash, float, chainId, intent });
+  const expectedBindingHash = hashJson({ binding, citepay: record.citepay });
+  if (record.bindingHash !== expectedBindingHash) {
+    throw new CitePayCheckpointError(
+      "checkpoint_conflict",
+      "the recovered CitePay checkpoint does not match the already-bound Float intent",
+    );
+  }
+
+  const normalizedPaidCommitment = bytes32(paidSpendCommitment, "paidSpendCommitment");
+  const providerPaid = normalizedPaidCommitment !== ZERO_BYTES32;
+  const checkpoint = {
+    filePath,
+    summary: publicSummary(record, cwd, filePath, true),
+  };
+  return finalizeCitePayClearanceCheckpoint({
+    checkpoint,
+    txHash: null,
+    receiptHash,
+    paidSpendCommitment: normalizedPaidCommitment,
+    status: providerPaid ? "confirmed" : "blocked_no_payment",
+    providerPaid,
     cwd,
     now,
   });
@@ -157,6 +204,7 @@ async function finalizeCitePayClearanceCheckpoint({
   checkpoint,
   txHash,
   receiptHash,
+  paidSpendCommitment,
   status,
   providerPaid,
   cwd,
@@ -164,8 +212,15 @@ async function finalizeCitePayClearanceCheckpoint({
 }) {
   if (!checkpoint?.filePath) return checkpoint?.summary ?? { enabled: false, status: "disabled" };
 
-  const normalizedTxHash = bytes32(txHash, "txHash");
+  const normalizedTxHash = txHash === null ? null : bytes32(txHash, "txHash");
   const normalizedReceiptHash = bytes32(receiptHash, "receiptHash");
+  const normalizedPaidCommitment = bytes32(paidSpendCommitment, "paidSpendCommitment");
+  if (providerPaid !== (normalizedPaidCommitment !== ZERO_BYTES32)) {
+    throw new CitePayCheckpointError(
+      "checkpoint_payment_invalid",
+      "checkpoint payment status does not match the on-chain paid-spend commitment",
+    );
+  }
   const record = await readExisting(checkpoint.filePath);
   if (!record) {
     throw new CitePayCheckpointError(
@@ -177,9 +232,10 @@ async function finalizeCitePayClearanceCheckpoint({
   if (["confirmed", "blocked_no_payment"].includes(record.status)) {
     if (
       record.status !== status
-      || record.transaction?.txHash !== normalizedTxHash
+      || (normalizedTxHash !== null && record.transaction?.txHash !== normalizedTxHash)
       || record.transaction?.receiptHash !== normalizedReceiptHash
       || record.transaction?.providerPaid !== providerPaid
+      || record.transaction?.paidSpendCommitment !== normalizedPaidCommitment
     ) {
       throw new CitePayCheckpointError(
         "checkpoint_conflict",
@@ -200,6 +256,8 @@ async function finalizeCitePayClearanceCheckpoint({
       txHash: normalizedTxHash,
       receiptHash: normalizedReceiptHash,
       providerPaid,
+      paidSpendCommitment: normalizedPaidCommitment,
+      recovered: normalizedTxHash === null,
     },
   };
   await atomicWriteJson(checkpoint.filePath, confirmed);
@@ -211,6 +269,21 @@ function checkpointDirectory(configured, cwd) {
     ? configured.trim()
     : DEFAULT_CHECKPOINT_DIR;
   return isAbsolute(value) ? resolve(value) : resolve(cwd, value);
+}
+
+function normalizeBinding({ requestHash, float, chainId, intent }) {
+  return {
+    requestHash,
+    chainId: safeInteger(chainId, "chainId"),
+    float: address(float, "float"),
+    agent: address(intent?.agent, "intent.agent"),
+    provider: address(intent?.provider, "intent.provider"),
+    endpointHash: bytes32(intent?.endpointHash, "intent.endpointHash"),
+    amountUSDC: unsignedInteger(intent?.amountUSDC, "intent.amountUSDC"),
+    nonce: unsignedInteger(intent?.nonce, "intent.nonce"),
+    expiry: unsignedInteger(intent?.expiry, "intent.expiry"),
+    reason: requiredString(intent?.reason, "intent.reason"),
+  };
 }
 
 async function readExisting(filePath) {
@@ -295,9 +368,14 @@ function validRecord(record) {
   ) return false;
 
   if (record.status === "cleared_not_submitted") return record.transaction === null;
-  return /^0x[0-9a-f]{64}$/.test(record.transaction?.txHash || "")
+  const txHashValid = record.transaction?.txHash === null
+    || /^0x[0-9a-f]{64}$/.test(record.transaction?.txHash || "");
+  return txHashValid
     && /^0x[0-9a-f]{64}$/.test(record.transaction?.receiptHash || "")
-    && record.transaction?.providerPaid === (record.status === "confirmed");
+    && /^0x[0-9a-f]{64}$/.test(record.transaction?.paidSpendCommitment || "")
+    && record.transaction?.providerPaid === (record.status === "confirmed")
+    && record.transaction?.providerPaid === (record.transaction.paidSpendCommitment !== ZERO_BYTES32)
+    && record.transaction?.recovered === (record.transaction.txHash === null);
 }
 
 function address(value, field) {

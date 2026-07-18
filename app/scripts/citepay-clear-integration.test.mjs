@@ -47,11 +47,13 @@ test("a previously bound request is successful only with an on-chain paid-spend 
   const binder = await readFile(new URL("./float-v2-bind-intent.mjs", import.meta.url), "utf8");
   const existingBranch = binder.indexOf("if (!isZeroHash(existingReceipt))");
   const paidRead = binder.indexOf('functionName: "paidSpendCommitments"', existingBranch);
+  const checkpointRecovery = binder.indexOf("await recoverCitePayClearanceCheckpoint", existingBranch);
   const paidResult = binder.indexOf("ok: providerPaid", existingBranch);
   const blockedExit = binder.indexOf("process.exit(providerPaid ? 0 : 1)", existingBranch);
 
   assert.ok(existingBranch >= 0, "existing receipt branch is missing");
   assert.ok(paidRead > existingBranch, "existing receipt must read the paid-spend commitment");
-  assert.ok(paidResult > paidRead, "existing receipt success must use payment evidence");
+  assert.ok(checkpointRecovery > paidRead, "existing receipts must repair their CitePay checkpoint before exit");
+  assert.ok(paidResult > checkpointRecovery, "existing receipt success must follow checkpoint recovery");
   assert.ok(blockedExit > paidResult, "a bound but unpaid receipt must exit as failure");
 });

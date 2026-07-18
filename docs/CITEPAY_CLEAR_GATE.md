@@ -80,7 +80,9 @@ The checkpoint is local operational evidence and is ignored by Git. Its state is
 `cleared_not_submitted` before the first chain write and changes to `confirmed` only after the Float
 transaction is proven to have paid the provider exactly. A successful blocked transaction is instead
 recorded as `blocked_no_payment`; it never confirms the clearance as paid. A conflicting checkpoint for
-the same request hash fails closed.
+the same request hash fails closed. If the process stops after the on-chain transaction but before this
+final update, a retry repairs the pending checkpoint from `receiptByRequestHash` and
+`paidSpendCommitments` before reporting the already-bound result; it never resubmits the spend.
 
 ## Settlement boundary
 
