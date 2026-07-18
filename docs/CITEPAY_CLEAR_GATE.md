@@ -84,7 +84,10 @@ successful blocked transaction is instead
 recorded as `blocked_no_payment`; it never confirms the clearance as paid. A conflicting checkpoint for
 the same request hash fails closed. If the process stops after the on-chain transaction but before this
 final update, a retry repairs the pending checkpoint from `receiptByRequestHash` and
-`paidSpendCommitments` before reporting the already-bound result; it never resubmits the spend.
+`paidSpendCommitments`, then locates the original `FloatIntentConsumed` transaction and requires the
+same exact Float-to-provider USDC transfer before reporting the already-bound result. An x402
+facilitator reimbursement does not satisfy this direct-payment proof. Recovery fails closed if the
+transaction receipt cannot be located; it never resubmits the spend.
 
 A mode-600 per-request lock serializes checkpoint creation and terminal transitions across binder
 processes. A competing process fails closed with `checkpoint_locked` before any Float write. If a process

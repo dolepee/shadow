@@ -50,17 +50,23 @@ test("checkpoint confirmation is downstream of exact provider-payment evidence",
   assert.ok(blockedOutcome > confirmation, "no-payment receipts need an explicit blocked outcome");
 });
 
-test("a previously bound request is successful only with an on-chain paid-spend commitment", async () => {
+test("a previously bound request requires historical direct-provider payment evidence", async () => {
   const binder = await readFile(new URL("./float-v2-bind-intent.mjs", import.meta.url), "utf8");
   const existingBranch = binder.indexOf("if (!isZeroHash(existingReceipt))");
   const paidRead = binder.indexOf('functionName: "paidSpendCommitments"', existingBranch);
+  const paymentEvidence = binder.indexOf("await findBoundDirectProviderPayment", existingBranch);
   const checkpointRecovery = binder.indexOf("await recoverCitePayClearanceCheckpoint", existingBranch);
   const paidResult = binder.indexOf("ok: providerPaid", existingBranch);
   const blockedExit = binder.indexOf("process.exit(providerPaid ? 0 : 1)", existingBranch);
 
   assert.ok(existingBranch >= 0, "existing receipt branch is missing");
   assert.ok(paidRead > existingBranch, "existing receipt must read the paid-spend commitment");
-  assert.ok(checkpointRecovery > paidRead, "existing receipts must repair their CitePay checkpoint before exit");
+  assert.ok(paymentEvidence > paidRead, "CitePay recovery must inspect the original transaction receipt");
+  assert.ok(checkpointRecovery > paymentEvidence, "existing receipts must repair their CitePay checkpoint after payment proof");
+  assert.match(
+    binder.slice(checkpointRecovery, paidResult),
+    /directProviderPayment: paymentEvidence\.providerPaidExactAmount/,
+  );
   assert.ok(paidResult > checkpointRecovery, "existing receipt success must follow checkpoint recovery");
   assert.ok(blockedExit > paidResult, "a bound but unpaid receipt must exit as failure");
 });

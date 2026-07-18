@@ -132,7 +132,7 @@ test("a successful blocked Float receipt is terminal but never confirmed as paid
   );
 });
 
-test("recovers a paid checkpoint after a crash without resubmitting or losing known tx metadata", async (t) => {
+test("recovers a directly paid checkpoint after a crash without resubmitting", async (t) => {
   const cwd = await mkdtemp(join(tmpdir(), "shadow-citepay-recovery-"));
   t.after(() => rm(cwd, { recursive: true, force: true }));
   const input = {
@@ -147,13 +147,15 @@ test("recovers a paid checkpoint after a crash without resubmitting or losing kn
   const checkpoint = await persistCitePayClearanceCheckpoint(input);
   const recovered = await recoverCitePayClearanceCheckpoint({
     ...input,
+    txHash: `0x${"44".repeat(32)}`,
     receiptHash: `0x${"55".repeat(32)}`,
     paidSpendCommitment: `0x${"66".repeat(32)}`,
+    directProviderPayment: true,
   });
   assert.equal(recovered.status, "confirmed");
   const recoveredRecord = JSON.parse(await readFile(checkpoint.filePath, "utf8"));
-  assert.equal(recoveredRecord.transaction.txHash, null);
-  assert.equal(recoveredRecord.transaction.recovered, true);
+  assert.equal(recoveredRecord.transaction.txHash, `0x${"44".repeat(32)}`);
+  assert.equal(recoveredRecord.transaction.recovered, false);
   assert.equal(recoveredRecord.transaction.providerPaid, true);
 
   const normalCwd = await mkdtemp(join(tmpdir(), "shadow-citepay-normal-retry-"));
@@ -169,13 +171,42 @@ test("recovers a paid checkpoint after a crash without resubmitting or losing kn
   });
   const normalRetry = await recoverCitePayClearanceCheckpoint({
     ...normalInput,
+    txHash: `0x${"77".repeat(32)}`,
     receiptHash: `0x${"88".repeat(32)}`,
     paidSpendCommitment: `0x${"99".repeat(32)}`,
+    directProviderPayment: true,
   });
   assert.equal(normalRetry.status, "confirmed");
   const normalRecord = JSON.parse(await readFile(normalCheckpoint.filePath, "utf8"));
   assert.equal(normalRecord.transaction.txHash, `0x${"77".repeat(32)}`);
   assert.equal(normalRecord.transaction.recovered, false);
+});
+
+test("a paid commitment without a direct provider transfer cannot confirm recovery", async (t) => {
+  const cwd = await mkdtemp(join(tmpdir(), "shadow-citepay-x402-recovery-"));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const input = {
+    env: { CITEPAY_CLEAR_ENABLED: "1" },
+    clearance,
+    requestHash,
+    float: "0x4444444444444444444444444444444444444444",
+    chainId: 5_042_002,
+    intent,
+    cwd,
+  };
+  const checkpoint = await persistCitePayClearanceCheckpoint(input);
+
+  await assert.rejects(
+    recoverCitePayClearanceCheckpoint({
+      ...input,
+      txHash: `0x${"44".repeat(32)}`,
+      receiptHash: `0x${"55".repeat(32)}`,
+      paidSpendCommitment: `0x${"66".repeat(32)}`,
+      directProviderPayment: false,
+    }),
+    (error) => error instanceof CitePayCheckpointError && error.code === "checkpoint_payment_unverified",
+  );
+  assert.equal(JSON.parse(await readFile(checkpoint.filePath, "utf8")).status, "cleared_not_submitted");
 });
 
 test("enabled recovery fails closed when its pre-spend checkpoint is missing", async (t) => {

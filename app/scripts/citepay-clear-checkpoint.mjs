@@ -154,8 +154,10 @@ export async function recoverCitePayClearanceCheckpoint({
   float,
   chainId,
   intent,
+  txHash,
   receiptHash,
   paidSpendCommitment,
+  directProviderPayment,
   cwd = process.cwd(),
   now = () => new Date(),
 }) {
@@ -184,14 +186,34 @@ export async function recoverCitePayClearanceCheckpoint({
   }
 
   const normalizedPaidCommitment = bytes32(paidSpendCommitment, "paidSpendCommitment");
-  const providerPaid = normalizedPaidCommitment !== ZERO_BYTES32;
+  const normalizedTxHash = bytes32(txHash, "txHash");
+  if (typeof directProviderPayment !== "boolean") {
+    throw new CitePayCheckpointError(
+      "checkpoint_input_invalid",
+      "directProviderPayment must be proven from the original Float transaction receipt",
+    );
+  }
+  const commitmentRecorded = normalizedPaidCommitment !== ZERO_BYTES32;
+  if (commitmentRecorded && !directProviderPayment) {
+    throw new CitePayCheckpointError(
+      "checkpoint_payment_unverified",
+      "a paid-spend commitment without an exact Float-to-provider transfer cannot confirm CitePay clearance",
+    );
+  }
+  if (!commitmentRecorded && directProviderPayment) {
+    throw new CitePayCheckpointError(
+      "checkpoint_payment_invalid",
+      "a direct provider transfer without the matching paid-spend commitment cannot confirm CitePay clearance",
+    );
+  }
+  const providerPaid = directProviderPayment;
   const checkpoint = {
     filePath,
     summary: publicSummary(record, cwd, filePath, true),
   };
   return finalizeCitePayClearanceCheckpoint({
     checkpoint,
-    txHash: null,
+    txHash: normalizedTxHash,
     receiptHash,
     paidSpendCommitment: normalizedPaidCommitment,
     status: providerPaid ? "confirmed" : "blocked_no_payment",

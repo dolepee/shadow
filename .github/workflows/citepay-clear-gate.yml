@@ -7,6 +7,7 @@ on:
       - ".env.example"
       - "app/scripts/citepay-clear-*.mjs"
       - "app/scripts/float-v2-bind-intent.mjs"
+      - "app/scripts/float-v2-payment-evidence*.mjs"
       - "docs/CITEPAY_CLEAR_GATE.md"
       - "package.json"
   workflow_dispatch:
@@ -31,3 +32,4 @@ jobs:
           node --check app/scripts/citepay-clear-checkpoint.mjs
           node --check app/scripts/citepay-clear-commit.mjs
           node --check app/scripts/float-v2-bind-intent.mjs
+          node --check app/scripts/float-v2-payment-evidence.mjs

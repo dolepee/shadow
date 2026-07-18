@@ -10,7 +10,6 @@ import {
   hashTypedData,
   http,
   parseAbi,
-  parseAbiItem,
   recoverTypedDataAddress,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -21,6 +20,12 @@ import {
   recoverCitePayClearanceCheckpoint,
 } from "./citepay-clear-checkpoint.mjs";
 import { runCitePayClearGate } from "./citepay-clear-gate.mjs";
+import {
+  findBoundDirectProviderPayment,
+  findExactDirectProviderTransfer,
+  intentConsumedEvent,
+} from "./float-v2-payment-evidence.mjs";
+import { FLOAT_V2_DEPLOY_BLOCK } from "../floatV2Config.js";
 
 // Binds an external builder's V2 FloatSpendIntent JSON.
 //
@@ -85,11 +90,6 @@ const floatAbi = parseAbi([
   "function paidSpendCommitments(bytes32 requestHash) view returns (bytes32)",
   "function providerDeliveryByRequestHash(bytes32 requestHash) view returns (bytes32)",
 ]);
-const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
-const intentConsumedEvent = parseAbiItem(
-  "event FloatIntentConsumed(address indexed agent, address indexed signer, uint256 indexed nonce, bytes32 requestHash)",
-);
-
 const domain = { name: "ShadowFloat", version: "1", chainId: CHAIN_ID, verifyingContract: float };
 const types = {
   FloatSpendIntent: [
@@ -139,15 +139,28 @@ if (!isZeroHash(existingReceipt)) {
     functionName: "paidSpendCommitments",
     args: [requestHash],
   });
-  const providerPaid = !isZeroHash(paidSpendCommitment);
+  const clearEnabled = clean(env.CITEPAY_CLEAR_ENABLED) === "1";
+  const paymentEvidence = clearEnabled
+    ? await findBoundDirectProviderPayment({
+        publicClient,
+        float,
+        usdc: USDC,
+        intent,
+        requestHash,
+        fromBlock: FLOAT_V2_DEPLOY_BLOCK,
+      })
+    : { txHash: null, providerPaidExactAmount: !isZeroHash(paidSpendCommitment) };
+  const providerPaid = paymentEvidence.providerPaidExactAmount && !isZeroHash(paidSpendCommitment);
   const citepayCheckpoint = await recoverCitePayClearanceCheckpoint({
     env,
     requestHash,
     float,
     chainId: CHAIN_ID,
     intent,
+    txHash: paymentEvidence.txHash,
     receiptHash: existingReceipt,
     paidSpendCommitment,
+    directProviderPayment: paymentEvidence.providerPaidExactAmount,
   });
   console.log(
     JSON.stringify(
@@ -157,6 +170,7 @@ if (!isZeroHash(existingReceipt)) {
         providerPaid,
         float,
         requestHash,
+        txHash: paymentEvidence.txHash,
         receiptHash: existingReceipt,
         paidSpendCommitment,
         citepayCheckpoint,
@@ -232,15 +246,12 @@ const intentConsumed = receipt.logs.some((log) => {
   const decoded = decodeLog(intentConsumedEvent, log);
   return Boolean(decoded && decoded.args.requestHash?.toLowerCase() === requestHash.toLowerCase());
 });
-const providerTransfer = receipt.logs.find((log) => {
-  if (getAddress(log.address) !== USDC) return false;
-  const decoded = decodeLog(transferEvent, log);
-  return Boolean(
-    decoded &&
-      getAddress(decoded.args.from) === float &&
-      getAddress(decoded.args.to) === intent.provider &&
-      decoded.args.value === intent.amountUSDC,
-  );
+const providerTransfer = findExactDirectProviderTransfer({
+  logs: receipt.logs,
+  float,
+  usdc: USDC,
+  provider: intent.provider,
+  amountUSDC: intent.amountUSDC,
 });
 const providerDelta = providerAfter - providerBefore;
 const providerPaidFromReceipt = Boolean(providerTransfer) && !isZeroHash(paidSpendCommitment);
