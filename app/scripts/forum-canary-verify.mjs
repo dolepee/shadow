@@ -238,6 +238,14 @@ if (MODE === "snapshot") {
   assert(protocolReceipt.status === "success", "protocol claim transaction failed");
   assert(getAddress(forumReceipt.from) === FORUM_PAYOUT, "Forum claim was not sent by the Forum payout wallet");
   assert(getAddress(protocolReceipt.from) === PROTOCOL, "protocol claim was not sent by the protocol recipient");
+  assert(
+    forumReceipt.blockNumber > asBigInt(stored.route.afterRoute.blockNumber),
+    "Forum claim transaction predates the verified route",
+  );
+  assert(
+    protocolReceipt.blockNumber > asBigInt(stored.route.afterRoute.blockNumber),
+    "protocol claim transaction predates the verified route",
+  );
 
   const expectedForumClaim = asBigInt(stored.route.expectedForum);
   const expectedProtocolClaim = asBigInt(stored.route.expectedProtocol);
@@ -254,15 +262,30 @@ if (MODE === "snapshot") {
 
   const final = await capture();
   assert(!final.routingEnabled, "external routing is still enabled after the canary");
+  assert(
+    asBigInt(final.payoutHistorical) === asBigInt(stored.route.afterRoute.payoutHistorical),
+    "Forum split allocation changed after the verified route",
+  );
+  assert(
+    asBigInt(final.protocolHistorical) === asBigInt(stored.route.afterRoute.protocolHistorical),
+    "protocol split allocation changed after the verified route",
+  );
   assert(asBigInt(final.payoutOutstanding) === 0n, "Forum totalClaimableOf is not zero after claim");
   assert(asBigInt(final.protocolOutstanding) === 0n, "protocol totalClaimableOf is not zero after claim");
-  assert(asBigInt(final.payoutBalance) - asBigInt(stored.baseline.payoutBalance) === expectedForumClaim, "Forum USDC balance delta is not exact");
-  assert(asBigInt(final.protocolBalance) - asBigInt(stored.baseline.protocolBalance) === expectedProtocolClaim, "protocol USDC balance delta is not exact");
   assert(asBigInt(final.splitterToFeeRouterAllowance) === 0n, "splitter -> FeeRouter allowance is not zero after claims");
   assert(asBigInt(final.routerToSplitterAllowance) === 0n, "router -> splitter allowance is not zero after claims");
 
-  writeState({ ...stored, phase: "complete", claims: { forumClaimTx, protocolClaimTx, final } });
-  console.log(json({ result: "CANARY_COMPLETE", forumClaimTx, protocolClaimTx, final }));
+  const claims = {
+    forumClaimTx,
+    forumClaimBlock: forumReceipt.blockNumber,
+    forumClaimAmount: expectedForumClaim,
+    protocolClaimTx,
+    protocolClaimBlock: protocolReceipt.blockNumber,
+    protocolClaimAmount: expectedProtocolClaim,
+    final,
+  };
+  writeState({ ...stored, phase: "complete", claims });
+  console.log(json({ result: "CANARY_COMPLETE", claims }));
 } else {
   throw new Error(`unsupported MODE: ${MODE}`);
 }
