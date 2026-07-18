@@ -15,7 +15,7 @@ Shadow Float V2 has now been exercised by non-operator sponsors. The sponsor wal
 
 CitePay is a live non-operator sponsor on Float V2. Its sponsor wallet is not the Shadow operator wallet. The original sponsored agent completed a spend-and-repay cycle. CitePay later retired that debt-free line, reclaimed the reserve, opened a replacement line for a newly controlled agent, and completed another spend-and-repay cycle with the same capital.
 
-This proves repeat sponsor behavior across two line generations. It does not claim that either agent address is itself a returning agent.
+This proves repeat sponsor behavior across two line generations. It does not claim that either agent address is itself a returning agent. `closeSponsoredLine` clears the retired line's current `behaviorStats`, so the live board labels that reset while preserving its event-derived paid and repayment history.
 
 ### Retired line
 

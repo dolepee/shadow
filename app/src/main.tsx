@@ -693,6 +693,7 @@ type FloatV2AgentState = {
     denied: number;
     errorCount: number;
   };
+  behaviorStateReset?: boolean;
   autonomousScore?: {
     score: number;
     recommendedLimitUSDC: string;
@@ -1039,6 +1040,7 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       lineExpiryISO: null,
       scoredByContract: true,
       behavior: { paidBound: 0, signedExternalPaid: 0, repaid: 0, blocked: 0, denied: 0, errorCount: 0 },
+      behaviorStateReset: true,
       autonomousScore: { score: 0, recommendedLimitUSDC: "0", cappedLimitUSDC: "0" },
       sponsor: ZERO_ADDRESS,
       verifiedSponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address,
@@ -1321,6 +1323,7 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     agentOwner: Address;
     agentProvenance: "verified-external-signer" | "unverified";
     verifiedSponsor?: Address;
+    retired?: boolean;
     spendTx?: Hash;
     repayTx?: Hash;
     latestTxHash?: Hash;
@@ -1348,6 +1351,7 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
       agentOwner: agent,
       agentProvenance: trackedEntry ? "verified-external-signer" : "unverified",
       verifiedSponsor: trackedEntry?.verifiedSponsor,
+      retired: trackedEntry?.retired,
       spendTx: trackedEntry?.spendTx,
       repayTx: trackedEntry?.repayTx,
       signedIntents: 0,
@@ -1432,6 +1436,7 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
           denied: Number(behaviorStats[4]),
           errorCount: Number(behaviorStats[5]),
         },
+        behaviorStateReset: Boolean(stats.retired),
         autonomousScore: {
           score: Number(autonomousScore[0]),
           recommendedLimitUSDC: autonomousScore[1].toString(),
@@ -5001,8 +5006,8 @@ function FloatV2ActivityBoard({
                 </div>
                 <div className="floatV2ActivityMetric">
                   <span>behavior vector</span>
-                  <strong>{describeFloatV2Behavior(agent)}</strong>
-                  <small>scored by ShadowFloat</small>
+                  <strong>{agent.behaviorStateReset ? "reset on close" : describeFloatV2Behavior(agent)}</strong>
+                  <small>{agent.behaviorStateReset ? "current state cleared; event history retained" : "scored by ShadowFloat"}</small>
                 </div>
                 <div className="floatV2ActivityMetric">
                   <span>line</span>

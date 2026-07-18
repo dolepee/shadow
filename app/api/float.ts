@@ -697,6 +697,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
           denied: Number(behaviorStats[4]),
           errorCount: Number(behaviorStats[5]),
         },
+        behaviorStateReset: Boolean(entry.retired),
         autonomousScore: {
           score: Number(autonomousScore[0]),
           recommendedLimitUSDC: autonomousScore[1].toString(),
@@ -832,6 +833,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       autonomousScore: { score: 0, recommendedLimitUSDC: "0", cappedLimitUSDC: "0" },
       behaviorPaid: 0,
       behaviorRepaid: 0,
+      behaviorStateReset: true,
       spendTx: "0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae",
       repayTx: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe",
       latestTxHash: "0x2d91c37cc23ff8f342614bb9070e82efb37d0d588b15a43a3685c92786074e0d",
@@ -1000,6 +1002,7 @@ function snapshotV2Agent(input: {
   repaid?: number;
   behaviorPaid?: number;
   behaviorRepaid?: number;
+  behaviorStateReset?: boolean;
   providerPaidUSDC?: string;
   repaidUSDC?: string;
   spendTx?: string;
@@ -1044,6 +1047,7 @@ function snapshotV2Agent(input: {
       denied: 0,
       errorCount: 0,
     },
+    behaviorStateReset: input.behaviorStateReset || undefined,
     autonomousScore: input.autonomousScore || {
       score,
       recommendedLimitUSDC: score >= 9000 ? "1000000" : score >= 8250 ? "50000" : "25000",
