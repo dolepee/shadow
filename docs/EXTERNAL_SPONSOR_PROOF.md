@@ -11,9 +11,13 @@ Shadow Float V2 has now been exercised by non-operator sponsors. The sponsor wal
 | Arc USDC | `0x3600000000000000000000000000000000000000` |
 | Shadow operator | `0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8` |
 
-## CitePay External Sponsor
+## CitePay Returning External Sponsor
 
-CitePay is a live non-operator sponsor on Float V2. Its sponsor wallet is not the Shadow operator wallet, and the sponsored agent repaid the provider draw.
+CitePay is a live non-operator sponsor on Float V2. Its sponsor wallet is not the Shadow operator wallet. The original sponsored agent completed a spend-and-repay cycle. CitePay later retired that debt-free line, reclaimed the reserve, opened a replacement line for a newly controlled agent, and completed another spend-and-repay cycle with the same capital.
+
+This proves repeat sponsor behavior across two line generations. It does not claim that either agent address is itself a returning agent.
+
+### Retired line
 
 | Step | Tx |
 | --- | --- |
@@ -21,6 +25,7 @@ CitePay is a live non-operator sponsor on Float V2. Its sponsor wallet is not th
 | `openSponsoredLine` | [`0xf2dabb1ce651330a389acd4d6cacee1a859dc4fc12f18459143dc0f60ee53540`](https://testnet.arcscan.app/tx/0xf2dabb1ce651330a389acd4d6cacee1a859dc4fc12f18459143dc0f60ee53540) |
 | Bind spend intent | [`0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae`](https://testnet.arcscan.app/tx/0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae) |
 | Repay | [`0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe`](https://testnet.arcscan.app/tx/0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe) |
+| `closeSponsoredLine` | [`0x2d91c37cc23ff8f342614bb9070e82efb37d0d588b15a43a3685c92786074e0d`](https://testnet.arcscan.app/tx/0x2d91c37cc23ff8f342614bb9070e82efb37d0d588b15a43a3685c92786074e0d) |
 
 | Field | Value |
 | --- | --- |
@@ -28,7 +33,26 @@ CitePay is a live non-operator sponsor on Float V2. Its sponsor wallet is not th
 | Agent | `0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f` |
 | Reserve | `50000` atomic USDC |
 | Spend amount | `10000` atomic USDC |
-| End state | `REPAID`, live sponsor reserve |
+| End state | `REVOKED`, zero debt, reserve reclaimed; retained as historical proof |
+
+### Renewed line
+
+| Step | Tx |
+| --- | --- |
+| Approve reserve | [`0xb6bb9f2aba106a3e4384107c32a34f45b97e33d23c22dab75d314553a35bafe2`](https://testnet.arcscan.app/tx/0xb6bb9f2aba106a3e4384107c32a34f45b97e33d23c22dab75d314553a35bafe2) |
+| `openSponsoredLine` | [`0x4e3d8318cb8bed6b71afd716dc0f792a77cf04ceefa6986c436132a307470243`](https://testnet.arcscan.app/tx/0x4e3d8318cb8bed6b71afd716dc0f792a77cf04ceefa6986c436132a307470243) |
+| Bind spend intent | [`0x9007d0e8f66c0bc641caaa305266d50aeb5e2e969ff3edbbd8122542ed08eae4`](https://testnet.arcscan.app/tx/0x9007d0e8f66c0bc641caaa305266d50aeb5e2e969ff3edbbd8122542ed08eae4) |
+| Approve repayment | [`0x7ddf5e6379849d366d2c26d527df843185a5de346196e7a4c4c331fd3314be03`](https://testnet.arcscan.app/tx/0x7ddf5e6379849d366d2c26d527df843185a5de346196e7a4c4c331fd3314be03) |
+| Repay | [`0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911`](https://testnet.arcscan.app/tx/0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911) |
+
+| Field | Value |
+| --- | --- |
+| Sponsor | `0x5389688243328c26a92b301faEEAb5fbf9AFf105` |
+| Agent | `0x236652EAd43fbb0948173fC4dDF23BC0971B274d` |
+| Reserve | `50000` atomic USDC |
+| Spend amount | `5000` atomic USDC |
+| Line expiry | `2026-10-16T18:28:22Z` |
+| End state | `REPAID`, zero debt, full 0.05 USDC capacity available |
 
 ## Forum Tollgate External Sponsor
 
@@ -52,4 +76,4 @@ Forum Tollgate completed the full sponsor lifecycle. The sponsor opened the rese
 
 ## Claim Boundary
 
-This proves the permissionless sponsor path with non-operator wallets. It does not claim a production lending market, a liquidity pool, or mainnet credit risk. The testnet proof is narrower and stronger: outside wallets supplied sponsor reserve, agents used V2 signed intents, providers were paid from contract custody, debt was repaid, one sponsor reclaimed the reserve, and that sponsor reopened a fresh reserve.
+This proves the permissionless sponsor path with non-operator wallets. It does not claim a production lending market, a liquidity pool, or mainnet credit risk. The testnet proof is narrower and stronger: outside wallets supplied sponsor reserve, agents used V2 signed intents, providers were paid from contract custody, debt was repaid, sponsors reclaimed reserves, and CitePay repeated the sponsor lifecycle with a fresh controlled agent.
