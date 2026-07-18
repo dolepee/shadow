@@ -54,7 +54,7 @@ export const FLOAT_V2_ACTIVITY_CHECKPOINT = {
       providerPaidUSDC: "10000",
       repaidUSDC: "10000",
       blockedUSDC: "0",
-      latestTxHash: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe",
+      latestTxHash: "0x2d91c37cc23ff8f342614bb9070e82efb37d0d588b15a43a3685c92786074e0d",
     },
     {
       agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
