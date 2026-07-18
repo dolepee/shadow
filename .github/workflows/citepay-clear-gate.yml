@@ -24,6 +24,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: Install app dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile --ignore-workspace
       - name: Run fail-closed CitePay compatibility and checkpoint tests
         run: npm run float:v2-clear-gate:test
       - name: Confirm scripts parse
