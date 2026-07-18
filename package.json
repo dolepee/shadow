@@ -8,6 +8,7 @@
     "contracts:stress": "forge test --root contracts --match-contract ShadowFloatInvariantTest -vv",
     "contracts:deploy:arc": "cd contracts && forge script script/DeployShadowArc.s.sol:DeployShadowArc --rpc-url $ARC_RPC_URL --broadcast",
     "contracts:deploy:float": "cd contracts && forge script script/DeployShadowFloat.s.sol:DeployShadowFloat --rpc-url $ARC_RPC_URL --broadcast",
+    "contracts:deploy:forum-canary": "cd contracts && forge script script/DeployForumCanary.s.sol:DeployForumCanary --rpc-url $ARC_RPC_URL --broadcast",
     "contracts:seed:arc": "cd contracts && forge script script/SeedShadowArc.s.sol:SeedShadowArc --rpc-url $ARC_RPC_URL --broadcast",
     "app:dev": "pnpm --dir app dev",
     "app:build": "pnpm --dir app build",
@@ -34,6 +35,7 @@
     "float:loop": "node app/scripts/float-loop.mjs",
     "treasury:spike": "node app/scripts/treasury-operator-spike.mjs",
     "treasury:verify-live": "node app/scripts/treasury-verify-live.mjs",
+    "forum:canary-verify": "node app/scripts/forum-canary-verify.mjs",
     "extract:addresses": "node scripts/extract-addresses.mjs"
   }
 }
