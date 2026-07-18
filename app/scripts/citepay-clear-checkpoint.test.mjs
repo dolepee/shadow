@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -220,6 +220,59 @@ test("same request and clearance reuse the checkpoint; changed bindings fail clo
     }),
     (error) => error instanceof CitePayCheckpointError && error.code === "checkpoint_conflict",
   );
+});
+
+test("per-request lock prevents creation and terminal-transition overwrite races", async (t) => {
+  const cwd = await mkdtemp(join(tmpdir(), "shadow-citepay-lock-"));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const directory = join(cwd, ".tmp", "citepay-clearances");
+  const filePath = join(directory, `${requestHash.slice(2)}.json`);
+  const lockPath = `${filePath}.lock`;
+  const input = {
+    env: {},
+    clearance,
+    requestHash,
+    float: "0x4444444444444444444444444444444444444444",
+    chainId: 5_042_002,
+    intent,
+    cwd,
+  };
+
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  await writeFile(lockPath, "held\n", { flag: "wx", mode: 0o600 });
+  await assert.rejects(
+    persistCitePayClearanceCheckpoint(input),
+    (error) => error instanceof CitePayCheckpointError && error.code === "checkpoint_locked",
+  );
+  await assert.rejects(
+    stat(filePath),
+    (error) => error?.code === "ENOENT",
+  );
+
+  await rm(lockPath);
+  const checkpoint = await persistCitePayClearanceCheckpoint(input);
+  await writeFile(lockPath, "held\n", { flag: "wx", mode: 0o600 });
+  await assert.rejects(
+    confirmCitePayClearanceCheckpoint({
+      checkpoint,
+      txHash: `0x${"55".repeat(32)}`,
+      receiptHash: `0x${"66".repeat(32)}`,
+      paidSpendCommitment: `0x${"77".repeat(32)}`,
+      cwd,
+    }),
+    (error) => error instanceof CitePayCheckpointError && error.code === "checkpoint_locked",
+  );
+  assert.equal(JSON.parse(await readFile(filePath, "utf8")).status, "cleared_not_submitted");
+
+  await rm(lockPath);
+  const confirmed = await confirmCitePayClearanceCheckpoint({
+    checkpoint,
+    txHash: `0x${"55".repeat(32)}`,
+    receiptHash: `0x${"66".repeat(32)}`,
+    paidSpendCommitment: `0x${"77".repeat(32)}`,
+    cwd,
+  });
+  assert.equal(confirmed.status, "confirmed");
 });
 
 test("refuses an unverified, mismatched, or already-settled clearance", async (t) => {

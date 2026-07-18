@@ -78,11 +78,18 @@ The replacement key must have only `mandate:create,clear:check`; it must not hav
 
 The checkpoint is local operational evidence and is ignored by Git. Its state is
 `cleared_not_submitted` before the first chain write and changes to `confirmed` only after the Float
-transaction is proven to have paid the provider exactly. A successful blocked transaction is instead
+receipt contains the exact provider transfer and the contract exposes a nonzero paid-spend commitment.
+The provider's surrounding wallet balance is diagnostic only because unrelated transfers may occur. A
+successful blocked transaction is instead
 recorded as `blocked_no_payment`; it never confirms the clearance as paid. A conflicting checkpoint for
 the same request hash fails closed. If the process stops after the on-chain transaction but before this
 final update, a retry repairs the pending checkpoint from `receiptByRequestHash` and
 `paidSpendCommitments` before reporting the already-bound result; it never resubmits the spend.
+
+A mode-600 per-request lock serializes checkpoint creation and terminal transitions across binder
+processes. A competing process fails closed with `checkpoint_locked` before any Float write. If a process
+is killed while holding the lock, confirm that no binder is active and inspect the checkpoint before
+manually removing the adjacent `.lock` file; the code never guesses that a lock is stale.
 
 ## Settlement boundary
 

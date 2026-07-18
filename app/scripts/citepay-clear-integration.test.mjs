@@ -32,11 +32,18 @@ test("production activation stays disabled and no settlement route is callable",
 
 test("checkpoint confirmation is downstream of exact provider-payment evidence", async () => {
   const binder = await readFile(new URL("./float-v2-bind-intent.mjs", import.meta.url), "utf8");
+  const receiptEvidenceStart = binder.indexOf("const providerPaidFromReceipt");
+  const receiptEvidenceEnd = binder.indexOf("const checks", receiptEvidenceStart);
+  const receiptEvidence = binder.slice(receiptEvidenceStart, receiptEvidenceEnd);
   const exactPaymentCheck = binder.indexOf("providerPaidExactAmount:");
   const paidBranch = binder.indexOf("checks.providerPaidExactAmount");
   const confirmation = binder.indexOf("? confirmCitePayClearanceCheckpoint");
   const blockedOutcome = binder.indexOf(": recordBlockedCitePayClearanceCheckpoint");
 
+  assert.ok(receiptEvidenceStart >= 0, "receipt payment evidence is missing");
+  assert.match(receiptEvidence, /Boolean\(providerTransfer\)/);
+  assert.match(receiptEvidence, /paidSpendCommitment/);
+  assert.doesNotMatch(receiptEvidence, /providerDelta/);
   assert.ok(exactPaymentCheck >= 0, "exact provider-payment check is missing");
   assert.ok(paidBranch > exactPaymentCheck, "checkpoint outcome must use the completed payment check");
   assert.ok(confirmation > paidBranch, "paid confirmation must be selected only after exact payment");

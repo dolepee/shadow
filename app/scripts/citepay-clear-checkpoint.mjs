@@ -64,47 +64,49 @@ export async function persistCitePayClearanceCheckpoint({
   await chmod(directory, 0o700);
   const filePath = join(directory, `${normalizedRequestHash.slice(2)}.json`);
 
-  const existing = await readExisting(filePath);
-  if (existing) {
-    if (existing.bindingHash !== bindingHash || existing.requestHash !== normalizedRequestHash) {
-      throw new CitePayCheckpointError(
-        "checkpoint_conflict",
-        "an existing CitePay checkpoint has different bindings for this Float requestHash",
-      );
+  return withCheckpointLock(filePath, async () => {
+    const existing = await readExisting(filePath);
+    if (existing) {
+      if (existing.bindingHash !== bindingHash || existing.requestHash !== normalizedRequestHash) {
+        throw new CitePayCheckpointError(
+          "checkpoint_conflict",
+          "an existing CitePay checkpoint has different bindings for this Float requestHash",
+        );
+      }
+      if (["confirmed", "blocked_no_payment"].includes(existing.status)) {
+        throw new CitePayCheckpointError(
+          "checkpoint_terminal",
+          "this CitePay clearance is already bound to a terminal Float transaction outcome",
+        );
+      }
+      if (existing.status !== "cleared_not_submitted") {
+        throw new CitePayCheckpointError("checkpoint_state_invalid", "the CitePay checkpoint has an unknown state");
+      }
+      await chmod(filePath, 0o600);
+      return {
+        filePath,
+        summary: publicSummary(existing, cwd, filePath, true),
+      };
     }
-    if (["confirmed", "blocked_no_payment"].includes(existing.status)) {
-      throw new CitePayCheckpointError(
-        "checkpoint_terminal",
-        "this CitePay clearance is already bound to a terminal Float transaction outcome",
-      );
-    }
-    if (existing.status !== "cleared_not_submitted") {
-      throw new CitePayCheckpointError("checkpoint_state_invalid", "the CitePay checkpoint has an unknown state");
-    }
-    await chmod(filePath, 0o600);
+
+    const record = {
+      version: 1,
+      checkpointId,
+      integration: "citepay-clear",
+      status: "cleared_not_submitted",
+      recordedAt: now().toISOString(),
+      requestHash: normalizedRequestHash,
+      bindingHash,
+      binding,
+      citepay,
+      transaction: null,
+    };
+    await atomicWriteJson(filePath, record);
     return {
       filePath,
-      summary: publicSummary(existing, cwd, filePath, true),
+      summary: publicSummary(record, cwd, filePath, false),
     };
-  }
-
-  const record = {
-    version: 1,
-    checkpointId,
-    integration: "citepay-clear",
-    status: "cleared_not_submitted",
-    recordedAt: now().toISOString(),
-    requestHash: normalizedRequestHash,
-    bindingHash,
-    binding,
-    citepay,
-    transaction: null,
-  };
-  await atomicWriteJson(filePath, record);
-  return {
-    filePath,
-    summary: publicSummary(record, cwd, filePath, false),
-  };
+  });
 }
 
 export async function confirmCitePayClearanceCheckpoint({
@@ -221,47 +223,49 @@ async function finalizeCitePayClearanceCheckpoint({
       "checkpoint payment status does not match the on-chain paid-spend commitment",
     );
   }
-  const record = await readExisting(checkpoint.filePath);
-  if (!record) {
-    throw new CitePayCheckpointError(
-      "checkpoint_missing",
-      "the pre-spend CitePay checkpoint is missing after the Float transaction",
-    );
-  }
-
-  if (["confirmed", "blocked_no_payment"].includes(record.status)) {
-    if (
-      record.status !== status
-      || (normalizedTxHash !== null && record.transaction?.txHash !== normalizedTxHash)
-      || record.transaction?.receiptHash !== normalizedReceiptHash
-      || record.transaction?.providerPaid !== providerPaid
-      || record.transaction?.paidSpendCommitment !== normalizedPaidCommitment
-    ) {
+  return withCheckpointLock(checkpoint.filePath, async () => {
+    const record = await readExisting(checkpoint.filePath);
+    if (!record) {
       throw new CitePayCheckpointError(
-        "checkpoint_conflict",
-        "the CitePay checkpoint is already bound to a different Float transaction outcome",
+        "checkpoint_missing",
+        "the pre-spend CitePay checkpoint is missing after the Float transaction",
       );
     }
-    return publicSummary(record, cwd, checkpoint.filePath, true);
-  }
-  if (record.status !== "cleared_not_submitted") {
-    throw new CitePayCheckpointError("checkpoint_state_invalid", "the CitePay checkpoint has an unknown state");
-  }
 
-  const confirmed = {
-    ...record,
-    status,
-    confirmedAt: now().toISOString(),
-    transaction: {
-      txHash: normalizedTxHash,
-      receiptHash: normalizedReceiptHash,
-      providerPaid,
-      paidSpendCommitment: normalizedPaidCommitment,
-      recovered: normalizedTxHash === null,
-    },
-  };
-  await atomicWriteJson(checkpoint.filePath, confirmed);
-  return publicSummary(confirmed, cwd, checkpoint.filePath, false);
+    if (["confirmed", "blocked_no_payment"].includes(record.status)) {
+      if (
+        record.status !== status
+        || (normalizedTxHash !== null && record.transaction?.txHash !== normalizedTxHash)
+        || record.transaction?.receiptHash !== normalizedReceiptHash
+        || record.transaction?.providerPaid !== providerPaid
+        || record.transaction?.paidSpendCommitment !== normalizedPaidCommitment
+      ) {
+        throw new CitePayCheckpointError(
+          "checkpoint_conflict",
+          "the CitePay checkpoint is already bound to a different Float transaction outcome",
+        );
+      }
+      return publicSummary(record, cwd, checkpoint.filePath, true);
+    }
+    if (record.status !== "cleared_not_submitted") {
+      throw new CitePayCheckpointError("checkpoint_state_invalid", "the CitePay checkpoint has an unknown state");
+    }
+
+    const confirmed = {
+      ...record,
+      status,
+      confirmedAt: now().toISOString(),
+      transaction: {
+        txHash: normalizedTxHash,
+        receiptHash: normalizedReceiptHash,
+        providerPaid,
+        paidSpendCommitment: normalizedPaidCommitment,
+        recovered: normalizedTxHash === null,
+      },
+    };
+    await atomicWriteJson(checkpoint.filePath, confirmed);
+    return publicSummary(confirmed, cwd, checkpoint.filePath, false);
+  });
 }
 
 function checkpointDirectory(configured, cwd) {
@@ -307,6 +311,33 @@ async function readExisting(filePath) {
     throw new CitePayCheckpointError("checkpoint_invalid", "CitePay checkpoint bindings or integrity hash are invalid");
   }
   return record;
+}
+
+async function withCheckpointLock(filePath, operation) {
+  const lockPath = `${filePath}.lock`;
+  let lockHandle;
+  try {
+    try {
+      lockHandle = await open(lockPath, "wx", 0o600);
+    } catch (error) {
+      if (error?.code === "EEXIST") {
+        throw new CitePayCheckpointError(
+          "checkpoint_locked",
+          "another binder process owns this CitePay checkpoint; refusing to race a Float write",
+        );
+      }
+      throw error;
+    }
+    const metadata = { version: 1, pid: process.pid, createdAt: new Date().toISOString() };
+    await lockHandle.writeFile(`${JSON.stringify(metadata)}\n`, "utf8");
+    await lockHandle.sync();
+    return await operation();
+  } finally {
+    if (lockHandle) {
+      await lockHandle.close().catch(() => {});
+      await rm(lockPath, { force: true }).catch(() => {});
+    }
+  }
 }
 
 async function atomicWriteJson(filePath, value) {

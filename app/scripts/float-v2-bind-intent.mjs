@@ -243,6 +243,7 @@ const providerTransfer = receipt.logs.find((log) => {
   );
 });
 const providerDelta = providerAfter - providerBefore;
+const providerPaidFromReceipt = Boolean(providerTransfer) && !isZeroHash(paidSpendCommitment);
 
 const checks = {
   digestMatches: true,
@@ -253,8 +254,7 @@ const checks = {
   nonceMarkedUsed: Boolean(consumed),
   receiptRecorded: !isZeroHash(receiptHash),
   paidSpendRecorded: !isZeroHash(paidSpendCommitment),
-  providerPaidExactAmount:
-    Boolean(providerTransfer) && providerDelta === intent.amountUSDC && !isZeroHash(paidSpendCommitment),
+  providerPaidExactAmount: providerPaidFromReceipt,
 };
 let citepayCheckpointSummary = citepayCheckpoint.summary;
 if (checks.txSucceeded && checks.receiptRecorded) {
@@ -284,7 +284,9 @@ const result = {
   amountUSDC: intent.amountUSDC.toString(),
   maxDebtUSDC: intent.maxDebtUSDC.toString(),
   nonce: intent.nonce.toString(),
-  providerPaidUSDC: providerDelta.toString(),
+  providerPaidUSDC: providerTransfer ? intent.amountUSDC.toString() : "0",
+  providerBalanceDeltaUSDC: providerDelta.toString(),
+  providerBalanceDeltaMatches: providerDelta === intent.amountUSDC,
   lineSponsor: {
     sponsor: sponsorBefore[0],
     reserveUSDC: sponsorBefore[1].toString(),
