@@ -37,6 +37,11 @@ const FORUM_SOURCE = asAddress("FORUM_SOURCE", "0x13585c6004fbA9D7D49219a6435B68
 const FORUM_PAYOUT = asAddress("FORUM_PAYOUT", "0x13585c6004fbA9D7D49219a6435B68348fD30770");
 const USDC = asAddress("USDC", "0x3600000000000000000000000000000000000000");
 const STATE_FILE = clean(process.env.STATE_FILE) || "/tmp/shadow-forum-canary-state.json";
+const RPC_READ_DELAY_MS = Number(clean(process.env.RPC_READ_DELAY_MS) || "2500");
+assert(
+  Number.isFinite(RPC_READ_DELAY_MS) && RPC_READ_DELAY_MS >= 0 && RPC_READ_DELAY_MS <= 5_000,
+  "RPC_READ_DELAY_MS must be between 0 and 5000",
+);
 
 const arc = defineChain({
   id: 5_042_002,
@@ -73,7 +78,14 @@ const mirrorReceiptEvent = parseAbiItem(
 );
 const transferEvent = parseAbiItem("event Transfer(address indexed from,address indexed to,uint256 value)");
 
-const read = (address, abi, functionName, args = []) => client.readContract({ address, abi, functionName, args });
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const throttled = async (request) => {
+  const result = await request();
+  if (RPC_READ_DELAY_MS > 0) await wait(RPC_READ_DELAY_MS);
+  return result;
+};
+const read = (address, abi, functionName, args = [], blockNumber) =>
+  throttled(() => client.readContract({ address, abi, functionName, args, blockNumber }));
 const loadState = () => {
   if (!existsSync(STATE_FILE)) throw new Error(`state file not found: ${STATE_FILE}`);
   return JSON.parse(readFileSync(STATE_FILE, "utf8"));
@@ -85,44 +97,27 @@ const writeState = (state) => {
 };
 
 async function capture() {
-  const [exists, splitId] = await read(SPLITTER, splitterAbi, "splitIdOf", [FORUM_SOURCE]);
+  const chainId = await throttled(() => client.getChainId());
+  const blockNumber = await throttled(() => client.getBlockNumber());
+  const atSnapshot = (address, abi, functionName, args = []) => read(address, abi, functionName, args, blockNumber);
+
+  const [exists, splitId] = await atSnapshot(SPLITTER, splitterAbi, "splitIdOf", [FORUM_SOURCE]);
   assert(exists, "Forum split is not preconfigured");
 
-  const [
-    chainId,
-    blockNumber,
-    shareBps,
-    routingEnabled,
-    authorizedRouter,
-    followerCount,
-    payoutHistorical,
-    protocolHistorical,
-    payoutOutstanding,
-    protocolOutstanding,
-    sourceFallback,
-    protocolFallback,
-    splitterToFeeRouterAllowance,
-    routerToSplitterAllowance,
-    payoutBalance,
-    protocolBalance,
-  ] = await Promise.all([
-    client.getChainId(),
-    client.getBlockNumber(),
-    read(SPLITTER, splitterAbi, "SOURCE_FEE_SHARE_BPS"),
-    read(SPLITTER, splitterAbi, "externalRoutingEnabled"),
-    read(SPLITTER, splitterAbi, "authorizedRouter"),
-    read(ROUTER, routerAbi, "followerCount", [FORUM_SOURCE]),
-    read(FEE_ROUTER, feeRouterAbi, "claimableOf", [splitId, FORUM_PAYOUT]),
-    read(FEE_ROUTER, feeRouterAbi, "claimableOf", [splitId, PROTOCOL]),
-    read(FEE_ROUTER, feeRouterAbi, "totalClaimableOf", [FORUM_PAYOUT]),
-    read(FEE_ROUTER, feeRouterAbi, "totalClaimableOf", [PROTOCOL]),
-    read(SPLITTER, splitterAbi, "sourceKickbackUSDC", [FORUM_SOURCE]),
-    read(SPLITTER, splitterAbi, "protocolFeesUSDC"),
-    read(USDC, erc20Abi, "allowance", [SPLITTER, FEE_ROUTER]),
-    read(USDC, erc20Abi, "allowance", [ROUTER, SPLITTER]),
-    read(USDC, erc20Abi, "balanceOf", [FORUM_PAYOUT]),
-    read(USDC, erc20Abi, "balanceOf", [PROTOCOL]),
-  ]);
+  const shareBps = await atSnapshot(SPLITTER, splitterAbi, "SOURCE_FEE_SHARE_BPS");
+  const routingEnabled = await atSnapshot(SPLITTER, splitterAbi, "externalRoutingEnabled");
+  const authorizedRouter = await atSnapshot(SPLITTER, splitterAbi, "authorizedRouter");
+  const followerCount = await atSnapshot(ROUTER, routerAbi, "followerCount", [FORUM_SOURCE]);
+  const payoutHistorical = await atSnapshot(FEE_ROUTER, feeRouterAbi, "claimableOf", [splitId, FORUM_PAYOUT]);
+  const protocolHistorical = await atSnapshot(FEE_ROUTER, feeRouterAbi, "claimableOf", [splitId, PROTOCOL]);
+  const payoutOutstanding = await atSnapshot(FEE_ROUTER, feeRouterAbi, "totalClaimableOf", [FORUM_PAYOUT]);
+  const protocolOutstanding = await atSnapshot(FEE_ROUTER, feeRouterAbi, "totalClaimableOf", [PROTOCOL]);
+  const sourceFallback = await atSnapshot(SPLITTER, splitterAbi, "sourceKickbackUSDC", [FORUM_SOURCE]);
+  const protocolFallback = await atSnapshot(SPLITTER, splitterAbi, "protocolFeesUSDC");
+  const splitterToFeeRouterAllowance = await atSnapshot(USDC, erc20Abi, "allowance", [SPLITTER, FEE_ROUTER]);
+  const routerToSplitterAllowance = await atSnapshot(USDC, erc20Abi, "allowance", [ROUTER, SPLITTER]);
+  const payoutBalance = await atSnapshot(USDC, erc20Abi, "balanceOf", [FORUM_PAYOUT]);
+  const protocolBalance = await atSnapshot(USDC, erc20Abi, "balanceOf", [PROTOCOL]);
 
   assert(chainId === arc.id, `wrong chain: ${chainId}`);
   assert(getAddress(authorizedRouter) === ROUTER, "splitter authorizedRouter does not match ROUTER");
