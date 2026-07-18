@@ -196,7 +196,7 @@ test("enabled recovery fails closed when its pre-spend checkpoint is missing", a
   );
 });
 
-test("same request and clearance reuse the checkpoint; changed bindings fail closed", async (t) => {
+test("pending checkpoint blocks a second binder; changed bindings fail as conflicts", async (t) => {
   const cwd = await mkdtemp(join(tmpdir(), "shadow-citepay-retry-"));
   t.after(() => rm(cwd, { recursive: true, force: true }));
   const input = {
@@ -210,8 +210,10 @@ test("same request and clearance reuse the checkpoint; changed bindings fail clo
   };
 
   await persistCitePayClearanceCheckpoint(input);
-  const retry = await persistCitePayClearanceCheckpoint(input);
-  assert.equal(retry.summary.reused, true);
+  await assert.rejects(
+    persistCitePayClearanceCheckpoint(input),
+    (error) => error instanceof CitePayCheckpointError && error.code === "checkpoint_in_progress",
+  );
 
   await assert.rejects(
     persistCitePayClearanceCheckpoint({

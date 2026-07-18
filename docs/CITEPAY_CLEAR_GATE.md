@@ -91,6 +91,12 @@ processes. A competing process fails closed with `checkpoint_locked` before any 
 is killed while holding the lock, confirm that no binder is active and inspect the checkpoint before
 manually removing the adjacent `.lock` file; the code never guesses that a lock is stale.
 
+After creation, `cleared_not_submitted` is also exclusive: another binder for the same request fails with
+`checkpoint_in_progress` instead of reusing the clearance and racing a second on-chain submission. If the
+first process stops after a receipt lands, rerunning the binder follows the receipt-recovery path above. If
+it stops before any receipt exists, inspect the request hash and nonce on-chain before archiving and
+removing the abandoned checkpoint; pending checkpoints are never cleared automatically.
+
 ## Settlement boundary
 
 This integration does not call `settle_clearance`. CitePay's settlement tool initiates its own

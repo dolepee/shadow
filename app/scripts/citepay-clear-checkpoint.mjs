@@ -79,14 +79,13 @@ export async function persistCitePayClearanceCheckpoint({
           "this CitePay clearance is already bound to a terminal Float transaction outcome",
         );
       }
-      if (existing.status !== "cleared_not_submitted") {
-        throw new CitePayCheckpointError("checkpoint_state_invalid", "the CitePay checkpoint has an unknown state");
+      if (existing.status === "cleared_not_submitted") {
+        throw new CitePayCheckpointError(
+          "checkpoint_in_progress",
+          "this CitePay clearance already has a pending binder; refusing a second Float write",
+        );
       }
-      await chmod(filePath, 0o600);
-      return {
-        filePath,
-        summary: publicSummary(existing, cwd, filePath, true),
-      };
+      throw new CitePayCheckpointError("checkpoint_state_invalid", "the CitePay checkpoint has an unknown state");
     }
 
     const record = {
