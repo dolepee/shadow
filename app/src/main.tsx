@@ -1077,6 +1077,7 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
       autonomousScore: { score: 8250, recommendedLimitUSDC: "50000", cappedLimitUSDC: "50000" },
       sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address,
       verifiedSponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address,
+      sponsorProvenance: "verified-external",
       sponsorReserveUSDC: "50000",
       sponsorState: "active-reserve",
       signedIntents: 1,
@@ -4726,7 +4727,7 @@ function FloatV2SponsorCapitalPanel({ state }: { state: FloatV2ActivityState | n
     return { status: "state unavailable", tone: "" };
   };
   const spendableReserveCount = [...stateByAgent.values()].filter(
-    (agent) => agent.sponsorProvenance === "verified-external" && agent.sponsorState === "active-reserve",
+    (agent) => floatV2SponsorProvenance(agent) === "verified-external" && agent.sponsorState === "active-reserve",
   ).length;
   const citePayAgent = "0x236652EAd43fbb0948173fC4dDF23BC0971B274d";
   const forumAgent = "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C";

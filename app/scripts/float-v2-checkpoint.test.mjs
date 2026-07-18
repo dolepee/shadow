@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -79,4 +80,15 @@ test("renewed CitePay line preserves retired history and proves one returning sp
     ),
     0,
   );
+});
+
+test("frontend fallback identifies the renewed CitePay reserve as verified external capital", () => {
+  const source = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
+  const renewedLine = source.match(
+    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?sponsorState: "active-reserve",/,
+  );
+
+  assert.ok(renewedLine, "renewed CitePay fallback line must remain present");
+  assert.match(renewedLine[0], /sponsorProvenance: "verified-external"/);
+  assert.match(source, /floatV2SponsorProvenance\(agent\) === "verified-external"/);
 });
