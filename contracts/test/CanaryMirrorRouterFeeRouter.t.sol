@@ -47,6 +47,10 @@ contract CanaryActor {
     function claimProtocolFees(MirrorFeeSplitter splitter, address recipient) external {
         splitter.claimProtocolFees(recipient);
     }
+
+    function claimFeeRouter(IFeeRouter feeRouter) external returns (uint256) {
+        return feeRouter.claim();
+    }
 }
 
 contract MockFeeRouter is IFeeRouter {
@@ -124,6 +128,7 @@ contract MockFeeRouter is IFeeRouter {
         amount = outstanding[msg.sender];
         require(amount > 0, "nothing to claim");
         outstanding[msg.sender] = 0;
+        require(IERC20(_usdc).transfer(msg.sender, amount), "claim transfer");
         return amount;
     }
 
@@ -293,6 +298,27 @@ contract CanaryMirrorRouterFeeRouterTest {
         require(hasSplit, "forum split missing");
         require(splitId == 0, "forum split id should remain valid when zero-based");
         require(mock.splitAt(splitId).totalRouted == (USDC * MIRROR_FEE_BPS) / BPS, "split routing total incorrect");
+    }
+
+    function testFeeRouterClaimsTransferExactRoutedShares() public {
+        CanaryActor forumPayout = new CanaryActor();
+        _setup(address(forumPayout), true, false);
+        splitter.preconfigureSplit();
+        _publishIntent(forumSource);
+
+        (uint256 expectedSourceShare, uint256 expectedProtocolShare) = _expectedMirrorFeeShares();
+        uint256 protocolBefore = usdc.balanceOf(address(this));
+
+        require(forumPayout.claimFeeRouter(feeRouter) == expectedSourceShare, "forum claim return incorrect");
+        require(usdc.balanceOf(address(forumPayout)) == expectedSourceShare, "forum claim transfer incorrect");
+
+        require(feeRouter.claim() == expectedProtocolShare, "protocol claim return incorrect");
+        require(
+            usdc.balanceOf(address(this)) == protocolBefore + expectedProtocolShare, "protocol claim transfer incorrect"
+        );
+        require(feeRouter.totalClaimableOf(address(forumPayout)) == 0, "forum outstanding should clear");
+        require(feeRouter.totalClaimableOf(address(this)) == 0, "protocol outstanding should clear");
+        require(usdc.balanceOf(address(feeRouter)) == 0, "fee router should not retain claimed USDC");
     }
 
     function testFallbackWhenFeeRouterReverts() public {
