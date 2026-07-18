@@ -60,7 +60,7 @@ node scripts/extract-forum-canary-addresses.mjs \
 7. Forum and the protocol recipient each call FeeRouterV1 `claim()` from their own wallet.
 8. Verify both exact claim transfers with `MODE=claims`.
 
-The verifier writes a mode-`600` local state file. It compares pre/post deltas for this canary instead of trusting cumulative FeeRouter balances.
+The verifier writes a mode-`600` local state file. Its snapshot aborts unless the new split has no historical allocations and both recipients have zero pre-existing FeeRouter outstanding. Claims are then bound directly to this canary's `7`/`3` atomic deltas instead of trusting cumulative FeeRouter balances.
 
 ```bash
 export RPC="$ARC_RPC_URL"

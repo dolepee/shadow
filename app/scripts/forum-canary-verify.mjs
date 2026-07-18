@@ -175,6 +175,10 @@ function decodeFrom(receipt, address, event) {
 if (MODE === "snapshot") {
   const baseline = await capture();
   assert(!baseline.routingEnabled, "snapshot must be taken while external routing is disabled");
+  assert(asBigInt(baseline.payoutHistorical) === 0n, "Forum split already has historical allocations");
+  assert(asBigInt(baseline.protocolHistorical) === 0n, "protocol split already has historical allocations");
+  assert(asBigInt(baseline.payoutOutstanding) === 0n, "Forum payout wallet has pre-existing FeeRouter outstanding");
+  assert(asBigInt(baseline.protocolOutstanding) === 0n, "protocol wallet has pre-existing FeeRouter outstanding");
   assert(asBigInt(baseline.splitterToFeeRouterAllowance) === 0n, "splitter -> FeeRouter allowance is not zero");
   assert(asBigInt(baseline.routerToSplitterAllowance) === 0n, "router -> splitter allowance is not zero");
   writeState({ phase: "snapshot", baseline });
@@ -240,8 +244,8 @@ if (MODE === "snapshot") {
   assert(getAddress(forumReceipt.from) === FORUM_PAYOUT, "Forum claim was not sent by the Forum payout wallet");
   assert(getAddress(protocolReceipt.from) === PROTOCOL, "protocol claim was not sent by the protocol recipient");
 
-  const expectedForumClaim = asBigInt(stored.route.afterRoute.payoutOutstanding);
-  const expectedProtocolClaim = asBigInt(stored.route.afterRoute.protocolOutstanding);
+  const expectedForumClaim = asBigInt(stored.route.expectedForum);
+  const expectedProtocolClaim = asBigInt(stored.route.expectedProtocol);
   const forumTransfers = decodeFrom(forumReceipt, USDC, transferEvent).filter(
     (event) => getAddress(event.args.from) === FEE_ROUTER && getAddress(event.args.to) === FORUM_PAYOUT,
   );
