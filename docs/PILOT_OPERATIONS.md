@@ -12,14 +12,14 @@ Never ask a participant for a private key. Sponsors and agents sign with their o
 
 The Builders page derives a pilot posture from `GET /api/float?mode=v2`:
 
-- treasury custody compared with total sponsored reserve;
+- treasury custody compared with the current custodial reserve floor: nominal sponsored reserve minus sponsored debt already deployed to providers;
 - open-debt line count;
 - expired lines with open debt;
 - expired debt-free reserves available for sponsor reclaim;
 - defaulted line count;
 - live-RPC versus verified-checkpoint data source.
 
-Ordinary open debt is visible exposure, not automatically an incident. An expired line with debt is a warning because the sponsor cannot reclaim or renew it. A default or reserve invariant breach is critical.
+Ordinary open debt is visible exposure, not automatically an incident. It reduces both contract custody and the reserve still returnable to the sponsor, so the monitor shows nominal reserve, deployed sponsored debt, and the resulting custodial floor separately. An expired line with debt is a warning because the sponsor cannot reclaim or renew it. A default or reserve invariant breach is critical.
 
 The verified checkpoint is a degraded evidence fallback. It must never be treated as fresh authorization for a write. Every Builders-page write re-reads current contract state before opening a wallet prompt.
 

@@ -18,14 +18,16 @@ test("healthy reserve with ordinary open debt stays healthy and reports exposure
   const result = buildFloatV2OperationalHealth({
     source: "live-rpc",
     degraded: false,
-    treasuryBalanceUSDC: "100000",
+    treasuryBalanceUSDC: "40000",
     totalSponsoredReserveUSDC: "50000",
     agents: [agent({ activeDebtUSDC: "10000", statusName: "LIMITED" })],
   });
 
   assert.equal(result.status, "healthy");
   assert.equal(result.reserve.solvent, true);
-  assert.equal(result.reserve.surplusUSDC, "50000");
+  assert.equal(result.reserve.sponsoredDebtDeployedUSDC, "10000");
+  assert.equal(result.reserve.custodialReserveFloorUSDC, "40000");
+  assert.equal(result.reserve.surplusUSDC, "0");
   assert.equal(result.counts.openDebt, 1);
   assert.equal(result.alerts[0]?.code, "OPEN_DEBT");
   assert.equal(result.alerts[0]?.severity, "info");
@@ -58,6 +60,20 @@ test("reserve insolvency is critical and never reports a negative surplus", () =
   assert.equal(result.reserve.solvent, false);
   assert.equal(result.reserve.surplusUSDC, "0");
   assert.equal(result.alerts[0]?.code, "RESERVE_INVARIANT_BREACH");
+});
+
+test("deployed debt is capped by its sponsor reserve when deriving the custody floor", () => {
+  const result = buildFloatV2OperationalHealth({
+    source: "live-rpc",
+    degraded: false,
+    treasuryBalanceUSDC: "1",
+    totalSponsoredReserveUSDC: "50000",
+    agents: [agent({ activeDebtUSDC: "60000" })],
+  });
+
+  assert.equal(result.reserve.sponsoredDebtDeployedUSDC, "50000");
+  assert.equal(result.reserve.custodialReserveFloorUSDC, "0");
+  assert.equal(result.reserve.solvent, true);
 });
 
 test("checkpoint fallback is explicitly degraded and not fresh authorization", () => {

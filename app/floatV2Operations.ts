@@ -28,6 +28,8 @@ export type FloatV2OperationalHealth = {
     solvent: boolean;
     treasuryBalanceUSDC: string;
     sponsoredReserveUSDC: string;
+    sponsoredDebtDeployedUSDC: string;
+    custodialReserveFloorUSDC: string;
     surplusUSDC: string;
   };
   counts: {
@@ -61,7 +63,15 @@ export function buildFloatV2OperationalHealth(
 ): FloatV2OperationalHealth {
   const treasury = atomicUSDC(input.treasuryBalanceUSDC, "treasuryBalanceUSDC");
   const sponsoredReserve = atomicUSDC(input.totalSponsoredReserveUSDC, "totalSponsoredReserveUSDC");
-  const solvent = treasury >= sponsoredReserve;
+  const sponsoredDebtDeployed = input.agents.reduce((total, agent) => {
+    const reserve = atomicUSDC(agent.sponsorReserveUSDC, `${agent.label} sponsorReserveUSDC`);
+    const debt = atomicUSDC(agent.activeDebtUSDC, `${agent.label} activeDebtUSDC`);
+    return total + (debt < reserve ? debt : reserve);
+  }, 0n);
+  const custodialReserveFloor = sponsoredReserve > sponsoredDebtDeployed
+    ? sponsoredReserve - sponsoredDebtDeployed
+    : 0n;
+  const solvent = treasury >= custodialReserveFloor;
   const openDebt = input.agents.filter((agent) => atomicUSDC(agent.activeDebtUSDC, `${agent.label} activeDebtUSDC`) > 0n);
   const expiredDebtOpen = input.agents.filter((agent) => agent.sponsorState === "expired-debt-open");
   const reclaimable = input.agents.filter((agent) => agent.sponsorState === "expired-reserve-reclaimable");
@@ -81,8 +91,8 @@ export function buildFloatV2OperationalHealth(
     alerts.push({
       code: "RESERVE_INVARIANT_BREACH",
       severity: "critical",
-      title: "Sponsored reserve exceeds treasury custody",
-      detail: "Stop new line activity and reconcile contract balances before any further sponsor transaction.",
+      title: "Custodial reserve floor exceeds treasury custody",
+      detail: "The reserve floor excludes sponsored debt already deployed to providers. Stop new line activity and reconcile contract balances before any further sponsor transaction.",
       agents: [],
     });
   }
@@ -137,7 +147,9 @@ export function buildFloatV2OperationalHealth(
       solvent,
       treasuryBalanceUSDC: treasury.toString(),
       sponsoredReserveUSDC: sponsoredReserve.toString(),
-      surplusUSDC: (treasury > sponsoredReserve ? treasury - sponsoredReserve : 0n).toString(),
+      sponsoredDebtDeployedUSDC: sponsoredDebtDeployed.toString(),
+      custodialReserveFloorUSDC: custodialReserveFloor.toString(),
+      surplusUSDC: (treasury > custodialReserveFloor ? treasury - custodialReserveFloor : 0n).toString(),
     },
     counts: {
       openDebt: openDebt.length,

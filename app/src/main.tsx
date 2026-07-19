@@ -3462,8 +3462,10 @@ function FloatPilotOperations({
       </div>
       <div className="pilotOperationsMetrics">
         <FloatFact label="treasury custody" value={formatAtomic(operations?.reserve.treasuryBalanceUSDC)} />
-        <FloatFact label="sponsored reserve" value={formatAtomic(operations?.reserve.sponsoredReserveUSDC)} />
-        <FloatFact label="reserve surplus" value={formatAtomic(operations?.reserve.surplusUSDC)} />
+        <FloatFact label="sponsor reserve · nominal" value={formatAtomic(operations?.reserve.sponsoredReserveUSDC)} />
+        <FloatFact label="reserve deployed" value={formatAtomic(operations?.reserve.sponsoredDebtDeployedUSDC)} />
+        <FloatFact label="custodial reserve floor" value={formatAtomic(operations?.reserve.custodialReserveFloorUSDC)} />
+        <FloatFact label="custody surplus" value={formatAtomic(operations?.reserve.surplusUSDC)} />
         <FloatFact label="open debt lines" value={operations ? String(operations.counts.openDebt) : "unavailable"} />
         <FloatFact label="reclaimable reserves" value={operations ? String(operations.counts.reclaimable) : "unavailable"} />
       </div>
