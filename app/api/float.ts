@@ -27,6 +27,7 @@ import {
   type FloatV2TrackedExternalAgent,
 } from "../floatV2Config.js";
 import { createRpcReadQueue } from "../scripts/rpc-read-queue.mjs";
+import { buildFloatV2OperationalHealth } from "../floatV2Operations.js";
 
 export const config = { maxDuration: 20 };
 
@@ -746,6 +747,13 @@ async function handleFloatV2(res: VercelLikeResponse) {
       returningAgents: provenance.returningAgents,
       returningSponsors: provenance.returningSponsors,
     };
+    const operations = buildFloatV2OperationalHealth({
+      source: "live-rpc",
+      degraded: false,
+      treasuryBalanceUSDC: treasuryBalance.toString(),
+      totalSponsoredReserveUSDC: totalSponsoredReserve.toString(),
+      agents: visibleAgents,
+    });
 
     const checkpointPersisted = await writeFloatV2ActivityCheckpoint(latestBlock, stats);
 
@@ -762,6 +770,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
       totalAvailableCreditUSDC: totalAvailableCredit.toString(),
       totalSponsoredReserveUSDC: totalSponsoredReserve.toString(),
       summary,
+      operations,
       agents: visibleAgents,
       selfTestAgents: [],
       activityCheckpoint: {
@@ -945,6 +954,15 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
   const repaidUSDC = visibleAgents.reduce((sum, agent) => sum + BigInt(agent.repaidUSDC), 0n).toString();
   const activeDebtUSDC = visibleAgents.reduce((sum, agent) => sum + BigInt(agent.activeDebtUSDC), 0n).toString();
   const blockedUSDC = visibleAgents.reduce((sum, agent) => sum + BigInt(agent.blockedUSDC), 0n).toString();
+  const treasuryBalanceUSDC = "1569762";
+  const totalSponsoredReserveUSDC = "1500000";
+  const operations = buildFloatV2OperationalHealth({
+    source: "verified-checkpoint",
+    degraded: true,
+    treasuryBalanceUSDC,
+    totalSponsoredReserveUSDC,
+    agents: visibleAgents,
+  });
 
   return {
     ok: true,
@@ -957,9 +975,9 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     chainId: ARC_CHAIN_ID,
     float: FLOAT_V2_CONTRACT,
     latestBlock: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber.toString(),
-    treasuryBalanceUSDC: "1569762",
+    treasuryBalanceUSDC,
     totalAvailableCreditUSDC: "590000",
-    totalSponsoredReserveUSDC: "1500000",
+    totalSponsoredReserveUSDC,
     summary: {
       trackedExternalAgentLines: provenance.trackedExternalAgentLines,
       externallySponsoredLines: provenance.externallySponsoredLines,
@@ -975,6 +993,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       returningAgents: provenance.returningAgents,
       returningSponsors: provenance.returningSponsors,
     },
+    operations,
     agents: visibleAgents,
     selfTestAgents: [],
     activityCheckpoint: {

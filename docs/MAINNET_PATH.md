@@ -26,7 +26,7 @@ V1 receipts and M1 mandate adapters remain historical and supporting evidence. T
 - Arc and all reserves are testnet-only.
 - The contracts have extensive tests but no production security audit.
 - External lifecycles were real and wallet-attributed, but onboarding was still assisted by Shadow.
-- The web product explains and verifies the loop; it does not yet guide every sponsor and agent action end to end.
+- The Builders page now guides sponsor preflight, exact reserve approval, line opening or mandate refresh, local EIP-712 signing, signed-spend submission, repayment, and debt-free reserve reclaim. The remaining pilot gate is external repeat use without Shadow-operated transactions.
 - Sponsor capital is dedicated per line; there is no pooled liquidity.
 - The deployed V2 protocol fee is zero and there is no meaningful protocol revenue.
 - Behavior scoring uses only contract-recorded Float activity; it does not import a portable external reputation history.
@@ -132,12 +132,13 @@ The initial mainnet launch should retain dedicated sponsor reserves unless evide
 - [x] Debt, repayment, restored capacity, block, and default accounting
 - [x] External sponsor and agent proof lifecycles
 - [x] Public API and no-secret verifier
-- [ ] Guided self-serve sponsor flow
-- [ ] Public agent signing, submission, and repayment flow
+- [x] Guided self-serve sponsor flow
+- [x] Public agent signing, submission, and repayment flow
 - [ ] Three repeat unassisted cycles from one external agent
 - [ ] One unassisted policy block and sponsor reserve reclaim
 - [ ] Independent security review
-- [ ] Production monitoring and incident runbook
+- [x] Testnet pilot monitor and reconcile-first incident runbook
+- [ ] Production monitoring and production incident runbook
 - [ ] Evidence-backed capital and fee model
 - [ ] Audited Arc mainnet deployment
 

@@ -27,10 +27,11 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "^5.9.0",
-    "vite": "^7.0.0"
+    "vite": "^7.3.5"
   },
   "pnpm": {
     "overrides": {
+      "jayson>ws": "7.5.11",
       "rpc-websockets>ws": "8.21.1",
       "viem>ws": "8.21.1",
       "web3-providers-ws>ws": "8.21.1"

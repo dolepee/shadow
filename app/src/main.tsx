@@ -80,6 +80,7 @@ import {
   floatV2IntentConsumedEvent,
   floatV2ReceiptEvent,
 } from "../floatV2Config.js";
+import type { FloatV2OperationalHealth } from "../floatV2Operations.js";
 import "./styles.css";
 
 type PresetKey = "conservative" | "balanced" | "aggressive";
@@ -752,6 +753,7 @@ type FloatV2ActivityState = {
     activeDebtUSDC: string;
     blockedUSDC: string;
   };
+  operations?: FloatV2OperationalHealth;
   agents?: FloatV2AgentState[];
   selfTestAgents?: FloatV2AgentState[];
   logFetch?: {
@@ -2439,6 +2441,7 @@ function App() {
         onAccountChange={setAccount}
         onRefresh={refreshFloatV2}
       />
+      <FloatPilotOperations state={floatV2State} loading={floatV2Loading} />
       <section className="builderFlowGrid" aria-label="Builder integration flow">
         <article className="builderFlowCard">
           <span>1</span>
@@ -2650,6 +2653,8 @@ function FloatBuilderPilot({
     label: "Preflight required",
     detail: "Connect the sponsor wallet and check the line before approving USDC.",
   });
+  const [closeRecipient, setCloseRecipient] = useState("");
+  const [closeConfirmed, setCloseConfirmed] = useState(false);
 
   const [intentProvider, setIntentProvider] = useState<string>(FLOAT_V2_DEFAULT_PROVIDER);
   const [intentEndpointHash, setIntentEndpointHash] = useState<string>(FLOAT_V2_DEFAULT_ENDPOINT_HASH);
@@ -2942,6 +2947,65 @@ function FloatBuilderPilot({
       await onRefresh();
     } catch (error) {
       setSponsorStatus({ label: "Line opening failed", error: errorMessage(error) });
+    } finally {
+      setSponsorBusy(false);
+    }
+  }
+
+  async function closeSponsorLine() {
+    setSponsorBusy(true);
+    setSponsorStatus({ label: "Rechecking reserve reclaim" });
+    try {
+      if (!closeConfirmed) throw new Error("Confirm that closing immediately revokes the line.");
+      const agent = parseBuilderAddress(agentAddress, "Agent");
+      const { account: sponsor, wallet } = await connectBuilderWallet(onAccountChange);
+      const recipient = closeRecipient.trim()
+        ? parseBuilderAddress(closeRecipient, "Reserve recipient")
+        : sponsor;
+      const [lineSponsor, line] = await Promise.all([
+        publicClient.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lineSponsors", args: [agent] }),
+        publicClient.readContract({ address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [agent] }),
+      ]);
+      const currentSponsor = lineSponsor as FloatV2SponsorLineRead;
+      const currentLine = line as FloatV2LineRead;
+      if (getAddress(currentSponsor[0]) !== sponsor) {
+        throw new Error(`Connected wallet is not this line's sponsor (${shortAddress(currentSponsor[0])}).`);
+      }
+      if (currentSponsor[1] === 0n) throw new Error("This line has no sponsor reserve to reclaim.");
+      if (currentLine[4] !== 0n) {
+        throw new Error(`${formatFloatUSDC(currentLine[4])} USDC debt remains. The contract will not release the reserve.`);
+      }
+      const requestHash = keccak256(
+        stringToBytes(
+          JSON.stringify({
+            v: 1,
+            domain: "shadow-float:builder-close",
+            sponsor,
+            agent,
+            recipient,
+            nonce: createBuilderNonce(),
+          }),
+        ),
+      );
+      const hash = await wallet.writeContract({
+        account: sponsor,
+        address: FLOAT_V2_CONTRACT,
+        abi: floatV2Abi,
+        functionName: "closeSponsoredLine",
+        args: [agent, recipient, requestHash],
+        chain: arcTestnet,
+      });
+      await waitForBuilderTransaction(hash, "Sponsored reserve reclaim");
+      setSponsorPreflight(null);
+      setCloseConfirmed(false);
+      setSponsorStatus({
+        label: "Reserve reclaimed",
+        detail: `The line is revoked and its remaining reserve was sent to ${shortAddress(recipient)}.`,
+        txs: [{ label: "close and reclaim", hash }],
+      });
+      await onRefresh();
+    } catch (error) {
+      setSponsorStatus({ label: "Reserve reclaim blocked", error: errorMessage(error) });
     } finally {
       setSponsorBusy(false);
     }
@@ -3259,6 +3323,32 @@ function FloatBuilderPilot({
               3. {sponsorAction === "refresh" ? "Refresh mandate" : sponsorAction === "renew" ? "Renew line" : "Open line"}
             </button>
           </div>
+          <div className="builderCloseControl">
+            <div>
+              <strong>Close a debt-free line</strong>
+              <span>Optional. This revokes capacity immediately and returns the full remaining reserve.</span>
+            </div>
+            <label className="builderField">
+              <span>Reserve recipient, optional</span>
+              <input
+                value={closeRecipient}
+                onChange={(event) => setCloseRecipient(event.target.value)}
+                placeholder="defaults to sponsor wallet"
+                spellCheck={false}
+              />
+            </label>
+            <label className="builderConfirm">
+              <input
+                type="checkbox"
+                checked={closeConfirmed}
+                onChange={(event) => setCloseConfirmed(event.target.checked)}
+              />
+              <span>I understand this closes the line now and cannot run while debt is open.</span>
+            </label>
+            <button type="button" className="danger" onClick={closeSponsorLine} disabled={sponsorBusy || !closeConfirmed}>
+              Close and reclaim reserve
+            </button>
+          </div>
           <BuilderStatus id="sponsor-flow-status" status={sponsorStatus} />
         </article>
 
@@ -3338,6 +3428,72 @@ function FloatBuilderPilot({
           <BuilderStatus id="repay-flow-status" status={repayStatus} />
         </article>
       </div>
+    </section>
+  );
+}
+
+function FloatPilotOperations({
+  state,
+  loading,
+}: {
+  state: FloatV2ActivityState | null;
+  loading: boolean;
+}) {
+  const operations = state?.operations;
+  const status = operations?.status || (loading ? "loading" : "unavailable");
+  const formatAtomic = (value?: string) => (value === undefined ? "unavailable" : `${formatFloatUSDC(value)} USDC`);
+
+  return (
+    <section className={`pilotOperations pilotOperations-${status}`} aria-label="Shadow Float pilot operations">
+      <div className="pilotOperationsHead">
+        <div>
+          <p className="pageEyebrow">pilot operations · chain-derived</p>
+          <h2>Exposure stays visible before the next transaction.</h2>
+          <p>
+            This monitor is read-only. A checkpoint fallback is evidence, not fresh authorization; every wallet action still
+            re-reads the deployed contract before it prompts for a signature.
+          </p>
+        </div>
+        <div className="pilotOperationsVerdict">
+          <span>current posture</span>
+          <strong>{status}</strong>
+          <small>{operations?.source || "waiting for chain state"}</small>
+        </div>
+      </div>
+      <div className="pilotOperationsMetrics">
+        <FloatFact label="treasury custody" value={formatAtomic(operations?.reserve.treasuryBalanceUSDC)} />
+        <FloatFact label="sponsored reserve" value={formatAtomic(operations?.reserve.sponsoredReserveUSDC)} />
+        <FloatFact label="reserve surplus" value={formatAtomic(operations?.reserve.surplusUSDC)} />
+        <FloatFact label="open debt lines" value={operations ? String(operations.counts.openDebt) : "unavailable"} />
+        <FloatFact label="reclaimable reserves" value={operations ? String(operations.counts.reclaimable) : "unavailable"} />
+      </div>
+      <div className="pilotOperationsAlerts" aria-live="polite">
+        {!operations ? (
+          <article className="pilotOperationAlert pending">
+            <span>pending</span>
+            <strong>Operational state not loaded</strong>
+            <p>Wait for a live RPC result or an explicitly labeled verified checkpoint before interpreting the pilot posture.</p>
+          </article>
+        ) : operations.alerts.length ? operations.alerts.map((alert) => (
+          <article key={alert.code} className={`pilotOperationAlert ${alert.severity}`}>
+            <span>{alert.severity}</span>
+            <strong>{alert.title}</strong>
+            <p>{alert.detail}</p>
+            {alert.agents.length > 0 && (
+              <small>{alert.agents.map((agent) => `${agent.label} ${shortAddress(agent.agent)}`).join(" · ")}</small>
+            )}
+          </article>
+        )) : (
+          <article className="pilotOperationAlert clear">
+            <span>clear</span>
+            <strong>No operational exception detected</strong>
+            <p>Reserve custody covers sponsored reserves and no tracked line is expired with debt or defaulted.</p>
+          </article>
+        )}
+      </div>
+      <a className="pilotOperationsRunbook" href="https://github.com/dolepee/shadow/blob/main/docs/PILOT_OPERATIONS.md" target="_blank" rel="noreferrer noopener">
+        Open the reconcile-first incident runbook
+      </a>
     </section>
   );
 }

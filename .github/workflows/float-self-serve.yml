@@ -1,0 +1,42 @@
+name: float-self-serve
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/float-self-serve.yml"
+      - "app/api/float.ts"
+      - "app/floatV2Operations.ts"
+      - "app/floatV2Operations.test.ts"
+      - "app/src/main.tsx"
+      - "app/src/styles.css"
+      - "app/tsconfig.json"
+      - "docs/MAINNET_PATH.md"
+      - "docs/PILOT_OPERATIONS.md"
+      - "docs/PILOT_RECRUITMENT.md"
+      - "package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  self-serve-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Install app dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile --ignore-workspace
+      - name: Test operational alert semantics
+        run: npm run float:v2-ops:test
+      - name: Typecheck app and API
+        run: npm run app:typecheck
+      - name: Build production app
+        run: npm run app:build
