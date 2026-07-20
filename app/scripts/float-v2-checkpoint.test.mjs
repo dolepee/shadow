@@ -42,12 +42,12 @@ test("activity checkpoint preserves the verified V2 totals", () => {
   );
 
   assert.deepEqual(totals, {
-    signedIntents: 13,
-    providerPaidCount: 13,
-    repaidCount: 12,
+    signedIntents: 14,
+    providerPaidCount: 14,
+    repaidCount: 13,
     blockedCount: 0,
-    providerPaidUSDC: 107_000n,
-    repaidUSDC: 97_000n,
+    providerPaidUSDC: 108_000n,
+    repaidUSDC: 98_000n,
     blockedUSDC: 0n,
   });
   for (const entry of FLOAT_V2_ACTIVITY_CHECKPOINT.agents) {
@@ -55,7 +55,7 @@ test("activity checkpoint preserves the verified V2 totals", () => {
   }
 });
 
-test("renewed CitePay line preserves retired history and proves one returning sponsor", () => {
+test("renewed CitePay line proves one returning sponsor and one returning agent", () => {
   const citePaySponsor = "0x5389688243328c26a92b301faeeab5fbf9aff105";
   const citePayLines = FLOAT_V2_TRACKED_EXTERNAL_AGENTS.filter(
     (entry) => entry.verifiedSponsor?.toLowerCase() === citePaySponsor,
@@ -78,8 +78,13 @@ test("renewed CitePay line preserves retired history and proves one returning sp
     countFloatV2VerifiedReturningSponsors(
       trackedWithActivity.filter((entry) => !entry.retired),
     ),
-    0,
+    1,
   );
+
+  const renewedLine = trackedWithActivity.find(
+    (entry) => !entry.retired && entry.verifiedSponsor?.toLowerCase() === citePaySponsor,
+  );
+  assert.equal(renewedLine?.signedIntents, 2);
 });
 
 test("frontend fallback identifies the renewed CitePay reserve as verified external capital", () => {
@@ -91,4 +96,18 @@ test("frontend fallback identifies the renewed CitePay reserve as verified exter
   assert.ok(renewedLine, "renewed CitePay fallback line must remain present");
   assert.match(renewedLine[0], /sponsorProvenance: "verified-external"/);
   assert.match(source, /floatV2SponsorProvenance\(agent\) === "verified-external"/);
+});
+
+test("API fallback derives its totals and preserves the renewed CitePay cycle", () => {
+  const source = readFileSync(new URL("../api/float.ts", import.meta.url), "utf8");
+  const renewedLine = source.match(
+    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?latestTxHash: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",/,
+  );
+
+  assert.ok(renewedLine, "API fallback must include the completed Clear-gated cycle");
+  assert.match(renewedLine[0], /signedIntents: 2/);
+  assert.match(renewedLine[0], /paid: 2/);
+  assert.match(renewedLine[0], /repaid: 2/);
+  assert.match(source, /const signedIntents = visibleAgents\.reduce/);
+  assert.match(source, /const repaidLifecycles = visibleAgents\.reduce/);
 });

@@ -37,14 +37,14 @@ Live V2 activity currently shown on the site:
 | Tracked external-agent lines | 10 |
 | Verified externally sponsored lines | 2 |
 | Operator-sponsored external-agent lines | 8 |
-| Unassisted returning agents | 0 |
+| Unassisted returning agents | 1 |
 | Returning external sponsors | 1 |
-| Signed intents | 13 |
-| Provider paid spends | 13 |
-| Closed borrow-repay lifecycles | 12 |
+| Signed intents | 14 |
+| Provider paid spends | 14 |
+| Closed borrow-repay lifecycles | 13 |
 | Open debt lines | 1 |
 
-The live board tracks 10 reserve-backed, independently controlled external-agent lines. Eight were funded by Shadow's operator and remain valid integration proof, but they are not counted as unassisted pilot traction. CitePay and Forum Tollgate funded the other two reserve-backed lines from verified non-operator sponsor wallets; the board labels each line's current spendability and expiry separately. CitePay is the first returning external sponsor: it closed its debt-free retired line, reclaimed the same 0.05 USDC reserve, opened a fresh line for a controlled agent, and completed a second signed spend-and-repay cycle. The retired line remains visible as historical evidence but is excluded from reserve-backed line counts. Closing clears that line's current `behaviorStats`; immutable event-derived paid and repayment counters remain visible separately. No externally sponsored agent has itself repeated yet, so the honest unassisted returning-agent baseline remains `0`. Driplet and Argus Alpha each completed a second operator-sponsored provider loop; Obol has a provider-paid V2 spend with repayment intentionally left open and labeled on the live board.
+The live board tracks 10 reserve-backed, independently controlled external-agent lines. Eight were funded by Shadow's operator and remain valid integration proof, but they are not counted as unassisted pilot traction. CitePay and Forum Tollgate funded the other two reserve-backed lines from verified non-operator sponsor wallets; the board labels each line's current spendability and expiry separately. CitePay is the first returning external sponsor: it closed its debt-free retired line, reclaimed the same 0.05 USDC reserve, and opened a fresh line for a controlled agent. That renewed agent is now the first unassisted returning agent: it completed two signed spend-and-repay cycles, including a fail-closed CitePay Clear-gated provider payment. The retired line remains visible as historical evidence but is excluded from reserve-backed line counts. Closing clears that line's current `behaviorStats`; immutable event-derived paid and repayment counters remain visible separately. Driplet and Argus Alpha each completed a second operator-sponsored provider loop; Obol has a provider-paid V2 spend with repayment intentionally left open and labeled on the live board.
 
 ### Autonomous Underwriting Is Deployed
 
@@ -90,18 +90,20 @@ The setup command lets the sponsor refresh the CitePay provider mandate for the 
 
 The current V2 contract also supports external sponsors. `openSponsoredLine(...)` is public: a sponsor reserves their own Arc USDC for an agent, sets the provider mandate for that line, and lets `ShadowFloat` score and cap the line from behavior.
 
-CitePay became the first live external sponsor on Shadow Float V2. CitePay later retired that debt-free line, reclaimed its reserve, opened a replacement line for a controlled signer, and completed another spend-and-repay cycle. This is repeat sponsor behavior across two distinct line generations, not a returning-agent claim. Forum Tollgate separately completed the full external sponsor lifecycle: sponsor opens reserve, agent spends, agent repays, sponsor closes the line, and the full reserve returns to the sponsor. Forum later reopened a fresh 0.05 USDC reserve and left it live through judging.
+CitePay became the first live external sponsor on Shadow Float V2. CitePay later retired that debt-free line, reclaimed its reserve, and opened a replacement line for a controlled signer. That renewed agent completed two signed spend-and-repay cycles, making CitePay the first returning external sponsor and the renewed signer the first unassisted returning agent. The second cycle required an exact-quote Clear receipt before payment and left no `settle_clearance` call or second payout leg. Forum Tollgate separately completed the full external sponsor lifecycle: sponsor opens reserve, agent spends, agent repays, sponsor closes the line, and the full reserve returns to the sponsor. Forum later reopened a fresh 0.05 USDC reserve and left it live through judging.
 
 | Sponsor proof | Sponsor wallet | Agent | Key tx | State |
 | --- | --- | --- | --- | --- |
 | CitePay retired line | `0x5389...f105` | `0xdfDE...044f` | [`0x2d91c3...74e0d`](https://testnet.arcscan.app/tx/0x2d91c37cc23ff8f342614bb9070e82efb37d0d588b15a43a3685c92786074e0d) | debt free; reserve reclaimed |
-| CitePay renewed line | `0x5389...f105` | `0x2366...274d` | [`0x52ef42...6a911`](https://testnet.arcscan.app/tx/0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911) | fresh controlled signer; 0.005 USDC spend repaid; 0.05 USDC reserve active |
+| CitePay renewed line | `0x5389...f105` | `0x2366...274d` | [`0x1e0279...527f`](https://testnet.arcscan.app/tx/0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f) | two signed cycles repaid; 0.05 USDC reserve active |
 | Forum Tollgate reclaim | `0x12F2...ba03` | `0x645b...139C` | [`0xba995c...16463`](https://testnet.arcscan.app/tx/0xba995c10f06f14b876a6b4c19ad69cbfe023d878784961f6eaebb62a3aa16463) | reserve reclaimed |
 | Forum Tollgate reopened reserve | `0x12F2...ba03` | `0x645b...139C` | [`0xc8694d...da2e6`](https://testnet.arcscan.app/tx/0xc8694da66f078d81c4199df813e8ee7b69941a14b6aef4531f6c35ca771da2e6) | reopen proof; current expiry on live board |
 
 External sponsor runbook: [`docs/EXTERNAL_SPONSOR_V2.md`](docs/EXTERNAL_SPONSOR_V2.md)
 
 External sponsor proof notes: [`docs/EXTERNAL_SPONSOR_PROOF.md`](docs/EXTERNAL_SPONSOR_PROOF.md)
+
+CitePay Clear canary proof: [`app/public/proofs/citepay-clear-canary.json`](app/public/proofs/citepay-clear-canary.json)
 
 ### Forum FeeRouter Canary
 

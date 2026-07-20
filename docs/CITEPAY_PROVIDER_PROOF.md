@@ -6,6 +6,8 @@ Shadow paid CitePay through CitePay's DirectTransfer flow. CitePay confirmed tha
 
 Shadow also closed a stronger Float-funded provider loop: Argus Alpha signed a V2 `FloatSpendIntent`, `ShadowFloat` paid CitePay directly from sponsor reserve, CitePay accepted the tx hash as payment for `/api/ask`, and Argus Alpha repaid the line.
 
+Shadow later closed a separate Clear-gated cycle on CitePay's own externally sponsored line. CitePay Clear verified the exact citation quote and persisted an un-settled clearance bound to the Float request hash before `ShadowFloat` paid the provider. CitePay's controlled agent then repaid the line itself. This cycle did not call `/api/ask` or `settle_clearance`; it proves the pre-payment gate and Float accounting path without adding a second payout leg.
+
 Shadow then recorded the delivery side of a later Float-funded request: Driplet paid CitePay through Shadow Float V2, CitePay signed a `ProviderDeliveryReceipt` for that exact request hash, and `ShadowFloat` stored the delivery hash onchain.
 
 This is framed as a verified provider flow that both projects can cite.
@@ -79,3 +81,13 @@ The combined story is:
 5. An external buyer agent can use Float V2 to pay that independent provider and then repay the line.
 6. A provider can sign a delivery receipt for the exact paid request, and `ShadowFloat` stores that receipt onchain.
 7. Every payment and receipt is independently checkable from Arc testnet transactions.
+
+## Clear-Gated Externally Sponsored Cycle
+
+| Step | Evidence | Result |
+| --- | --- | --- |
+| Exact-quote clearance | `clr_fc7aa568fde6640b99f4e8ad1425d54c` | `CLEARED`, persisted, `settlement: null` |
+| Signed Float request | `0xc5ec357843228cf3cef338016f35938734c6ab6b0602035449f575bb6bee591a` | nonce consumed once |
+| Provider payment | [`0x74c1fa...57927`](https://testnet.arcscan.app/tx/0x74c1fa0782dd8c70586bd8a87cb014a1bda6080df794250766720d527fe57927) | `0.001 USDC` from `ShadowFloat` to CitePay |
+| Agent repayment | [`0x1e0279...527f`](https://testnet.arcscan.app/tx/0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f) | `0.001 USDC`, signed by the controlled agent |
+| Final line state | Arc testnet contract read | debt `0`, available capacity `0.05 USDC`, score `9000` |

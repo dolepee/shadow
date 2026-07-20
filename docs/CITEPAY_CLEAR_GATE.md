@@ -117,3 +117,25 @@ The V1-V4 compatibility cases are based on CitePay's public `docs/AGENTS.md`: ex
 idempotent retry by `externalRef`, unsupported quote, and over-cap refusal. Tests use fakes only and make
 no production request. The adapter was checked against CitePay's public commit
 `d7b5aa11a8b628e9abc7bdc4b41d4756f555b2a2`; revalidate the response contract before enabling a canary.
+
+## Closed Arc testnet canary
+
+The bounded external integration pilot completed on 2026-07-20:
+
+- CitePay Clear returned `CLEARED`, verified the exact quote, echoed the Float request hash as `externalRef`, and served the same persisted clearance with `settlement: null`.
+- Shadow stored a secret-free pre-submit checkpoint before the contract call.
+- `ShadowFloat` consumed the external agent's EIP-712 intent once and paid exactly `0.001 USDC` directly to CitePay.
+- CitePay's controlled agent repaid exactly `0.001 USDC` itself. Debt returned to zero and the full `0.05 USDC` capacity was restored.
+- No `settle_clearance` call occurred. The Clear integration remains disabled by default.
+
+| Evidence | Value |
+| --- | --- |
+| Agent | `0x236652EAd43fbb0948173fC4dDF23BC0971B274d` |
+| External sponsor and provider | `0x5389688243328c26a92b301faEEAb5fbf9AFf105` |
+| Float request hash | `0xc5ec357843228cf3cef338016f35938734c6ab6b0602035449f575bb6bee591a` |
+| Clearance | `clr_fc7aa568fde6640b99f4e8ad1425d54c` |
+| Spend | [`0x74c1fa...57927`](https://testnet.arcscan.app/tx/0x74c1fa0782dd8c70586bd8a87cb014a1bda6080df794250766720d527fe57927) |
+| Repayment | [`0x1e0279...527f`](https://testnet.arcscan.app/tx/0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f) |
+| Public proof | [`citepay-clear-canary.json`](https://shadow-arc.vercel.app/proofs/citepay-clear-canary.json) |
+
+This is bounded external integration evidence, not production routing, organic adoption, lending revenue, or creator settlement.

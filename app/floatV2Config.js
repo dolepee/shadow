@@ -9,8 +9,8 @@ export const FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE = 9_000n;
 // incremental scans advance the checkpoint in KV. This keeps the public board
 // live without replaying millions of historical blocks on every request.
 export const FLOAT_V2_ACTIVITY_CHECKPOINT = {
-  blockNumber: 52_480_794n,
-  checkedAt: "2026-07-18T18:28:32.000Z",
+  blockNumber: 52_829_548n,
+  checkedAt: "2026-07-20T20:01:52.158Z",
   agents: [
     {
       agent: "0x13585c6004fbA9D7D49219a6435B68348fD30770",
@@ -58,14 +58,14 @@ export const FLOAT_V2_ACTIVITY_CHECKPOINT = {
     },
     {
       agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
-      signedIntents: 1,
-      providerPaidCount: 1,
-      repaidCount: 1,
+      signedIntents: 2,
+      providerPaidCount: 2,
+      repaidCount: 2,
       blockedCount: 0,
-      providerPaidUSDC: "5000",
-      repaidUSDC: "5000",
+      providerPaidUSDC: "6000",
+      repaidUSDC: "6000",
       blockedUSDC: "0",
-      latestTxHash: "0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911",
+      latestTxHash: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",
     },
     {
       agent: "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C",
