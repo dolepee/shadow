@@ -97,3 +97,17 @@ test("frontend fallback identifies the renewed CitePay reserve as verified exter
   assert.match(renewedLine[0], /sponsorProvenance: "verified-external"/);
   assert.match(source, /floatV2SponsorProvenance\(agent\) === "verified-external"/);
 });
+
+test("API fallback derives its totals and preserves the renewed CitePay cycle", () => {
+  const source = readFileSync(new URL("../api/float.ts", import.meta.url), "utf8");
+  const renewedLine = source.match(
+    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?latestTxHash: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",/,
+  );
+
+  assert.ok(renewedLine, "API fallback must include the completed Clear-gated cycle");
+  assert.match(renewedLine[0], /signedIntents: 2/);
+  assert.match(renewedLine[0], /paid: 2/);
+  assert.match(renewedLine[0], /repaid: 2/);
+  assert.match(source, /const signedIntents = visibleAgents\.reduce/);
+  assert.match(source, /const repaidLifecycles = visibleAgents\.reduce/);
+});

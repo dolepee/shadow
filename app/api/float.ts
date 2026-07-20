@@ -841,15 +841,22 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     snapshotV2Agent({
       label: "CitePay sponsor (renewed line)",
       agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
+      score: 9000,
       sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
       verifiedSponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
       lineExpiry: "1792175302",
-      lastReview: "1784399312",
-      providerPaidUSDC: "5000",
-      repaidUSDC: "5000",
+      lastReview: "1784577329",
+      autonomousScore: { score: 9000, recommendedLimitUSDC: "1000000", cappedLimitUSDC: "50000" },
+      signedIntents: 2,
+      paid: 2,
+      repaid: 2,
+      behaviorPaid: 2,
+      behaviorRepaid: 2,
+      providerPaidUSDC: "6000",
+      repaidUSDC: "6000",
       spendTx: "0x9007d0e8f66c0bc641caaa305266d50aeb5e2e969ff3edbbd8122542ed08eae4",
       repayTx: "0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911",
-      latestTxHash: "0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911",
+      latestTxHash: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",
     }),
     snapshotV2Agent({
       label: "Crux",
@@ -931,6 +938,13 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     return a.label.localeCompare(b.label);
   });
   const provenance = summarizeFloatV2Provenance(visibleAgents);
+  const signedIntents = visibleAgents.reduce((sum, agent) => sum + agent.signedIntents, 0);
+  const paidSpends = visibleAgents.reduce((sum, agent) => sum + agent.providerPaidCount, 0);
+  const repaidLifecycles = visibleAgents.reduce((sum, agent) => sum + agent.repaidCount, 0);
+  const providerPaidUSDC = visibleAgents.reduce((sum, agent) => sum + BigInt(agent.providerPaidUSDC), 0n).toString();
+  const repaidUSDC = visibleAgents.reduce((sum, agent) => sum + BigInt(agent.repaidUSDC), 0n).toString();
+  const activeDebtUSDC = visibleAgents.reduce((sum, agent) => sum + BigInt(agent.activeDebtUSDC), 0n).toString();
+  const blockedUSDC = visibleAgents.reduce((sum, agent) => sum + BigInt(agent.blockedUSDC), 0n).toString();
 
   return {
     ok: true,
@@ -943,21 +957,21 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     chainId: ARC_CHAIN_ID,
     float: FLOAT_V2_CONTRACT,
     latestBlock: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber.toString(),
-    treasuryBalanceUSDC: "1523203",
+    treasuryBalanceUSDC: "1569762",
     totalAvailableCreditUSDC: "590000",
     totalSponsoredReserveUSDC: "1500000",
     summary: {
       trackedExternalAgentLines: provenance.trackedExternalAgentLines,
       externallySponsoredLines: provenance.externallySponsoredLines,
       operatorSponsoredLines: provenance.operatorSponsoredLines,
-      signedIntents: 13,
-      paidSpends: 13,
-      repaidLifecycles: 12,
-      openDebtAgents: 1,
-      providerPaidUSDC: "107000",
-      repaidUSDC: "97000",
-      activeDebtUSDC: "10000",
-      blockedUSDC: "0",
+      signedIntents,
+      paidSpends,
+      repaidLifecycles,
+      openDebtAgents: visibleAgents.filter((agent) => BigInt(agent.activeDebtUSDC) > 0n).length,
+      providerPaidUSDC,
+      repaidUSDC,
+      activeDebtUSDC,
+      blockedUSDC,
       returningAgents: provenance.returningAgents,
       returningSponsors: provenance.returningSponsors,
     },

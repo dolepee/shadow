@@ -4757,7 +4757,7 @@ function FloatV2SponsorCapitalPanel({ state }: { state: FloatV2ActivityState | n
       sponsor: "0x12F25B721Cc21c38495e33A4c8524dd0B647ba03",
       agent: forumAgent,
       reserve: "0.05 USDC",
-      proofHref: "/proofs/forum-feerouter-canary.json",
+      proofHref: null,
       body: "Forum Tollgate proved sponsor, spend, repay, reserve reclaim, and reopen. Current spendability is read from the line expiry above.",
       steps: [
         { label: "openSponsoredLine", tx: FLOAT_V2_PROOF.forumSponsorOpenTx },
@@ -4819,9 +4819,11 @@ function FloatV2SponsorCapitalPanel({ state }: { state: FloatV2ActivityState | n
                 </a>
               ))}
             </div>
-            <a className="floatSponsorProofLink" href={run.proofHref} target="_blank" rel="noreferrer">
-              Open machine-readable proof
-            </a>
+            {run.proofHref ? (
+              <a className="floatSponsorProofLink" href={run.proofHref} target="_blank" rel="noreferrer">
+                Open machine-readable proof
+              </a>
+            ) : null}
           </article>
         ))}
       </div>
