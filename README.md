@@ -233,6 +233,8 @@ curl -s https://shadow-arc.vercel.app/api/desk
 
 The V2 activity API does not replay the full contract history on every page load. Its committed checkpoint contains a complete event scan through Arc block `52,107,468`; each request scans only newer blocks and advances the same validated checkpoint in KV. Responses label `source: live-rpc` when current chain reads complete and `source: verified-checkpoint` with `degraded: true` when the public RPC is unavailable, so a transport failure cannot become a timeout or be presented as live data.
 
+The public [Builders flow](https://shadow-arc.vercel.app/builders) now covers the complete participant-controlled lifecycle: sponsor preflight, exact reserve approval, line opening or mandate refresh, local EIP-712 signing, signed-spend submission, agent repayment, and sponsor-only debt-free reserve reclaim. Every wallet action re-reads current contract state before prompting. The adjacent pilot monitor derives reserve solvency, open debt, expired debt, reclaimable reserves, defaults, and data-source health from the same V2 state; checkpoint fallback is explicitly degraded and never presented as fresh authorization.
+
 Full local checks before changing code:
 
 ```bash
@@ -244,6 +246,7 @@ npm run contracts:build
 npm run app:typecheck
 npm run app:build
 npm run agent:typecheck
+npm run float:v2-ops:test
 
 npm run float:v2-verify-live
 curl -s https://shadow-arc.vercel.app/api/float?mode=v2
@@ -279,6 +282,8 @@ Supporting M1 contracts are documented in [`docs/LEPTON_M1.md`](docs/LEPTON_M1.m
 - Source-matched deployed contract.
 - Live external activity board.
 - Forkable builder signing kit for the V2 signed spend and repay flow.
+- Guided no-key sponsor, agent, repayment, and reserve-reclaim flow.
+- Chain-derived pilot operations monitor and reconcile-first incident runbook.
 - No-secret verifier for the current V2 loop.
 - Historical V1 x402/EIP-3009 binding evidence, labeled separately from the current V2 product path.
 - Supporting M1 mandate proof for adapter-level ALLOW/BLOCK behavior.
@@ -294,6 +299,7 @@ Supporting M1 contracts are documented in [`docs/LEPTON_M1.md`](docs/LEPTON_M1.m
 
 - Lepton M1 mandate notes: [`docs/LEPTON_M1.md`](docs/LEPTON_M1.md)
 - Mainnet path: [`docs/MAINNET_PATH.md`](docs/MAINNET_PATH.md)
+- Self-serve pilot operations: [`docs/PILOT_OPERATIONS.md`](docs/PILOT_OPERATIONS.md)
 - Economics: [`docs/ECONOMICS.md`](docs/ECONOMICS.md)
 - Roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - Forum FeeRouter canary: [`docs/FORUM_FEEROUTER_CANARY.md`](docs/FORUM_FEEROUTER_CANARY.md)

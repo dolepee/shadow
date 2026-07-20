@@ -41,6 +41,8 @@ These values are testnet defaults, not production credit terms. The contract may
 7. Repeat on two later occasions. On one attempt, intentionally exceed an agreed policy bound so the contract records a block with no provider transfer.
 8. After debt is zero, the sponsor may close the line and reclaim the remaining reserve through `closeSponsoredLine`.
 
+The sponsor panel includes a separate close-and-reclaim control. It re-reads sponsor ownership, reserve, and debt before the wallet prompt, requires an explicit revocation acknowledgement, and lets the sponsor choose the reserve recipient. A timeout must be reconciled from the transaction receipt and contract state before retrying; see [`PILOT_OPERATIONS.md`](./PILOT_OPERATIONS.md).
+
 For an existing line, the same sponsor uses the same first panel. A live line refreshes only its provider mandate. An expired zero-debt line is reclaimed and reopened with fresh expiries; the UI presents both transactions explicitly. Renewal is blocked until any active debt is repaid.
 
 Reference paths remain available for non-browser agents:

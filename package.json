@@ -30,6 +30,7 @@
     "float:v2-bind-intent": "node app/scripts/float-v2-bind-intent.mjs",
     "float:v2-clear-commit": "node app/scripts/citepay-clear-commit.mjs",
     "float:v2-clear-gate:test": "node --test app/scripts/citepay-clear-*.test.mjs app/scripts/float-v2-payment-evidence.test.mjs",
+    "float:v2-ops:test": "node --test app/floatV2Operations.test.ts",
     "float:v2-provider-delivery": "node app/scripts/float-v2-provider-delivery.mjs",
     "float:v2-verify-live": "node app/scripts/float-v2-verify-live.mjs",
     "float:autounderwrite": "node app/scripts/float-autounderwrite.mjs",
