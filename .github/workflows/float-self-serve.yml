@@ -5,8 +5,12 @@ on:
     paths:
       - ".github/workflows/float-self-serve.yml"
       - "app/api/float.ts"
+      - "app/floatV2Config.d.ts"
+      - "app/floatV2Config.js"
       - "app/floatV2Operations.ts"
       - "app/floatV2Operations.test.ts"
+      - "app/package.json"
+      - "app/pnpm-lock.yaml"
       - "app/src/main.tsx"
       - "app/src/styles.css"
       - "app/tsconfig.json"

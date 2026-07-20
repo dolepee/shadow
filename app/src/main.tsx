@@ -80,7 +80,10 @@ import {
   floatV2IntentConsumedEvent,
   floatV2ReceiptEvent,
 } from "../floatV2Config.js";
-import type { FloatV2OperationalHealth } from "../floatV2Operations.js";
+import {
+  buildFloatV2OperationalHealth,
+  type FloatV2OperationalHealth,
+} from "../floatV2Operations.js";
 import "./styles.css";
 
 type PresetKey = "conservative" | "balanced" | "aggressive";
@@ -862,7 +865,7 @@ type FloatDeskState = {
   error?: string;
 };
 
-const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
+const FLOAT_V2_VERIFIED_SNAPSHOT_BASE: FloatV2ActivityState = {
   ok: true,
   source: "verified-checkpoint",
   degraded: true,
@@ -1219,6 +1222,17 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
     complete: true,
     warnings: [],
   },
+};
+
+const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
+  ...FLOAT_V2_VERIFIED_SNAPSHOT_BASE,
+  operations: buildFloatV2OperationalHealth({
+    source: "verified-checkpoint",
+    degraded: true,
+    treasuryBalanceUSDC: FLOAT_V2_VERIFIED_SNAPSHOT_BASE.treasuryBalanceUSDC ?? "0",
+    totalSponsoredReserveUSDC: FLOAT_V2_VERIFIED_SNAPSHOT_BASE.totalSponsoredReserveUSDC ?? "0",
+    agents: FLOAT_V2_VERIFIED_SNAPSHOT_BASE.agents ?? [],
+  }),
 };
 
 type TreasuryCheck = {
