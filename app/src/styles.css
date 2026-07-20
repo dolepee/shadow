@@ -12251,7 +12251,8 @@ body {
   .navActions {
     order: 2;
     display: flex !important;
-    width: auto !important;
+    flex: 1 0 100%;
+    width: 100% !important;
     max-width: 100%;
     gap: 8px;
     margin-left: 0;
@@ -12293,6 +12294,23 @@ body {
   .roadmapCard {
     min-width: 0;
     max-width: 100%;
+  }
+
+  .routePage,
+  .pageHead,
+  .builderPilot,
+  .builderPilotHeader,
+  .builderPilotGrid,
+  .builderWorkbench,
+  .pilotOperations,
+  .pilotOperationsHead {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .routePage,
+  .pageHead {
+    width: 100%;
   }
 
   /* Hero console: stack the PAID/REPAID split and wrap its mono lines. */

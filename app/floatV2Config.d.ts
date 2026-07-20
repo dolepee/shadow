@@ -1,12 +1,19 @@
 import type { Abi, AbiEvent, Address, Hash } from "viem";
 
-export type FloatV2TrackedExternalAgent = {
+export type FloatV2TrackedAgent = {
   label: string;
   agent: Address;
+  category: "external" | "system";
+  agentProvenance: "verified-external-signer" | "shadow-controlled-signer";
   verifiedSponsor?: Address;
   retired?: boolean;
   spendTx?: Hash;
   repayTx?: Hash;
+};
+
+export type FloatV2TrackedExternalAgent = FloatV2TrackedAgent & {
+  category: "external";
+  agentProvenance: "verified-external-signer";
 };
 
 export type FloatV2ActivityCheckpointEntry = {
@@ -43,6 +50,8 @@ export declare function countFloatV2VerifiedReturningSponsors(
   }[],
 ): number;
 export declare const FLOAT_V2_TRACKED_EXTERNAL_AGENTS: readonly FloatV2TrackedExternalAgent[];
+export declare const FLOAT_V2_TRACKED_SYSTEM_AGENTS: readonly FloatV2TrackedAgent[];
+export declare const FLOAT_V2_TRACKED_AGENTS: readonly FloatV2TrackedAgent[];
 export declare const floatV2Abi: Abi;
 export declare const floatV2IntentConsumedEvent: AbiEvent;
 export declare const floatV2ReceiptEvent: AbiEvent;

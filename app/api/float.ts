@@ -18,13 +18,13 @@ import {
   FLOAT_V2_DEPLOY_BLOCK,
   FLOAT_V2_SHADOW_CONTROLLED_SPONSORS,
   FLOAT_V2_STATUS_NAMES,
-  FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
+  FLOAT_V2_TRACKED_AGENTS,
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
   countFloatV2VerifiedReturningSponsors,
   floatV2Abi,
   floatV2IntentConsumedEvent,
   floatV2ReceiptEvent,
-  type FloatV2TrackedExternalAgent,
+  type FloatV2TrackedAgent,
 } from "../floatV2Config.js";
 import { createRpcReadQueue } from "../scripts/rpc-read-queue.mjs";
 import { buildFloatV2OperationalHealth } from "../floatV2Operations.js";
@@ -85,7 +85,7 @@ type FloatConfig = {
   startBlock: bigint;
 };
 
-type FloatV2AgentStats = FloatV2TrackedExternalAgent & {
+type FloatV2AgentStats = FloatV2TrackedAgent & {
   signedIntents: number;
   providerPaidCount: number;
   repaidCount: number;
@@ -132,7 +132,7 @@ type SerializedFloatV2ActivityCheckpoint = {
   }>;
 };
 
-type FloatV2AgentProvenance = "verified-external-signer" | "unverified";
+type FloatV2AgentProvenance = "verified-external-signer" | "shadow-controlled-signer" | "unverified";
 type FloatV2SponsorProvenance = "verified-external" | "shadow-controlled" | "unverified" | "none";
 
 type FloatV2ProvenanceAgent = {
@@ -606,7 +606,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
     const checkpointByAgent = new Map(checkpoint.agents.map((entry) => [entry.agent.toLowerCase(), entry]));
     const stats = new Map<string, FloatV2AgentStats>();
 
-    for (const entry of FLOAT_V2_TRACKED_EXTERNAL_AGENTS) {
+    for (const entry of FLOAT_V2_TRACKED_AGENTS) {
       const agent = getAddress(entry.agent);
       const baseline = checkpointByAgent.get(agent.toLowerCase());
       if (!baseline) throw new Error(`Float V2 checkpoint is missing tracked agent ${agent}`);
@@ -674,10 +674,10 @@ async function handleFloatV2(res: VercelLikeResponse) {
       const sponsorState = classifySponsorState(sponsorLine[1], lineExpiry, line[4], entry.repaidCount);
       return {
         label: entry.label,
-        category: "external",
+        category: entry.category,
         agent: entry.agent,
         agentOwner: entry.agent,
-        agentProvenance: "verified-external-signer" as const,
+        agentProvenance: entry.agentProvenance,
         wallet: line[0],
         score: Number(line[1]),
         creditLimitUSDC: line[2].toString(),
@@ -722,7 +722,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
       };
     });
 
-    const visibleAgents = agents.sort((a, b) => {
+    const trackedAgents = agents.sort((a, b) => {
       const aDebt = BigInt(a.activeDebtUSDC) > 0n ? 1 : 0;
       const bDebt = BigInt(b.activeDebtUSDC) > 0n ? 1 : 0;
       if (a.statusName === "REPAID" && b.statusName !== "REPAID") return -1;
@@ -730,6 +730,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
       if (aDebt !== bDebt) return bDebt - aDebt;
       return a.label.localeCompare(b.label);
     });
+    const visibleAgents = trackedAgents.filter((agent) => agent.category === "external");
 
     const provenance = summarizeFloatV2Provenance(visibleAgents);
     const summary = {
@@ -752,7 +753,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
       degraded: false,
       treasuryBalanceUSDC: treasuryBalance.toString(),
       totalSponsoredReserveUSDC: totalSponsoredReserve.toString(),
-      agents: visibleAgents,
+      agents: trackedAgents,
     });
 
     const checkpointPersisted = await writeFloatV2ActivityCheckpoint(latestBlock, stats);
@@ -946,6 +947,33 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     if (b.statusName === "REPAID" && a.statusName !== "REPAID") return 1;
     return a.label.localeCompare(b.label);
   });
+  const operationalAgents = [
+    ...visibleAgents,
+    snapshotV2Agent({
+      label: "CCTP-funded system line",
+      agent: "0xec28bfA6f4BcFf23933E21B7AbfB6D53287976A8",
+      category: "system",
+      agentProvenance: "shadow-controlled-signer",
+      sponsorReserveUSDC: "900000",
+      lastReview: "1783335955",
+    }),
+    snapshotV2Agent({
+      label: "Float Desk system line",
+      agent: "0x43553CaeE153496200d37644cE28775B2b2b522E",
+      category: "system",
+      agentProvenance: "shadow-controlled-signer",
+      sponsorReserveUSDC: "50000",
+      lastReview: "1783340269",
+    }),
+    snapshotV2Agent({
+      label: "V2 verifier system line",
+      agent: "0x5773dd87b1A2b57697f773F0dcdFa65f405662a0",
+      category: "system",
+      agentProvenance: "shadow-controlled-signer",
+      sponsorReserveUSDC: "50000",
+      lastReview: "1783332529",
+    }),
+  ];
   const provenance = summarizeFloatV2Provenance(visibleAgents);
   const signedIntents = visibleAgents.reduce((sum, agent) => sum + agent.signedIntents, 0);
   const paidSpends = visibleAgents.reduce((sum, agent) => sum + agent.providerPaidCount, 0);
@@ -961,7 +989,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     degraded: true,
     treasuryBalanceUSDC,
     totalSponsoredReserveUSDC,
-    agents: visibleAgents,
+    agents: operationalAgents,
   });
 
   return {
@@ -1016,6 +1044,8 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
 function snapshotV2Agent(input: {
   label: string;
   agent: string;
+  category?: "external" | "system";
+  agentProvenance?: "verified-external-signer" | "shadow-controlled-signer";
   wallet?: Address | string;
   score?: number;
   creditLimitUSDC?: string;
@@ -1056,10 +1086,10 @@ function snapshotV2Agent(input: {
   const lineExpiry = input.lineExpiry ?? "0";
   return {
     label: input.label,
-    category: "external",
+    category: input.category ?? "external",
     agent,
     agentOwner: agent,
-    agentProvenance: "verified-external-signer" as const,
+    agentProvenance: input.agentProvenance ?? "verified-external-signer",
     wallet,
     score,
     creditLimitUSDC: input.creditLimitUSDC ?? "50000",
@@ -1736,7 +1766,7 @@ async function writeFloatV2ActivityCheckpoint(latestBlock: bigint, stats: Map<st
   const kv = floatV2KvConfig();
   if (!kv) return false;
 
-  const agents = FLOAT_V2_TRACKED_EXTERNAL_AGENTS.map((tracked) => {
+  const agents = FLOAT_V2_TRACKED_AGENTS.map((tracked) => {
     const agent = getAddress(tracked.agent);
     const entry = stats.get(agent.toLowerCase());
     if (!entry) throw new Error(`cannot persist missing Float V2 activity for ${agent}`);
@@ -1777,7 +1807,7 @@ function parseFloatV2ActivityCheckpoint(value: unknown): FloatV2ActivityCheckpoi
   const record = value as Partial<SerializedFloatV2ActivityCheckpoint>;
   if (record.version !== 1 || !record.blockNumber || !/^\d+$/.test(record.blockNumber) || !Array.isArray(record.agents)) return null;
 
-  const expectedAgents = new Set(FLOAT_V2_TRACKED_EXTERNAL_AGENTS.map((entry) => getAddress(entry.agent).toLowerCase()));
+  const expectedAgents = new Set(FLOAT_V2_TRACKED_AGENTS.map((entry) => getAddress(entry.agent).toLowerCase()));
   const seen = new Set<string>();
   const agents: FloatV2ActivityCheckpointEntry[] = [];
   for (const raw of record.agents) {
