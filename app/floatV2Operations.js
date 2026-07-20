@@ -1,70 +1,13 @@
-export type FloatV2OperationalAgent = {
-  label: string;
-  agent: string;
-  activeDebtUSDC: string;
-  sponsorReserveUSDC: string;
-  sponsorState?: string;
-  statusName: string;
-};
-
-export type FloatV2OperationalAlert = {
-  code:
-    | "DATA_DEGRADED"
-    | "RESERVE_SCOPE_INCOMPLETE"
-    | "RESERVE_INVARIANT_BREACH"
-    | "DEFAULTED_LINE"
-    | "EXPIRED_DEBT_OPEN"
-    | "OPEN_DEBT"
-    | "RESERVE_RECLAIMABLE";
-  severity: "critical" | "warning" | "info";
-  title: string;
-  detail: string;
-  agents: Array<{ label: string; agent: string }>;
-};
-
-export type FloatV2OperationalHealth = {
-  status: "healthy" | "attention" | "degraded" | "critical";
-  source: "live-rpc" | "verified-checkpoint" | string;
-  reserve: {
-    solvent: boolean | null;
-    scopeComplete: boolean;
-    observedFloorCovered: boolean;
-    treasuryBalanceUSDC: string;
-    sponsoredReserveUSDC: string;
-    observedSponsoredReserveUSDC: string;
-    sponsoredDebtDeployedUSDC: string;
-    custodialReserveFloorUSDC: string;
-    surplusUSDC: string;
-  };
-  counts: {
-    openDebt: number;
-    expiredDebtOpen: number;
-    reclaimable: number;
-    defaulted: number;
-  };
-  alerts: FloatV2OperationalAlert[];
-};
-
-type BuildFloatV2OperationalHealthInput = {
-  source: string;
-  degraded: boolean;
-  treasuryBalanceUSDC: string;
-  totalSponsoredReserveUSDC: string;
-  agents: FloatV2OperationalAgent[];
-};
-
-function atomicUSDC(value: string, field: string): bigint {
+function atomicUSDC(value, field) {
   if (!/^\d+$/.test(value)) throw new Error(`${field} must be a non-negative atomic USDC amount`);
   return BigInt(value);
 }
 
-function agentRefs(agents: FloatV2OperationalAgent[]) {
+function agentRefs(agents) {
   return agents.map(({ label, agent }) => ({ label, agent }));
 }
 
-export function buildFloatV2OperationalHealth(
-  input: BuildFloatV2OperationalHealthInput,
-): FloatV2OperationalHealth {
+export function buildFloatV2OperationalHealth(input) {
   const treasury = atomicUSDC(input.treasuryBalanceUSDC, "treasuryBalanceUSDC");
   const sponsoredReserve = atomicUSDC(input.totalSponsoredReserveUSDC, "totalSponsoredReserveUSDC");
   const observedSponsoredReserve = input.agents.reduce(
@@ -82,11 +25,13 @@ export function buildFloatV2OperationalHealth(
   const scopeComplete = observedSponsoredReserve === sponsoredReserve;
   const observedFloorCovered = treasury >= custodialReserveFloor;
   const solvent = scopeComplete ? observedFloorCovered : null;
-  const openDebt = input.agents.filter((agent) => atomicUSDC(agent.activeDebtUSDC, `${agent.label} activeDebtUSDC`) > 0n);
+  const openDebt = input.agents.filter(
+    (agent) => atomicUSDC(agent.activeDebtUSDC, `${agent.label} activeDebtUSDC`) > 0n,
+  );
   const expiredDebtOpen = input.agents.filter((agent) => agent.sponsorState === "expired-debt-open");
   const reclaimable = input.agents.filter((agent) => agent.sponsorState === "expired-reserve-reclaimable");
   const defaulted = input.agents.filter((agent) => agent.statusName === "DEFAULTED");
-  const alerts: FloatV2OperationalAlert[] = [];
+  const alerts = [];
 
   if (input.degraded) {
     alerts.push({

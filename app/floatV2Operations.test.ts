@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildFloatV2OperationalHealth, type FloatV2OperationalAgent } from "./floatV2Operations.ts";
+import { buildFloatV2OperationalHealth, type FloatV2OperationalAgent } from "./floatV2Operations.js";
 
 function agent(overrides: Partial<FloatV2OperationalAgent> = {}): FloatV2OperationalAgent {
   return {
