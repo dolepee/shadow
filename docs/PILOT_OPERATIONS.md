@@ -12,14 +12,15 @@ Never ask a participant for a private key. Sponsors and agents sign with their o
 
 The Builders page derives a pilot posture from `GET /api/float?mode=v2`:
 
-- treasury custody compared with the current custodial reserve floor: nominal sponsored reserve minus sponsored debt already deployed to providers;
+- contract-wide sponsored reserve compared with the reserve represented by tracked lines;
+- treasury custody compared with the tracked custodial reserve floor: tracked sponsored reserve minus tracked sponsored debt already deployed to providers;
 - open-debt line count;
 - expired lines with open debt;
 - expired debt-free reserves available for sponsor reclaim;
 - defaulted line count;
 - live-RPC versus verified-checkpoint data source.
 
-Ordinary open debt is visible exposure, not automatically an incident. It reduces both contract custody and the reserve still returnable to the sponsor, so the monitor shows nominal reserve, deployed sponsored debt, and the resulting custodial floor separately. An expired line with debt is a warning because the sponsor cannot reclaim or renew it. A default or reserve invariant breach is critical.
+Ordinary open debt is visible exposure, not automatically an incident. It reduces both contract custody and the reserve still returnable to the sponsor, so the monitor shows contract-wide reserve, tracked reserve, deployed sponsored debt, and the resulting tracked custodial floor separately. Global solvency is reported only when tracked reserve reconciles exactly to the contract-wide reserve. A scope mismatch degrades the monitor without falsely declaring insolvency; a treasury balance below even the tracked floor is still a critical breach. An expired line with debt is a warning because the sponsor cannot reclaim or renew it. A default or reserve invariant breach is critical.
 
 The verified checkpoint is a degraded evidence fallback. It must never be treated as fresh authorization for a write. Every Builders-page write re-reads current contract state before opening a wallet prompt.
 
@@ -28,6 +29,7 @@ The verified checkpoint is a degraded evidence fallback. It must never be treate
 | Signal | Immediate response | Write policy |
 | --- | --- | --- |
 | `DATA_DEGRADED` | Check Arc RPC and `/api/float?mode=v2`; compare a second RPC if available. | Do not tell participants to rely on checkpoint values. Browser actions may proceed only after their own live preflight succeeds. |
+| `RESERVE_SCOPE_INCOMPLETE` | Reconcile contract-wide reserve against indexed sponsored lines and add the missing line to the tracked activity view. | Do not claim global solvency from the partial view. Existing wallet actions still require their own live contract preflight. |
 | `RESERVE_INVARIANT_BREACH` | Stop pilot onboarding, preserve logs, verify token balance and `totalSponsoredReserveUSDC` at one block. | No new lines, mandate changes, spends, defaults, or reclaims until reconciled. |
 | `DEFAULTED_LINE` | Confirm the default transaction, remaining sponsor reserve, and recipient transfer. Notify the affected sponsor and agent with transaction evidence. | Do not reopen or restage the line as successful usage. |
 | `EXPIRED_DEBT_OPEN` | Notify the agent that repayment is required before reclaim or renewal. Keep the debt visible. | Do not repay for the agent and do not ask the sponsor to retry close. |

@@ -10,6 +10,7 @@ export type FloatV2OperationalAgent = {
 export type FloatV2OperationalAlert = {
   code:
     | "DATA_DEGRADED"
+    | "RESERVE_SCOPE_INCOMPLETE"
     | "RESERVE_INVARIANT_BREACH"
     | "DEFAULTED_LINE"
     | "EXPIRED_DEBT_OPEN"
@@ -25,9 +26,12 @@ export type FloatV2OperationalHealth = {
   status: "healthy" | "attention" | "degraded" | "critical";
   source: "live-rpc" | "verified-checkpoint" | string;
   reserve: {
-    solvent: boolean;
+    solvent: boolean | null;
+    scopeComplete: boolean;
+    observedFloorCovered: boolean;
     treasuryBalanceUSDC: string;
     sponsoredReserveUSDC: string;
+    observedSponsoredReserveUSDC: string;
     sponsoredDebtDeployedUSDC: string;
     custodialReserveFloorUSDC: string;
     surplusUSDC: string;
@@ -63,15 +67,21 @@ export function buildFloatV2OperationalHealth(
 ): FloatV2OperationalHealth {
   const treasury = atomicUSDC(input.treasuryBalanceUSDC, "treasuryBalanceUSDC");
   const sponsoredReserve = atomicUSDC(input.totalSponsoredReserveUSDC, "totalSponsoredReserveUSDC");
+  const observedSponsoredReserve = input.agents.reduce(
+    (total, agent) => total + atomicUSDC(agent.sponsorReserveUSDC, `${agent.label} sponsorReserveUSDC`),
+    0n,
+  );
   const sponsoredDebtDeployed = input.agents.reduce((total, agent) => {
     const reserve = atomicUSDC(agent.sponsorReserveUSDC, `${agent.label} sponsorReserveUSDC`);
     const debt = atomicUSDC(agent.activeDebtUSDC, `${agent.label} activeDebtUSDC`);
     return total + (debt < reserve ? debt : reserve);
   }, 0n);
-  const custodialReserveFloor = sponsoredReserve > sponsoredDebtDeployed
-    ? sponsoredReserve - sponsoredDebtDeployed
+  const custodialReserveFloor = observedSponsoredReserve > sponsoredDebtDeployed
+    ? observedSponsoredReserve - sponsoredDebtDeployed
     : 0n;
-  const solvent = treasury >= custodialReserveFloor;
+  const scopeComplete = observedSponsoredReserve === sponsoredReserve;
+  const observedFloorCovered = treasury >= custodialReserveFloor;
+  const solvent = scopeComplete ? observedFloorCovered : null;
   const openDebt = input.agents.filter((agent) => atomicUSDC(agent.activeDebtUSDC, `${agent.label} activeDebtUSDC`) > 0n);
   const expiredDebtOpen = input.agents.filter((agent) => agent.sponsorState === "expired-debt-open");
   const reclaimable = input.agents.filter((agent) => agent.sponsorState === "expired-reserve-reclaimable");
@@ -87,7 +97,16 @@ export function buildFloatV2OperationalHealth(
       agents: [],
     });
   }
-  if (!solvent) {
+  if (!scopeComplete) {
+    alerts.push({
+      code: "RESERVE_SCOPE_INCOMPLETE",
+      severity: "warning",
+      title: "Sponsored-line tracking scope is incomplete",
+      detail: "The contract-wide reserve does not equal the reserve on tracked lines. Global solvency is withheld until the missing line state is indexed and reconciled.",
+      agents: [],
+    });
+  }
+  if (!observedFloorCovered) {
     alerts.push({
       code: "RESERVE_INVARIANT_BREACH",
       severity: "critical",
@@ -132,9 +151,9 @@ export function buildFloatV2OperationalHealth(
     });
   }
 
-  const status = !solvent || defaulted.length > 0
+  const status = !observedFloorCovered || defaulted.length > 0
     ? "critical"
-    : input.degraded
+    : input.degraded || !scopeComplete
       ? "degraded"
       : expiredDebtOpen.length > 0
         ? "attention"
@@ -145,8 +164,11 @@ export function buildFloatV2OperationalHealth(
     source: input.source,
     reserve: {
       solvent,
+      scopeComplete,
+      observedFloorCovered,
       treasuryBalanceUSDC: treasury.toString(),
       sponsoredReserveUSDC: sponsoredReserve.toString(),
+      observedSponsoredReserveUSDC: observedSponsoredReserve.toString(),
       sponsoredDebtDeployedUSDC: sponsoredDebtDeployed.toString(),
       custodialReserveFloorUSDC: custodialReserveFloor.toString(),
       surplusUSDC: (treasury > custodialReserveFloor ? treasury - custodialReserveFloor : 0n).toString(),

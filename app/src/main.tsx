@@ -3462,10 +3462,11 @@ function FloatPilotOperations({
       </div>
       <div className="pilotOperationsMetrics">
         <FloatFact label="treasury custody" value={formatAtomic(operations?.reserve.treasuryBalanceUSDC)} />
-        <FloatFact label="sponsor reserve · nominal" value={formatAtomic(operations?.reserve.sponsoredReserveUSDC)} />
-        <FloatFact label="reserve deployed" value={formatAtomic(operations?.reserve.sponsoredDebtDeployedUSDC)} />
-        <FloatFact label="custodial reserve floor" value={formatAtomic(operations?.reserve.custodialReserveFloorUSDC)} />
-        <FloatFact label="custody surplus" value={formatAtomic(operations?.reserve.surplusUSDC)} />
+        <FloatFact label="sponsor reserve · contract" value={formatAtomic(operations?.reserve.sponsoredReserveUSDC)} />
+        <FloatFact label="sponsor reserve · tracked" value={formatAtomic(operations?.reserve.observedSponsoredReserveUSDC)} />
+        <FloatFact label="tracked reserve deployed" value={formatAtomic(operations?.reserve.sponsoredDebtDeployedUSDC)} />
+        <FloatFact label="tracked custody floor" value={formatAtomic(operations?.reserve.custodialReserveFloorUSDC)} />
+        <FloatFact label="tracked custody surplus" value={formatAtomic(operations?.reserve.surplusUSDC)} />
         <FloatFact label="open debt lines" value={operations ? String(operations.counts.openDebt) : "unavailable"} />
         <FloatFact label="reclaimable reserves" value={operations ? String(operations.counts.reclaimable) : "unavailable"} />
       </div>
@@ -3489,7 +3490,7 @@ function FloatPilotOperations({
           <article className="pilotOperationAlert clear">
             <span>clear</span>
             <strong>No operational exception detected</strong>
-            <p>Reserve custody covers sponsored reserves and no tracked line is expired with debt or defaulted.</p>
+            <p>Contract-wide reserve scope is reconciled, custody covers the resulting floor, and no tracked line is expired with debt or defaulted.</p>
           </article>
         )}
       </div>

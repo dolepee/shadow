@@ -25,6 +25,7 @@ test("healthy reserve with ordinary open debt stays healthy and reports exposure
 
   assert.equal(result.status, "healthy");
   assert.equal(result.reserve.solvent, true);
+  assert.equal(result.reserve.scopeComplete, true);
   assert.equal(result.reserve.sponsoredDebtDeployedUSDC, "10000");
   assert.equal(result.reserve.custodialReserveFloorUSDC, "40000");
   assert.equal(result.reserve.surplusUSDC, "0");
@@ -60,6 +61,44 @@ test("reserve insolvency is critical and never reports a negative surplus", () =
   assert.equal(result.reserve.solvent, false);
   assert.equal(result.reserve.surplusUSDC, "0");
   assert.equal(result.alerts[0]?.code, "RESERVE_INVARIANT_BREACH");
+});
+
+test("untracked sponsored lines degrade global solvency instead of raising a false breach", () => {
+  const result = buildFloatV2OperationalHealth({
+    source: "live-rpc",
+    degraded: false,
+    treasuryBalanceUSDC: "40000",
+    totalSponsoredReserveUSDC: "100000",
+    agents: [agent({ activeDebtUSDC: "10000" })],
+  });
+
+  assert.equal(result.status, "degraded");
+  assert.equal(result.reserve.solvent, null);
+  assert.equal(result.reserve.scopeComplete, false);
+  assert.equal(result.reserve.observedFloorCovered, true);
+  assert.equal(result.reserve.sponsoredReserveUSDC, "100000");
+  assert.equal(result.reserve.observedSponsoredReserveUSDC, "50000");
+  assert.equal(result.reserve.custodialReserveFloorUSDC, "40000");
+  assert.deepEqual(result.alerts.map((alert) => alert.code), ["RESERVE_SCOPE_INCOMPLETE", "OPEN_DEBT"]);
+  assert.equal(result.alerts.some((alert) => alert.code === "RESERVE_INVARIANT_BREACH"), false);
+});
+
+test("a tracked reserve deficit remains critical even when global tracking is incomplete", () => {
+  const result = buildFloatV2OperationalHealth({
+    source: "live-rpc",
+    degraded: false,
+    treasuryBalanceUSDC: "39999",
+    totalSponsoredReserveUSDC: "100000",
+    agents: [agent({ activeDebtUSDC: "10000" })],
+  });
+
+  assert.equal(result.status, "critical");
+  assert.equal(result.reserve.solvent, null);
+  assert.equal(result.reserve.observedFloorCovered, false);
+  assert.deepEqual(
+    result.alerts.slice(0, 2).map((alert) => alert.code),
+    ["RESERVE_SCOPE_INCOMPLETE", "RESERVE_INVARIANT_BREACH"],
+  );
 });
 
 test("deployed debt is capped by its sponsor reserve when deriving the custody floor", () => {
