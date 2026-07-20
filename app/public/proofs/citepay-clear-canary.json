@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "status": "CANARY_COMPLETE",
+  "label": "bounded external integration pilot",
+  "network": "Arc testnet",
+  "chainId": 5042002,
+  "contracts": {
+    "shadowFloat": "0x20dcA96B0C487D94De885c726c956ffaF38b12C2",
+    "usdc": "0x3600000000000000000000000000000000000000"
+  },
+  "participants": {
+    "agent": "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
+    "externalSponsor": "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+    "provider": "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+    "executor": "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8"
+  },
+  "clearance": {
+    "decision": "CLEARED",
+    "clearanceId": "clr_fc7aa568fde6640b99f4e8ad1425d54c",
+    "clearanceHash": "sha256:b03661f34a8a0f0817a2284614426d564da28d0162fdf28f79069a81f4f55f86",
+    "externalRef": "0xc5ec357843228cf3cef338016f35938734c6ab6b0602035449f575bb6bee591a",
+    "quoteVerified": true,
+    "amountDueMicro": 1000,
+    "persistedVerified": true,
+    "settlement": null
+  },
+  "spend": {
+    "txHash": "0x74c1fa0782dd8c70586bd8a87cb014a1bda6080df794250766720d527fe57927",
+    "blockNumber": 52743360,
+    "requestHash": "0xc5ec357843228cf3cef338016f35938734c6ab6b0602035449f575bb6bee591a",
+    "receiptHash": "0xe244c561b968a0f8f08a95f4643f6086172f8be87e2d201db1e330a84c11106f",
+    "paidSpendCommitment": "0xd063a8594980d54146e741faa2eff2f5064767af13cba5db4892455ef9a3fbdb",
+    "amountAtomicUSDC": "1000",
+    "providerPaidExactAmount": true,
+    "nonceConsumedOnce": true
+  },
+  "repayment": {
+    "txHash": "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",
+    "blockNumber": 52804321,
+    "sender": "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
+    "amountAtomicUSDC": "1000",
+    "exactTransferVerified": true
+  },
+  "finalState": {
+    "status": "REPAID",
+    "activeDebtAtomicUSDC": "0",
+    "availableCreditAtomicUSDC": "50000",
+    "score": 9000,
+    "signedIntents": 2,
+    "repaidLifecycles": 2
+  },
+  "boundaries": {
+    "productionDefaultEnabled": false,
+    "settleClearanceCalled": false,
+    "organicAdoptionClaimed": false,
+    "revenueClaimed": false
+  }
+}

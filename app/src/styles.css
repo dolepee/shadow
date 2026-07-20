@@ -1351,6 +1351,20 @@ body,
   text-transform: none;
 }
 
+.floatSponsorProofLink {
+  color: var(--accent);
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-top: 12px;
+  text-decoration: none;
+}
+
+.floatSponsorProofLink:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
 .floatDeskLineCard {
   background:
     linear-gradient(135deg, rgba(50, 215, 255, 0.09), rgba(77, 240, 168, 0.04)),

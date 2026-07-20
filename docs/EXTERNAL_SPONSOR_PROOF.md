@@ -13,9 +13,9 @@ Shadow Float V2 has now been exercised by non-operator sponsors. The sponsor wal
 
 ## CitePay Returning External Sponsor
 
-CitePay is a live non-operator sponsor on Float V2. Its sponsor wallet is not the Shadow operator wallet. The original sponsored agent completed a spend-and-repay cycle. CitePay later retired that debt-free line, reclaimed the reserve, opened a replacement line for a newly controlled agent, and completed another spend-and-repay cycle with the same capital.
+CitePay is a live non-operator sponsor on Float V2. Its sponsor wallet is not the Shadow operator wallet. The original sponsored agent completed a spend-and-repay cycle. CitePay later retired that debt-free line, reclaimed the reserve, and opened a replacement line for a newly controlled agent. The renewed agent completed two signed spend-and-repay cycles with the same sponsored capital; the second required an exact-quote CitePay Clear receipt before payment.
 
-This proves repeat sponsor behavior across two line generations. It does not claim that either agent address is itself a returning agent. `closeSponsoredLine` clears the retired line's current `behaviorStats`, so the live board labels that reset while preserving its event-derived paid and repayment history.
+This proves repeat sponsor behavior across two line generations and repeat behavior by the renewed agent. It is bounded external pilot evidence, not organic adoption. `closeSponsoredLine` clears the retired line's current `behaviorStats`, so the live board labels that reset while preserving its event-derived paid and repayment history.
 
 ### Retired line
 
@@ -44,15 +44,17 @@ This proves repeat sponsor behavior across two line generations. It does not cla
 | Bind spend intent | [`0x9007d0e8f66c0bc641caaa305266d50aeb5e2e969ff3edbbd8122542ed08eae4`](https://testnet.arcscan.app/tx/0x9007d0e8f66c0bc641caaa305266d50aeb5e2e969ff3edbbd8122542ed08eae4) |
 | Approve repayment | [`0x7ddf5e6379849d366d2c26d527df843185a5de346196e7a4c4c331fd3314be03`](https://testnet.arcscan.app/tx/0x7ddf5e6379849d366d2c26d527df843185a5de346196e7a4c4c331fd3314be03) |
 | Repay | [`0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911`](https://testnet.arcscan.app/tx/0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911) |
+| Clear-gated spend | [`0x74c1fa0782dd8c70586bd8a87cb014a1bda6080df794250766720d527fe57927`](https://testnet.arcscan.app/tx/0x74c1fa0782dd8c70586bd8a87cb014a1bda6080df794250766720d527fe57927) |
+| Agent repayment | [`0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f`](https://testnet.arcscan.app/tx/0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f) |
 
 | Field | Value |
 | --- | --- |
 | Sponsor | `0x5389688243328c26a92b301faEEAb5fbf9AFf105` |
 | Agent | `0x236652EAd43fbb0948173fC4dDF23BC0971B274d` |
 | Reserve | `50000` atomic USDC |
-| Spend amount | `5000` atomic USDC |
+| Spend amounts | `5000` and `1000` atomic USDC |
 | Line expiry | `2026-10-16T18:28:22Z` |
-| End state | `REPAID`, zero debt, full 0.05 USDC capacity available |
+| End state | two signed cycles repaid, zero debt, full 0.05 USDC capacity available |
 
 ## Forum Tollgate External Sponsor
 
@@ -76,4 +78,4 @@ Forum Tollgate completed the full sponsor lifecycle. The sponsor opened the rese
 
 ## Claim Boundary
 
-This proves the permissionless sponsor path with non-operator wallets. It does not claim a production lending market, a liquidity pool, or mainnet credit risk. The testnet proof is narrower and stronger: outside wallets supplied sponsor reserve, agents used V2 signed intents, providers were paid from contract custody, debt was repaid, sponsors reclaimed reserves, and CitePay repeated the sponsor lifecycle with a fresh controlled agent.
+This proves the permissionless sponsor path with non-operator wallets. It does not claim a production lending market, a liquidity pool, organic adoption, or mainnet credit risk. The testnet proof is narrower and stronger: outside wallets supplied sponsor reserve, agents used V2 signed intents, providers were paid from contract custody, debt was repaid, sponsors reclaimed reserves, and CitePay repeated the sponsor lifecycle with a renewed agent that also completed a second signed cycle.
