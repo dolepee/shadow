@@ -133,6 +133,39 @@ export const FLOAT_V2_ACTIVITY_CHECKPOINT = {
       blockedUSDC: "0",
       latestTxHash: "0x5ace712f258220aa891d3c786458ede15ba8a5e281173e66571807a3a93aa13e",
     },
+    {
+      agent: "0xec28bfA6f4BcFf23933E21B7AbfB6D53287976A8",
+      signedIntents: 1,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 0,
+      providerPaidUSDC: "1000",
+      repaidUSDC: "1000",
+      blockedUSDC: "0",
+      latestTxHash: "0x41e203d38209441761647f9c81ed1660eff7d4a6467089a7aaac58259a79f99c",
+    },
+    {
+      agent: "0x43553CaeE153496200d37644cE28775B2b2b522E",
+      signedIntents: 11,
+      providerPaidCount: 11,
+      repaidCount: 11,
+      blockedCount: 0,
+      providerPaidUSDC: "11000",
+      repaidUSDC: "11000",
+      blockedUSDC: "0",
+      latestTxHash: "0xee1c4c3aa9062b233d1fc1f1a65c1a1df32c8750241aa22e68b31a97ac3a29c1",
+    },
+    {
+      agent: "0x5773dd87b1A2b57697f773F0dcdFa65f405662a0",
+      signedIntents: 2,
+      providerPaidCount: 1,
+      repaidCount: 1,
+      blockedCount: 1,
+      providerPaidUSDC: "10000",
+      repaidUSDC: "10000",
+      blockedUSDC: "100000",
+      latestTxHash: "0x854380129df5c5ca590a5d5a06a4120aa8b5190cc3053901b83da5c83963f126",
+    },
   ],
 };
 
@@ -207,6 +240,26 @@ export const FLOAT_V2_TRACKED_EXTERNAL_AGENTS = [
     spendTx: "0x78567fc68238c6b309aa26916bbf3f456d4da20de27ecb4e9e6a7d3a245acc8a",
   },
   { label: "Driplet", agent: "0xb8C0297Bc883a5626424FFFf9ad1F860E0f64CCf" },
+].map((entry) => ({
+  ...entry,
+  category: "external",
+  agentProvenance: "verified-external-signer",
+}));
+
+// System lines are part of reserve accounting, never external traction.
+export const FLOAT_V2_TRACKED_SYSTEM_AGENTS = [
+  { label: "CCTP-funded system line", agent: "0xec28bfA6f4BcFf23933E21B7AbfB6D53287976A8" },
+  { label: "Float Desk system line", agent: "0x43553CaeE153496200d37644cE28775B2b2b522E" },
+  { label: "V2 verifier system line", agent: "0x5773dd87b1A2b57697f773F0dcdFa65f405662a0" },
+].map((entry) => ({
+  ...entry,
+  category: "system",
+  agentProvenance: "shadow-controlled-signer",
+}));
+
+export const FLOAT_V2_TRACKED_AGENTS = [
+  ...FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
+  ...FLOAT_V2_TRACKED_SYSTEM_AGENTS,
 ];
 
 export const floatV2Abi = parseAbi([

@@ -5,12 +5,14 @@ import test from "node:test";
 import {
   FLOAT_V2_ACTIVITY_CHECKPOINT,
   FLOAT_V2_DEPLOY_BLOCK,
+  FLOAT_V2_TRACKED_AGENTS,
   FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
+  FLOAT_V2_TRACKED_SYSTEM_AGENTS,
   countFloatV2VerifiedReturningSponsors,
 } from "../floatV2Config.js";
 
-test("activity checkpoint covers every tracked external agent exactly once", () => {
-  const tracked = FLOAT_V2_TRACKED_EXTERNAL_AGENTS.map((entry) => entry.agent.toLowerCase()).sort();
+test("activity checkpoint covers every tracked reserve line exactly once", () => {
+  const tracked = FLOAT_V2_TRACKED_AGENTS.map((entry) => entry.agent.toLowerCase()).sort();
   const checkpointed = FLOAT_V2_ACTIVITY_CHECKPOINT.agents.map((entry) => entry.agent.toLowerCase()).sort();
 
   assert.deepEqual(checkpointed, tracked);
@@ -20,7 +22,8 @@ test("activity checkpoint covers every tracked external agent exactly once", () 
 });
 
 test("activity checkpoint preserves the verified V2 totals", () => {
-  const totals = FLOAT_V2_ACTIVITY_CHECKPOINT.agents.reduce(
+  const external = new Set(FLOAT_V2_TRACKED_EXTERNAL_AGENTS.map((entry) => entry.agent.toLowerCase()));
+  const totals = FLOAT_V2_ACTIVITY_CHECKPOINT.agents.filter((entry) => external.has(entry.agent.toLowerCase())).reduce(
     (sum, entry) => ({
       signedIntents: sum.signedIntents + entry.signedIntents,
       providerPaidCount: sum.providerPaidCount + entry.providerPaidCount,
@@ -53,6 +56,19 @@ test("activity checkpoint preserves the verified V2 totals", () => {
   for (const entry of FLOAT_V2_ACTIVITY_CHECKPOINT.agents) {
     assert.match(entry.latestTxHash || "", /^0x[0-9a-f]{64}$/i);
   }
+});
+
+test("system lines complete reserve scope without inflating external traction", () => {
+  const system = new Set(FLOAT_V2_TRACKED_SYSTEM_AGENTS.map((entry) => entry.agent.toLowerCase()));
+  const checkpointed = FLOAT_V2_ACTIVITY_CHECKPOINT.agents.filter((entry) => system.has(entry.agent.toLowerCase()));
+
+  assert.equal(checkpointed.length, 3);
+  assert.equal(FLOAT_V2_TRACKED_SYSTEM_AGENTS.reduce((sum, entry) => sum + (entry.category === "system" ? 1 : 0), 0), 3);
+  assert.ok(FLOAT_V2_TRACKED_SYSTEM_AGENTS.every((entry) => entry.agentProvenance === "shadow-controlled-signer"));
+  assert.equal(
+    new Set(FLOAT_V2_TRACKED_AGENTS.map((entry) => entry.agent.toLowerCase())).size,
+    FLOAT_V2_TRACKED_AGENTS.length,
+  );
 });
 
 test("renewed CitePay line proves one returning sponsor and one returning agent", () => {
@@ -110,4 +126,5 @@ test("API fallback derives its totals and preserves the renewed CitePay cycle", 
   assert.match(renewedLine[0], /repaid: 2/);
   assert.match(source, /const signedIntents = visibleAgents\.reduce/);
   assert.match(source, /const repaidLifecycles = visibleAgents\.reduce/);
+  assert.match(source, /agents: operationalAgents/);
 });

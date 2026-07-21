@@ -73,7 +73,7 @@ import {
   FLOAT_V2_DEPLOY_BLOCK,
   FLOAT_V2_SHADOW_CONTROLLED_SPONSORS,
   FLOAT_V2_STATUS_NAMES,
-  FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
+  FLOAT_V2_TRACKED_AGENTS,
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
   countFloatV2VerifiedReturningSponsors,
   floatV2Abi,
@@ -675,10 +675,10 @@ type FloatState = {
 
 type FloatV2AgentState = {
   label: string;
-  category: "external" | "self-test";
+  category: "external" | "system" | "self-test";
   agent: Address;
   agentOwner?: Address;
-  agentProvenance?: "verified-external-signer" | "unverified";
+  agentProvenance?: "verified-external-signer" | "shadow-controlled-signer" | "unverified";
   wallet: Address;
   score: number;
   creditLimitUSDC: string;
@@ -1231,7 +1231,30 @@ const FLOAT_V2_VERIFIED_SNAPSHOT: FloatV2ActivityState = {
     degraded: true,
     treasuryBalanceUSDC: FLOAT_V2_VERIFIED_SNAPSHOT_BASE.treasuryBalanceUSDC ?? "0",
     totalSponsoredReserveUSDC: FLOAT_V2_VERIFIED_SNAPSHOT_BASE.totalSponsoredReserveUSDC ?? "0",
-    agents: FLOAT_V2_VERIFIED_SNAPSHOT_BASE.agents ?? [],
+    agents: [
+      ...(FLOAT_V2_VERIFIED_SNAPSHOT_BASE.agents ?? []),
+      {
+        label: "CCTP-funded system line",
+        agent: "0xec28bfA6f4BcFf23933E21B7AbfB6D53287976A8",
+        activeDebtUSDC: "0",
+        sponsorReserveUSDC: "900000",
+        statusName: "REPAID",
+      },
+      {
+        label: "Float Desk system line",
+        agent: "0x43553CaeE153496200d37644cE28775B2b2b522E",
+        activeDebtUSDC: "0",
+        sponsorReserveUSDC: "50000",
+        statusName: "REPAID",
+      },
+      {
+        label: "V2 verifier system line",
+        agent: "0x5773dd87b1A2b57697f773F0dcdFa65f405662a0",
+        activeDebtUSDC: "0",
+        sponsorReserveUSDC: "50000",
+        statusName: "REPAID",
+      },
+    ],
   }),
 };
 
@@ -1337,10 +1360,10 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
 
   type AgentStats = {
     label: string;
-    category: "external" | "self-test";
+    category: "external" | "system" | "self-test";
     agent: Address;
     agentOwner: Address;
-    agentProvenance: "verified-external-signer" | "unverified";
+    agentProvenance: "verified-external-signer" | "shadow-controlled-signer" | "unverified";
     verifiedSponsor?: Address;
     retired?: boolean;
     spendTx?: Hash;
@@ -1355,7 +1378,7 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     blockedUSDC: bigint;
   };
 
-  const tracked = new Map(FLOAT_V2_TRACKED_EXTERNAL_AGENTS.map((entry) => [getAddress(entry.agent).toLowerCase(), entry]));
+  const tracked = new Map(FLOAT_V2_TRACKED_AGENTS.map((entry) => [getAddress(entry.agent).toLowerCase(), entry]));
   const statsByAgent = new Map<string, AgentStats>();
   const ensureStats = (address: Address): AgentStats => {
     const agent = getAddress(address);
@@ -1365,10 +1388,10 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     const trackedEntry = tracked.get(key);
     const stats: AgentStats = {
       label: trackedEntry?.label || "V2 proof agent",
-      category: trackedEntry ? "external" : "self-test",
+      category: trackedEntry?.category ?? "self-test",
       agent,
       agentOwner: agent,
-      agentProvenance: trackedEntry ? "verified-external-signer" : "unverified",
+      agentProvenance: trackedEntry?.agentProvenance ?? "unverified",
       verifiedSponsor: trackedEntry?.verifiedSponsor,
       retired: trackedEntry?.retired,
       spendTx: trackedEntry?.spendTx,
@@ -1385,7 +1408,7 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     return stats;
   };
 
-  for (const entry of FLOAT_V2_TRACKED_EXTERNAL_AGENTS) {
+  for (const entry of FLOAT_V2_TRACKED_AGENTS) {
     ensureStats(entry.agent);
   }
 
@@ -1506,6 +1529,13 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     activeDebtUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.activeDebtUSDC), 0n).toString(),
     blockedUSDC: visibleAgents.reduce((sum, agent) => sum + BigInt(agent.blockedUSDC), 0n).toString(),
   };
+  const operations = buildFloatV2OperationalHealth({
+    source: "live-rpc",
+    degraded: false,
+    treasuryBalanceUSDC: treasuryBalance.toString(),
+    totalSponsoredReserveUSDC: totalSponsoredReserve.toString(),
+    agents,
+  });
 
   return {
     ok: true,
@@ -1518,6 +1548,7 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     totalAvailableCreditUSDC: totalAvailableCredit.toString(),
     totalSponsoredReserveUSDC: totalSponsoredReserve.toString(),
     summary,
+    operations,
     agents: visibleAgents,
     selfTestAgents: agents.filter((agent) => agent.category === "self-test"),
     logFetch: {
@@ -3465,7 +3496,8 @@ function FloatPilotOperations({
           <h2>Exposure stays visible before the next transaction.</h2>
           <p>
             This monitor is read-only. A checkpoint fallback is evidence, not fresh authorization; every wallet action still
-            re-reads the deployed contract before it prompts for a signature.
+            re-reads the deployed contract before it prompts for a signature. Reserve health includes Shadow-controlled system
+            lines; external traction metrics exclude them.
           </p>
         </div>
         <div className="pilotOperationsVerdict">
