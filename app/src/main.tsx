@@ -1695,6 +1695,37 @@ function summarizeFloatV2PilotProvenance(agents: FloatV2AgentState[]) {
   };
 }
 
+function startVisiblePolling(task: () => void | Promise<void>, intervalMs: number) {
+  let disposed = false;
+  let running = false;
+
+  const run = async () => {
+    if (disposed || running || document.visibilityState !== "visible") return;
+    running = true;
+    try {
+      await task();
+    } catch {
+      // Individual refresh functions expose their own degraded state.
+    } finally {
+      running = false;
+    }
+  };
+
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "visible") void run();
+  };
+
+  void run();
+  const interval = window.setInterval(() => void run(), intervalMs);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+
+  return () => {
+    disposed = true;
+    window.clearInterval(interval);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+  };
+}
+
 function App() {
   const { pathname } = useLocation();
   const isBuilderRoute = pathname === "/builders";
@@ -1749,11 +1780,10 @@ function App() {
         // best-effort; transient errors are ignored
       }
     }
-    load();
-    const interval = setInterval(load, 30_000);
+    const stopPolling = startVisiblePolling(load, 10 * 60_000);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      stopPolling();
     };
   }, []);
 
@@ -1769,9 +1799,7 @@ function App() {
   }
 
   useEffect(() => {
-    refresh();
-    const interval = setInterval(refresh, 15_000);
-    return () => clearInterval(interval);
+    return startVisiblePolling(refresh, 5 * 60_000);
   }, []);
 
   async function refreshLepton() {
@@ -1788,9 +1816,7 @@ function App() {
 
   useEffect(() => {
     if (isBuilderRoute) return;
-    refreshLepton();
-    const interval = setInterval(refreshLepton, 20_000);
-    return () => clearInterval(interval);
+    return startVisiblePolling(refreshLepton, 10 * 60_000);
   }, [isBuilderRoute]);
 
   async function refreshFloat() {
@@ -1811,9 +1837,7 @@ function App() {
   }
 
   useEffect(() => {
-    refreshFloat();
-    const interval = setInterval(refreshFloat, 20_000);
-    return () => clearInterval(interval);
+    return startVisiblePolling(refreshFloat, 10 * 60_000);
   }, []);
 
   async function refreshFloatV2() {
@@ -1831,9 +1855,7 @@ function App() {
   }
 
   useEffect(() => {
-    refreshFloatV2();
-    const interval = setInterval(refreshFloatV2, 20_000);
-    return () => clearInterval(interval);
+    return startVisiblePolling(refreshFloatV2, 5 * 60_000);
   }, []);
 
   async function refreshFloatDesk() {
@@ -1849,9 +1871,7 @@ function App() {
   }
 
   useEffect(() => {
-    refreshFloatDesk();
-    const interval = setInterval(refreshFloatDesk, 30_000);
-    return () => clearInterval(interval);
+    return startVisiblePolling(refreshFloatDesk, 5 * 60_000);
   }, []);
 
   async function refreshTreasury() {
@@ -1872,9 +1892,7 @@ function App() {
   }
 
   useEffect(() => {
-    refreshTreasury();
-    const interval = setInterval(refreshTreasury, 30_000);
-    return () => clearInterval(interval);
+    return startVisiblePolling(refreshTreasury, 10 * 60_000);
   }, []);
 
   useEffect(() => {
