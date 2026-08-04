@@ -20,6 +20,7 @@ import {
   FLOAT_V2_STATUS_NAMES,
   FLOAT_V2_TRACKED_AGENTS,
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
+  countFloatV2VerifiedReturningAgents,
   countFloatV2VerifiedReturningSponsors,
   floatV2Abi,
   floatV2IntentConsumedEvent,
@@ -199,7 +200,7 @@ export function summarizeFloatV2Provenance(agents: FloatV2ProvenanceAgent[]) {
     trackedExternalAgentLines: trackedExternalAgents.length,
     externallySponsoredLines: externallySponsoredAgents.length,
     operatorSponsoredLines: operatorSponsoredAgents.length,
-    returningAgents: externallySponsoredAgents.filter((agent) => Number(agent.signedIntents) > 1).length,
+    returningAgents: countFloatV2VerifiedReturningAgents(externallySponsoredHistory),
     returningSponsors: countFloatV2VerifiedReturningSponsors(externallySponsoredHistory),
   };
 }
@@ -698,7 +699,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
           denied: Number(behaviorStats[4]),
           errorCount: Number(behaviorStats[5]),
         },
-        behaviorStateReset: Boolean(entry.retired),
+        behaviorStateReset: Boolean(entry.retired) || sponsorState === "closed-reserve-reclaimed",
         autonomousScore: {
           score: Number(autonomousScore[0]),
           recommendedLimitUSDC: autonomousScore[1].toString(),

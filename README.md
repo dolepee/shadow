@@ -7,7 +7,7 @@ Agents need paid data, compute, and APIs before they have money of their own. On
 Three things are true on this testnet right now:
 
 1. **An autonomous desk runs the book.** An LLM-driven desk decides what to buy, its one-sentence rationale rides inside the signed intent, and the intent digest becomes the onchain `requestHash`, so every decision is cryptographically bound to its receipt. After the desk's first clean lifecycle, the contract raised the desk's own credit limit from behavior alone.
-2. **Outside projects use it with their own wallets.** Ten external lines from outside builder teams, a cross-project loop where one team's agent borrowed Shadow credit to pay another team's API, and two external sponsors who put their own USDC behind agent lines. Forum Tollgate proved reserve reclaim, then reopened a reserve for judging.
+2. **Outside projects use it with their own wallets.** Nine independently controlled external-agent lines still hold reserve, while the public history retains two debt-free CitePay line generations after reclaim. A cross-project loop let one team's agent borrow Shadow credit to pay another team's API. Two external sponsors put their own USDC behind lines; Forum Tollgate remains reserve-backed.
 3. **Anyone can verify all of it with one command and no keys.** `npm run float:v2-verify-live` re-derives the proof loop against the public Arc RPC, 26 checks.
 
 Live app: https://shadow-arc.vercel.app
@@ -34,17 +34,17 @@ Live V2 activity currently shown on the site:
 
 | Metric | Count |
 | --- | ---: |
-| Tracked external-agent lines | 10 |
-| Verified externally sponsored lines | 2 |
+| Reserve-backed external-agent lines | 9 |
+| External-sponsor reserve lines | 1 |
 | Operator-sponsored external-agent lines | 8 |
-| Unassisted returning agents | 1 |
+| Historical returning agents on externally sponsored lines | 1 |
 | Returning external sponsors | 1 |
 | Signed intents | 14 |
 | Provider paid spends | 14 |
 | Closed borrow-repay lifecycles | 13 |
 | Open debt lines | 1 |
 
-The live board tracks 10 reserve-backed, independently controlled external-agent lines. Eight were funded by Shadow's operator and remain valid integration proof, but they are not counted as unassisted pilot traction. CitePay and Forum Tollgate funded the other two reserve-backed lines from verified non-operator sponsor wallets; the board labels each line's current spendability and expiry separately. CitePay is the first returning external sponsor: it closed its debt-free retired line, reclaimed the same 0.05 USDC reserve, and opened a fresh line for a controlled agent. That renewed agent is now the first unassisted returning agent: it completed two signed spend-and-repay cycles, including a fail-closed CitePay Clear-gated provider payment. The retired line remains visible as historical evidence but is excluded from reserve-backed line counts. Closing clears that line's current `behaviorStats`; immutable event-derived paid and repayment counters remain visible separately. Driplet and Argus Alpha each completed a second operator-sponsored provider loop; Obol has a provider-paid V2 spend with repayment intentionally left open and labeled on the live board.
+The live board currently tracks nine reserve-backed, independently controlled external-agent lines. Eight were funded by Shadow's operator and remain valid integration proof, but they are not counted as unassisted pilot traction. Forum Tollgate supplies the one external-sponsor reserve still held by the contract. CitePay and Forum both completed externally sponsored lifecycles; CitePay later reclaimed its renewed line after two signed spend-and-repay cycles, including a fail-closed CitePay Clear-gated provider payment. Closing a line removes it from current reserve counts and clears its current `behaviorStats`, while immutable event-derived paid, repayment, returning-agent, and returning-sponsor history remains visible separately. Driplet and Argus Alpha each completed a second operator-sponsored provider loop; Obol has a provider-paid V2 spend with repayment intentionally left open and labeled on the live board.
 
 ### Autonomous Underwriting Is Deployed
 
@@ -90,12 +90,12 @@ The setup command lets the sponsor refresh the CitePay provider mandate for the 
 
 The current V2 contract also supports external sponsors. `openSponsoredLine(...)` is public: a sponsor reserves their own Arc USDC for an agent, sets the provider mandate for that line, and lets `ShadowFloat` score and cap the line from behavior.
 
-CitePay became the first live external sponsor on Shadow Float V2. CitePay later retired that debt-free line, reclaimed its reserve, and opened a replacement line for a controlled signer. That renewed agent completed two signed spend-and-repay cycles, making CitePay the first returning external sponsor and the renewed signer the first unassisted returning agent. The second cycle required an exact-quote Clear receipt before payment and left no `settle_clearance` call or second payout leg. Forum Tollgate separately completed the full external sponsor lifecycle: sponsor opens reserve, agent spends, agent repays, sponsor closes the line, and the full reserve returns to the sponsor. Forum later reopened a fresh 0.05 USDC reserve and left it live through judging.
+CitePay became the first live external sponsor on Shadow Float V2. CitePay later retired that debt-free line, reclaimed its reserve, and opened a replacement line for a controlled signer. That renewed agent completed two signed spend-and-repay cycles, making CitePay the first returning external sponsor and the renewed signer the first historical returning agent on an externally sponsored line. The second cycle required an exact-quote Clear receipt before payment and left no `settle_clearance` call or second payout leg. CitePay then closed the debt-free renewed line and reclaimed its reserve. Forum Tollgate separately completed the full external sponsor lifecycle, then reopened a fresh 0.05 USDC reserve that remains held by the contract and is now reclaimable after expiry.
 
 | Sponsor proof | Sponsor wallet | Agent | Key tx | State |
 | --- | --- | --- | --- | --- |
 | CitePay retired line | `0x5389...f105` | `0xdfDE...044f` | [`0x2d91c3...74e0d`](https://testnet.arcscan.app/tx/0x2d91c37cc23ff8f342614bb9070e82efb37d0d588b15a43a3685c92786074e0d) | debt free; reserve reclaimed |
-| CitePay renewed line | `0x5389...f105` | `0x2366...274d` | [`0x1e0279...527f`](https://testnet.arcscan.app/tx/0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f) | two signed cycles repaid; 0.05 USDC reserve active |
+| CitePay renewed line | `0x5389...f105` | `0x2366...274d` | [`0x515a8a...52c09`](https://testnet.arcscan.app/tx/0x515a8a3106fbc22fd36c75fe2a626e5e2273db58d8acf10679e44c7e90b52c09) | two signed cycles repaid; reserve reclaimed |
 | Forum Tollgate reclaim | `0x12F2...ba03` | `0x645b...139C` | [`0xba995c...16463`](https://testnet.arcscan.app/tx/0xba995c10f06f14b876a6b4c19ad69cbfe023d878784961f6eaebb62a3aa16463) | reserve reclaimed |
 | Forum Tollgate reopened reserve | `0x12F2...ba03` | `0x645b...139C` | [`0xc8694d...da2e6`](https://testnet.arcscan.app/tx/0xc8694da66f078d81c4199df813e8ee7b69941a14b6aef4531f6c35ca771da2e6) | reopen proof; current expiry on live board |
 

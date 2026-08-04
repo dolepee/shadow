@@ -56,7 +56,7 @@ Reference paths remain available for non-browser agents:
 
 ## Public evidence
 
-Each cycle records the participant roles, transaction hashes, signed request hash, provider amount, debt before and after, repayment, and contract score refresh. The public activity board keeps agent ownership separate from sponsor provenance. Returning pilot counters include only verified externally sponsored lines and therefore remain `0` until an unassisted participant repeats.
+Each cycle records the participant roles, transaction hashes, signed request hash, provider amount, debt before and after, repayment, and contract score refresh. The public activity board keeps agent ownership separate from sponsor provenance. Returning pilot counters use immutable event history tied to verified external sponsors, so a completed repeat remains visible after a debt-free sponsor reclaim.
 
 The pilot target is:
 

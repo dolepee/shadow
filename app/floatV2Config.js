@@ -187,14 +187,25 @@ const FLOAT_V2_VERIFIED_EXTERNAL_SPONSOR_KEYS = new Set(
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS.map((address) => address.toLowerCase()),
 );
 
+function verifiedExternalSponsorKey(agent) {
+  const candidate = agent.verifiedSponsor || (agent.sponsorProvenance === "verified-external" ? agent.sponsor : null);
+  if (!candidate) return null;
+  const sponsor = candidate.toLowerCase();
+  return FLOAT_V2_VERIFIED_EXTERNAL_SPONSOR_KEYS.has(sponsor) ? sponsor : null;
+}
+
+export function countFloatV2VerifiedReturningAgents(agents) {
+  return agents.filter(
+    (agent) => Number(agent.signedIntents) > 1 && verifiedExternalSponsorKey(agent) !== null,
+  ).length;
+}
+
 export function countFloatV2VerifiedReturningSponsors(agents) {
   const cyclesBySponsor = new Map();
   for (const agent of agents) {
     if (Number(agent.signedIntents) <= 0) continue;
-    const candidate = agent.verifiedSponsor || (agent.sponsorProvenance === "verified-external" ? agent.sponsor : null);
-    if (!candidate) continue;
-    const sponsor = candidate.toLowerCase();
-    if (!FLOAT_V2_VERIFIED_EXTERNAL_SPONSOR_KEYS.has(sponsor)) continue;
+    const sponsor = verifiedExternalSponsorKey(agent);
+    if (!sponsor) continue;
     cyclesBySponsor.set(sponsor, (cyclesBySponsor.get(sponsor) || 0) + Number(agent.signedIntents));
   }
   return [...cyclesBySponsor.values()].filter((cycles) => cycles > 1).length;

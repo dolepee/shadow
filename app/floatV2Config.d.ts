@@ -41,6 +41,14 @@ export declare const FLOAT_V2_ACTIVITY_CHECKPOINT: FloatV2ActivityCheckpoint;
 export declare const FLOAT_V2_STATUS_NAMES: readonly ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"];
 export declare const FLOAT_V2_SHADOW_CONTROLLED_SPONSORS: readonly Address[];
 export declare const FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS: readonly Address[];
+export declare function countFloatV2VerifiedReturningAgents(
+  agents: readonly {
+    sponsor?: Address;
+    verifiedSponsor?: Address;
+    sponsorProvenance?: "verified-external" | "shadow-controlled" | "unverified" | "none";
+    signedIntents: number;
+  }[],
+): number;
 export declare function countFloatV2VerifiedReturningSponsors(
   agents: readonly {
     sponsor?: Address;

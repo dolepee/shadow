@@ -8,6 +8,7 @@ import {
   FLOAT_V2_TRACKED_AGENTS,
   FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
   FLOAT_V2_TRACKED_SYSTEM_AGENTS,
+  countFloatV2VerifiedReturningAgents,
   countFloatV2VerifiedReturningSponsors,
 } from "../floatV2Config.js";
 
@@ -90,6 +91,7 @@ test("renewed CitePay line proves one returning sponsor and one returning agent"
   });
 
   assert.equal(countFloatV2VerifiedReturningSponsors(trackedWithActivity), 1);
+  assert.equal(countFloatV2VerifiedReturningAgents(trackedWithActivity), 1);
   assert.equal(
     countFloatV2VerifiedReturningSponsors(
       trackedWithActivity.filter((entry) => !entry.retired),
@@ -101,6 +103,13 @@ test("renewed CitePay line proves one returning sponsor and one returning agent"
     (entry) => !entry.retired && entry.verifiedSponsor?.toLowerCase() === citePaySponsor,
   );
   assert.equal(renewedLine?.signedIntents, 2);
+  assert.equal(
+    countFloatV2VerifiedReturningAgents([
+      { ...renewedLine, sponsorProvenance: "none", signedIntents: renewedLine?.signedIntents ?? 0 },
+    ]),
+    1,
+    "closing a debt-free reserve must not erase completed returning-agent history",
+  );
 });
 
 test("frontend fallback identifies the renewed CitePay reserve as verified external capital", () => {
