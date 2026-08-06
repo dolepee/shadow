@@ -1100,7 +1100,7 @@ const FLOAT_V2_VERIFIED_SNAPSHOT_BASE: FloatV2ActivityState = {
       blockedUSDC: "0",
       spendTx: FLOAT_V2_PROOF.citePayRenewedSpendTx,
       repayTx: FLOAT_V2_PROOF.citePayRenewedRepayTx,
-      latestTxHash: FLOAT_V2_PROOF.citePayRenewedCloseTx,
+      latestTxHash: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.closeTxHash,
     },
     {
       label: "Forum Tollgate sponsor",

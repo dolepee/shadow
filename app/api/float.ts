@@ -23,6 +23,7 @@ import {
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
   countFloatV2VerifiedReturningAgents,
   countFloatV2VerifiedReturningSponsors,
+  reconcileFloatV2CheckpointLatestTx,
   shouldUseFloatV2VerifiedSnapshot,
   floatV2Abi,
   floatV2IntentConsumedEvent,
@@ -883,7 +884,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
       repaidUSDC: "6000",
       spendTx: "0x9007d0e8f66c0bc641caaa305266d50aeb5e2e969ff3edbbd8122542ed08eae4",
       repayTx: "0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911",
-      latestTxHash: "0x515a8a3106fbc22fd36c75fe2a626e5e2273db58d8acf10679e44c7e90b52c09",
+      latestTxHash: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.closeTxHash,
     }),
     snapshotV2Agent({
       label: "Crux",
@@ -1824,6 +1825,7 @@ function parseFloatV2ActivityCheckpoint(value: unknown): FloatV2ActivityCheckpoi
   const record = value as Partial<SerializedFloatV2ActivityCheckpoint>;
   if (record.version !== 1 || !record.blockNumber || !/^\d+$/.test(record.blockNumber) || !Array.isArray(record.agents)) return null;
 
+  const checkpointBlock = BigInt(record.blockNumber);
   const expectedAgents = new Set(FLOAT_V2_TRACKED_AGENTS.map((entry) => getAddress(entry.agent).toLowerCase()));
   const seen = new Set<string>();
   const agents: FloatV2ActivityCheckpointEntry[] = [];
@@ -1854,12 +1856,12 @@ function parseFloatV2ActivityCheckpoint(value: unknown): FloatV2ActivityCheckpoi
       providerPaidUSDC: BigInt(raw.providerPaidUSDC),
       repaidUSDC: BigInt(raw.repaidUSDC),
       blockedUSDC: BigInt(raw.blockedUSDC),
-      latestTxHash: raw.latestTxHash,
+      latestTxHash: reconcileFloatV2CheckpointLatestTx(checkpointBlock, agent, raw.latestTxHash as Hash | undefined),
     });
   }
   if (seen.size !== expectedAgents.size) return null;
   return {
-    blockNumber: BigInt(record.blockNumber),
+    blockNumber: checkpointBlock,
     checkedAt: typeof record.checkedAt === "string" ? record.checkedAt : "unknown",
     source: "kv-checkpoint",
     agents,

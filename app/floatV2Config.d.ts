@@ -44,6 +44,7 @@ export type FloatV2VerifiedPostReclaimState = {
   externallySponsoredLines: number;
   operatorSponsoredLines: number;
   citePayRenewedLine: {
+    agent: Address;
     wallet: Address;
     score: number;
     creditLimitUSDC: string;
@@ -56,6 +57,8 @@ export type FloatV2VerifiedPostReclaimState = {
     sponsor: Address;
     sponsorReserveUSDC: string;
     sponsorState: string;
+    preReclaimLatestTxHash: Hash;
+    closeTxHash: Hash;
     autonomousScore: { score: number; recommendedLimitUSDC: string; cappedLimitUSDC: string };
   };
 };
@@ -70,6 +73,11 @@ export declare function shouldUseFloatV2VerifiedSnapshot(
   checkpointBlock: bigint,
   latestBlock: bigint,
 ): boolean;
+export declare function reconcileFloatV2CheckpointLatestTx(
+  checkpointBlock: bigint,
+  agent: Address | string,
+  latestTxHash?: Hash,
+): Hash | undefined;
 export declare const FLOAT_V2_ACTIVITY_CHECKPOINT: FloatV2ActivityCheckpoint;
 export declare const FLOAT_V2_STATUS_NAMES: readonly ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"];
 export declare const FLOAT_V2_SHADOW_CONTROLLED_SPONSORS: readonly Address[];

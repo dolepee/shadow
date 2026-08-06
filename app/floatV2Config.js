@@ -15,6 +15,7 @@ export const FLOAT_V2_VERIFIED_POST_RECLAIM_STATE = Object.freeze({
   externallySponsoredLines: 1,
   operatorSponsoredLines: 8,
   citePayRenewedLine: Object.freeze({
+    agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
     wallet: "0x0000000000000000000000000000000000000000",
     score: 0,
     creditLimitUSDC: "0",
@@ -27,6 +28,8 @@ export const FLOAT_V2_VERIFIED_POST_RECLAIM_STATE = Object.freeze({
     sponsor: "0x0000000000000000000000000000000000000000",
     sponsorReserveUSDC: "0",
     sponsorState: "closed-reserve-reclaimed",
+    preReclaimLatestTxHash: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",
+    closeTxHash: "0x515a8a3106fbc22fd36c75fe2a626e5e2273db58d8acf10679e44c7e90b52c09",
     autonomousScore: Object.freeze({ score: 5000, recommendedLimitUSDC: "0", cappedLimitUSDC: "0" }),
   }),
 });
@@ -35,6 +38,16 @@ export function shouldUseFloatV2VerifiedSnapshot(checkpointSource, checkpointBlo
   return checkpointSource === "source-checkpoint"
     && latestBlock > checkpointBlock
     && latestBlock - checkpointBlock > FLOAT_V2_SOURCE_CHECKPOINT_SCAN_LIMIT;
+}
+
+export function reconcileFloatV2CheckpointLatestTx(checkpointBlock, agent, latestTxHash) {
+  const reclaimed = FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine;
+  if (checkpointBlock < FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.blockNumber) return latestTxHash;
+  if (agent.toLowerCase() !== reclaimed.agent.toLowerCase()) return latestTxHash;
+  if (latestTxHash && latestTxHash.toLowerCase() !== reclaimed.preReclaimLatestTxHash.toLowerCase()) {
+    return latestTxHash;
+  }
+  return reclaimed.closeTxHash;
 }
 
 // Complete FloatIntentConsumed/FloatReceipt scan through this Arc block.
@@ -90,7 +103,7 @@ export const FLOAT_V2_ACTIVITY_CHECKPOINT = {
       latestTxHash: "0x2d91c37cc23ff8f342614bb9070e82efb37d0d588b15a43a3685c92786074e0d",
     },
     {
-      agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
+      agent: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.agent,
       signedIntents: 2,
       providerPaidCount: 2,
       repaidCount: 2,
@@ -98,7 +111,7 @@ export const FLOAT_V2_ACTIVITY_CHECKPOINT = {
       providerPaidUSDC: "6000",
       repaidUSDC: "6000",
       blockedUSDC: "0",
-      latestTxHash: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",
+      latestTxHash: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.closeTxHash,
     },
     {
       agent: "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C",

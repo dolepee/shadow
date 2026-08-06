@@ -11,6 +11,7 @@ import {
   FLOAT_V2_VERIFIED_POST_RECLAIM_STATE,
   countFloatV2VerifiedReturningAgents,
   countFloatV2VerifiedReturningSponsors,
+  reconcileFloatV2CheckpointLatestTx,
   shouldUseFloatV2VerifiedSnapshot,
 } from "../floatV2Config.js";
 
@@ -117,7 +118,7 @@ test("renewed CitePay line proves one returning sponsor and one returning agent"
 test("frontend fallback identifies the renewed CitePay reserve as reclaimed", () => {
   const source = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
   const renewedLine = source.match(
-    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?latestTxHash: FLOAT_V2_PROOF\.citePayRenewedCloseTx,/,
+    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?latestTxHash: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE\.citePayRenewedLine\.closeTxHash,/,
   );
 
   assert.ok(renewedLine, "renewed CitePay fallback line must remain present");
@@ -129,7 +130,7 @@ test("frontend fallback identifies the renewed CitePay reserve as reclaimed", ()
 test("API fallback derives its totals and preserves the renewed CitePay cycle", () => {
   const source = readFileSync(new URL("../api/float.ts", import.meta.url), "utf8");
   const renewedLine = source.match(
-    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?latestTxHash: "0x515a8a3106fbc22fd36c75fe2a626e5e2273db58d8acf10679e44c7e90b52c09",/,
+    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?latestTxHash: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE\.citePayRenewedLine\.closeTxHash,/,
   );
 
   assert.ok(renewedLine, "API fallback must include the completed Clear-gated cycle");
@@ -142,6 +143,35 @@ test("API fallback derives its totals and preserves the renewed CitePay cycle", 
 });
 
 test("post-reclaim fallback state and no-KV scan budget are coherent", () => {
+  const reclaimed = FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine;
+  const checkpointEntry = FLOAT_V2_ACTIVITY_CHECKPOINT.agents.find(
+    (entry) => entry.agent.toLowerCase() === reclaimed.agent.toLowerCase(),
+  );
+  assert.equal(checkpointEntry?.latestTxHash, reclaimed.closeTxHash);
+  assert.equal(
+    reconcileFloatV2CheckpointLatestTx(
+      FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.blockNumber,
+      reclaimed.agent,
+      reclaimed.preReclaimLatestTxHash,
+    ),
+    reclaimed.closeTxHash,
+  );
+  assert.equal(
+    reconcileFloatV2CheckpointLatestTx(
+      FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.blockNumber - 1n,
+      reclaimed.agent,
+      reclaimed.preReclaimLatestTxHash,
+    ),
+    reclaimed.preReclaimLatestTxHash,
+  );
+  assert.equal(
+    reconcileFloatV2CheckpointLatestTx(
+      FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.blockNumber + 1n,
+      reclaimed.agent,
+      "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    ),
+    "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  );
   assert.deepEqual(
     {
       blockNumber: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber,
