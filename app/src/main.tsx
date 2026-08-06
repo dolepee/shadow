@@ -74,7 +74,9 @@ import {
   FLOAT_V2_SHADOW_CONTROLLED_SPONSORS,
   FLOAT_V2_STATUS_NAMES,
   FLOAT_V2_TRACKED_AGENTS,
+  FLOAT_V2_VERIFIED_POST_RECLAIM_STATE,
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
+  countFloatV2VerifiedReturningAgents,
   countFloatV2VerifiedReturningSponsors,
   floatV2Abi,
   floatV2IntentConsumedEvent,
@@ -304,6 +306,7 @@ const FLOAT_V2_PROOF = {
   citePayRenewedRepayTx: "0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911" as Hash,
   citePayClearSpendTx: "0x74c1fa0782dd8c70586bd8a87cb014a1bda6080df794250766720d527fe57927" as Hash,
   citePayClearRepayTx: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f" as Hash,
+  citePayRenewedCloseTx: "0x515a8a3106fbc22fd36c75fe2a626e5e2273db58d8acf10679e44c7e90b52c09" as Hash,
   forumSponsorOpenTx: "0x8f9759660161819cf924314abcaf2feefb55d973a845c6ed0921d14e560c79df" as Hash,
   forumSponsorSpendTx: "0x0bd8271279c6fcde28cc4de51b5f54be4842a8c1e3ed304a221c6281db20f75f" as Hash,
   forumSponsorRepayTx: "0x48a81e86ccc7c49814929e44dca93d2f44f82322abff587903419a64e8302172" as Hash,
@@ -874,13 +877,13 @@ const FLOAT_V2_VERIFIED_SNAPSHOT_BASE: FloatV2ActivityState = {
   chainId: arcTestnet.id,
   float: FLOAT_V2_CONTRACT,
   latestBlock: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber.toString(),
-  treasuryBalanceUSDC: "1569762",
-  totalAvailableCreditUSDC: "590000",
-  totalSponsoredReserveUSDC: "1500000",
+  treasuryBalanceUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.treasuryBalanceUSDC,
+  totalAvailableCreditUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.totalAvailableCreditUSDC,
+  totalSponsoredReserveUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.totalSponsoredReserveUSDC,
   summary: {
-    trackedExternalAgentLines: 10,
-    externallySponsoredLines: 2,
-    operatorSponsoredLines: 8,
+    trackedExternalAgentLines: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.trackedExternalAgentLines,
+    externallySponsoredLines: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.externallySponsoredLines,
+    operatorSponsoredLines: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.operatorSponsoredLines,
     signedIntents: 14,
     paidSpends: 14,
     repaidLifecycles: 13,
@@ -1068,25 +1071,26 @@ const FLOAT_V2_VERIFIED_SNAPSHOT_BASE: FloatV2ActivityState = {
       label: "CitePay sponsor (renewed line)",
       category: "external",
       agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d" as Address,
-      wallet: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d" as Address,
-      score: 9000,
-      creditLimitUSDC: "50000",
-      availableCreditUSDC: "50000",
-      activeDebtUSDC: "0",
-      status: 5,
-      statusName: "REPAID",
-      lastReview: "1784577329",
-      lastReviewISO: "2026-07-20T19:55:29.000Z",
-      lineExpiry: "1792175302",
-      lineExpiryISO: "2026-10-16T18:28:22.000Z",
+      wallet: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.wallet,
+      score: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.score,
+      creditLimitUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.creditLimitUSDC,
+      availableCreditUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.availableCreditUSDC,
+      activeDebtUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.activeDebtUSDC,
+      status: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.status,
+      statusName: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.statusName,
+      lastReview: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.lastReview,
+      lastReviewISO: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.checkedAt,
+      lineExpiry: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.lineExpiry,
+      lineExpiryISO: null,
       scoredByContract: true,
-      behavior: { paidBound: 0, signedExternalPaid: 2, repaid: 2, blocked: 0, denied: 0, errorCount: 0 },
-      autonomousScore: { score: 9000, recommendedLimitUSDC: "1000000", cappedLimitUSDC: "50000" },
-      sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address,
+      behavior: { paidBound: 0, signedExternalPaid: 0, repaid: 0, blocked: 0, denied: 0, errorCount: 0 },
+      behaviorStateReset: true,
+      autonomousScore: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.autonomousScore,
+      sponsor: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.sponsor,
       verifiedSponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105" as Address,
-      sponsorProvenance: "verified-external",
-      sponsorReserveUSDC: "50000",
-      sponsorState: "active-reserve",
+      sponsorProvenance: "none",
+      sponsorReserveUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.sponsorReserveUSDC,
+      sponsorState: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.sponsorState as "closed-reserve-reclaimed",
       signedIntents: 2,
       providerPaidCount: 2,
       repaidCount: 2,
@@ -1096,7 +1100,7 @@ const FLOAT_V2_VERIFIED_SNAPSHOT_BASE: FloatV2ActivityState = {
       blockedUSDC: "0",
       spendTx: FLOAT_V2_PROOF.citePayRenewedSpendTx,
       repayTx: FLOAT_V2_PROOF.citePayRenewedRepayTx,
-      latestTxHash: FLOAT_V2_PROOF.citePayClearRepayTx,
+      latestTxHash: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.closeTxHash,
     },
     {
       label: "Forum Tollgate sponsor",
@@ -1478,7 +1482,7 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
           denied: Number(behaviorStats[4]),
           errorCount: Number(behaviorStats[5]),
         },
-        behaviorStateReset: Boolean(stats.retired),
+        behaviorStateReset: Boolean(stats.retired) || sponsorState === "closed-reserve-reclaimed",
         autonomousScore: {
           score: Number(autonomousScore[0]),
           recommendedLimitUSDC: autonomousScore[1].toString(),
@@ -1679,19 +1683,12 @@ function summarizeFloatV2PilotProvenance(agents: FloatV2AgentState[]) {
   const operatorSponsoredAgents = trackedExternalAgents.filter(
     (agent) => floatV2SponsorProvenance(agent) === "shadow-controlled",
   );
-  const externallySponsoredHistory = agents.filter(
-    (agent) =>
-      agent.category === "external" &&
-      (agent.agentProvenance || "verified-external-signer") === "verified-external-signer" &&
-      agent.signedIntents > 0,
-  );
-
   return {
     trackedExternalAgentLines: trackedExternalAgents.length,
     externallySponsoredLines: externallySponsoredAgents.length,
     operatorSponsoredLines: operatorSponsoredAgents.length,
-    returningAgents: externallySponsoredAgents.filter((agent) => agent.signedIntents > 1).length,
-    returningSponsors: countFloatV2VerifiedReturningSponsors(externallySponsoredHistory),
+    returningAgents: countFloatV2VerifiedReturningAgents(),
+    returningSponsors: countFloatV2VerifiedReturningSponsors(),
   };
 }
 
@@ -3312,10 +3309,10 @@ function FloatBuilderPilot({
       </div>
 
       <div className="builderPilotMetrics" aria-label="Chain-derived pilot metrics">
-        <FloatFact label="tracked external agent lines" value={metricValue(state?.summary?.trackedExternalAgentLines)} />
-        <FloatFact label="externally sponsored lines" value={metricValue(state?.summary?.externallySponsoredLines)} />
+        <FloatFact label="reserve-backed external lines" value={metricValue(state?.summary?.trackedExternalAgentLines)} />
+        <FloatFact label="external-sponsor reserve lines" value={metricValue(state?.summary?.externallySponsoredLines)} />
         <FloatFact label="operator-sponsored lines" value={metricValue(state?.summary?.operatorSponsoredLines)} />
-        <FloatFact label="unassisted returning agents" value={metricValue(returningAgents)} />
+        <FloatFact label="historical returning agents" value={metricValue(returningAgents)} />
         <FloatFact label="returning external sponsors" value={metricValue(returningSponsors)} />
       </div>
 
@@ -4782,7 +4779,7 @@ function FloatV2CurrentPanel({
     { label: "Argus to CitePay loop", href: txUrl(FLOAT_V2_PROOF.argusCitePayRepayTx), value: shortAddress(FLOAT_V2_PROOF.argusCitePayRepayTx) },
     { label: "CitePay provider proof", href: txUrl(FLOAT_V2_PROOF.citePayProviderQueryTxs[0]), value: "5 paid queries" },
     { label: "CitePay delivery receipt", href: txUrl(FLOAT_V2_PROOF.dripletCitePayDeliveryTx), value: shortAddress(FLOAT_V2_PROOF.dripletCitePayDeliveryTx) },
-    { label: "CitePay renewed sponsor line", href: txUrl(FLOAT_V2_PROOF.citePayRenewedOpenTx), value: shortAddress(FLOAT_V2_PROOF.citePayRenewedOpenTx) },
+    { label: "CitePay renewed reserve reclaimed", href: txUrl(FLOAT_V2_PROOF.citePayRenewedCloseTx), value: shortAddress(FLOAT_V2_PROOF.citePayRenewedCloseTx) },
     { label: "Forum reserve reclaim", href: txUrl(FLOAT_V2_PROOF.forumSponsorCloseTx), value: shortAddress(FLOAT_V2_PROOF.forumSponsorCloseTx) },
     { label: "Forum reserve reopen proof", href: txUrl(FLOAT_V2_PROOF.forumSponsorReopenTx), value: shortAddress(FLOAT_V2_PROOF.forumSponsorReopenTx) },
     { label: "CCTP-funded reserve", href: txUrl(FLOAT_V2_PROOF.cctpOpenLineTx), value: shortAddress(FLOAT_V2_PROOF.cctpOpenLineTx) },
@@ -4964,7 +4961,7 @@ function FloatV2SponsorCapitalPanel({ state }: { state: FloatV2ActivityState | n
       agent: citePayAgent,
       reserve: "0.05 USDC",
       proofHref: "/proofs/citepay-clear-canary.json",
-      body: "CitePay reclaimed its retired line and opened a fresh line for a controlled signer. That agent completed two signed spend-and-repay cycles; the latest required an exact-quote Clear receipt before payment.",
+      body: "CitePay reclaimed its retired line and opened a fresh line for a controlled signer. That agent completed two signed spend-and-repay cycles; the latest required an exact-quote Clear receipt before payment. CitePay then reclaimed the debt-free renewed reserve.",
       steps: [
         { label: "close retired line", tx: FLOAT_V2_PROOF.citePaySponsorCloseTx },
         { label: "open renewed line", tx: FLOAT_V2_PROOF.citePayRenewedOpenTx },
@@ -4972,6 +4969,7 @@ function FloatV2SponsorCapitalPanel({ state }: { state: FloatV2ActivityState | n
         { label: "renewed repay", tx: FLOAT_V2_PROOF.citePayRenewedRepayTx },
         { label: "Clear-gated spend", tx: FLOAT_V2_PROOF.citePayClearSpendTx },
         { label: "agent repayment", tx: FLOAT_V2_PROOF.citePayClearRepayTx },
+        { label: "close renewed line", tx: FLOAT_V2_PROOF.citePayRenewedCloseTx },
       ],
     },
     {
@@ -5199,13 +5197,13 @@ function FloatV2ActivityBoard({
       </div>
 
       <div className="floatV2ActivityStats">
-        <FloatFact label="tracked external agent lines" value={showCount(state?.summary?.trackedExternalAgentLines)} />
-        <FloatFact label="externally sponsored lines" value={showCount(state?.summary?.externallySponsoredLines)} />
+        <FloatFact label="reserve-backed external lines" value={showCount(state?.summary?.trackedExternalAgentLines)} />
+        <FloatFact label="external-sponsor reserve lines" value={showCount(state?.summary?.externallySponsoredLines)} />
         <FloatFact label="operator-sponsored lines" value={showCount(state?.summary?.operatorSponsoredLines)} />
         <FloatFact label="signed intents" value={showCount(state?.summary?.signedIntents)} />
         <FloatFact label="provider paid" value={showUSDC(state?.summary?.providerPaidUSDC)} />
         <FloatFact label="closed loops" value={showCount(state?.summary?.repaidLifecycles)} />
-        <FloatFact label="unassisted returning agents" value={showCount(state?.summary?.returningAgents)} />
+        <FloatFact label="historical returning agents" value={showCount(state?.summary?.returningAgents)} />
         <FloatFact label="returning external sponsors" value={showCount(state?.summary?.returningSponsors)} />
         <FloatFact label="open debt" value={showUSDC(state?.summary?.activeDebtUSDC)} />
         <FloatFact label="top contract score" value={topScore > 0 ? String(topScore) : loading ? "reading" : "unavailable"} />
@@ -7936,9 +7934,9 @@ function HomeTruthStrip({
       to: "/float#desk-journal",
     },
     {
-      label: "external signers",
-      value: showCount(trackedExternalAgentLines, "10"),
-      body: "Tracked agent ownership and sponsor provenance stay separate.",
+      label: "reserve-backed signers",
+      value: showCount(trackedExternalAgentLines, "reading"),
+      body: "Reserve-backed agent ownership and sponsor provenance stay separate.",
       to: "/float#v2-activity",
     },
     {
@@ -7993,7 +7991,7 @@ function Shadow2ProtocolMap({
       eyebrow: "capacity",
       metric: summary?.externallySponsoredLines !== undefined ? String(summary.externallySponsoredLines) : "syncing",
       title: "External sponsors back bounded agent lines.",
-      body: "Two verified non-operator sponsors reserved Arc USDC. Operator-sponsored lines remain labeled separately.",
+      body: "Two verified non-operator sponsors have reserved Arc USDC. The metric shows external-sponsor reserves still held.",
     },
     {
       eyebrow: "settlement",
@@ -8072,9 +8070,9 @@ function HomeProofOverview({
       external: true,
     },
     {
-      eyebrow: "tracked agent lines",
+      eyebrow: "reserve-backed lines",
       value: countValue(summary?.trackedExternalAgentLines),
-      label: "verified external signers",
+      label: "verified external signers with reserve",
       body: "Agent ownership is tracked separately from whether Shadow or an outside sponsor supplied the reserve.",
       href: "/float#v2-activity",
       external: false,
@@ -8082,9 +8080,9 @@ function HomeProofOverview({
     {
       eyebrow: "external sponsor capital",
       value: countValue(summary?.externallySponsoredLines),
-      label: "external sponsors",
-      body: "CitePay and Forum Tollgate funded external reserves and completed repaid cycles. CitePay then renewed through a fresh controlled agent line.",
-      href: txUrl(FLOAT_V2_PROOF.citePayRenewedOpenTx),
+      label: "external-sponsor reserves held",
+      body: "CitePay and Forum Tollgate funded external reserves and completed repaid cycles. CitePay later reclaimed its renewed reserve; Forum remains reserve-backed.",
+      href: txUrl(FLOAT_V2_PROOF.forumSponsorReopenTx),
       external: true,
     },
     {

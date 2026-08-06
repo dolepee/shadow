@@ -3,14 +3,60 @@ import { parseAbi, parseAbiItem } from "viem";
 export const FLOAT_V2_CONTRACT = "0x20dcA96B0C487D94De885c726c956ffaF38b12C2";
 export const FLOAT_V2_DEPLOY_BLOCK = 48_837_320n;
 export const FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE = 9_000n;
+export const FLOAT_V2_SOURCE_CHECKPOINT_SCAN_LIMIT = 45_000n;
+
+export const FLOAT_V2_VERIFIED_POST_RECLAIM_STATE = Object.freeze({
+  blockNumber: 52_836_679n,
+  checkedAt: "2026-07-20T21:02:14.000Z",
+  treasuryBalanceUSDC: "1519762",
+  totalAvailableCreditUSDC: "540000",
+  totalSponsoredReserveUSDC: "1450000",
+  trackedExternalAgentLines: 9,
+  externallySponsoredLines: 1,
+  operatorSponsoredLines: 8,
+  citePayRenewedLine: Object.freeze({
+    agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
+    wallet: "0x0000000000000000000000000000000000000000",
+    score: 0,
+    creditLimitUSDC: "0",
+    availableCreditUSDC: "0",
+    activeDebtUSDC: "0",
+    status: 4,
+    statusName: "REVOKED",
+    lastReview: "1784581334",
+    lineExpiry: "0",
+    sponsor: "0x0000000000000000000000000000000000000000",
+    sponsorReserveUSDC: "0",
+    sponsorState: "closed-reserve-reclaimed",
+    preReclaimLatestTxHash: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",
+    closeTxHash: "0x515a8a3106fbc22fd36c75fe2a626e5e2273db58d8acf10679e44c7e90b52c09",
+    autonomousScore: Object.freeze({ score: 5000, recommendedLimitUSDC: "0", cappedLimitUSDC: "0" }),
+  }),
+});
+
+export function shouldUseFloatV2VerifiedSnapshot(checkpointSource, checkpointBlock, latestBlock) {
+  return checkpointSource === "source-checkpoint"
+    && latestBlock > checkpointBlock
+    && latestBlock - checkpointBlock > FLOAT_V2_SOURCE_CHECKPOINT_SCAN_LIMIT;
+}
+
+export function reconcileFloatV2CheckpointLatestTx(checkpointBlock, agent, latestTxHash) {
+  const reclaimed = FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine;
+  if (checkpointBlock < FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.blockNumber) return latestTxHash;
+  if (agent.toLowerCase() !== reclaimed.agent.toLowerCase()) return latestTxHash;
+  if (latestTxHash && latestTxHash.toLowerCase() !== reclaimed.preReclaimLatestTxHash.toLowerCase()) {
+    return latestTxHash;
+  }
+  return reclaimed.closeTxHash;
+}
 
 // Complete FloatIntentConsumed/FloatReceipt scan through this Arc block.
 // API requests seed from this checkpoint and scan only newer blocks; successful
 // incremental scans advance the checkpoint in KV. This keeps the public board
 // live without replaying millions of historical blocks on every request.
 export const FLOAT_V2_ACTIVITY_CHECKPOINT = {
-  blockNumber: 52_829_548n,
-  checkedAt: "2026-07-20T20:01:52.158Z",
+  blockNumber: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.blockNumber,
+  checkedAt: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.checkedAt,
   agents: [
     {
       agent: "0x13585c6004fbA9D7D49219a6435B68348fD30770",
@@ -57,7 +103,7 @@ export const FLOAT_V2_ACTIVITY_CHECKPOINT = {
       latestTxHash: "0x2d91c37cc23ff8f342614bb9070e82efb37d0d588b15a43a3685c92786074e0d",
     },
     {
-      agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
+      agent: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.agent,
       signedIntents: 2,
       providerPaidCount: 2,
       repaidCount: 2,
@@ -65,7 +111,7 @@ export const FLOAT_V2_ACTIVITY_CHECKPOINT = {
       providerPaidUSDC: "6000",
       repaidUSDC: "6000",
       blockedUSDC: "0",
-      latestTxHash: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",
+      latestTxHash: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.closeTxHash,
     },
     {
       agent: "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C",
@@ -187,17 +233,90 @@ const FLOAT_V2_VERIFIED_EXTERNAL_SPONSOR_KEYS = new Set(
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS.map((address) => address.toLowerCase()),
 );
 
-export function countFloatV2VerifiedReturningSponsors(agents) {
-  const cyclesBySponsor = new Map();
-  for (const agent of agents) {
-    if (Number(agent.signedIntents) <= 0) continue;
-    const candidate = agent.verifiedSponsor || (agent.sponsorProvenance === "verified-external" ? agent.sponsor : null);
-    if (!candidate) continue;
-    const sponsor = candidate.toLowerCase();
+// Returning traction is attributed to immutable sponsor epochs, not an
+// agent's lifetime counters or current sponsor. Future activity under a new
+// sponsor deliberately undercounts until its completed cycles are verified.
+export const FLOAT_V2_VERIFIED_SPONSOR_EPOCHS = Object.freeze([
+  Object.freeze({
+    agent: "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f",
+    sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+    lineEpoch: 1,
+    openedTx: "0xf2dabb1ce651330a389acd4d6cacee1a859dc4fc12f18459143dc0f60ee53540",
+    cycles: Object.freeze([
+      Object.freeze({
+        intentTx: "0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae",
+        repayTx: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe",
+      }),
+    ]),
+  }),
+  Object.freeze({
+    agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
+    sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+    lineEpoch: 1,
+    openedTx: "0x4e3d8318cb8bed6b71afd716dc0f792a77cf04ceefa6986c436132a307470243",
+    cycles: Object.freeze([
+      Object.freeze({
+        intentTx: "0x9007d0e8f66c0bc641caaa305266d50aeb5e2e969ff3edbbd8122542ed08eae4",
+        repayTx: "0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911",
+      }),
+      Object.freeze({
+        intentTx: "0x74c1fa0782dd8c70586bd8a87cb014a1bda6080df794250766720d527fe57927",
+        repayTx: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",
+      }),
+    ]),
+  }),
+  Object.freeze({
+    agent: "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C",
+    sponsor: "0x12F25B721Cc21c38495e33A4c8524dd0B647ba03",
+    lineEpoch: 1,
+    openedTx: "0x8f9759660161819cf924314abcaf2feefb55d973a845c6ed0921d14e560c79df",
+    cycles: Object.freeze([
+      Object.freeze({
+        intentTx: "0x0bd8271279c6fcde28cc4de51b5f54be4842a8c1e3ed304a221c6281db20f75f",
+        repayTx: "0x48a81e86ccc7c49814929e44dca93d2f44f82322abff587903419a64e8302172",
+      }),
+    ]),
+  }),
+]);
+
+function verifiedExternalCycleRecords(epochs) {
+  const records = [];
+  const seenIntentTxs = new Set();
+  const seenRepayTxs = new Set();
+  for (const epoch of epochs) {
+    if (!epoch || !Number.isSafeInteger(epoch.lineEpoch) || epoch.lineEpoch < 1) continue;
+    if (!/^0x[0-9a-f]{64}$/.test(String(epoch.openedTx || "").toLowerCase())) continue;
+    const sponsor = String(epoch.sponsor || "").toLowerCase();
     if (!FLOAT_V2_VERIFIED_EXTERNAL_SPONSOR_KEYS.has(sponsor)) continue;
-    cyclesBySponsor.set(sponsor, (cyclesBySponsor.get(sponsor) || 0) + Number(agent.signedIntents));
+    const agent = String(epoch.agent || "").toLowerCase();
+    if (!/^0x[0-9a-f]{40}$/.test(agent)) continue;
+    for (const cycle of epoch.cycles || []) {
+      const intentTx = String(cycle?.intentTx || "").toLowerCase();
+      const repayTx = String(cycle?.repayTx || "").toLowerCase();
+      if (!/^0x[0-9a-f]{64}$/.test(intentTx) || !/^0x[0-9a-f]{64}$/.test(repayTx)) continue;
+      if (seenIntentTxs.has(intentTx) || seenRepayTxs.has(repayTx)) continue;
+      seenIntentTxs.add(intentTx);
+      seenRepayTxs.add(repayTx);
+      records.push({ agent, sponsor });
+    }
   }
-  return [...cyclesBySponsor.values()].filter((cycles) => cycles > 1).length;
+  return records;
+}
+
+export function countFloatV2VerifiedReturningAgents(epochs = FLOAT_V2_VERIFIED_SPONSOR_EPOCHS) {
+  const cyclesByAgent = new Map();
+  for (const record of verifiedExternalCycleRecords(epochs)) {
+    cyclesByAgent.set(record.agent, (cyclesByAgent.get(record.agent) || 0) + 1);
+  }
+  return [...cyclesByAgent.values()].filter((count) => count > 1).length;
+}
+
+export function countFloatV2VerifiedReturningSponsors(epochs = FLOAT_V2_VERIFIED_SPONSOR_EPOCHS) {
+  const cyclesBySponsor = new Map();
+  for (const record of verifiedExternalCycleRecords(epochs)) {
+    cyclesBySponsor.set(record.sponsor, (cyclesBySponsor.get(record.sponsor) || 0) + 1);
+  }
+  return [...cyclesBySponsor.values()].filter((count) => count > 1).length;
 }
 
 export const FLOAT_V2_TRACKED_EXTERNAL_AGENTS = [

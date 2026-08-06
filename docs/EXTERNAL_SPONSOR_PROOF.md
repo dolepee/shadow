@@ -13,7 +13,7 @@ Shadow Float V2 has now been exercised by non-operator sponsors. The sponsor wal
 
 ## CitePay Returning External Sponsor
 
-CitePay is a live non-operator sponsor on Float V2. Its sponsor wallet is not the Shadow operator wallet. The original sponsored agent completed a spend-and-repay cycle. CitePay later retired that debt-free line, reclaimed the reserve, and opened a replacement line for a newly controlled agent. The renewed agent completed two signed spend-and-repay cycles with the same sponsored capital; the second required an exact-quote CitePay Clear receipt before payment.
+CitePay is a verified non-operator sponsor on Float V2. Its sponsor wallet is not the Shadow operator wallet. The original sponsored agent completed a spend-and-repay cycle. CitePay later retired that debt-free line, reclaimed the reserve, and opened a replacement line for a newly controlled agent. The renewed agent completed two signed spend-and-repay cycles with the same sponsored capital; the second required an exact-quote CitePay Clear receipt before payment. CitePay then closed the debt-free renewed line and reclaimed that reserve as well.
 
 This proves repeat sponsor behavior across two line generations and repeat behavior by the renewed agent. It is bounded external pilot evidence, not organic adoption. `closeSponsoredLine` clears the retired line's current `behaviorStats`, so the live board labels that reset while preserving its event-derived paid and repayment history.
 
@@ -46,6 +46,7 @@ This proves repeat sponsor behavior across two line generations and repeat behav
 | Repay | [`0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911`](https://testnet.arcscan.app/tx/0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911) |
 | Clear-gated spend | [`0x74c1fa0782dd8c70586bd8a87cb014a1bda6080df794250766720d527fe57927`](https://testnet.arcscan.app/tx/0x74c1fa0782dd8c70586bd8a87cb014a1bda6080df794250766720d527fe57927) |
 | Agent repayment | [`0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f`](https://testnet.arcscan.app/tx/0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f) |
+| `closeSponsoredLine` | [`0x515a8a3106fbc22fd36c75fe2a626e5e2273db58d8acf10679e44c7e90b52c09`](https://testnet.arcscan.app/tx/0x515a8a3106fbc22fd36c75fe2a626e5e2273db58d8acf10679e44c7e90b52c09) |
 
 | Field | Value |
 | --- | --- |
@@ -53,8 +54,7 @@ This proves repeat sponsor behavior across two line generations and repeat behav
 | Agent | `0x236652EAd43fbb0948173fC4dDF23BC0971B274d` |
 | Reserve | `50000` atomic USDC |
 | Spend amounts | `5000` and `1000` atomic USDC |
-| Line expiry | `2026-10-16T18:28:22Z` |
-| End state | two signed cycles repaid, zero debt, full 0.05 USDC capacity available |
+| End state | `REVOKED`, two signed cycles repaid, zero debt, reserve reclaimed; retained as historical proof |
 
 ## Forum Tollgate External Sponsor
 
