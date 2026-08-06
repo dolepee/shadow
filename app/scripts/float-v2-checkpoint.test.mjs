@@ -5,10 +5,13 @@ import test from "node:test";
 import {
   FLOAT_V2_ACTIVITY_CHECKPOINT,
   FLOAT_V2_DEPLOY_BLOCK,
+  FLOAT_V2_SHADOW_CONTROLLED_SPONSORS,
   FLOAT_V2_TRACKED_AGENTS,
   FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
   FLOAT_V2_TRACKED_SYSTEM_AGENTS,
+  FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
   FLOAT_V2_VERIFIED_POST_RECLAIM_STATE,
+  FLOAT_V2_VERIFIED_SPONSOR_EPOCHS,
   countFloatV2VerifiedReturningAgents,
   countFloatV2VerifiedReturningSponsors,
   reconcileFloatV2CheckpointLatestTx,
@@ -85,33 +88,75 @@ test("renewed CitePay line proves one returning sponsor and one returning agent"
   assert.equal(citePayLines.filter((entry) => entry.retired).length, 1);
   assert.equal(new Set(citePayLines.map((entry) => entry.agent.toLowerCase())).size, 2);
 
-  const trackedWithActivity = FLOAT_V2_TRACKED_EXTERNAL_AGENTS.map((entry) => {
+  assert.equal(countFloatV2VerifiedReturningSponsors(), 1);
+  assert.equal(countFloatV2VerifiedReturningAgents(), 1);
+
+  const allIntentTxs = FLOAT_V2_VERIFIED_SPONSOR_EPOCHS.flatMap((epoch) =>
+    epoch.cycles.map((cycle) => cycle.intentTx),
+  );
+  const allRepayTxs = FLOAT_V2_VERIFIED_SPONSOR_EPOCHS.flatMap((epoch) =>
+    epoch.cycles.map((cycle) => cycle.repayTx),
+  );
+  const epochKeys = FLOAT_V2_VERIFIED_SPONSOR_EPOCHS.map(
+    (epoch) => `${epoch.agent.toLowerCase()}:${epoch.lineEpoch}`,
+  );
+  assert.equal(new Set(allIntentTxs.map((txHash) => txHash.toLowerCase())).size, allIntentTxs.length);
+  assert.equal(new Set(allRepayTxs.map((txHash) => txHash.toLowerCase())).size, allRepayTxs.length);
+  assert.equal(new Set(epochKeys).size, epochKeys.length);
+  assert.ok(FLOAT_V2_VERIFIED_SPONSOR_EPOCHS.every((epoch) => epoch.lineEpoch > 0));
+  assert.ok(FLOAT_V2_VERIFIED_SPONSOR_EPOCHS.every((epoch) => /^0x[0-9a-f]{64}$/i.test(epoch.openedTx)));
+  assert.ok(
+    FLOAT_V2_VERIFIED_SPONSOR_EPOCHS.every((epoch) =>
+      FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS.some(
+        (sponsor) => sponsor.toLowerCase() === epoch.sponsor.toLowerCase(),
+      ),
+    ),
+  );
+
+  for (const epoch of FLOAT_V2_VERIFIED_SPONSOR_EPOCHS) {
     const checkpoint = FLOAT_V2_ACTIVITY_CHECKPOINT.agents.find(
-      (candidate) => candidate.agent.toLowerCase() === entry.agent.toLowerCase(),
+      (candidate) => candidate.agent.toLowerCase() === epoch.agent.toLowerCase(),
     );
     assert.ok(checkpoint);
-    return { ...entry, signedIntents: checkpoint.signedIntents };
-  });
+    const attributedIntents = FLOAT_V2_VERIFIED_SPONSOR_EPOCHS
+      .filter((candidate) => candidate.agent.toLowerCase() === epoch.agent.toLowerCase())
+      .reduce((sum, candidate) => sum + candidate.cycles.length, 0);
+    assert.ok(attributedIntents <= checkpoint.signedIntents);
+    assert.ok(attributedIntents <= checkpoint.repaidCount);
+  }
 
-  assert.equal(countFloatV2VerifiedReturningSponsors(trackedWithActivity), 1);
-  assert.equal(countFloatV2VerifiedReturningAgents(trackedWithActivity), 1);
+  const renewedEpoch = FLOAT_V2_VERIFIED_SPONSOR_EPOCHS.find(
+    (epoch) => epoch.agent.toLowerCase() === "0x236652ead43fbb0948173fc4ddf23bc0971b274d",
+  );
+  assert.equal(renewedEpoch?.cycles.length, 2);
   assert.equal(
-    countFloatV2VerifiedReturningSponsors(
-      trackedWithActivity.filter((entry) => !entry.retired),
-    ),
+    countFloatV2VerifiedReturningSponsors(renewedEpoch ? [renewedEpoch] : []),
     1,
   );
-
-  const renewedLine = trackedWithActivity.find(
-    (entry) => !entry.retired && entry.verifiedSponsor?.toLowerCase() === citePaySponsor,
-  );
-  assert.equal(renewedLine?.signedIntents, 2);
   assert.equal(
-    countFloatV2VerifiedReturningAgents([
-      { ...renewedLine, sponsorProvenance: "none", signedIntents: renewedLine?.signedIntents ?? 0 },
-    ]),
+    countFloatV2VerifiedReturningAgents(renewedEpoch ? [renewedEpoch] : []),
     1,
     "closing a debt-free reserve must not erase completed returning-agent history",
+  );
+
+  const retiredEpoch = FLOAT_V2_VERIFIED_SPONSOR_EPOCHS.find(
+    (epoch) => epoch.agent.toLowerCase() === "0xdfdea2015f0b176e89a79cb8b4d5ef22be6e044f",
+  );
+  assert.ok(retiredEpoch);
+  const operatorEpoch = {
+    ...retiredEpoch,
+    sponsor: FLOAT_V2_SHADOW_CONTROLLED_SPONSORS[0],
+    lineEpoch: retiredEpoch.lineEpoch + 1,
+    openedTx: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    cycles: [{
+      intentTx: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      repayTx: "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    }],
+  };
+  assert.equal(
+    countFloatV2VerifiedReturningAgents([retiredEpoch, operatorEpoch]),
+    0,
+    "a later operator-sponsored intent must not turn a one-intent external epoch into returning traction",
   );
 });
 

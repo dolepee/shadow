@@ -63,6 +63,17 @@ export type FloatV2VerifiedPostReclaimState = {
   };
 };
 
+export type FloatV2VerifiedSponsorEpoch = {
+  agent: Address;
+  sponsor: Address;
+  lineEpoch: number;
+  openedTx: Hash;
+  cycles: readonly {
+    intentTx: Hash;
+    repayTx: Hash;
+  }[];
+};
+
 export declare const FLOAT_V2_CONTRACT: Address;
 export declare const FLOAT_V2_DEPLOY_BLOCK: bigint;
 export declare const FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE: bigint;
@@ -82,21 +93,12 @@ export declare const FLOAT_V2_ACTIVITY_CHECKPOINT: FloatV2ActivityCheckpoint;
 export declare const FLOAT_V2_STATUS_NAMES: readonly ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"];
 export declare const FLOAT_V2_SHADOW_CONTROLLED_SPONSORS: readonly Address[];
 export declare const FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS: readonly Address[];
+export declare const FLOAT_V2_VERIFIED_SPONSOR_EPOCHS: readonly FloatV2VerifiedSponsorEpoch[];
 export declare function countFloatV2VerifiedReturningAgents(
-  agents: readonly {
-    sponsor?: Address;
-    verifiedSponsor?: Address;
-    sponsorProvenance?: "verified-external" | "shadow-controlled" | "unverified" | "none";
-    signedIntents: number;
-  }[],
+  epochs?: readonly FloatV2VerifiedSponsorEpoch[],
 ): number;
 export declare function countFloatV2VerifiedReturningSponsors(
-  agents: readonly {
-    sponsor?: Address;
-    verifiedSponsor?: Address;
-    sponsorProvenance?: "verified-external" | "shadow-controlled" | "unverified" | "none";
-    signedIntents: number;
-  }[],
+  epochs?: readonly FloatV2VerifiedSponsorEpoch[],
 ): number;
 export declare const FLOAT_V2_TRACKED_EXTERNAL_AGENTS: readonly FloatV2TrackedExternalAgent[];
 export declare const FLOAT_V2_TRACKED_SYSTEM_AGENTS: readonly FloatV2TrackedAgent[];

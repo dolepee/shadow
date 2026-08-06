@@ -192,19 +192,12 @@ export function summarizeFloatV2Provenance(agents: FloatV2ProvenanceAgent[]) {
   const operatorSponsoredAgents = trackedExternalAgents.filter(
     (agent) => agent.sponsorProvenance === "shadow-controlled",
   );
-  const externallySponsoredHistory = agents.filter(
-    (agent) =>
-      agent.category === "external" &&
-      agent.agentProvenance === "verified-external-signer" &&
-      Number(agent.signedIntents) > 0,
-  );
-
   return {
     trackedExternalAgentLines: trackedExternalAgents.length,
     externallySponsoredLines: externallySponsoredAgents.length,
     operatorSponsoredLines: operatorSponsoredAgents.length,
-    returningAgents: countFloatV2VerifiedReturningAgents(externallySponsoredHistory),
-    returningSponsors: countFloatV2VerifiedReturningSponsors(externallySponsoredHistory),
+    returningAgents: countFloatV2VerifiedReturningAgents(),
+    returningSponsors: countFloatV2VerifiedReturningSponsors(),
   };
 }
 

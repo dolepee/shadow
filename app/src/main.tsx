@@ -1683,19 +1683,12 @@ function summarizeFloatV2PilotProvenance(agents: FloatV2AgentState[]) {
   const operatorSponsoredAgents = trackedExternalAgents.filter(
     (agent) => floatV2SponsorProvenance(agent) === "shadow-controlled",
   );
-  const externallySponsoredHistory = agents.filter(
-    (agent) =>
-      agent.category === "external" &&
-      (agent.agentProvenance || "verified-external-signer") === "verified-external-signer" &&
-      agent.signedIntents > 0,
-  );
-
   return {
     trackedExternalAgentLines: trackedExternalAgents.length,
     externallySponsoredLines: externallySponsoredAgents.length,
     operatorSponsoredLines: operatorSponsoredAgents.length,
-    returningAgents: countFloatV2VerifiedReturningAgents(externallySponsoredHistory),
-    returningSponsors: countFloatV2VerifiedReturningSponsors(externallySponsoredHistory),
+    returningAgents: countFloatV2VerifiedReturningAgents(),
+    returningSponsors: countFloatV2VerifiedReturningSponsors(),
   };
 }
 

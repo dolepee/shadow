@@ -233,28 +233,90 @@ const FLOAT_V2_VERIFIED_EXTERNAL_SPONSOR_KEYS = new Set(
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS.map((address) => address.toLowerCase()),
 );
 
-function verifiedExternalSponsorKey(agent) {
-  const candidate = agent.verifiedSponsor || (agent.sponsorProvenance === "verified-external" ? agent.sponsor : null);
-  if (!candidate) return null;
-  const sponsor = candidate.toLowerCase();
-  return FLOAT_V2_VERIFIED_EXTERNAL_SPONSOR_KEYS.has(sponsor) ? sponsor : null;
-}
+// Returning traction is attributed to immutable sponsor epochs, not an
+// agent's lifetime counters or current sponsor. Future activity under a new
+// sponsor deliberately undercounts until its completed cycles are verified.
+export const FLOAT_V2_VERIFIED_SPONSOR_EPOCHS = Object.freeze([
+  Object.freeze({
+    agent: "0xdfDEA2015f0b176e89a79cb8b4D5ef22bE6e044f",
+    sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+    lineEpoch: 1,
+    openedTx: "0xf2dabb1ce651330a389acd4d6cacee1a859dc4fc12f18459143dc0f60ee53540",
+    cycles: Object.freeze([
+      Object.freeze({
+        intentTx: "0xeeb2f3b31215a00ef5becbd7c0388f28ec943efc383af5cc7f83f86c044d6dae",
+        repayTx: "0x2e2ecb060340f04173d945bd45dc64119309c7e692ec7ad8d4e295413a8d06fe",
+      }),
+    ]),
+  }),
+  Object.freeze({
+    agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
+    sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+    lineEpoch: 1,
+    openedTx: "0x4e3d8318cb8bed6b71afd716dc0f792a77cf04ceefa6986c436132a307470243",
+    cycles: Object.freeze([
+      Object.freeze({
+        intentTx: "0x9007d0e8f66c0bc641caaa305266d50aeb5e2e969ff3edbbd8122542ed08eae4",
+        repayTx: "0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911",
+      }),
+      Object.freeze({
+        intentTx: "0x74c1fa0782dd8c70586bd8a87cb014a1bda6080df794250766720d527fe57927",
+        repayTx: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",
+      }),
+    ]),
+  }),
+  Object.freeze({
+    agent: "0x645b8cc3A35A204D0cd025cccbd61618Ab9e139C",
+    sponsor: "0x12F25B721Cc21c38495e33A4c8524dd0B647ba03",
+    lineEpoch: 1,
+    openedTx: "0x8f9759660161819cf924314abcaf2feefb55d973a845c6ed0921d14e560c79df",
+    cycles: Object.freeze([
+      Object.freeze({
+        intentTx: "0x0bd8271279c6fcde28cc4de51b5f54be4842a8c1e3ed304a221c6281db20f75f",
+        repayTx: "0x48a81e86ccc7c49814929e44dca93d2f44f82322abff587903419a64e8302172",
+      }),
+    ]),
+  }),
+]);
 
-export function countFloatV2VerifiedReturningAgents(agents) {
-  return agents.filter(
-    (agent) => Number(agent.signedIntents) > 1 && verifiedExternalSponsorKey(agent) !== null,
-  ).length;
-}
-
-export function countFloatV2VerifiedReturningSponsors(agents) {
-  const cyclesBySponsor = new Map();
-  for (const agent of agents) {
-    if (Number(agent.signedIntents) <= 0) continue;
-    const sponsor = verifiedExternalSponsorKey(agent);
-    if (!sponsor) continue;
-    cyclesBySponsor.set(sponsor, (cyclesBySponsor.get(sponsor) || 0) + Number(agent.signedIntents));
+function verifiedExternalCycleRecords(epochs) {
+  const records = [];
+  const seenIntentTxs = new Set();
+  const seenRepayTxs = new Set();
+  for (const epoch of epochs) {
+    if (!epoch || !Number.isSafeInteger(epoch.lineEpoch) || epoch.lineEpoch < 1) continue;
+    if (!/^0x[0-9a-f]{64}$/.test(String(epoch.openedTx || "").toLowerCase())) continue;
+    const sponsor = String(epoch.sponsor || "").toLowerCase();
+    if (!FLOAT_V2_VERIFIED_EXTERNAL_SPONSOR_KEYS.has(sponsor)) continue;
+    const agent = String(epoch.agent || "").toLowerCase();
+    if (!/^0x[0-9a-f]{40}$/.test(agent)) continue;
+    for (const cycle of epoch.cycles || []) {
+      const intentTx = String(cycle?.intentTx || "").toLowerCase();
+      const repayTx = String(cycle?.repayTx || "").toLowerCase();
+      if (!/^0x[0-9a-f]{64}$/.test(intentTx) || !/^0x[0-9a-f]{64}$/.test(repayTx)) continue;
+      if (seenIntentTxs.has(intentTx) || seenRepayTxs.has(repayTx)) continue;
+      seenIntentTxs.add(intentTx);
+      seenRepayTxs.add(repayTx);
+      records.push({ agent, sponsor });
+    }
   }
-  return [...cyclesBySponsor.values()].filter((cycles) => cycles > 1).length;
+  return records;
+}
+
+export function countFloatV2VerifiedReturningAgents(epochs = FLOAT_V2_VERIFIED_SPONSOR_EPOCHS) {
+  const cyclesByAgent = new Map();
+  for (const record of verifiedExternalCycleRecords(epochs)) {
+    cyclesByAgent.set(record.agent, (cyclesByAgent.get(record.agent) || 0) + 1);
+  }
+  return [...cyclesByAgent.values()].filter((count) => count > 1).length;
+}
+
+export function countFloatV2VerifiedReturningSponsors(epochs = FLOAT_V2_VERIFIED_SPONSOR_EPOCHS) {
+  const cyclesBySponsor = new Map();
+  for (const record of verifiedExternalCycleRecords(epochs)) {
+    cyclesBySponsor.set(record.sponsor, (cyclesBySponsor.get(record.sponsor) || 0) + 1);
+  }
+  return [...cyclesBySponsor.values()].filter((count) => count > 1).length;
 }
 
 export const FLOAT_V2_TRACKED_EXTERNAL_AGENTS = [
