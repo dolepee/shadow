@@ -8,8 +8,10 @@ import {
   FLOAT_V2_TRACKED_AGENTS,
   FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
   FLOAT_V2_TRACKED_SYSTEM_AGENTS,
+  FLOAT_V2_VERIFIED_POST_RECLAIM_STATE,
   countFloatV2VerifiedReturningAgents,
   countFloatV2VerifiedReturningSponsors,
+  shouldUseFloatV2VerifiedSnapshot,
 } from "../floatV2Config.js";
 
 test("activity checkpoint covers every tracked reserve line exactly once", () => {
@@ -112,21 +114,22 @@ test("renewed CitePay line proves one returning sponsor and one returning agent"
   );
 });
 
-test("frontend fallback identifies the renewed CitePay reserve as verified external capital", () => {
+test("frontend fallback identifies the renewed CitePay reserve as reclaimed", () => {
   const source = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
   const renewedLine = source.match(
-    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?sponsorState: "active-reserve",/,
+    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?latestTxHash: FLOAT_V2_PROOF\.citePayRenewedCloseTx,/,
   );
 
   assert.ok(renewedLine, "renewed CitePay fallback line must remain present");
-  assert.match(renewedLine[0], /sponsorProvenance: "verified-external"/);
+  assert.match(renewedLine[0], /sponsorProvenance: "none"/);
+  assert.match(renewedLine[0], /behaviorStateReset: true/);
   assert.match(source, /floatV2SponsorProvenance\(agent\) === "verified-external"/);
 });
 
 test("API fallback derives its totals and preserves the renewed CitePay cycle", () => {
   const source = readFileSync(new URL("../api/float.ts", import.meta.url), "utf8");
   const renewedLine = source.match(
-    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?latestTxHash: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",/,
+    /label: "CitePay sponsor \(renewed line\)"[\s\S]*?latestTxHash: "0x515a8a3106fbc22fd36c75fe2a626e5e2273db58d8acf10679e44c7e90b52c09",/,
   );
 
   assert.ok(renewedLine, "API fallback must include the completed Clear-gated cycle");
@@ -136,4 +139,40 @@ test("API fallback derives its totals and preserves the renewed CitePay cycle", 
   assert.match(source, /const signedIntents = visibleAgents\.reduce/);
   assert.match(source, /const repaidLifecycles = visibleAgents\.reduce/);
   assert.match(source, /agents: operationalAgents/);
+});
+
+test("post-reclaim fallback state and no-KV scan budget are coherent", () => {
+  assert.deepEqual(
+    {
+      blockNumber: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber,
+      checkedAt: FLOAT_V2_ACTIVITY_CHECKPOINT.checkedAt,
+      treasuryBalanceUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.treasuryBalanceUSDC,
+      totalAvailableCreditUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.totalAvailableCreditUSDC,
+      totalSponsoredReserveUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.totalSponsoredReserveUSDC,
+      trackedExternalAgentLines: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.trackedExternalAgentLines,
+      externallySponsoredLines: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.externallySponsoredLines,
+      operatorSponsoredLines: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.operatorSponsoredLines,
+    },
+    {
+      blockNumber: 52_836_679n,
+      checkedAt: "2026-07-20T21:02:14.000Z",
+      treasuryBalanceUSDC: "1519762",
+      totalAvailableCreditUSDC: "540000",
+      totalSponsoredReserveUSDC: "1450000",
+      trackedExternalAgentLines: 9,
+      externallySponsoredLines: 1,
+      operatorSponsoredLines: 8,
+    },
+  );
+  assert.equal(shouldUseFloatV2VerifiedSnapshot("source-checkpoint", 52_836_679n, 55_600_911n), true);
+  assert.equal(shouldUseFloatV2VerifiedSnapshot("source-checkpoint", 55_590_000n, 55_600_911n), false);
+  assert.equal(shouldUseFloatV2VerifiedSnapshot("kv-checkpoint", 52_836_679n, 55_600_911n), false);
+
+  const frontend = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
+  const api = readFileSync(new URL("../api/float.ts", import.meta.url), "utf8");
+  for (const source of [frontend, api]) {
+    assert.match(source, /FLOAT_V2_VERIFIED_POST_RECLAIM_STATE\.treasuryBalanceUSDC/);
+    assert.match(source, /FLOAT_V2_VERIFIED_POST_RECLAIM_STATE\.totalSponsoredReserveUSDC/);
+    assert.match(source, /FLOAT_V2_VERIFIED_POST_RECLAIM_STATE\.citePayRenewedLine/);
+  }
 });

@@ -19,9 +19,11 @@ import {
   FLOAT_V2_SHADOW_CONTROLLED_SPONSORS,
   FLOAT_V2_STATUS_NAMES,
   FLOAT_V2_TRACKED_AGENTS,
+  FLOAT_V2_VERIFIED_POST_RECLAIM_STATE,
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
   countFloatV2VerifiedReturningAgents,
   countFloatV2VerifiedReturningSponsors,
+  shouldUseFloatV2VerifiedSnapshot,
   floatV2Abi,
   floatV2IntentConsumedEvent,
   floatV2ReceiptEvent,
@@ -603,6 +605,11 @@ async function handleFloatV2(res: VercelLikeResponse) {
     if (checkpoint.blockNumber > latestBlock) {
       throw new Error(`Float V2 checkpoint ${checkpoint.blockNumber} is ahead of Arc block ${latestBlock}`);
     }
+    if (shouldUseFloatV2VerifiedSnapshot(checkpoint.source, checkpoint.blockNumber, latestBlock)) {
+      throw new Error(
+        `Float V2 source checkpoint ${checkpoint.blockNumber} is outside the bounded live scan window at ${latestBlock}`,
+      );
+    }
 
     const checkpointByAgent = new Map(checkpoint.agents.map((entry) => [entry.agent.toLowerCase(), entry]));
     const stats = new Map<string, FloatV2AgentStats>();
@@ -852,22 +859,31 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     snapshotV2Agent({
       label: "CitePay sponsor (renewed line)",
       agent: "0x236652EAd43fbb0948173fC4dDF23BC0971B274d",
-      score: 9000,
-      sponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
+      wallet: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.wallet,
+      score: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.score,
+      creditLimitUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.creditLimitUSDC,
+      availableCreditUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.availableCreditUSDC,
+      activeDebtUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.activeDebtUSDC,
+      status: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.status,
+      statusName: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.statusName,
+      sponsor: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.sponsor,
       verifiedSponsor: "0x5389688243328c26a92b301faEEAb5fbf9AFf105",
-      lineExpiry: "1792175302",
-      lastReview: "1784577329",
-      autonomousScore: { score: 9000, recommendedLimitUSDC: "1000000", cappedLimitUSDC: "50000" },
+      sponsorReserveUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.sponsorReserveUSDC,
+      sponsorState: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.sponsorState,
+      lineExpiry: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.lineExpiry,
+      lastReview: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.lastReview,
+      autonomousScore: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.citePayRenewedLine.autonomousScore,
       signedIntents: 2,
       paid: 2,
       repaid: 2,
-      behaviorPaid: 2,
-      behaviorRepaid: 2,
+      behaviorPaid: 0,
+      behaviorRepaid: 0,
+      behaviorStateReset: true,
       providerPaidUSDC: "6000",
       repaidUSDC: "6000",
       spendTx: "0x9007d0e8f66c0bc641caaa305266d50aeb5e2e969ff3edbbd8122542ed08eae4",
       repayTx: "0x52ef42211858713601721a9ae6935604c43c04a832fd7d7c5aef6c7c8156a911",
-      latestTxHash: "0x1e0279903aba3e728385825e983bc840f9db804142e6314662df33afec54527f",
+      latestTxHash: "0x515a8a3106fbc22fd36c75fe2a626e5e2273db58d8acf10679e44c7e90b52c09",
     }),
     snapshotV2Agent({
       label: "Crux",
@@ -983,8 +999,8 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
   const repaidUSDC = visibleAgents.reduce((sum, agent) => sum + BigInt(agent.repaidUSDC), 0n).toString();
   const activeDebtUSDC = visibleAgents.reduce((sum, agent) => sum + BigInt(agent.activeDebtUSDC), 0n).toString();
   const blockedUSDC = visibleAgents.reduce((sum, agent) => sum + BigInt(agent.blockedUSDC), 0n).toString();
-  const treasuryBalanceUSDC = "1569762";
-  const totalSponsoredReserveUSDC = "1500000";
+  const treasuryBalanceUSDC = FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.treasuryBalanceUSDC;
+  const totalSponsoredReserveUSDC = FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.totalSponsoredReserveUSDC;
   const operations = buildFloatV2OperationalHealth({
     source: "verified-checkpoint",
     degraded: true,
@@ -1005,7 +1021,7 @@ function buildFloatV2VerifiedSnapshot(error: unknown) {
     float: FLOAT_V2_CONTRACT,
     latestBlock: FLOAT_V2_ACTIVITY_CHECKPOINT.blockNumber.toString(),
     treasuryBalanceUSDC,
-    totalAvailableCreditUSDC: "590000",
+    totalAvailableCreditUSDC: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.totalAvailableCreditUSDC,
     totalSponsoredReserveUSDC,
     summary: {
       trackedExternalAgentLines: provenance.trackedExternalAgentLines,

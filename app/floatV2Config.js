@@ -3,14 +3,47 @@ import { parseAbi, parseAbiItem } from "viem";
 export const FLOAT_V2_CONTRACT = "0x20dcA96B0C487D94De885c726c956ffaF38b12C2";
 export const FLOAT_V2_DEPLOY_BLOCK = 48_837_320n;
 export const FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE = 9_000n;
+export const FLOAT_V2_SOURCE_CHECKPOINT_SCAN_LIMIT = 45_000n;
+
+export const FLOAT_V2_VERIFIED_POST_RECLAIM_STATE = Object.freeze({
+  blockNumber: 52_836_679n,
+  checkedAt: "2026-07-20T21:02:14.000Z",
+  treasuryBalanceUSDC: "1519762",
+  totalAvailableCreditUSDC: "540000",
+  totalSponsoredReserveUSDC: "1450000",
+  trackedExternalAgentLines: 9,
+  externallySponsoredLines: 1,
+  operatorSponsoredLines: 8,
+  citePayRenewedLine: Object.freeze({
+    wallet: "0x0000000000000000000000000000000000000000",
+    score: 0,
+    creditLimitUSDC: "0",
+    availableCreditUSDC: "0",
+    activeDebtUSDC: "0",
+    status: 4,
+    statusName: "REVOKED",
+    lastReview: "1784581334",
+    lineExpiry: "0",
+    sponsor: "0x0000000000000000000000000000000000000000",
+    sponsorReserveUSDC: "0",
+    sponsorState: "closed-reserve-reclaimed",
+    autonomousScore: Object.freeze({ score: 5000, recommendedLimitUSDC: "0", cappedLimitUSDC: "0" }),
+  }),
+});
+
+export function shouldUseFloatV2VerifiedSnapshot(checkpointSource, checkpointBlock, latestBlock) {
+  return checkpointSource === "source-checkpoint"
+    && latestBlock > checkpointBlock
+    && latestBlock - checkpointBlock > FLOAT_V2_SOURCE_CHECKPOINT_SCAN_LIMIT;
+}
 
 // Complete FloatIntentConsumed/FloatReceipt scan through this Arc block.
 // API requests seed from this checkpoint and scan only newer blocks; successful
 // incremental scans advance the checkpoint in KV. This keeps the public board
 // live without replaying millions of historical blocks on every request.
 export const FLOAT_V2_ACTIVITY_CHECKPOINT = {
-  blockNumber: 52_829_548n,
-  checkedAt: "2026-07-20T20:01:52.158Z",
+  blockNumber: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.blockNumber,
+  checkedAt: FLOAT_V2_VERIFIED_POST_RECLAIM_STATE.checkedAt,
   agents: [
     {
       agent: "0x13585c6004fbA9D7D49219a6435B68348fD30770",

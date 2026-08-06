@@ -34,9 +34,42 @@ export type FloatV2ActivityCheckpoint = {
   agents: readonly FloatV2ActivityCheckpointEntry[];
 };
 
+export type FloatV2VerifiedPostReclaimState = {
+  blockNumber: bigint;
+  checkedAt: string;
+  treasuryBalanceUSDC: string;
+  totalAvailableCreditUSDC: string;
+  totalSponsoredReserveUSDC: string;
+  trackedExternalAgentLines: number;
+  externallySponsoredLines: number;
+  operatorSponsoredLines: number;
+  citePayRenewedLine: {
+    wallet: Address;
+    score: number;
+    creditLimitUSDC: string;
+    availableCreditUSDC: string;
+    activeDebtUSDC: string;
+    status: number;
+    statusName: string;
+    lastReview: string;
+    lineExpiry: string;
+    sponsor: Address;
+    sponsorReserveUSDC: string;
+    sponsorState: string;
+    autonomousScore: { score: number; recommendedLimitUSDC: string; cappedLimitUSDC: string };
+  };
+};
+
 export declare const FLOAT_V2_CONTRACT: Address;
 export declare const FLOAT_V2_DEPLOY_BLOCK: bigint;
 export declare const FLOAT_V2_DEFAULT_LOG_CHUNK_SIZE: bigint;
+export declare const FLOAT_V2_SOURCE_CHECKPOINT_SCAN_LIMIT: bigint;
+export declare const FLOAT_V2_VERIFIED_POST_RECLAIM_STATE: Readonly<FloatV2VerifiedPostReclaimState>;
+export declare function shouldUseFloatV2VerifiedSnapshot(
+  checkpointSource: string,
+  checkpointBlock: bigint,
+  latestBlock: bigint,
+): boolean;
 export declare const FLOAT_V2_ACTIVITY_CHECKPOINT: FloatV2ActivityCheckpoint;
 export declare const FLOAT_V2_STATUS_NAMES: readonly ["UNKNOWN", "ELIGIBLE", "LIMITED", "DENIED", "REVOKED", "REPAID", "DEFAULTED"];
 export declare const FLOAT_V2_SHADOW_CONTROLLED_SPONSORS: readonly Address[];
