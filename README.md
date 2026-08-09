@@ -16,7 +16,15 @@ Current Float page: https://shadow-arc.vercel.app/float
 
 Repository: https://github.com/dolepee/shadow
 
+Encode final demo (2:44): https://github.com/dolepee/shadow/releases/download/encode-final-2026/Shadow_Encode_Final_Demo.mp4
+
+Encode final deck: https://github.com/dolepee/shadow/releases/download/encode-final-2026/Shadow_Encode_Final_Deck.pptx
+
 Chain: Arc Testnet, chain id `5042002`
+
+## Built During The Encode Programme
+
+Shadow entered the programme with a deployed protocol proof. Between July 13 and August 9, 2026, it became a self-serve external pilot: sponsor and agent wallet onboarding, a live reserve/debt/reclaim monitor, independently controlled sponsor-agent-provider cycles, autonomous Desk decisions bound to EIP-712 receipts, and crash-safe provider-payment reconciliation. The final release packages the current product walkthrough and deck against the public Arc deployment.
 
 ## Current Float V2
 
