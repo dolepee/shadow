@@ -6,6 +6,7 @@ import {
   FLOAT_V2_ACTIVITY_CHECKPOINT,
   FLOAT_V2_DEPLOY_BLOCK,
   FLOAT_V2_SHADOW_CONTROLLED_SPONSORS,
+  FLOAT_V2_OPERATIONAL_ONLY_AGENTS,
   FLOAT_V2_TRACKED_AGENTS,
   FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
   FLOAT_V2_TRACKED_SYSTEM_AGENTS,
@@ -75,6 +76,29 @@ test("system lines complete reserve scope without inflating external traction", 
   assert.equal(
     new Set(FLOAT_V2_TRACKED_AGENTS.map((entry) => entry.agent.toLowerCase())).size,
     FLOAT_V2_TRACKED_AGENTS.length,
+  );
+});
+
+test("post-checkpoint internal provider line is operational-only", () => {
+  assert.deepEqual(FLOAT_V2_OPERATIONAL_ONLY_AGENTS, [
+    {
+      label: "External-sponsored internal provider line",
+      agent: "0x8ddf06fE8985988d3e0883F945E891BD57084937",
+      category: "system",
+      agentProvenance: "shadow-controlled-signer",
+    },
+  ]);
+  assert.equal(
+    FLOAT_V2_TRACKED_AGENTS.some(
+      (entry) => entry.agent.toLowerCase() === FLOAT_V2_OPERATIONAL_ONLY_AGENTS[0].agent.toLowerCase(),
+    ),
+    false,
+  );
+  assert.equal(
+    FLOAT_V2_ACTIVITY_CHECKPOINT.agents.some(
+      (entry) => entry.agent.toLowerCase() === FLOAT_V2_OPERATIONAL_ONLY_AGENTS[0].agent.toLowerCase(),
+    ),
+    false,
   );
 });
 
