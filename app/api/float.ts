@@ -18,6 +18,7 @@ import {
   FLOAT_V2_DEPLOY_BLOCK,
   FLOAT_V2_SHADOW_CONTROLLED_SPONSORS,
   FLOAT_V2_STATUS_NAMES,
+  FLOAT_V2_OPERATIONAL_ONLY_AGENTS,
   FLOAT_V2_TRACKED_AGENTS,
   FLOAT_V2_VERIFIED_POST_RECLAIM_STATE,
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
@@ -635,12 +636,26 @@ async function handleFloatV2(res: VercelLikeResponse) {
       throw new Error(`incomplete V2 log read: ${logWarnings.slice(0, 2).join("; ")}`);
     }
     const statEntries = [...stats.values()];
+    const stateEntries: FloatV2AgentStats[] = [
+      ...statEntries,
+      ...FLOAT_V2_OPERATIONAL_ONLY_AGENTS.map((entry) => ({
+        ...entry,
+        agent: getAddress(entry.agent),
+        signedIntents: 0,
+        providerPaidCount: 0,
+        repaidCount: 0,
+        blockedCount: 0,
+        providerPaidUSDC: 0n,
+        repaidUSDC: 0n,
+        blockedUSDC: 0n,
+      })),
+    ];
     const stateContracts: Array<{ address: Address; abi: typeof floatV2Abi; functionName: string; args?: readonly unknown[] }> = [
       { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "treasuryBalanceUSDC" },
       { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "totalAvailableCreditUSDC" },
       { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "totalSponsoredReserveUSDC" },
     ];
-    for (const entry of statEntries) {
+    for (const entry of stateEntries) {
       stateContracts.push(
         { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lines", args: [entry.agent] },
         { address: FLOAT_V2_CONTRACT, abi: floatV2Abi, functionName: "lineSponsors", args: [entry.agent] },
@@ -663,7 +678,7 @@ async function handleFloatV2(res: VercelLikeResponse) {
     }
     const [treasuryBalance, totalAvailableCredit, totalSponsoredReserve] = stateResults.slice(0, 3) as [bigint, bigint, bigint];
 
-    const agents = statEntries.map((entry, index) => {
+    const agents = stateEntries.map((entry, index) => {
       const offset = 3 + index * 5;
       const line = stateResults[offset] as FloatV2Line;
       const sponsorLine = stateResults[offset + 1] as FloatV2SponsorLine;

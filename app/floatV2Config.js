@@ -376,6 +376,20 @@ export const FLOAT_V2_TRACKED_SYSTEM_AGENTS = [
   agentProvenance: "shadow-controlled-signer",
 }));
 
+// Current reserve lines that must be included in operational accounting but were
+// opened after the immutable activity checkpoint. They are deliberately excluded
+// from pilot activity and external-agent counts.
+export const FLOAT_V2_OPERATIONAL_ONLY_AGENTS = [
+  {
+    label: "External-sponsored internal provider line",
+    agent: "0x8ddf06fE8985988d3e0883F945E891BD57084937",
+  },
+].map((entry) => ({
+  ...entry,
+  category: "system",
+  agentProvenance: "shadow-controlled-signer",
+}));
+
 export const FLOAT_V2_TRACKED_AGENTS = [
   ...FLOAT_V2_TRACKED_EXTERNAL_AGENTS,
   ...FLOAT_V2_TRACKED_SYSTEM_AGENTS,

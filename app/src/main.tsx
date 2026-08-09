@@ -73,6 +73,7 @@ import {
   FLOAT_V2_DEPLOY_BLOCK,
   FLOAT_V2_SHADOW_CONTROLLED_SPONSORS,
   FLOAT_V2_STATUS_NAMES,
+  FLOAT_V2_OPERATIONAL_ONLY_AGENTS,
   FLOAT_V2_TRACKED_AGENTS,
   FLOAT_V2_VERIFIED_POST_RECLAIM_STATE,
   FLOAT_V2_VERIFIED_EXTERNAL_SPONSORS,
@@ -1382,7 +1383,12 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     blockedUSDC: bigint;
   };
 
-  const tracked = new Map(FLOAT_V2_TRACKED_AGENTS.map((entry) => [getAddress(entry.agent).toLowerCase(), entry]));
+  const tracked = new Map(
+    [...FLOAT_V2_TRACKED_AGENTS, ...FLOAT_V2_OPERATIONAL_ONLY_AGENTS].map((entry) => [
+      getAddress(entry.agent).toLowerCase(),
+      entry,
+    ]),
+  );
   const statsByAgent = new Map<string, AgentStats>();
   const ensureStats = (address: Address): AgentStats => {
     const agent = getAddress(address);
@@ -1444,8 +1450,26 @@ async function fetchFloatV2ActivityFromRpc(): Promise<FloatV2ActivityState> {
     }
   }
 
+  const stateEntries: AgentStats[] = [
+    ...statsByAgent.values(),
+    ...FLOAT_V2_OPERATIONAL_ONLY_AGENTS.filter(
+      (entry) => !statsByAgent.has(getAddress(entry.agent).toLowerCase()),
+    ).map((entry) => ({
+      ...entry,
+      agent: getAddress(entry.agent),
+      agentOwner: getAddress(entry.agent),
+      signedIntents: 0,
+      providerPaidCount: 0,
+      repaidCount: 0,
+      blockedCount: 0,
+      providerPaidUSDC: 0n,
+      repaidUSDC: 0n,
+      blockedUSDC: 0n,
+    })),
+  ];
+
   const agents = await Promise.all(
-    [...statsByAgent.values()].map(async (stats): Promise<FloatV2AgentState> => {
+    stateEntries.map(async (stats): Promise<FloatV2AgentState> => {
       const [line, sponsorLine, lineExpiry, behaviorStats, autonomousScore] = await Promise.all([
         readFloatV2Line(client, stats.agent, latestBlock),
         readFloatV2SponsorLine(client, stats.agent, latestBlock),

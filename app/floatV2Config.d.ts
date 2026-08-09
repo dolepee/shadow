@@ -102,6 +102,7 @@ export declare function countFloatV2VerifiedReturningSponsors(
 ): number;
 export declare const FLOAT_V2_TRACKED_EXTERNAL_AGENTS: readonly FloatV2TrackedExternalAgent[];
 export declare const FLOAT_V2_TRACKED_SYSTEM_AGENTS: readonly FloatV2TrackedAgent[];
+export declare const FLOAT_V2_OPERATIONAL_ONLY_AGENTS: readonly FloatV2TrackedAgent[];
 export declare const FLOAT_V2_TRACKED_AGENTS: readonly FloatV2TrackedAgent[];
 export declare const floatV2Abi: Abi;
 export declare const floatV2IntentConsumedEvent: AbiEvent;
