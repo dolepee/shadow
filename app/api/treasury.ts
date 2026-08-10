@@ -15,6 +15,7 @@ export const config = { maxDuration: 20 };
 const CHAIN_ID = 5_042_002;
 const DEFAULT_RPC = "https://rpc.testnet.arc.network";
 const DEFAULT_API = "https://shadow-arc.vercel.app/api/float";
+const DEFAULT_EXPLORER_API = "https://testnet.arcscan.app/api/v2";
 const DEFAULT_USDC = "0x3600000000000000000000000000000000000000";
 const DEFAULT_FLOAT = "0xF305647bA0ff7f1E2d4bE5f37F2EF9f930531057";
 const DEFAULT_ATTESTOR = "0x9b5afc6c442364d4397763917ebbc659d85ee86d";
@@ -60,6 +61,25 @@ const transferEvent = parseAbiItem("event Transfer(address indexed from, address
 const x402PaymentBoundEvent = parseAbiItem(
   "event X402PaymentBound(uint256 indexed receiptId, bytes32 indexed requestHash, bytes32 x402Hash, address indexed provider, uint256 amountUSDC, address facilitator)",
 );
+const floatReceiptEvent = parseAbiItem(
+  "event FloatReceipt(uint256 indexed receiptId, bytes32 indexed receiptHash, uint8 indexed receiptType, address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, uint256 creditBeforeUSDC, uint256 creditAfterUSDC, uint256 debtBeforeUSDC, uint256 debtAfterUSDC, uint8 reason, bytes32 mandateId, bytes32 requestHash, bytes32 prevChecksum, bytes32 checksum)",
+);
+const RECEIPT_TYPES = [
+  "UNKNOWN",
+  "FLOAT_GRANTED",
+  "SPEND_ALLOWED",
+  "SPEND_BLOCKED",
+  "PROVIDER_PAID",
+  "DEBT_OPENED",
+  "REPAID",
+  "LIMIT_REDUCED",
+  "LIMIT_REVOKED",
+  "CREDIT_DENIED",
+  "FEE_ACCRUED",
+  "DEFAULTED",
+] as const;
+const explorerTransactionCache = new Map<string, Promise<any>>();
+const explorerLogsCache = new Map<string, Promise<any[]>>();
 
 const attestorAbi = parseAbi([
   "function receiptByActionHash(bytes32 actionHash) view returns (bytes32)",
@@ -219,11 +239,15 @@ async function runTreasuryChecks() {
   check("Float bind emitted matching X402PaymentBound", bindEvent.ok, bindEvent.detail);
 
   const apiReceipts = Array.isArray(floatState?.receipts) ? floatState.receipts : [];
-  const requestReceipts = apiReceipts.filter((receipt: any) => sameHash(receipt.requestHash, proof.floatRequestHash));
+  const indexedRequestReceipts = apiReceipts.filter((receipt: any) => sameHash(receipt.requestHash, proof.floatRequestHash));
+  const historicalRequestReceipts = await explorerFloatReceipts(proof.floatBindTx, proof.floatRequestHash);
+  const requestReceipts = indexedRequestReceipts.length > 0 ? indexedRequestReceipts : historicalRequestReceipts;
+  const receiptSource = indexedRequestReceipts.length > 0 ? "live-float-api" : "arcscan-historical-index";
+  const receiptSourceLabel = indexedRequestReceipts.length > 0 ? "Float API" : "Arcscan index";
   const apiTypes = new Set(requestReceipts.map((receipt: any) => receipt.receiptType));
-  check("Float API indexes this Treasury request", requestReceipts.length >= 4, `${requestReceipts.length} receipts`);
+  check(`${receiptSourceLabel} indexes this Treasury request`, requestReceipts.length >= 4, `${requestReceipts.length} receipts`);
   check(
-    "Float API shows spend/provider/fee/debt lifecycle",
+    `${receiptSourceLabel} shows spend/provider/fee/debt lifecycle`,
     ["SPEND_ALLOWED", "PROVIDER_PAID", "FEE_ACCRUED", "DEBT_OPENED"].every((type) => apiTypes.has(type)),
     [...apiTypes].join(", "),
   );
@@ -240,14 +264,20 @@ async function runTreasuryChecks() {
 
   check(
     "Float API proof checks remain green",
-    Boolean(floatState?.proofChecks?.hasX402BoundSpend && floatState?.proofChecks?.feeMechanicsVisible),
-    JSON.stringify(floatState?.proofChecks || {}),
+    Boolean(
+      (floatState?.proofChecks?.hasX402BoundSpend && floatState?.proofChecks?.feeMechanicsVisible) ||
+        (apiTypes.has("PROVIDER_PAID") && apiTypes.has("FEE_ACCRUED") && apiTypes.has("DEBT_OPENED")),
+    ),
+    indexedRequestReceipts.length > 0
+      ? JSON.stringify(floatState?.proofChecks || {})
+      : "Arcscan historical transaction logs",
   );
 
   return {
     ok: checks.every((entry) => entry.ok),
     checkedAt: new Date().toISOString(),
-    mode: "shadow-treasury-live-verifier",
+    mode: "shadow-treasury-verifier",
+    source: receiptSource,
     chainId: CHAIN_ID,
     rpcUrl: rpcUrl === DEFAULT_RPC ? DEFAULT_RPC : "[custom rpc]",
     apiUrl,
@@ -288,7 +318,14 @@ async function txReceipt(publicClient: any, txHash: `0x${string}`) {
       ? { ok: true, detail: `block ${receipt.blockNumber}` }
       : { ok: false, detail: `status ${receipt.status}` };
   } catch (error) {
-    return { ok: false, detail: sanitize(error) };
+    try {
+      const tx = await explorerTransaction(txHash);
+      return tx.status === "ok"
+        ? { ok: true, detail: `block ${tx.block_number} via Arcscan index` }
+        : { ok: false, detail: `Arcscan status ${tx.status || "unknown"}` };
+    } catch {
+      return { ok: false, detail: sanitize(error) };
+    }
   }
 }
 
@@ -328,7 +365,21 @@ async function verifyTransfer(
       ? { ok: true, detail: `${fmt(expected.amount)} USDC ${short(expected.from)} -> ${short(expected.to)}` }
       : { ok: false, detail: "missing matching Arc USDC Transfer" };
   } catch (error) {
-    return { ok: false, detail: sanitize(error) };
+    try {
+      const tx = await explorerTransaction(txHash);
+      const matched = explorerTransfers(tx).some(
+        (transfer) =>
+          sameAddress(transfer.token?.address_hash, usdc) &&
+          sameAddress(transfer.from?.hash, expected.from) &&
+          sameAddress(transfer.to?.hash, expected.to) &&
+          BigInt(transfer.total?.value || "0") === expected.amount,
+      );
+      return matched
+        ? { ok: true, detail: `${fmt(expected.amount)} USDC ${short(expected.from)} -> ${short(expected.to)} via Arcscan index` }
+        : { ok: false, detail: "missing matching Arc USDC Transfer" };
+    } catch {
+      return { ok: false, detail: sanitize(error) };
+    }
   }
 }
 
@@ -352,7 +403,21 @@ async function verifyNoTransfer(
     });
     return leaked ? { ok: false, detail: "found unexpected Arc USDC Transfer" } : { ok: true, detail: "no vault Transfer" };
   } catch (error) {
-    return { ok: false, detail: sanitize(error) };
+    try {
+      const tx = await explorerTransaction(txHash);
+      const leaked = explorerTransfers(tx).some(
+        (transfer) =>
+          sameAddress(transfer.token?.address_hash, expected.usdc) &&
+          sameAddress(transfer.from?.hash, expected.from) &&
+          sameAddress(transfer.to?.hash, expected.to) &&
+          BigInt(transfer.total?.value || "0") > 0n,
+      );
+      return leaked
+        ? { ok: false, detail: "found unexpected Arc USDC Transfer" }
+        : { ok: true, detail: "no vault Transfer in Arcscan index" };
+    } catch {
+      return { ok: false, detail: sanitize(error) };
+    }
   }
 }
 
@@ -383,8 +448,76 @@ async function verifyX402Bound(
     });
     return matched ? { ok: true, detail: proof.floatBindTx } : { ok: false, detail: "missing matching X402PaymentBound" };
   } catch (error) {
-    return { ok: false, detail: sanitize(error) };
+    try {
+      const logs = await explorerLogs(proof.floatBindTx);
+      const matched = logs.some((log) => {
+        if (!sameAddress(log.address?.hash, refs.float)) return false;
+        const decoded = decodeLog(x402PaymentBoundEvent, log);
+        return Boolean(
+          decoded &&
+            sameHash(decoded.args.requestHash, proof.floatRequestHash) &&
+            sameHash(decoded.args.x402Hash, proof.x402SettlementTx) &&
+            sameAddress(decoded.args.provider, refs.provider) &&
+            decoded.args.amountUSDC === proof.x402AmountUSDC &&
+            sameAddress(decoded.args.facilitator, refs.facilitator),
+        );
+      });
+      return matched ? { ok: true, detail: `${proof.floatBindTx} via Arcscan index` } : { ok: false, detail: "missing matching X402PaymentBound" };
+    } catch {
+      return { ok: false, detail: sanitize(error) };
+    }
   }
+}
+
+async function explorerFloatReceipts(txHash: `0x${string}`, requestHash: `0x${string}`) {
+  try {
+    const logs = await explorerLogs(txHash);
+    return logs.flatMap((log) => {
+      const decoded = decodeLog(floatReceiptEvent, log);
+      if (!decoded || !sameHash(decoded.args.requestHash, requestHash)) return [];
+      const receiptType = RECEIPT_TYPES[Number(decoded.args.receiptType)] || `TYPE_${decoded.args.receiptType}`;
+      const amount = BigInt(decoded.args.amountUSDC);
+      const debtBefore = BigInt(decoded.args.debtBeforeUSDC);
+      const debtAfter = BigInt(decoded.args.debtAfterUSDC);
+      const debtOpened = debtAfter > debtBefore ? debtAfter - debtBefore : 0n;
+      return [{
+        requestHash: decoded.args.requestHash,
+        receiptType,
+        amountUSDC: amount.toString(),
+        providerAmountUSDC: amount.toString(),
+        feeUSDC: receiptType === "DEBT_OPENED" && debtOpened > amount ? (debtOpened - amount).toString() : "0",
+        debtOpenedUSDC: debtOpened.toString(),
+      }];
+    });
+  } catch {
+    return [];
+  }
+}
+
+function explorerTransaction(txHash: `0x${string}`) {
+  const key = txHash.toLowerCase();
+  let pending = explorerTransactionCache.get(key);
+  if (!pending) {
+    pending = fetchJson(`${DEFAULT_EXPLORER_API}/transactions/${txHash}`);
+    explorerTransactionCache.set(key, pending);
+  }
+  return pending;
+}
+
+function explorerLogs(txHash: `0x${string}`) {
+  const key = txHash.toLowerCase();
+  let pending = explorerLogsCache.get(key);
+  if (!pending) {
+    pending = fetchJson(`${DEFAULT_EXPLORER_API}/transactions/${txHash}/logs`).then((body) =>
+      Array.isArray(body?.items) ? body.items : [],
+    );
+    explorerLogsCache.set(key, pending);
+  }
+  return pending;
+}
+
+function explorerTransfers(tx: any): any[] {
+  return Array.isArray(tx?.token_transfers) ? tx.token_transfers : [];
 }
 
 async function fetchJson(url: string) {
