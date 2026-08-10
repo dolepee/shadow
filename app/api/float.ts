@@ -39,7 +39,7 @@ export const config = { maxDuration: 20 };
 const ARC_CHAIN_ID = 5_042_002;
 const DEFAULT_USDC = "0x3600000000000000000000000000000000000000";
 const LOG_LOOKBACK = BigInt(process.env.FLOAT_LOG_LOOKBACK || "250000");
-const LOG_CHUNK_SIZE = BigInt(process.env.FLOAT_LOG_CHUNK_SIZE || "9000");
+const LOG_CHUNK_SIZE = BigInt(process.env.FLOAT_LOG_CHUNK_SIZE || "90000");
 const DEFAULT_INVITED_AGENTS = [
   "0x13585c6004fbA9D7D49219a6435B68348fD30770",
   "0x7891d0B43F067f1bA52B21682847Bb63985862Cc",
@@ -60,7 +60,7 @@ const DEFAULT_SELF_TEST_AGENTS = [
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
 const OPERATOR_SPONSOR = "0xBDb1e0718EC6f6e2817c9cd4e5c5ed25Ac191Fb8" as Address;
 const ARC_MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as Address;
-const RPC_TRANSPORT_OPTIONS = { timeout: 60_000, retryCount: 3 } as const;
+const RPC_TRANSPORT_OPTIONS = { timeout: 5_000, retryCount: 0 } as const;
 const FLOAT_V2_RPC_TRANSPORT_OPTIONS = { timeout: 3_000, retryCount: 0 } as const;
 const FLOAT_V2_ACTIVITY_CACHE_KEY = "float:v2:activity-checkpoint";
 const FLOAT_V2_LIVE_BUDGET_MS = 12_000;
@@ -398,6 +398,8 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
     return;
   }
 
+  res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
+
   try {
     const client = createPublicClient({
       chain: arcTestnet(cfg.rpcUrl),
@@ -442,7 +444,8 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
     ]);
     const loopRuns = (allLoopRuns as FloatLoopRun[]).filter((run: FloatLoopRun) => runMatchesFloat(run, cfg.float));
 
-    const fromBlock = cfg.startBlock > 0n ? cfg.startBlock : latestBlock > LOG_LOOKBACK ? latestBlock - LOG_LOOKBACK : 0n;
+    const lookbackFloor = latestBlock > LOG_LOOKBACK ? latestBlock - LOG_LOOKBACK : 0n;
+    const fromBlock = cfg.startBlock > lookbackFloor ? cfg.startBlock : lookbackFloor;
     const { receiptLogs: logs, x402Logs, warnings: logWarnings } = await readFloatLogs(client, cfg.float, fromBlock, latestBlock);
     const x402ByRequest = new Map(
       x402Logs.map((log) => [
