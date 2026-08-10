@@ -129,7 +129,7 @@ async function runTreasuryChecks() {
     nativeCurrency: { decimals: 18, name: "USDC", symbol: "USDC" },
     rpcUrls: { default: { http: [rpcUrl] } },
   });
-  const publicClient = createPublicClient({ chain, transport: http(rpcUrl, { timeout: 60_000, retryCount: 3 }) });
+  const publicClient = createPublicClient({ chain, transport: http(rpcUrl, { timeout: 5_000, retryCount: 0 }) });
 
   const check = (name: string, ok: boolean, detail = "") => {
     checks.push({ check: name, status: ok ? "PASS" : "FAIL", ok, detail: String(detail) });
@@ -388,7 +388,7 @@ async function verifyX402Bound(
 }
 
 async function fetchJson(url: string) {
-  const response = await fetch(url);
+  const response = await fetch(url, { signal: AbortSignal.timeout(8_000) });
   const text = await response.text();
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
   return JSON.parse(text);

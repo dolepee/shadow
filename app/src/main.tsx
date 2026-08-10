@@ -1750,6 +1750,7 @@ function startVisiblePolling(task: () => void | Promise<void>, intervalMs: numbe
 function App() {
   const { pathname } = useLocation();
   const isBuilderRoute = pathname === "/builders";
+  const isRecordsRoute = pathname === "/records";
   const [state, setState] = useState<ShadowState | null>(null);
   const [loading, setLoading] = useState(false);
   const [account, setAccount] = useState<Address>();
@@ -1790,6 +1791,7 @@ function App() {
   const [treasuryError, setTreasuryError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isRecordsRoute) return;
     let cancelled = false;
     async function load() {
       try {
@@ -1806,7 +1808,7 @@ function App() {
       cancelled = true;
       stopPolling();
     };
-  }, []);
+  }, [isRecordsRoute]);
 
   async function refresh() {
     setLoading(true);
@@ -1820,8 +1822,9 @@ function App() {
   }
 
   useEffect(() => {
+    if (!isRecordsRoute) return;
     return startVisiblePolling(refresh, 5 * 60_000);
-  }, []);
+  }, [isRecordsRoute]);
 
   async function refreshLepton() {
     setLeptonLoading(true);
@@ -1836,9 +1839,9 @@ function App() {
   }
 
   useEffect(() => {
-    if (isBuilderRoute) return;
+    if (!isRecordsRoute || isBuilderRoute) return;
     return startVisiblePolling(refreshLepton, 10 * 60_000);
-  }, [isBuilderRoute]);
+  }, [isBuilderRoute, isRecordsRoute]);
 
   async function refreshFloat() {
     setFloatLoading(true);
@@ -1858,8 +1861,9 @@ function App() {
   }
 
   useEffect(() => {
+    if (!isRecordsRoute) return;
     return startVisiblePolling(refreshFloat, 10 * 60_000);
-  }, []);
+  }, [isRecordsRoute]);
 
   async function refreshFloatV2() {
     setFloatV2Loading(true);
@@ -1913,8 +1917,9 @@ function App() {
   }
 
   useEffect(() => {
+    if (!isRecordsRoute) return;
     return startVisiblePolling(refreshTreasury, 10 * 60_000);
-  }, []);
+  }, [isRecordsRoute]);
 
   useEffect(() => {
     if (state?.sources?.length && !selectedSource) {
