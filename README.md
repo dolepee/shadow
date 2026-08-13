@@ -18,15 +18,11 @@ Repository: https://github.com/dolepee/shadow
 
 Product demo (2:42): https://youtu.be/csrKWVkPlT0
 
-Demo backup: https://github.com/dolepee/shadow/releases/download/encode-final-2026/Shadow_Encode_Final_Demo.mp4
-
-Product deck: https://github.com/dolepee/shadow/releases/download/encode-final-2026/Shadow_Encode_Final_Deck.pptx
-
 Chain: Arc Testnet, chain id `5042002`
 
-## Built During The Encode Programme
+## What Changed, July 13 to August 9, 2026
 
-Shadow entered the programme with a deployed protocol proof. Between July 13 and August 9, 2026, it became a self-serve external pilot: sponsor and agent wallet onboarding, a live reserve/debt/reclaim monitor, independently controlled sponsor-agent-provider cycles, autonomous Desk decisions bound to EIP-712 receipts, and crash-safe provider-payment reconciliation. The final release packages the current product walkthrough and deck against the public Arc deployment.
+Shadow began this period with a deployed protocol proof and ended it as a self-serve external pilot: sponsor and agent wallet onboarding, a live reserve/debt/reclaim monitor, independently controlled sponsor-agent-provider cycles, autonomous Desk decisions bound to EIP-712 receipts, and crash-safe provider-payment reconciliation.
 
 ## Current Float V2
 
