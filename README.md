@@ -16,8 +16,6 @@ Current Float page: https://shadow-arc.vercel.app/float
 
 Repository: https://github.com/dolepee/shadow
 
-Product demo (2:42): https://youtu.be/csrKWVkPlT0
-
 Chain: Arc Testnet, chain id `5042002`
 
 ## What Changed, July 13 to August 9, 2026
