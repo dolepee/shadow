@@ -158,7 +158,7 @@ export LEPTON_SMOKE_BLOCK_USDC=3000000
 pnpm --dir agent lepton-smoke
 ```
 
-This creates one allowed receipt and one blocked receipt. For the final Lepton demo, the `circleAccount` should be the Circle wallet or account that approved the adapter.
+This creates one allowed receipt and one blocked receipt. For the demo, the `circleAccount` should be the Circle wallet or account that approved the adapter.
 
 ## Verification
 
