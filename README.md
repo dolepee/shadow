@@ -16,11 +16,11 @@ Current Float page: https://shadow-arc.vercel.app/float
 
 Repository: https://github.com/dolepee/shadow
 
-Encode final demo (2:42): https://youtu.be/csrKWVkPlT0
+Product demo (2:42): https://youtu.be/csrKWVkPlT0
 
 Demo backup: https://github.com/dolepee/shadow/releases/download/encode-final-2026/Shadow_Encode_Final_Demo.mp4
 
-Encode final deck: https://github.com/dolepee/shadow/releases/download/encode-final-2026/Shadow_Encode_Final_Deck.pptx
+Product deck: https://github.com/dolepee/shadow/releases/download/encode-final-2026/Shadow_Encode_Final_Deck.pptx
 
 Chain: Arc Testnet, chain id `5042002`
 
