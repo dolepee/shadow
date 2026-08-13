@@ -1,8 +1,8 @@
-# Shadow Lepton M1
+# Shadow Mandate M1
 
-Shadow's Lepton M1 surface is a protocol-facing mandate engine for Arc DeFi.
+Shadow's Mandate M1 surface is a protocol-facing mandate engine for Arc DeFi.
 
-It is intentionally separate from `MirrorRouter`. The earlier mirrored-execution adapter remains historical proof of demand; Lepton M1 exposes the reusable primitive underneath it: a USDC mandate is checked before capital moves, every allow/block produces an onchain receipt, and the enforcing surface must be bonded.
+It is intentionally separate from `MirrorRouter`. The earlier mirrored-execution adapter remains historical proof of demand; Mandate M1 exposes the reusable primitive underneath it: a USDC mandate is checked before capital moves, every allow/block produces an onchain receipt, and the enforcing surface must be bonded.
 
 ## What Ships
 
@@ -98,7 +98,7 @@ Circle passkey proof:
 - Batched sponsored tx: `0x98b8b175d4ec8bf6d457d653383932e69d74300bd0b8a7e324e0cae3ac35a529`
 - Mandate created: `#2`
 - Allowed action: `0.01 USDC`
-- Flow: Circle passkey MSCA approved USDC, created a mandate, and executed the Lepton adapter action in one Circle Gas Station sponsored UserOp.
+- Flow: Circle passkey MSCA approved USDC, created a mandate, and executed the mandate adapter action in one Circle Gas Station sponsored UserOp.
 
 Verified post-passkey state:
 

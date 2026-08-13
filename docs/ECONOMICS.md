@@ -74,7 +74,7 @@ A production fee should not be enabled until repeat unassisted usage demonstrate
 
 ## Metrics That Matter Next
 
-The post-Lepton pilot should optimize for evidence of repeat utility rather than synthetic volume:
+The current pilot should optimize for evidence of repeat utility rather than synthetic volume:
 
 - time from sponsor arrival to an open line;
 - distinct external sponsors and agents;
