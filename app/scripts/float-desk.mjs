@@ -55,6 +55,8 @@ const MAX_SPENDS_PER_DAY = Number(clean(env.DESK_MAX_SPENDS_PER_DAY) || "6");
 const MIN_TREASURY_ATOMIC = BigInt(clean(env.DESK_MIN_TREASURY_ATOMIC) || "100000");
 const MIN_GAS_WEI = parseUnits18(clean(env.DESK_MIN_GAS_USDC) || "0.005");
 const INTENT_TTL_SECONDS = BigInt(clean(env.FLOAT_INTENT_TTL) || "1800");
+const EXPIRY_REFRESH_WINDOW_SECONDS = BigInt(clean(env.DESK_EXPIRY_REFRESH_WINDOW_SECONDS) || String(3 * 24 * 3600));
+const EXPIRY_EXTENSION_SECONDS = BigInt(clean(env.DESK_EXPIRY_EXTENSION_SECONDS) || String(45 * 24 * 3600));
 const CITEPAY_QUERY =
   clean(env.DESK_CITEPAY_QUERY) ||
   "How does Shadow Float V2 let autonomous agents use sponsor-backed USDC spending lines on Arc?";
@@ -124,9 +126,12 @@ const floatAbi = parseAbi([
   "function repay(address agent,uint256 amountUSDC,bytes32 requestHash) returns (bytes32)",
   "function refreshSponsoredLineFromBehavior(address agent,bytes32 requestHash) returns (bytes32 receiptHash)",
   "function lines(address agent) view returns (address wallet,uint16 score,uint256 creditLimitUSDC,uint256 availableCreditUSDC,uint256 activeDebtUSDC,uint8 status,uint64 lastReview,bytes32 mandateId,uint64 day,uint256 spentTodayUSDC)",
+  "function lineExpiries(address agent) view returns (uint64)",
   "function lineSponsors(address agent) view returns (address sponsor,uint256 reserveUSDC)",
   "function lineProviderMandates(address agent,address provider) view returns (bytes32 endpointHash,uint256 maxPerRequestUSDC,uint256 dailyLimitUSDC,uint64 expiry,bool active)",
   "function setSponsoredProviderMandate(address agent,address provider,bytes32 endpointHash,uint256 maxPerRequestUSDC,uint256 dailyLimitUSDC,uint64 expiry,bool active)",
+  "function setLineExpiry(address agent,uint64 expiry)",
+  "function owner() view returns (address)",
   "function autonomousLineScore(address agent) view returns (uint16 score,uint256 recommendedLimitUSDC,uint256 cappedLimitUSDC)",
   "function behaviorStats(address agent) view returns (uint16 paidBound,uint16 signedExternalPaid,uint16 repaid,uint16 blocked,uint16 denied,uint16 errorCount)",
   "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
@@ -170,6 +175,7 @@ console.log(JSON.stringify(result, null, 2));
 if (!result.ok) process.exit(1);
 
 async function runDeskCycle() {
+  const expiryMaintenance = await maintainCitePayExpiries();
   const kv = kvConfigFromEnv();
   const history = await loadDeskHistory(kv);
   const state = await readDeskState(history);
@@ -189,6 +195,7 @@ async function runDeskCycle() {
     },
     bookNote: clamped.bookNote || proposed.bookNote || "Desk cycle completed.",
   });
+  entry.expiryMaintenance = expiryMaintenance;
 
   try {
     if (clamped.action === "PAY") {
@@ -219,10 +226,11 @@ async function runDeskCycle() {
 }
 
 async function readDeskState(history) {
-  const [floatApi, labLineRaw, sponsorRaw, citepayMandateRaw, shadowMandateRaw, treasury, floatUsdc, executorGas, agentUsdc, agentGas, agentAllowance] =
+  const [floatApi, labLineRaw, lineExpiryRaw, sponsorRaw, citepayMandateRaw, shadowMandateRaw, treasury, floatUsdc, executorGas, agentUsdc, agentGas, agentAllowance] =
     await Promise.all([
       fetchFloatApi(),
       readFloat("lines", [LAB_AGENT]),
+      readFloat("lineExpiries", [LAB_AGENT]),
       readFloat("lineSponsors", [LAB_AGENT]),
       readFloat("lineProviderMandates", [LAB_AGENT, PROVIDERS.citepay.provider]),
       readFloat("lineProviderMandates", [LAB_AGENT, PROVIDERS.shadow.provider]),
@@ -256,7 +264,7 @@ async function readDeskState(history) {
     usdc: USDC,
     labAgent: LAB_AGENT,
     executor: executor.address,
-    line,
+    line: { ...line, expiry: lineExpiryRaw.toString() },
     sponsor: { sponsor: sponsorRaw[0], reserveUSDC: sponsorRaw[1].toString() },
     mandates,
     floors: {
@@ -440,6 +448,7 @@ function clampDecision(proposed, state, history) {
     if (amountAtomic > dailyRemaining) clampReasons.push("ABOVE_DAILY_REMAINING");
     if (amountAtomic > BigInt(state.line.availableCreditUSDC)) clampReasons.push("ABOVE_AVAILABLE_CREDIT");
     if (amountAtomic > BigInt(state.floors.agentUSDC)) clampReasons.push("AGENT_USDC_BELOW_REPAY_AMOUNT");
+    if (BigInt(state.line.expiry || 0) !== 0n && BigInt(state.line.expiry) <= BigInt(NOW)) clampReasons.push("LINE_EXPIRED");
     if (!mandate.active || BigInt(mandate.expiry) <= BigInt(NOW)) clampReasons.push("PROVIDER_MANDATE_INACTIVE");
     if (paidToday >= MAX_SPENDS_PER_DAY) clampReasons.push("DESK_SPEND_COUNT_CAP");
     if (BigInt(state.floors.treasuryUSDC) < MIN_TREASURY_ATOMIC) clampReasons.push("TREASURY_FLOOR");
@@ -636,14 +645,51 @@ async function reviewTrackedLines() {
 }
 
 async function setupCitePayMandate() {
-  const sponsor = await readFloat("lineSponsors", [LAB_AGENT]);
+  return setCitePayExpiries();
+}
+
+async function maintainCitePayExpiries() {
+  const [currentLineExpiry, currentMandate] = await Promise.all([
+    readFloat("lineExpiries", [LAB_AGENT]),
+    readFloat("lineProviderMandates", [LAB_AGENT, PROVIDERS.citepay.provider]),
+  ]);
+  const refreshBefore = BigInt(NOW) + EXPIRY_REFRESH_WINDOW_SECONDS;
+  if (BigInt(currentLineExpiry) > refreshBefore && BigInt(currentMandate[3]) > refreshBefore) {
+    return {
+      ok: true,
+      refreshed: false,
+      lineExpiry: currentLineExpiry.toString(),
+      providerExpiry: currentMandate[3].toString(),
+    };
+  }
+  return setCitePayExpiries(BigInt(NOW) + EXPIRY_EXTENSION_SECONDS);
+}
+
+async function setCitePayExpiries(expiryOverride = null) {
+  const [sponsor, owner, currentLineExpiry, currentMandate] = await Promise.all([
+    readFloat("lineSponsors", [LAB_AGENT]),
+    readFloat("owner", []),
+    readFloat("lineExpiries", [LAB_AGENT]),
+    readFloat("lineProviderMandates", [LAB_AGENT, PROVIDERS.citepay.provider]),
+  ]);
   const sponsorAddress = getAddress(sponsor[0]);
   if (sponsorAddress === zeroAddress()) return { ok: false, error: "lab agent has no sponsored line", labAgent: LAB_AGENT };
   if (sponsorAddress !== getAddress(executor.address)) {
     return { ok: false, error: `executor ${executor.address} is not lab sponsor ${sponsorAddress}`, labAgent: LAB_AGENT };
   }
-  const expiry = BigInt(clean(env.DESK_PROVIDER_EXPIRY) || String(NOW + 7 * 24 * 3600));
+  const expiry = expiryOverride ?? BigInt(clean(env.DESK_PROVIDER_EXPIRY) || String(NOW + 7 * 24 * 3600));
+  const lineExpiry = expiryOverride ?? BigInt(clean(env.DESK_LINE_EXPIRY) || expiry.toString());
   const dailyLimit = BigInt(clean(env.DESK_CITEPAY_DAILY_LIMIT_ATOMIC) || "30000");
+  const needsLineExtension = BigInt(currentLineExpiry) < lineExpiry;
+  const needsProviderRefresh =
+    currentMandate[0].toLowerCase() !== PROVIDERS.citepay.endpointHash.toLowerCase() ||
+    BigInt(currentMandate[1]) !== PROVIDERS.citepay.defaultAmountAtomic ||
+    BigInt(currentMandate[2]) !== dailyLimit ||
+    BigInt(currentMandate[3]) < expiry ||
+    !currentMandate[4];
+  if (needsLineExtension && getAddress(owner) !== getAddress(executor.address)) {
+    return { ok: false, error: `executor ${executor.address} cannot extend line expiry owned by ${owner}`, labAgent: LAB_AGENT };
+  }
   if (!LIVE) {
     return {
       ok: true,
@@ -655,18 +701,50 @@ async function setupCitePayMandate() {
       maxPerRequestUSDC: PROVIDERS.citepay.defaultAmountAtomic.toString(),
       dailyLimitUSDC: dailyLimit.toString(),
       expiry: expiry.toString(),
+      lineExpiry: lineExpiry.toString(),
+      needsLineExtension,
+      needsProviderRefresh,
     };
   }
-  const txHash = await executorWallet.writeContract({
-    address: FLOAT,
-    abi: floatAbi,
-    functionName: "setSponsoredProviderMandate",
-    args: [LAB_AGENT, PROVIDERS.citepay.provider, PROVIDERS.citepay.endpointHash, PROVIDERS.citepay.defaultAmountAtomic, dailyLimit, expiry, true],
-    account: executor,
-    chain,
-  });
-  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 120_000 });
-  return { ok: receipt.status === "success", txHash, arcscan: txUrl(txHash), labAgent: LAB_AGENT, provider: PROVIDERS.citepay.provider, expiry: expiry.toString() };
+  let lineExpiryTxHash = null;
+  if (needsLineExtension) {
+    lineExpiryTxHash = await executorWallet.writeContract({
+      address: FLOAT,
+      abi: floatAbi,
+      functionName: "setLineExpiry",
+      args: [LAB_AGENT, lineExpiry],
+      account: executor,
+      chain,
+    });
+    const lineExpiryReceipt = await publicClient.waitForTransactionReceipt({ hash: lineExpiryTxHash, timeout: 120_000 });
+    if (lineExpiryReceipt.status !== "success") throw new Error(`setLineExpiry reverted: ${lineExpiryTxHash}`);
+  }
+  let txHash = null;
+  let receipt = null;
+  if (needsProviderRefresh) {
+    txHash = await executorWallet.writeContract({
+      address: FLOAT,
+      abi: floatAbi,
+      functionName: "setSponsoredProviderMandate",
+      args: [LAB_AGENT, PROVIDERS.citepay.provider, PROVIDERS.citepay.endpointHash, PROVIDERS.citepay.defaultAmountAtomic, dailyLimit, expiry, true],
+      account: executor,
+      chain,
+    });
+    receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 120_000 });
+    if (receipt.status !== "success") throw new Error(`setSponsoredProviderMandate reverted: ${txHash}`);
+  }
+  return {
+    ok: true,
+    refreshed: Boolean(lineExpiryTxHash || txHash),
+    txHash,
+    arcscan: txHash ? txUrl(txHash) : null,
+    lineExpiryTxHash,
+    lineExpiryArcscan: lineExpiryTxHash ? txUrl(lineExpiryTxHash) : null,
+    labAgent: LAB_AGENT,
+    provider: PROVIDERS.citepay.provider,
+    expiry: expiry.toString(),
+    lineExpiry: lineExpiry.toString(),
+  };
 }
 
 function baseEntry({ state, decision, bookNote }) {
