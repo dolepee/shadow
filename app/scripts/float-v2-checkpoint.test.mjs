@@ -275,3 +275,15 @@ test("post-reclaim fallback state and no-KV scan budget are coherent", () => {
     assert.match(source, /FLOAT_V2_VERIFIED_POST_RECLAIM_STATE\.citePayRenewedLine/);
   }
 });
+
+test("Float Desk checks and refreshes both line and provider expiry", () => {
+  const source = readFileSync(new URL("./float-desk.mjs", import.meta.url), "utf8");
+
+  assert.match(source, /readFloat\("lineExpiries", \[LAB_AGENT\]\)/);
+  assert.match(source, /clampReasons\.push\("LINE_EXPIRED"\)/);
+  assert.match(source, /functionName: "setLineExpiry"/);
+  assert.match(source, /DESK_LINE_EXPIRY/);
+  assert.match(source, /maintainCitePayExpiries\(\)/);
+  assert.match(source, /DESK_EXPIRY_REFRESH_WINDOW_SECONDS/);
+  assert.match(source, /DESK_EXPIRY_EXTENSION_SECONDS/);
+});
