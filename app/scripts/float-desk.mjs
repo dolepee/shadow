@@ -697,13 +697,13 @@ async function setCitePayExpiries(expiryOverride = null) {
     BigInt(currentMandate[2]) !== dailyLimit ||
     BigInt(currentMandate[3]) < expiry ||
     !currentMandate[4];
-  if (needsLineExtension && getAddress(owner) !== getAddress(executor.address)) {
-    return { ok: false, error: `executor ${executor.address} cannot extend line expiry owned by ${owner}`, labAgent: LAB_AGENT };
-  }
+  const canExtendLine = getAddress(owner) === getAddress(executor.address);
+  const lineExtensionBlocked = needsLineExtension && !canExtendLine;
   if (!LIVE) {
     return {
-      ok: true,
+      ok: !lineExtensionBlocked,
       dryRun: true,
+      error: lineExtensionBlocked ? `executor ${executor.address} cannot extend line expiry owned by ${owner}` : undefined,
       labAgent: LAB_AGENT,
       sponsor: sponsorAddress,
       provider: PROVIDERS.citepay.provider,
@@ -714,10 +714,11 @@ async function setCitePayExpiries(expiryOverride = null) {
       lineExpiry: lineExpiry.toString(),
       needsLineExtension,
       needsProviderRefresh,
+      lineExtensionBlocked,
     };
   }
   let lineExpiryTxHash = null;
-  if (needsLineExtension) {
+  if (needsLineExtension && canExtendLine) {
     lineExpiryTxHash = await executorWallet.writeContract({
       address: FLOAT,
       abi: floatAbi,
@@ -744,7 +745,8 @@ async function setCitePayExpiries(expiryOverride = null) {
     if (receipt.status !== "success") throw new Error(`setSponsoredProviderMandate reverted: ${txHash}`);
   }
   return {
-    ok: true,
+    ok: !lineExtensionBlocked,
+    error: lineExtensionBlocked ? `executor ${executor.address} cannot extend line expiry owned by ${owner}` : undefined,
     refreshed: Boolean(lineExpiryTxHash || txHash),
     txHash,
     arcscan: txHash ? txUrl(txHash) : null,
@@ -754,6 +756,7 @@ async function setCitePayExpiries(expiryOverride = null) {
     provider: PROVIDERS.citepay.provider,
     expiry: expiry.toString(),
     lineExpiry: lineExpiry.toString(),
+    lineExtensionBlocked,
   };
 }
 
