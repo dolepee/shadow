@@ -654,7 +654,17 @@ async function maintainCitePayExpiries() {
     readFloat("lineProviderMandates", [LAB_AGENT, PROVIDERS.citepay.provider]),
   ]);
   const refreshBefore = BigInt(NOW) + EXPIRY_REFRESH_WINDOW_SECONDS;
-  if (BigInt(currentLineExpiry) > refreshBefore && BigInt(currentMandate[3]) > refreshBefore) {
+  const dailyLimit = BigInt(clean(env.DESK_CITEPAY_DAILY_LIMIT_ATOMIC) || "30000");
+  const providerBindingIsCurrent =
+    currentMandate[0].toLowerCase() === PROVIDERS.citepay.endpointHash.toLowerCase() &&
+    BigInt(currentMandate[1]) === PROVIDERS.citepay.defaultAmountAtomic &&
+    BigInt(currentMandate[2]) === dailyLimit &&
+    Boolean(currentMandate[4]);
+  if (
+    BigInt(currentLineExpiry) > refreshBefore &&
+    BigInt(currentMandate[3]) > refreshBefore &&
+    providerBindingIsCurrent
+  ) {
     return {
       ok: true,
       refreshed: false,
