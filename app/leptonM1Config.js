@@ -11,6 +11,12 @@ export const LEPTON_M1_DEPLOYMENTS = Object.freeze({
     sourceVerified: false,
     canonicalWriteAllowlisted: false,
     sinkRecoverable: false,
+    expectedWriteBlockers: Object.freeze([
+      "BOND_ZERO",
+      "GENERATION_NOT_ALLOWLISTED",
+      "SOURCE_NOT_VERIFIED",
+      "SINK_NOT_RECOVERABLE",
+    ]),
   }),
   historicalProofs: Object.freeze({
     circlePasskey: Object.freeze({

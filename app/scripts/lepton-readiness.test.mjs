@@ -110,6 +110,12 @@ test("historical passkey proof and current read deployment remain separate", () 
   assert.notEqual(historical.v4StyleAdapter.toLowerCase(), current.v4StyleAdapter.toLowerCase());
   assert.equal(LEPTON_M1_DEPLOYMENTS.historicalProofs.morphoStyle.label, "Morpho-style testnet proof");
   assert.equal(LEPTON_M1_DEPLOYMENTS.historicalProofs.morphoStyle.adapter.toLowerCase(), current.morphoStyleAdapter.toLowerCase());
+  assert.deepEqual(current.expectedWriteBlockers, [
+    LEPTON_WRITE_REASON.BOND_ZERO,
+    LEPTON_WRITE_REASON.GENERATION_NOT_ALLOWLISTED,
+    LEPTON_WRITE_REASON.SOURCE_NOT_VERIFIED,
+    LEPTON_WRITE_REASON.SINK_NOT_RECOVERABLE,
+  ]);
 });
 
 test("proof input verification fails when the declared generation adapter is absent", () => {

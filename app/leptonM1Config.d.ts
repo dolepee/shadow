@@ -51,6 +51,7 @@ export const LEPTON_M1_DEPLOYMENTS: {
     readonly sourceVerified: boolean;
     readonly canonicalWriteAllowlisted: boolean;
     readonly sinkRecoverable: boolean;
+    readonly expectedWriteBlockers: readonly LeptonWriteReasonCode[];
   };
   readonly historicalProofs: {
     readonly circlePasskey: {

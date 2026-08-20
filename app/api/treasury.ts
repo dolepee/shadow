@@ -190,12 +190,8 @@ async function runTreasuryChecks() {
     `${historicalPasskeyProof.generation} -> ${historicalPasskeyProof.v4StyleAdapter}`,
   );
   check(
-    "current V4 wallet readiness matches the declared generation",
-    currentV4Readiness.writeReady === Boolean(
-      LEPTON_M1_DEPLOYMENTS.currentRead.canonicalWriteAllowlisted &&
-      LEPTON_M1_DEPLOYMENTS.currentRead.sourceVerified &&
-      LEPTON_M1_DEPLOYMENTS.currentRead.sinkRecoverable
-    ),
+    "current V4 live state matches the declared inactive generation",
+    sameReasonCodes(currentV4Readiness.reasonCodes, LEPTON_M1_DEPLOYMENTS.currentRead.expectedWriteBlockers),
     currentV4Readiness.reasonCodes.join(", "),
   );
 
@@ -343,6 +339,10 @@ async function runTreasuryChecks() {
     },
     checks,
   };
+}
+
+function sameReasonCodes(actual: readonly string[], expected: readonly string[]) {
+  return actual.length === expected.length && actual.every((code, index) => code === expected[index]);
 }
 
 async function readCurrentV4Readiness(publicClient: any) {
