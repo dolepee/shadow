@@ -8,7 +8,7 @@ It is intentionally separate from `MirrorRouter`. The earlier mirrored-execution
 
 - `MandateRegistry`: stores a Circle-wallet-scoped USDC mandate with max size, daily cap, risk limit, slippage floor, action type, and target.
 - `MandateAttestor`: records neutral `ALLOW` / `BLOCK` receipts keyed by mandate hash and action hash.
-- `BondedMandateEnforcer`: requires a USDC bond before an enforcer can write receipts or consume mandate spend; committed actions with missing receipts can be challenged and slashed.
+- `BondedMandateEnforcer`: requires a USDC bond before an enforcer can write receipts or consume mandate spend. It exposes a commit/challenge mechanism, but the synchronous style adapters do not call `commitAction`, so missing-receipt slashing is not active for their calls.
 - `V4StyleArcAdapter`: an honestly labeled v4-style Arc adapter that is swap-only, checks a mandate before moving USDC to a liquidity sink, and exposes pool-key execution references for future PoolManager/hook integration.
 - `MorphoStyleVaultAdapter`: an honestly labeled Morpho-style deposit adapter that is deposit-only, checks the same mandate engine before moving USDC to a vault sink, and binds execution references to market-like fields.
 - `MandateVaultSink`: a tiny protocol-like vault destination that records receipt-linked USDC deposits after an adapter moves funds. Each protocol adapter should use its own sink.
@@ -22,7 +22,7 @@ It is intentionally separate from `MirrorRouter`. The earlier mirrored-execution
 4. The vault records the matching receipt hash and action hash for allowed deposits.
 5. Invalid actions produce a `BLOCK` receipt and do not move USDC.
 6. The adapter cannot enforce without a posted USDC bond.
-7. A bonded enforcer that commits to an action and misses the receipt deadline can be slashed objectively.
+7. The enforcer contract can slash a separately committed missing receipt; the synchronous style-adapter proofs do not exercise that path.
 8. The existing `MirrorRouter` path still passes its full test suite.
 9. The same mandate engine can gate more than one DeFi adapter surface: swap-style flow for Uniswap v4 readiness and deposit-style flow for Morpho-like allocation.
 
@@ -42,10 +42,28 @@ The adapter is named `MorphoStyleVaultAdapter` because a Morpho-like deposit/all
 
 | Surface | Action type | Proof status | What is bound into the receipt path |
 | --- | --- | --- | --- |
-| `V4StyleArcAdapter` | `SWAP` | Deployed on Arc testnet and proven through EOA + Circle passkey flows | USDC account, amount, risk, slippage floor, target adapter, and a pool-key-shaped `executionRef` |
-| `MorphoStyleVaultAdapter` | `DEPOSIT` | Deployed on Arc testnet and proven through allowed + blocked deposit actions | USDC account, amount, risk, target adapter, market-like parameters, and a vault deposit record |
+| `V4StyleArcAdapter` | `SWAP` | Historical EOA/passkey proofs are readable; the current generation is inactive for writes | USDC account, amount, risk, slippage floor, target adapter, and a pool-key-shaped `executionRef` |
+| `MorphoStyleVaultAdapter` | `DEPOSIT` | Morpho-style testnet proof only; not real Morpho | USDC account, amount, risk, target adapter, market-like parameters, and a vault deposit record |
 
-## Current Arc Testnet Proof
+## Current Read Deployment
+
+The app reads the caller-hardened June 25 generation. Address presence makes this generation read-configured, not write-ready.
+
+| Contract | Address |
+| --- | --- |
+| `MandateRegistry` | `0xe3cf1a4d54f627f599255142cef4bf9b8c361a4c` |
+| `MandateAttestor` | `0x9b5afc6c442364d4397763917ebbc659d85ee86d` |
+| `BondedMandateEnforcer` | `0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e` |
+| `V4StyleArcAdapter` | `0xd890db70ba5135141a5d4522ba36fc0ca7cad177` |
+| V4 archival sink | `0x10eacc425f7ac090b14f3f5f59ad59df033a55ce` |
+| `MorphoStyleVaultAdapter` | `0xba9f134f7b13dadd45dcf16b09c5121a7555e2c5` |
+| Morpho-style sink | `0x110f79c5617797b199d3d6e2abb855c34fbc5e58` |
+
+The current V4 adapter has `0 USDC` bonded against a `10 USDC` minimum. Its sink is an archival `MandateVaultSink` without a recovery path, and this generation is not source-verified or allowlisted for writes. The app therefore disables the V4 wallet action and rechecks the same conditions inside the handler; no wallet request is made. Do not fall back to the older adapter, which predates caller-account hardening.
+
+The `0xba9f…` records are labeled **Morpho-style testnet proof**. They are not a Morpho integration.
+
+## Historical June 19 Arc Testnet Proof
 
 Deployed June 19, 2026 on Arc Testnet (`5042002`):
 
@@ -92,13 +110,14 @@ Verified post-smoke state:
 - `V4StyleArcAdapter.blockedUSDC() = 3 USDC`
 - `MandateVaultSink.totalDepositedUSDC() = 1 USDC`
 
-Circle passkey proof:
+Historical June 19 Circle passkey proof:
 
 - Smart account: `0x6994ebdef63aa0e665e3c781ed54e2e181869a7a`
 - Batched sponsored tx: `0x98b8b175d4ec8bf6d457d653383932e69d74300bd0b8a7e324e0cae3ac35a529`
 - Mandate created: `#2`
 - Allowed action: `0.01 USDC`
-- Flow: Circle passkey MSCA approved USDC, created a mandate, and executed the mandate adapter action in one Circle Gas Station sponsored UserOp.
+- Adapter generation: `0x16ebc65c9f3188734277c9fafd73d9f13b93d868`
+- Flow: Circle passkey MSCA approved USDC, created a mandate, and executed that historical adapter generation in one Circle Gas Station sponsored UserOp. The transaction input is checked by the no-secret verifier; it is not evidence that the current `0xd890…` generation is write-ready.
 
 Verified post-passkey state:
 
@@ -171,7 +190,7 @@ Expected result after the protocol-adapter expansion: 45 tests pass across `Shad
 
 ## App Surface
 
-The app reads the current Arc testnet Lepton M1 deployment on `/lepton` by default. These public Vite variables can override the default addresses:
+The app reads the current Arc testnet Lepton M1 deployment on `/lepton` by default. Read configuration and write readiness are separate. These public Vite variables can override the read addresses:
 
 ```bash
 VITE_SHADOW_MANDATE_REGISTRY=0x...
@@ -180,4 +199,4 @@ VITE_SHADOW_BONDED_ENFORCER=0x...
 VITE_SHADOW_V4_STYLE_ADAPTER=0x...
 ```
 
-Without those addresses, the page renders as deploy-pending and does not invent contract metrics. The vault sink address is read from `V4StyleArcAdapter.liquiditySink()` after deployment.
+Without those addresses, the page renders as read-pending and does not invent contract metrics. The vault sink address is read from `V4StyleArcAdapter.liquiditySink()` after deployment. A wallet action remains disabled unless code, bond, source verification, canonical-generation allowlisting, enforcer binding, sink binding, and sink recovery all pass a fresh RPC check.

@@ -9,6 +9,11 @@ import {
   parseAbiItem,
   type Address,
 } from "viem";
+import {
+  LEPTON_M1_DEPLOYMENTS,
+  classifyLeptonV4Readiness,
+  transactionInputContainsAddress,
+} from "../leptonM1Config.js";
 
 export const config = { maxDuration: 20 };
 
@@ -88,6 +93,13 @@ const attestorAbi = parseAbi([
 ]);
 const enforcerAbi = parseAbi(["function bondUSDC(address enforcer) view returns (uint256)"]);
 const morphoAbi = parseAbi(["function adapterBondUSDC() view returns (uint256)"]);
+const v4Abi = parseAbi([
+  "function adapterBondUSDC() view returns (uint256)",
+  "function enforcer() view returns (address)",
+  "function liquiditySink() view returns (address)",
+]);
+const minBondAbi = parseAbi(["function minBondUSDC() view returns (uint256)"]);
+const sinkAbi = parseAbi(["function adapter() view returns (address)"]);
 const floatAbi = parseAbi([
   "function receiptByRequestHash(bytes32 requestHash) view returns (bytes32)",
   "function treasuryBalanceUSDC() view returns (uint256)",
@@ -150,18 +162,21 @@ async function runTreasuryChecks() {
     rpcUrls: { default: { http: [rpcUrl] } },
   });
   const publicClient = createPublicClient({ chain, transport: http(rpcUrl, { timeout: 5_000, retryCount: 0 }) });
+  const historicalPasskeyProof = LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey;
 
   const check = (name: string, ok: boolean, detail = "") => {
     checks.push({ check: name, status: ok ? "PASS" : "FAIL", ok, detail: String(detail) });
   };
 
-  const [floatState, createTx, allowedTx, blockedTx, x402Tx, bindTx] = await Promise.all([
+  const [floatState, createTx, allowedTx, blockedTx, x402Tx, bindTx, historicalPasskeyTx, currentV4Readiness] = await Promise.all([
     fetchJson(apiUrl),
     txReceipt(publicClient, proof.createMandateTx),
     txReceipt(publicClient, proof.allowedAllocationTx),
     txReceipt(publicClient, proof.blockedAllocationTx),
     txReceipt(publicClient, proof.x402SettlementTx),
     txReceipt(publicClient, proof.floatBindTx),
+    publicClient.getTransaction({ hash: historicalPasskeyProof.txHash }),
+    readCurrentV4Readiness(publicClient),
   ]);
 
   check("create mandate tx succeeded", createTx.ok, createTx.detail);
@@ -169,6 +184,20 @@ async function runTreasuryChecks() {
   check("blocked allocation tx succeeded", blockedTx.ok, blockedTx.detail);
   check("x402 settlement tx succeeded", x402Tx.ok, x402Tx.detail);
   check("Float bind tx succeeded", bindTx.ok, bindTx.detail);
+  check(
+    "historical passkey proof contains its declared adapter generation",
+    transactionInputContainsAddress(historicalPasskeyTx.input, historicalPasskeyProof.v4StyleAdapter),
+    `${historicalPasskeyProof.generation} -> ${historicalPasskeyProof.v4StyleAdapter}`,
+  );
+  check(
+    "current V4 wallet readiness matches the declared generation",
+    currentV4Readiness.writeReady === Boolean(
+      LEPTON_M1_DEPLOYMENTS.currentRead.canonicalWriteAllowlisted &&
+      LEPTON_M1_DEPLOYMENTS.currentRead.sourceVerified &&
+      LEPTON_M1_DEPLOYMENTS.currentRead.sinkRecoverable
+    ),
+    currentV4Readiness.reasonCodes.join(", "),
+  );
 
   const [adapterBond, enforcerBond, treasuryBalance, totalAvailable, allowedReceipt, blockedReceipt, floatReceiptHash] =
     await Promise.all([
@@ -289,6 +318,11 @@ async function runTreasuryChecks() {
       morphoStyleVaultAdapter: MORPHO_ADAPTER,
       morphoStyleVaultSink: MORPHO_SINK,
     },
+    currentV4: currentV4Readiness,
+    historicalProofs: {
+      circlePasskey: historicalPasskeyProof,
+      morphoStyle: LEPTON_M1_DEPLOYMENTS.historicalProofs.morphoStyle,
+    },
     txs: {
       createMandate: proof.createMandateTx,
       allowedAllocation: proof.allowedAllocationTx,
@@ -309,6 +343,50 @@ async function runTreasuryChecks() {
     },
     checks,
   };
+}
+
+async function readCurrentV4Readiness(publicClient: any) {
+  const current = LEPTON_M1_DEPLOYMENTS.currentRead;
+  try {
+    const [adapterCode, sinkCode, actualEnforcer, actualSink, sinkAdapter, adapterBondUSDC, minBondUSDC] = await Promise.all([
+      publicClient.getBytecode({ address: current.v4StyleAdapter }),
+      publicClient.getBytecode({ address: current.v4StyleSink }),
+      publicClient.readContract({ address: current.v4StyleAdapter, abi: v4Abi, functionName: "enforcer" }),
+      publicClient.readContract({ address: current.v4StyleAdapter, abi: v4Abi, functionName: "liquiditySink" }),
+      publicClient.readContract({ address: current.v4StyleSink, abi: sinkAbi, functionName: "adapter" }),
+      publicClient.readContract({ address: current.v4StyleAdapter, abi: v4Abi, functionName: "adapterBondUSDC" }),
+      publicClient.readContract({ address: current.bondedEnforcer, abi: minBondAbi, functionName: "minBondUSDC" }),
+    ]);
+    return classifyLeptonV4Readiness({
+      readConfigured: true,
+      rpcOk: true,
+      adapterHasCode: Boolean(adapterCode && adapterCode !== "0x"),
+      sinkHasCode: Boolean(sinkCode && sinkCode !== "0x"),
+      adapterBondUSDC,
+      minBondUSDC,
+      generationWriteAllowlisted: current.canonicalWriteAllowlisted,
+      generationSourceVerified: current.sourceVerified,
+      actualEnforcer,
+      expectedEnforcer: current.bondedEnforcer,
+      actualSink,
+      expectedSink: current.v4StyleSink,
+      sinkAdapter,
+      expectedAdapter: current.v4StyleAdapter,
+      sinkRecoverable: current.sinkRecoverable,
+    });
+  } catch {
+    return classifyLeptonV4Readiness({
+      readConfigured: true,
+      rpcOk: false,
+      adapterHasCode: false,
+      sinkHasCode: false,
+      adapterBondUSDC: 0n,
+      minBondUSDC: 0n,
+      generationWriteAllowlisted: false,
+      generationSourceVerified: false,
+      sinkRecoverable: false,
+    });
+  }
 }
 
 async function txReceipt(publicClient: any, txHash: `0x${string}`) {
