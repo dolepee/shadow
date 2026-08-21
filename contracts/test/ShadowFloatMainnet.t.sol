@@ -763,6 +763,33 @@ contract ShadowFloatMainnetTest {
         } catch {}
     }
 
+    function testGovernanceDelayCannotOverflowActivationTimestamp() public {
+        ShadowFloatMainnet.Limits memory limits = ShadowFloatMainnet.Limits({
+            protocolReserve: 5 * USDC,
+            lineReserve: 5 * USDC,
+            lineSpend: 5 * USDC,
+            perSpend: 1 * USDC,
+            dailySpend: 2 * USDC
+        });
+        try new ShadowFloatMainnet(
+            address(usdc), block.chainid, limits, limits, uint64(1 hours), uint64(7 days), type(uint64).max
+        ) returns (
+            ShadowFloatMainnet
+        ) {
+            revert("overflowing deployment delay accepted");
+        } catch {}
+
+        float.reduceCap(ShadowFloatMainnet.CapKind.PER_SPEND, 1 * USDC);
+        vm.warp(type(uint64).max - float.governanceDelay() + 1);
+        (bool proposed,) = address(float)
+            .call(
+                abi.encodeWithSelector(
+                    ShadowFloatMainnet.proposeCapIncrease.selector, ShadowFloatMainnet.CapKind.PER_SPEND, 2 * USDC
+                )
+            );
+        _assertTrue(!proposed, "overflowing activation proposal accepted");
+    }
+
     function testERC1271RejectsBadResponsesAndAllowsCaughtReentryOnce() public {
         Mainnet1271Wallet wallet = new Mainnet1271Wallet();
         bytes32 lineId = _open(sponsor, address(wallet));

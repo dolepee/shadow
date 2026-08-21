@@ -237,7 +237,10 @@ contract ShadowFloatMainnet {
         if (IERC20(usdc_).decimals() != 6) revert InvalidToken();
         _validateLimits(maxima_, maxima_);
         _validateLimits(initial_, maxima_);
-        if (minimumRepaymentWindow_ == 0 || maximumRepaymentWindow_ < minimumRepaymentWindow_ || governanceDelay_ == 0) revert InvalidConfiguration();
+        if (
+            minimumRepaymentWindow_ == 0 || maximumRepaymentWindow_ < minimumRepaymentWindow_ || governanceDelay_ == 0
+                || block.timestamp > type(uint64).max - governanceDelay_
+        ) revert InvalidConfiguration();
 
         usdc = IERC20(usdc_);
         deploymentChainId = expectedChainId_;
@@ -302,7 +305,9 @@ contract ShadowFloatMainnet {
     function proposeCapIncrease(CapKind kind, uint256 newValue) external onlyOwner {
         uint256 oldValue = _effectiveCap(kind);
         if (newValue <= oldValue || newValue > _maximumCap(kind)) revert InvalidConfiguration();
-        uint64 activateAt = uint64(block.timestamp + governanceDelay);
+        uint256 activationTimestamp = block.timestamp + governanceDelay;
+        if (activationTimestamp > type(uint64).max) revert InvalidConfiguration();
+        uint64 activateAt = uint64(activationTimestamp);
         pendingCaps[uint8(kind)] = PendingCap({value: newValue, activateAt: activateAt});
         emit CapIncreaseProposed(kind, oldValue, newValue, activateAt);
     }
