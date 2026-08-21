@@ -144,6 +144,33 @@ contract ShadowFloatMainnetTokenSafetyTest {
         require(float.getLine(lineId).principalOutstanding == 1 * USDC, "debt not exact");
     }
 
+    function testTokenCallbackCannotCancelAgentNonceDuringFunding() public {
+        uint64 epoch = 1;
+        bytes32 lineId = keccak256(abi.encode(block.chainid, address(float), sponsor, address(token), epoch));
+        uint256 nonce = 77;
+        bytes memory nested = abi.encodeWithSelector(ShadowFloatMainnet.cancelNonce.selector, lineId, nonce);
+        token.configure(token.REENTER(), address(float), nested);
+
+        ShadowFloatMainnet.OpenLineParams memory params = ShadowFloatMainnet.OpenLineParams({
+            agent: address(token),
+            reserve: 5 * USDC,
+            lineSpendCap: 5 * USDC,
+            dailySpendCap: 5 * USDC,
+            lineExpiry: uint64(block.timestamp + 30 days),
+            maximumRepaymentWindow: uint64(7 days),
+            provider: PROVIDER,
+            endpointHash: ENDPOINT,
+            providerPerSpendCap: 2 * USDC,
+            providerDailyCap: 5 * USDC,
+            providerExpiry: uint64(block.timestamp + 30 days)
+        });
+        vm.prank(sponsor);
+        bytes32 opened = float.openLine(params);
+        require(opened == lineId, "unexpected precomputed line ID");
+        require(!float.nonceCancelled(lineId, nonce), "callback cancelled agent nonce");
+        require(float.totalCommittedCapital() == 5 * USDC, "outer funding did not complete");
+    }
+
     function testNonExactRepaymentIsAtomicEvenAfterMaturity() public {
         bytes32 lineId = _open();
         ShadowFloatMainnet.SpendIntent memory intent = _intent(lineId, 3);

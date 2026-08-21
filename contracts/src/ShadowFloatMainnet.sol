@@ -256,13 +256,13 @@ contract ShadowFloatMainnet {
         owner = msg.sender;
     }
 
-    function proposeOwner(address nextOwner) external onlyOwner {
+    function proposeOwner(address nextOwner) external onlyOwner nonReentrant {
         if (nextOwner == address(0)) revert InvalidAddress();
         pendingOwner = nextOwner;
         emit OwnershipProposed(owner, nextOwner);
     }
 
-    function acceptOwnership() external {
+    function acceptOwnership() external nonReentrant {
         if (msg.sender != pendingOwner) revert Unauthorized();
         address previous = owner;
         owner = msg.sender;
@@ -270,31 +270,31 @@ contract ShadowFloatMainnet {
         emit OwnershipAccepted(previous, msg.sender);
     }
 
-    function setOperator(address operator, bool allowed) external onlyOwner {
+    function setOperator(address operator, bool allowed) external onlyOwner nonReentrant {
         if (operator == address(0)) revert InvalidAddress();
         operators[operator] = allowed;
         emit OperatorSet(operator, allowed);
     }
 
-    function setSponsorAllowed(address sponsor, bool allowed) external onlyOwner {
+    function setSponsorAllowed(address sponsor, bool allowed) external onlyOwner nonReentrant {
         if (sponsor == address(0)) revert InvalidAddress();
         sponsorAllowed[sponsor] = allowed;
         emit SponsorAllowed(sponsor, allowed);
     }
 
-    function setOpeningsPaused(bool paused) external {
+    function setOpeningsPaused(bool paused) external nonReentrant {
         if (msg.sender != owner && !(operators[msg.sender] && paused)) revert Unauthorized();
         openingsPaused = paused;
         emit OpeningsPauseSet(paused, msg.sender);
     }
 
-    function setSpendsPaused(bool paused) external {
+    function setSpendsPaused(bool paused) external nonReentrant {
         if (msg.sender != owner && !(operators[msg.sender] && paused)) revert Unauthorized();
         spendsPaused = paused;
         emit SpendsPauseSet(paused, msg.sender);
     }
 
-    function reduceCap(CapKind kind, uint256 newValue) external onlyOwner {
+    function reduceCap(CapKind kind, uint256 newValue) external onlyOwner nonReentrant {
         uint256 oldValue = _effectiveCap(kind);
         if (newValue == 0 || newValue > oldValue) revert CapIncreaseRequired();
         _setEffectiveCap(kind, newValue);
@@ -306,7 +306,7 @@ contract ShadowFloatMainnet {
         emit CapReduced(kind, oldValue, newValue);
     }
 
-    function proposeCapIncrease(CapKind kind, uint256 newValue) external onlyOwner {
+    function proposeCapIncrease(CapKind kind, uint256 newValue) external onlyOwner nonReentrant {
         uint256 oldValue = _effectiveCap(kind);
         if (newValue <= oldValue || newValue > _maximumCap(kind)) revert InvalidConfiguration();
         if (pendingCaps[uint8(kind)].activateAt != 0) revert InvalidState();
@@ -317,7 +317,7 @@ contract ShadowFloatMainnet {
         emit CapIncreaseProposed(kind, oldValue, newValue, activateAt);
     }
 
-    function cancelCapIncrease(CapKind kind) external {
+    function cancelCapIncrease(CapKind kind) external nonReentrant {
         if (msg.sender != owner && !operators[msg.sender]) revert Unauthorized();
         PendingCap memory pending = pendingCaps[uint8(kind)];
         if (pending.activateAt == 0) revert InvalidState();
@@ -325,7 +325,7 @@ contract ShadowFloatMainnet {
         emit CapIncreaseCancelled(kind, pending.value, msg.sender);
     }
 
-    function activateCapIncrease(CapKind kind) external onlyOwner {
+    function activateCapIncrease(CapKind kind) external onlyOwner nonReentrant {
         PendingCap memory pending = pendingCaps[uint8(kind)];
         if (pending.activateAt == 0 || block.timestamp < pending.activateAt) revert CapNotReady();
         uint256 oldValue = _effectiveCap(kind);
@@ -393,7 +393,7 @@ contract ShadowFloatMainnet {
         uint256 dailySpendCap,
         uint64 lineExpiry,
         uint64 lineMaximumRepaymentWindow
-    ) external {
+    ) external nonReentrant {
         Line storage line = _sponsorLine(lineId);
         if (line.state != LineState.OPEN && line.state != LineState.DRAWN) revert InvalidState();
         if (
@@ -420,7 +420,7 @@ contract ShadowFloatMainnet {
         uint256 dailySpendCap,
         uint64 expiry,
         bool active
-    ) external {
+    ) external nonReentrant {
         Line storage line = _sponsorLine(lineId);
         if (line.state != LineState.OPEN && line.state != LineState.DRAWN) revert InvalidState();
         if (provider == address(0) || provider == address(this)) revert InvalidAddress();
@@ -559,7 +559,7 @@ contract ShadowFloatMainnet {
         return (true, BlockReason.NONE);
     }
 
-    function cancelNonce(bytes32 lineId, uint256 nonce) external {
+    function cancelNonce(bytes32 lineId, uint256 nonce) external nonReentrant {
         Line storage line = lines[lineId];
         if (msg.sender != line.agent) revert Unauthorized();
         if (nonceUsed[lineId][nonce] || nonceCancelled[lineId][nonce]) revert NonceUnavailable();
@@ -587,7 +587,7 @@ contract ShadowFloatMainnet {
         emit Repaid(lineId, msg.sender, amount, line.principalOutstanding);
     }
 
-    function declareDefault(bytes32 lineId) external {
+    function declareDefault(bytes32 lineId) external nonReentrant {
         Line storage line = _sponsorLine(lineId);
         if (line.state != LineState.DRAWN) revert InvalidState();
         if (block.timestamp < line.dueAt) revert TooEarly();
