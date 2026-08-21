@@ -5,6 +5,7 @@ import {
   LEPTON_M1_DEPLOYMENTS,
   LEPTON_WRITE_REASON,
   classifyLeptonV4Readiness,
+  readWithCanonicalFallback,
   runLeptonWalletAction,
   transactionInputContainsAddress,
 } from "../leptonM1Config.js";
@@ -124,4 +125,48 @@ test("proof input verification fails when the declared generation adapter is abs
   const input = `0x12345678${encodedAddress}`;
   assert.equal(transactionInputContainsAddress(input, historical.v4StyleAdapter), true);
   assert.equal(transactionInputContainsAddress(input, current.v4StyleAdapter), false);
+});
+
+test("historical proof read falls back from configured RPC to canonical RPC", async () => {
+  let fallbackCalls = 0;
+  const value = await readWithCanonicalFallback(
+    async () => {
+      throw new Error("configured RPC pruned the transaction");
+    },
+    async () => {
+      fallbackCalls += 1;
+      return { hash: LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey.txHash };
+    },
+  );
+
+  assert.equal(value.hash, LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey.txHash);
+  assert.equal(fallbackCalls, 1);
+});
+
+test("historical proof read does not call canonical RPC when configured RPC succeeds", async () => {
+  let fallbackCalls = 0;
+  const value = await readWithCanonicalFallback(
+    async () => ({ hash: LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey.txHash }),
+    async () => {
+      fallbackCalls += 1;
+      throw new Error("canonical RPC should not be called");
+    },
+  );
+
+  assert.equal(value.hash, LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey.txHash);
+  assert.equal(fallbackCalls, 0);
+});
+
+test("historical proof read remains fail closed when both RPCs fail", async () => {
+  await assert.rejects(
+    readWithCanonicalFallback(
+      async () => {
+        throw new Error("configured RPC failed");
+      },
+      async () => {
+        throw new Error("canonical RPC failed");
+      },
+    ),
+    /failed on both the configured and canonical RPC/,
+  );
 });

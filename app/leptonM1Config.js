@@ -110,6 +110,22 @@ export async function runLeptonWalletAction(readiness, action) {
   return action();
 }
 
+export async function readWithCanonicalFallback(primaryRead, canonicalRead) {
+  try {
+    return await primaryRead();
+  } catch (primaryError) {
+    if (typeof canonicalRead !== "function") throw primaryError;
+    try {
+      return await canonicalRead();
+    } catch (canonicalError) {
+      throw new AggregateError(
+        [primaryError, canonicalError],
+        "The historical proof read failed on both the configured and canonical RPC.",
+      );
+    }
+  }
+}
+
 export function transactionInputContainsAddress(input, address) {
   if (!/^0x[0-9a-f]*$/i.test(String(input || "")) || !/^0x[0-9a-f]{40}$/i.test(String(address || ""))) return false;
   const paddedAddress = String(address).slice(2).toLowerCase().padStart(64, "0");

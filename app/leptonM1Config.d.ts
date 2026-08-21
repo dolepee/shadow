@@ -77,4 +77,8 @@ export const LEPTON_M1_DEPLOYMENTS: {
 export const LEPTON_WRITE_REASON: Readonly<Record<LeptonWriteReasonCode, LeptonWriteReasonCode>>;
 export function classifyLeptonV4Readiness(input: LeptonV4ReadinessInput): LeptonV4Readiness;
 export function runLeptonWalletAction<T>(readiness: LeptonV4Readiness | null | undefined, action: () => Promise<T> | T): Promise<T>;
+export function readWithCanonicalFallback<T>(
+  primaryRead: () => Promise<T> | T,
+  canonicalRead?: () => Promise<T> | T,
+): Promise<T>;
 export function transactionInputContainsAddress(input: Hex | string | null | undefined, address: Address | string): boolean;
