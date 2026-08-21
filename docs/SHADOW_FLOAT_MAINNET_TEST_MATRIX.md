@@ -22,7 +22,7 @@ Expected Packet B result: exactly five failing `RED-*` tests. A pass means V2 be
 | `CAP-01B` | concurrent max-cap lines remain isolated through spend/repay/close/default | `CAP-01`, `CAP-02`, `STATE-01` | Packet C fuzz + invariant |
 | `INV-01` | token balance covers aggregate sponsor obligations and earned fees after arbitrary transitions | `CAP-02`, `DEBT-02`, `STATE-01` | Packet C invariant |
 | `CAP-03A` | reverted/false/non-exact inbound or outbound transfer leaves debt, nonce, and events unchanged | `CAP-03`, `TOK-01` | Packet C |
-| `CAP-04A` | test one atomic unit below, exactly at, and one above protocol-reserve, per-line-reserve, per-spend, and daily caps with otherwise valid signatures | `CAP-04`, `STATE-01` | Packet C boundary/fuzz |
+| `CAP-04A` | test one atomic unit below, exactly at, and one above protocol-reserve, per-line-reserve, cumulative line-spend, per-spend, and daily caps with otherwise valid signatures; repayment must not replenish cumulative line spend | `CAP-04`, `STATE-01` | Packet C boundary/fuzz |
 | `CAP-04B` | concurrent lines cannot cross the aggregate effective or immutable protocol reserve cap | `CAP-02`, `CAP-04`, `STATE-01` | Packet C invariant |
 | `SIG-01A` | mutate agent, sponsor, line ID, line epoch, terms hash, provider, endpoint, provider principal, maximum total debt, exact fee bps, maximum fee amount, due time, nonce, signature expiry, and executor independently | `SIG-01` | Packet C table/fuzz |
 | `SIG-01B` | close/reopen increments epoch and rejects all prior unused intents | `SIG-02` | Packet C |

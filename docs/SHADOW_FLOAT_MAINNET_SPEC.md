@@ -54,6 +54,8 @@ termsHash = keccak256(
 
 `providerPolicyHash` commits to the exact active provider, endpoint, per-request cap, daily cap, and policy expiry used by the spend. The contract recomputes the current provider-specific `termsHash` during execution. Any material line or provider-policy change increments `termsVersion`, produces a new hash, and invalidates all earlier signatures, even when the new terms are more permissive or the proposed spend would still fit.
 
+`lineSpendCap` bounds cumulative provider principal paid during that line epoch. Repayment restores reserve capacity but never reduces the cumulative counter or replenishes this cap; only a new line epoch starts a new counter.
+
 The EIP-712 `SpendIntent` binds all of:
 
 - agent, sponsor, `lineId`, `lineEpoch`, and `termsHash`;
@@ -74,6 +76,7 @@ For every line, accounting keeps separate values for:
 - `principalOutstanding`: USDC already paid to providers and not repaid;
 - `feeOutstanding`: fee owed by the agent but not earned by the protocol;
 - `spendableCapacity`: the lesser of unspent reserve and all current line/cap limits;
+- `cumulativePrincipalPaid`: lifetime provider principal for the current epoch, never reduced by repayment;
 - `sponsorRecovery`: post-default principal repaid for the sponsor;
 - `protocolFeesEarned`: fees actually received, never merely accrued.
 
@@ -162,7 +165,7 @@ Migration never copies accounting administratively. New spends can be paused on 
 | `CAP-01` | No owner, operator, other sponsor, or other line can consume or withdraw a line's reserve. |
 | `CAP-02` | Aggregate token balance always covers sponsor obligations and earned-but-unwithdrawn fees. |
 | `CAP-03` | A failed or non-exact token transfer creates no debt, payment receipt, or consumed nonce. |
-| `CAP-04` | Every line opening and accepted spend enforces immutable and effective protocol-reserve, per-line-reserve, per-spend, daily-spend, and one-active-draw caps; a valid signature bypasses none of them. |
+| `CAP-04` | Every line opening and accepted spend enforces immutable and effective protocol-reserve, per-line-reserve, cumulative line-spend, per-spend, daily-spend, and one-active-draw caps; a valid signature bypasses none of them. |
 | `SIG-01` | Every spend binds domain, agent, sponsor, line, epoch, exact terms, payment, debt/fee bounds, due time, nonce, expiry, and executor. |
 | `SIG-02` | Close, reopen, or any material terms/fee change invalidates every earlier signature. |
 | `SIG-03` | One digest can cause at most one provider payment, including relayer retries and ERC-1271 calls. |
