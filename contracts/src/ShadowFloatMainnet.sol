@@ -431,8 +431,6 @@ contract ShadowFloatMainnet {
         policy.active = active;
         policy.perSpendCap = perSpendCap;
         policy.dailySpendCap = dailySpendCap;
-        policy.day = 0;
-        policy.spentToday = 0;
         unchecked {
             ++line.termsVersion;
         }
@@ -633,7 +631,9 @@ contract ShadowFloatMainnet {
         if (intent.endpointHash != policy.endpointHash) return BlockReason.ENDPOINT_NOT_ALLOWED;
         if (line.state == LineState.DRAWN) return BlockReason.ACTIVE_DEBT;
         if (totalCommittedCapital > effectiveLimits.protocolReserve) return BlockReason.PROTOCOL_CAP;
-        if (line.reserveCap > effectiveLimits.lineReserve) return BlockReason.LINE_RESERVE_CAP;
+        if (line.reserveCap > effectiveLimits.lineReserve || intent.principal > line.availableReserve) {
+            return BlockReason.LINE_RESERVE_CAP;
+        }
         if (
             intent.principal > effectiveLimits.lineSpend
                 || line.cumulativePrincipalPaid + intent.principal > line.lineSpendCap

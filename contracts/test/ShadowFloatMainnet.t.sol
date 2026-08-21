@@ -532,6 +532,35 @@ contract ShadowFloatMainnetTest {
         _assertEq(uint256(reason), uint256(ShadowFloatMainnet.BlockReason.DAILY_SPEND_CAP), "wrong daily cap reason");
     }
 
+    function testSpendAboveFundedReserveBlocksTerminally() public {
+        bytes32 lineId = _openWith(sponsor, agent, 1 * USDC, 5 * USDC);
+        ShadowFloatMainnet.SpendIntent memory intent = _intent(lineId, sponsor, agent, 1 * USDC + 1, 74);
+        _assertTerminalBlock(
+            intent,
+            _sign(AGENT_PK, intent),
+            ShadowFloatMainnet.BlockReason.LINE_RESERVE_CAP,
+            "spend above funded reserve"
+        );
+    }
+
+    function testProviderPolicyEditCannotResetSameDayUsage() public {
+        bytes32 lineId = _open(sponsor, agent);
+        ShadowFloatMainnet.SpendIntent memory first = _intent(lineId, sponsor, agent, 1 * USDC, 75);
+        float.executeSpend(first, _sign(AGENT_PK, first));
+        vm.prank(agent);
+        float.repay(lineId, 1 * USDC);
+
+        vm.prank(sponsor);
+        float.setProviderPolicy(lineId, PROVIDER, ENDPOINT, 2 * USDC, 1 * USDC, uint64(block.timestamp + 30 days), true);
+        ShadowFloatMainnet.SpendIntent memory second = _intent(lineId, sponsor, agent, 1, 76);
+        _assertTerminalBlock(
+            second,
+            _sign(AGENT_PK, second),
+            ShadowFloatMainnet.BlockReason.DAILY_SPEND_CAP,
+            "policy edit reset provider daily usage"
+        );
+    }
+
     function testPostDefaultRepaymentBecomesSponsorRecovery() public {
         bytes32 lineId = _open(sponsor, agent);
         ShadowFloatMainnet.SpendIntent memory intent = _draw(lineId, 1 * USDC, 80);
