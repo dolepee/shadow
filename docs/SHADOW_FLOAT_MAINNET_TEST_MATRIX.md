@@ -24,7 +24,7 @@ Expected Packet B result: exactly five failing `RED-*` tests. A pass means V2 be
 | `CAP-03A` | reverted/false/non-exact inbound or outbound transfer leaves debt, nonce, and events unchanged | `CAP-03`, `TOK-01` | Packet C |
 | `CAP-04A` | test one atomic unit below, exactly at, and one above protocol-reserve, per-line-reserve, per-spend, and daily caps with otherwise valid signatures | `CAP-04`, `STATE-01` | Packet C boundary/fuzz |
 | `CAP-04B` | concurrent lines cannot cross the aggregate effective or immutable protocol reserve cap | `CAP-02`, `CAP-04`, `STATE-01` | Packet C invariant |
-| `SIG-01A` | mutate sponsor, provider, endpoint, amount, max debt, fee, due time, epoch, terms, executor, nonce, and signature expiry independently | `SIG-01` | Packet C table/fuzz |
+| `SIG-01A` | mutate agent, sponsor, line ID, line epoch, terms hash, provider, endpoint, provider principal, maximum total debt, exact fee bps, maximum fee amount, due time, nonce, signature expiry, and executor independently | `SIG-01` | Packet C table/fuzz |
 | `SIG-01B` | close/reopen increments epoch and rejects all prior unused intents | `SIG-02` | Packet C |
 | `SIG-01C` | other chain or verifying contract rejects signature | `SIG-01` | Packet C |
 | `SIG-01D` | an intent for provider A carrying provider B's current policy hash fails even when both providers are approved | `SIG-01`, `SIG-02` | Packet C cross-provider table |

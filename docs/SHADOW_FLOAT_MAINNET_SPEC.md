@@ -163,7 +163,7 @@ Migration never copies accounting administratively. New spends can be paused on 
 | `CAP-02` | Aggregate token balance always covers sponsor obligations and earned-but-unwithdrawn fees. |
 | `CAP-03` | A failed or non-exact token transfer creates no debt, payment receipt, or consumed nonce. |
 | `CAP-04` | Every line opening and accepted spend enforces immutable and effective protocol-reserve, per-line-reserve, per-spend, daily-spend, and one-active-draw caps; a valid signature bypasses none of them. |
-| `SIG-01` | Every spend binds domain, sponsor, line, epoch, exact terms, payment, debt/fee bounds, due time, nonce, expiry, and executor. |
+| `SIG-01` | Every spend binds domain, agent, sponsor, line, epoch, exact terms, payment, debt/fee bounds, due time, nonce, expiry, and executor. |
 | `SIG-02` | Close, reopen, or any material terms/fee change invalidates every earlier signature. |
 | `SIG-03` | One digest can cause at most one provider payment, including relayer retries and ERC-1271 calls. |
 | `DEBT-01` | Only one active draw exists per line; default is impossible before the exact maturity boundary. |
