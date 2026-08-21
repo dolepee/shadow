@@ -38,7 +38,7 @@ Expected Packet B result: exactly five failing `RED-*` tests. A pass means V2 be
 | `GOV-01A` | reductions/removals immediate; increases queued and inactive before delay | `GOV-01` | Packet C |
 | `GOV-01B` | activation cannot exceed immutable maxima or sponsor fee ceiling | `GOV-01` | Packet C fuzz |
 | `GOV-01C` | every cap/fee proposal, cancel, and activation emits exact old/new/time values | `GOV-01`, `STATE-01` | Packet C |
-| `ROLE-01A` | unauthorized actors fail every governance and capital path | `ROLE-01`, `CAP-01` | Packet C role matrix |
+| `ROLE-01A` | unauthorized actors fail every governance and capital path; operators can pause/cancel queued increases but cannot unpause or block exits | `ROLE-01`, `CAP-01`, `EXIT-01` | Packet C role matrix |
 | `ROLE-01B` | two-step multisig handoff and deployer/operator removal | `ROLE-01` | Packet C + deployment rehearsal |
 | `TOK-01A` | constructor/deployer reject wrong address, code, decimals, chain, and manifest config | `TOK-01`, `STATE-01` | Packet C |
 | `TOK-01B` | restricted sender/recipient, false return, malformed return, callback/reentry, and fee-on-transfer are atomic | `TOK-01`, `CAP-03`, `SIG-03` | Packet C adversarial mocks |

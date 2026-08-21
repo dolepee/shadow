@@ -21,7 +21,7 @@ This release contains no legacy owner-funded credit, shared treasury, pooled cap
 | Provider | Receive the exact signed principal; optionally acknowledge delivery in a separate non-financial registry | Pull funds; alter debt or terms; make delivery acknowledgement proof of quality |
 | Submitter / relayer | Submit an intact signed intent; retry an ambiguous broadcast idempotently | Change signed fields; select a different executor; gain custody or governance power |
 | Governor multisig | Manage guarded sponsor allowlist, operators, pauses, fee schedule, global caps, ownership, and version sunset under the rules below | Withdraw or borrow sponsored reserve; edit a line; forgive or accelerate debt; default a line; block exits |
-| Operator | Perform only explicitly listed operational calls, if any; an operator is unnecessary for permissionless signed-spend submission | Own funds; change caps, fees, terms, allowlists, pauses, ownership, or migration state |
+| Operator | Set either risk-creation pause from false to true and cancel a queued cap/fee increase; submit intact signed intents like any relayer | Unpause; own funds; change caps, fees, terms, allowlists, ownership, or migration state; default or close a line |
 | Read-only monitor | Read state and events; reconcile balances and due/default eligibility | Mutate any state |
 
 Ownership uses propose/accept transfer. The deployer is removed as owner and operator before funding. Production ownership is an approved multisig; signer identities and thresholds belong in the private release manifest, not this specification.
@@ -52,7 +52,7 @@ termsHash = keccak256(
 )
 ```
 
-`providerPolicyHash` commits to the exact active provider, endpoint, per-request cap, daily cap, and policy expiry used by the spend. Any material term or provider-policy change increments `termsVersion`, produces a new `termsHash`, and invalidates all earlier signatures, even when the new terms are more permissive or the proposed spend would still fit.
+`providerPolicyHash` commits to the exact active provider, endpoint, per-request cap, daily cap, and policy expiry used by the spend. The contract recomputes the current provider-specific `termsHash` during execution. Any material line or provider-policy change increments `termsVersion`, produces a new hash, and invalidates all earlier signatures, even when the new terms are more permissive or the proposed spend would still fit.
 
 The EIP-712 `SpendIntent` binds all of:
 
@@ -115,10 +115,10 @@ The canonical stored states are `NONE`, `OPEN`, `DRAWN`, `DEFAULTED`, and `CLOSE
 
 There are exactly two operational pauses:
 
-- `openingsPaused`: blocks new lines and reserve increases;
+- `openingsPaused`: blocks new lines;
 - `spendsPaused`: blocks new provider payments.
 
-Neither pause may block repayment, debt-free close, sponsor reclaim, post-default recovery, eligible default, nonce cancellation, reads, or reconciliation. Cap reductions, sponsor removal from the allowlist, operator removal, and pausing are immediate safety actions. Unpausing is multisig-only and evented.
+Neither pause may block repayment, debt-free close, sponsor reclaim, post-default recovery, eligible default, nonce cancellation, reads, or reconciliation. Sponsor allowlisting applies only to new risk; removal may block future spends but never an existing line's exits. Cap reductions, sponsor removal from the allowlist, operator removal, and pausing are immediate safety actions. Unpausing is multisig-only and evented.
 
 There is no global modifier that can cover both risk creation and exits. An incident cannot give the governor custody of sponsor funds. If USDC restrictions prevent a transfer, state remains unchanged and the sponsor can retry with an allowed recipient where the sponsor-facing terms permit it.
 
