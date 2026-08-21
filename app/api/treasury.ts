@@ -12,6 +12,7 @@ import {
 import {
   LEPTON_M1_DEPLOYMENTS,
   classifyLeptonV4Readiness,
+  readWithCanonicalFallback,
   transactionInputContainsAddress,
 } from "../leptonM1Config.js";
 
@@ -131,6 +132,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
 
 async function runTreasuryChecks() {
   const rpcUrl = clean(process.env.ARC_RPC_URL || process.env.VITE_ARC_RPC_URL) || DEFAULT_RPC;
+  const canonicalRpcUrl = clean(process.env.ARC_PUBLIC_RPC_URL) || DEFAULT_RPC;
   const apiUrl = clean(process.env.TREASURY_VERIFY_FLOAT_API_URL || process.env.FLOAT_API_URL) || DEFAULT_API;
   const USDC = getAddress(clean(process.env.ARC_USDC || process.env.VITE_ARC_USDC) || DEFAULT_USDC);
   const FLOAT = getAddress(clean(process.env.SHADOW_FLOAT || process.env.VITE_SHADOW_FLOAT) || DEFAULT_FLOAT);
@@ -162,6 +164,10 @@ async function runTreasuryChecks() {
     rpcUrls: { default: { http: [rpcUrl] } },
   });
   const publicClient = createPublicClient({ chain, transport: http(rpcUrl, { timeout: 5_000, retryCount: 0 }) });
+  const canonicalPublicClient =
+    canonicalRpcUrl === rpcUrl
+      ? publicClient
+      : createPublicClient({ chain, transport: http(canonicalRpcUrl, { timeout: 5_000, retryCount: 0 }) });
   const historicalPasskeyProof = LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey;
 
   const check = (name: string, ok: boolean, detail = "") => {
@@ -175,7 +181,12 @@ async function runTreasuryChecks() {
     txReceipt(publicClient, proof.blockedAllocationTx),
     txReceipt(publicClient, proof.x402SettlementTx),
     txReceipt(publicClient, proof.floatBindTx),
-    publicClient.getTransaction({ hash: historicalPasskeyProof.txHash }),
+    readWithCanonicalFallback(
+      () => publicClient.getTransaction({ hash: historicalPasskeyProof.txHash }),
+      canonicalPublicClient === publicClient
+        ? undefined
+        : () => canonicalPublicClient.getTransaction({ hash: historicalPasskeyProof.txHash }),
+    ),
     readCurrentV4Readiness(publicClient),
   ]);
 

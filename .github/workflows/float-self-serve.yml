@@ -5,15 +5,19 @@ on:
     paths:
       - ".github/workflows/float-self-serve.yml"
       - "app/api/float.ts"
+      - "app/api/treasury.ts"
       - "app/floatV2Config.d.ts"
       - "app/floatV2Config.js"
       - "app/floatV2Operations.d.ts"
       - "app/floatV2Operations.js"
       - "app/floatV2Operations.test.ts"
+      - "app/leptonM1Config.d.ts"
+      - "app/leptonM1Config.js"
       - "app/package.json"
       - "app/pnpm-lock.yaml"
       - "app/src/main.tsx"
       - "app/src/styles.css"
+      - "app/scripts/lepton-readiness.test.mjs"
       - "app/tsconfig.json"
       - "docs/MAINNET_PATH.md"
       - "docs/PILOT_OPERATIONS.md"
@@ -41,6 +45,8 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-workspace
       - name: Test operational alert semantics
         run: npm run float:v2-ops:test
+      - name: Test Lepton readiness and historical proof fallback
+        run: npm run lepton:readiness:test
       - name: Typecheck app and API
         run: npm run app:typecheck
       - name: Build production app
