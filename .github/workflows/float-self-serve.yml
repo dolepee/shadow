@@ -19,7 +19,16 @@ on:
       - "app/src/styles.css"
       - "app/scripts/lepton-readiness.test.mjs"
       - "app/tsconfig.json"
+      - "contracts/foundry.toml"
+      - "contracts/src/ShadowFloatMainnet.sol"
+      - "contracts/src/interfaces/IERC20.sol"
+      - "contracts/test/ShadowFloatMainnet*.t.sol"
+      - "contracts/test/mocks/AdversarialUSDC.sol"
+      - "contracts/test/mainnet-scope.test.mjs"
       - "docs/MAINNET_PATH.md"
+      - "docs/SHADOW_FLOAT_MAINNET_SPEC.md"
+      - "docs/SHADOW_FLOAT_MAINNET_TEST_MATRIX.md"
+      - "docs/SHADOW_FLOAT_MAINNET_THREAT_MODEL.md"
       - "docs/PILOT_OPERATIONS.md"
       - "docs/PILOT_RECRUITMENT.md"
       - "package.json"
@@ -51,3 +60,19 @@ jobs:
         run: npm run app:typecheck
       - name: Build production app
         run: npm run app:build
+
+  # Packet C implementation evidence only. This job must not be used to
+  # qualify deployment or release; those gates require official Arc mainnet
+  # parameters, a deterministic manifest, and an authorized owner handoff.
+  mainnet-implementation-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: Test sponsored-only Mainnet V1 candidate
+        run: forge test --root contracts --match-path 'test/ShadowFloatMainnet*.t.sol'
+      - name: Enforce implementation runtime and scope locks
+        run: node contracts/test/mainnet-scope.test.mjs
