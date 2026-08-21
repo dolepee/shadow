@@ -29,6 +29,7 @@ Expected Packet B result: exactly five failing `RED-*` tests. A pass means V2 be
 | `SIG-01C` | other chain or verifying contract rejects signature | `SIG-01` | Packet C |
 | `SIG-01D` | an intent for provider A carrying provider B's current policy hash fails even when both providers are approved | `SIG-01`, `SIG-02` | Packet C cross-provider table |
 | `SIG-01E` | high-s, invalid-v, malformed-length, zero-recovery, and wrong-signer EOA signatures fail without consuming nonce | `SIG-01`, `CAP-03` | Packet C signature table/fuzz |
+| `SIG-01F` | freshly signed cases enforce expiry before/at/after its boundary, nonzero executor equality, resulting debt at/above maximum total debt, exact fee bps, computed fee at/above maximum fee amount, and sponsor fee ceiling | `SIG-01`, `GOV-01` | Packet C boundary/table/fuzz |
 | `SIG-02A` | any sponsor policy or fee change invalidates pending intent | `SIG-02`, `GOV-01` | Packet C |
 | `SIG-03A` | ERC-1271 reentry cannot consume/pay twice | `SIG-03` | Packet C |
 | `SIG-03B` | duplicate and ambiguous relayer submission causes one payment | `SIG-03`, `STATE-01` | Packet C contract + Node test |
