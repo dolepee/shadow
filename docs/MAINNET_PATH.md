@@ -8,7 +8,7 @@ The approved Packet B production state machine is specified separately in
 [`SHADOW_FLOAT_MAINNET_SPEC.md`](SHADOW_FLOAT_MAINNET_SPEC.md), with its
 [`threat model`](SHADOW_FLOAT_MAINNET_THREAT_MODEL.md) and
 [`invariant-to-test matrix`](SHADOW_FLOAT_MAINNET_TEST_MATRIX.md). These are
-approved implementation requirements, not a deployed or production-ready contract. Mainnet V1 is immutably zero-fee, and repayment remains available after maturity until default executes.
+approved implementation requirements, not a deployed or production-ready contract. Mainnet V1 is immutably zero-fee, and repayment remains available after maturity and line expiry until default executes.
 
 ## Current Testnet Baseline
 

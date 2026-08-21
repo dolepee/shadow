@@ -37,7 +37,7 @@ Expected Packet B result: exactly five failing `RED-*` tests. A pass means V2 be
 | `DEBT-01A` | second draw reverts while any debt is active | `DEBT-01` | Packet C |
 | `DEBT-01B` | default reverts before `dueAt`, succeeds exactly at documented boundary, and only once | `DEBT-01`, `STATE-01` | Packet C boundary/fuzz |
 | `DEBT-01C` | signed `dueAt` outside immutable or line repayment windows, or after line expiry, reverts | `DEBT-01`, `SIG-01` | Packet C boundary/fuzz |
-| `DEBT-01D` | partial and full repayment succeed immediately before `dueAt`, exactly at `dueAt`, and after `dueAt` while default has not executed; full repayment returns the line to `OPEN` and makes default impossible | `DEBT-01`, `DEBT-02`, `EXIT-01`, `STATE-01` | Packet C boundary test |
+| `DEBT-01D` | partial and full repayment each succeed immediately before `dueAt`, exactly at `dueAt`, after `dueAt` but before `lineExpiry`, and after `lineExpiry` while default has not executed; full repayment returns the line to `OPEN`, leaves expired terms unable to authorize a new spend, and makes default impossible | `DEBT-01`, `DEBT-02`, `EXIT-01`, `STATE-01` | Packet C boundary test |
 | `DEBT-02A` | repayment restores principal with no fee accrual or fee balance | `DEBT-02`, `CAP-02`, `SCOPE-01` | Packet C |
 | `DEBT-02B` | post-default repayment routes principal recovery to sponsor and never restores capacity | `DEBT-02`, `STATE-01` | Packet C |
 | `EXIT-01A` | both pauses active with debt: repay and eligible default still succeed | `EXIT-01` | Packet C |

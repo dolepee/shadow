@@ -88,7 +88,7 @@ contract USDC balance >= sponsor obligations
 
 Provider payment decreases contract balance and opens equal principal debt. Repayment applies only to principal, restoring sponsor capital or post-default recovery. Mainnet V1 never accrues or withdraws protocol revenue.
 
-Before default, full principal repayment restores line capacity subject to current caps and terms. Repayment remains available before maturity, exactly at `dueAt`, and after maturity for as long as default has not executed. After default, recovered principal is claimable by the original sponsor and never reopens capacity.
+Before default, full principal repayment restores line capacity subject to current caps and terms. Repayment remains available before maturity, exactly at `dueAt`, after maturity, and after `lineExpiry` for as long as default has not executed. Line expiry blocks future risk; it never blocks repayment. After default, recovered principal is claimable by the original sponsor and never reopens capacity.
 
 The maximum sponsor loss in a transaction is the signed provider principal for that line, bounded by per-spend, daily, line, and protocol caps. The maximum aggregate loss is total outstanding provider principal and never exceeds funded sponsored reserves. The agent owes principal only. Providers bear no agent repayment risk after a successful transfer. A reverted or restricted USDC transfer creates no debt and consumes no nonce.
 
@@ -101,15 +101,15 @@ The canonical stored states are `NONE`, `OPEN`, `DRAWN`, `DEFAULTED`, and `CLOSE
 | `NONE` or terminal prior epoch | `openLine` by allowlisted sponsor with exact transfer delta | `OPEN` | Increment epoch; commit terms; isolate reserve; no debt |
 | `OPEN` | valid signed `spend` and exact provider transfer | `DRAWN` | One active draw only; open principal debt; set exact `dueAt` |
 | `OPEN` | policy-blocked signed spend | `OPEN` | Receipt only; no transfer or debt; digest cannot later become payable under changed state |
-| `DRAWN` | partial `repay` before, at, or after maturity and before default | `DRAWN` | Reduce principal; do not open a second draw |
-| `DRAWN` | full `repay` before, at, or after maturity and before default | `OPEN` | Debt zero; capacity restored under current terms |
+| `DRAWN` | partial `repay` before, at, or after maturity, including after line expiry, and before default | `DRAWN` | Reduce principal; do not open a second draw |
+| `DRAWN` | full `repay` before, at, or after maturity, including after line expiry, and before default | `OPEN` | Debt zero; capacity restored under current terms; expired terms permit no new spend |
 | `DRAWN` | time reaches `dueAt` | `MATURED` view | No storage authority or capital movement |
 | matured `DRAWN` | sponsor `declareDefault` | `DEFAULTED` | Freeze line; return/retain unspent reserve for sponsor; record loss and recovery beneficiary |
 | `DEFAULTED` | `repay` | `DEFAULTED` | Route principal recovery to sponsor; never restore capacity |
 | `OPEN` | sponsor `closeLine` | `CLOSED` | Return the line's full reserve; clear active terms; preserve epoch/history |
 | `DEFAULTED` | sponsor claims unspent reserve/recovery | `DEFAULTED` | Transfer only sponsor-owned amount; preserve debt history |
 
-`declareDefault` must revert while `block.timestamp < dueAt`; at `dueAt` the line is mature. Maturity creates no sponsor priority over an already executing repayment: until `declareDefault` succeeds, repayment remains available and uses the ordinary pre-default transition. Default can execute only once. Close must revert with any principal outstanding. Reopening creates a new epoch and cannot make any old signature valid.
+`declareDefault` must revert while `block.timestamp < dueAt`; at `dueAt` the line is mature. Maturity and line expiry create no sponsor priority over an already executing repayment: until `declareDefault` succeeds, repayment remains available and uses the ordinary pre-default transition. Default can execute only once. Close must revert with any principal outstanding. Reopening creates a new epoch and cannot make any old signature valid.
 
 ## 6. Pauses and incident exits
 
@@ -166,7 +166,7 @@ Migration never copies accounting administratively. New spends can be paused on 
 | `SIG-01` | Every spend binds domain, agent, sponsor, line, epoch, exact terms, payment, debt bound, due time, nonce, expiry, and executor. |
 | `SIG-02` | Close, reopen, or any material terms change invalidates every earlier signature. |
 | `SIG-03` | One digest can cause at most one provider payment, including relayer retries and ERC-1271 calls. |
-| `DEBT-01` | Only one active draw exists per line; default is impossible before the exact maturity boundary; repayment stays available after maturity until default executes. |
+| `DEBT-01` | Only one active draw exists per line; default is impossible before the exact maturity boundary; repayment stays available after maturity and line expiry until default executes. |
 | `DEBT-02` | Repayment restores sponsor capital before default; post-default repayment benefits the sponsor and never restores capacity. |
 | `EXIT-01` | Repayment, eligible default, debt-free close, reclaim, recovery, cancellation, and reads remain available under every pause. |
 | `GOV-01` | Safety reductions/removals are immediate; cap increases are delayed, bounded, evented, and cannot exceed sponsor consent; no fee governance exists. |
