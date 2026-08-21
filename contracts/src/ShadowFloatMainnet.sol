@@ -298,13 +298,18 @@ contract ShadowFloatMainnet {
         uint256 oldValue = _effectiveCap(kind);
         if (newValue == 0 || newValue > oldValue) revert CapIncreaseRequired();
         _setEffectiveCap(kind, newValue);
-        delete pendingCaps[uint8(kind)];
+        PendingCap memory pending = pendingCaps[uint8(kind)];
+        if (pending.activateAt != 0) {
+            delete pendingCaps[uint8(kind)];
+            emit CapIncreaseCancelled(kind, pending.value, msg.sender);
+        }
         emit CapReduced(kind, oldValue, newValue);
     }
 
     function proposeCapIncrease(CapKind kind, uint256 newValue) external onlyOwner {
         uint256 oldValue = _effectiveCap(kind);
         if (newValue <= oldValue || newValue > _maximumCap(kind)) revert InvalidConfiguration();
+        if (pendingCaps[uint8(kind)].activateAt != 0) revert InvalidState();
         uint256 activationTimestamp = block.timestamp + governanceDelay;
         if (activationTimestamp > type(uint64).max) revert InvalidConfiguration();
         uint64 activateAt = uint64(activationTimestamp);

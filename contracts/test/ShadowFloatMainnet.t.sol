@@ -6,10 +6,18 @@ import {IERC20} from "../src/interfaces/IERC20.sol";
 import {ShadowFloatMainnet} from "../src/ShadowFloatMainnet.sol";
 
 interface VmMainnet {
+    struct Log {
+        bytes32[] topics;
+        bytes data;
+        address emitter;
+    }
+
     function addr(uint256 privateKey) external returns (address);
     function prank(address caller) external;
     function warp(uint256 timestamp) external;
     function sign(uint256 privateKey, bytes32 digest) external returns (uint8 v, bytes32 r, bytes32 s);
+    function recordLogs() external;
+    function getRecordedLogs() external returns (Log[] memory);
 }
 
 contract Mainnet1271Wallet {
@@ -695,6 +703,41 @@ contract ShadowFloatMainnetTest {
         float.activateCapIncrease(ShadowFloatMainnet.CapKind.PER_SPEND);
         (,,, uint256 perSpend,) = float.effectiveLimits();
         _assertEq(perSpend, 2 * USDC, "delayed cap did not activate");
+    }
+
+    function testQueuedCapCannotBeReplacedAndReductionEmitsCancellation() public {
+        float.reduceCap(ShadowFloatMainnet.CapKind.PER_SPEND, 1 * USDC);
+        float.proposeCapIncrease(ShadowFloatMainnet.CapKind.PER_SPEND, 2 * USDC);
+        (bool replacementOk,) = address(float)
+            .call(
+                abi.encodeWithSelector(
+                    ShadowFloatMainnet.proposeCapIncrease.selector, ShadowFloatMainnet.CapKind.PER_SPEND, 3 * USDC
+                )
+            );
+        _assertTrue(!replacementOk, "queued cap was silently replaced");
+
+        vm.recordLogs();
+        float.reduceCap(ShadowFloatMainnet.CapKind.PER_SPEND, 500_000);
+        VmMainnet.Log[] memory entries = vm.getRecordedLogs();
+        bytes32 cancellationTopic = keccak256("CapIncreaseCancelled(uint8,uint256,address)");
+        bool sawCancellation;
+        for (uint256 i; i < entries.length; ++i) {
+            if (entries[i].emitter == address(float) && entries[i].topics[0] == cancellationTopic) {
+                sawCancellation = true;
+                _assertEq(
+                    uint256(entries[i].topics[1]),
+                    uint256(ShadowFloatMainnet.CapKind.PER_SPEND),
+                    "wrong cancelled cap kind"
+                );
+                uint256 proposedValue = abi.decode(entries[i].data, (uint256));
+                address actor = address(uint160(uint256(entries[i].topics[2])));
+                _assertEq(proposedValue, 2 * USDC, "wrong cancelled proposal value");
+                _assertTrue(actor == address(this), "wrong cancellation actor");
+            }
+        }
+        _assertTrue(sawCancellation, "reduction omitted cancellation event");
+        (, uint64 activateAt) = float.pendingCaps(uint8(ShadowFloatMainnet.CapKind.PER_SPEND));
+        _assertEq(activateAt, 0, "reduction left proposal queued");
     }
 
     function testImmutableMaximaAndOpeningCapsAreEnforced() public {
