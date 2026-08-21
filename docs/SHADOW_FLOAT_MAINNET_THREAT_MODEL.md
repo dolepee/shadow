@@ -53,7 +53,7 @@ Availability of new credit is not a protected objective during an incident. Repa
 
 ## Transaction ordering and external calls
 
-Funding and repayment validate exact incoming balance deltas before committing accounting. Provider payment, reclaim, recovery, and fee withdrawal are atomic: any failed or non-exact outgoing delta reverts the complete transition. Nonces and payment commitments are set before an untrusted ERC-1271 or token interaction only when the reentrancy design preserves atomic rollback; no external callback can enter a second state-changing path.
+Funding and repayment validate exact incoming balance deltas before committing accounting. Provider payment, reclaim, recovery, and fee withdrawal are atomic: any failed or non-exact outgoing delta reverts the complete transition. Nonces and payment commitments are set before an untrusted ERC-1271 or token interaction only when the reentrancy design preserves atomic rollback. No external callback can enter a second state-changing path; a caught nested-call failure does not invalidate an otherwise valid outer ERC-1271 authorization, which may complete exactly once.
 
 Blocked policy evaluations create no provider transfer or debt. The digest is terminally recorded so a relayer cannot replay the same authorization after state or policy changes. A failed transaction records nothing and may be retried after the restriction is corrected.
 
