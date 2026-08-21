@@ -61,7 +61,10 @@ jobs:
       - name: Build production app
         run: npm run app:build
 
-  mainnet-candidate-gate:
+  # Packet C implementation evidence only. This job must not be used to
+  # qualify deployment or release; those gates require official Arc mainnet
+  # parameters, a deterministic manifest, and an authorized owner handoff.
+  mainnet-implementation-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -71,5 +74,5 @@ jobs:
           version: stable
       - name: Test sponsored-only Mainnet V1 candidate
         run: forge test --root contracts --match-path 'test/ShadowFloatMainnet*.t.sol'
-      - name: Enforce runtime and scope locks
+      - name: Enforce implementation runtime and scope locks
         run: node contracts/test/mainnet-scope.test.mjs
