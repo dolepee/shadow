@@ -2,7 +2,13 @@
 
 Shadow Float's current product is a sponsor-backed USDC spending line for autonomous agents on Arc testnet. A sponsor can open a line without Shadow owner approval, the agent signs each bounded spend, `ShadowFloat` pays the approved provider directly, debt opens onchain, and repayment restores capacity.
 
-The next milestone is not another contract or adapter. It is making this deployed loop self-serve and proving repeat, unassisted use before Arc mainnet.
+The current milestone is the sponsored-only immutable Mainnet V1 candidate and its security tests. Deployment, funding, Arc transactions, third-party capital, and public readiness claims remain outside this phase; repeat unassisted use is still required before any production launch.
+
+The approved Packet B production state machine is specified separately in
+[`SHADOW_FLOAT_MAINNET_SPEC.md`](SHADOW_FLOAT_MAINNET_SPEC.md), with its
+[`threat model`](SHADOW_FLOAT_MAINNET_THREAT_MODEL.md) and
+[`invariant-to-test matrix`](SHADOW_FLOAT_MAINNET_TEST_MATRIX.md). These are
+approved implementation requirements, not a deployed or production-ready contract. Mainnet V1 is immutably zero-fee, and repayment remains available after maturity and line expiry until default executes.
 
 ## Current Testnet Baseline
 
@@ -98,7 +104,7 @@ Questions that require evidence before implementation:
 - Should capital remain dedicated per line or become pooled?
 - Which fee pays for monitoring, losses, and protocol operations?
 
-Do not deploy pooled capital, sponsor yield, risk-priced rates, or transferable debt until repeat usage and loss assumptions can be measured.
+Do not deploy pooled capital, sponsor yield, risk-priced rates, transferable debt, or any nonzero fee in Mainnet V1. A fee requires a later immutable version with a fresh specification, security review, tests, and approval.
 
 ## Phase 5: Arc Mainnet Launch
 
@@ -110,7 +116,7 @@ Mainnet launch requires:
 - a documented capital source and loss-bearing model;
 - audited deployment and verified source;
 - provider integrations that deliver a real service for the paid request;
-- live reserve, debt, repayment, block, default, and fee monitoring;
+- live reserve, debt, repayment, block, default, and immutable-zero-fee monitoring;
 - honest mainnet terms that avoid guaranteed, risk-free, or collateral-free claims.
 
 The initial mainnet launch should retain dedicated sponsor reserves unless evidence supports a pooled model.
