@@ -4,6 +4,12 @@ Shadow Float's current product is a sponsor-backed USDC spending line for autono
 
 The next milestone is not another contract or adapter. It is making this deployed loop self-serve and proving repeat, unassisted use before Arc mainnet.
 
+The proposed production state machine is specified separately in
+[`SHADOW_FLOAT_MAINNET_SPEC.md`](SHADOW_FLOAT_MAINNET_SPEC.md), with its
+[`threat model`](SHADOW_FLOAT_MAINNET_THREAT_MODEL.md) and
+[`invariant-to-test matrix`](SHADOW_FLOAT_MAINNET_TEST_MATRIX.md). These are
+requirements under review, not a deployed or approved production contract.
+
 ## Current Testnet Baseline
 
 The deployed V2 contract at `0x20dcA96B0C487D94De885c726c956ffaF38b12C2` currently provides:

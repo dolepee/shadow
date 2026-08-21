@@ -8,3 +8,8 @@ optimizer_runs = 1
 via_ir = true
 bytecode_hash = "none"
 cbor_metadata = false
+
+# Packet B's deliberately red requirements harness is opt-in so immutable
+# testnet V2 and normal CI stay green. See the mainnet test matrix in docs.
+[profile.mainnet-red]
+test = "red-test"

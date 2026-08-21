@@ -306,6 +306,9 @@ Supporting M1 contracts are documented in [`docs/MANDATE_M1.md`](docs/MANDATE_M1
 
 - M1 mandate notes: [`docs/MANDATE_M1.md`](docs/MANDATE_M1.md)
 - Mainnet path: [`docs/MAINNET_PATH.md`](docs/MAINNET_PATH.md)
+- Proposed sponsored-only mainnet specification: [`docs/SHADOW_FLOAT_MAINNET_SPEC.md`](docs/SHADOW_FLOAT_MAINNET_SPEC.md)
+- Mainnet threat model: [`docs/SHADOW_FLOAT_MAINNET_THREAT_MODEL.md`](docs/SHADOW_FLOAT_MAINNET_THREAT_MODEL.md)
+- Mainnet invariant and test matrix: [`docs/SHADOW_FLOAT_MAINNET_TEST_MATRIX.md`](docs/SHADOW_FLOAT_MAINNET_TEST_MATRIX.md)
 - Self-serve pilot operations: [`docs/PILOT_OPERATIONS.md`](docs/PILOT_OPERATIONS.md)
 - Economics: [`docs/ECONOMICS.md`](docs/ECONOMICS.md)
 - Roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md)
