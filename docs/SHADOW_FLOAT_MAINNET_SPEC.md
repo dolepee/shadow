@@ -62,7 +62,7 @@ The EIP-712 `SpendIntent` binds all of:
 - exact `dueAt`, nonce, signature expiry, and optional executor;
 - EIP-712 domain chain ID and verifying contract.
 
-Execution requires the stored epoch and terms hash to equal the signed values, the exact current fee to equal the signed fee, and every cap to remain satisfied. The exact signed `dueAt` must satisfy `block.timestamp + minimumRepaymentWindow <= dueAt <= block.timestamp + line.maximumRepaymentWindow` and must not exceed line expiry. The global minimum and maximum repayment windows are immutable deployment bounds. Nonces are scoped by `lineId`. A nonce is marked consumed atomically with a successful or policy-blocked evaluation; a reverted transfer consumes nothing. Duplicate submissions of the same digest cannot pay twice.
+Execution requires the stored epoch and terms hash to equal the signed values, the exact current fee to equal the signed fee, and every cap to remain satisfied. The exact signed `dueAt` must satisfy `block.timestamp + minimumRepaymentWindow <= dueAt <= block.timestamp + line.maximumRepaymentWindow` and must not exceed line expiry. The global minimum and maximum repayment windows are immutable deployment bounds. Nonces are scoped by `lineId`. After signature validation, a provider, endpoint, cap, daily-limit, allowlist, or operational-pause rejection records a terminal blocked receipt and consumes the nonce/digest without moving funds. A token-call or non-exact-transfer failure reverts atomically and consumes nothing. Duplicate submission can never pay twice, including after a policy change or unpause.
 
 EOA signatures must be canonical and non-malleable. ERC-1271 validation is supported only with a reentrancy guard around the complete call and state transition. A signature from an old line, old terms version, other chain, or other contract is invalid.
 
@@ -162,6 +162,7 @@ Migration never copies accounting administratively. New spends can be paused on 
 | `CAP-01` | No owner, operator, other sponsor, or other line can consume or withdraw a line's reserve. |
 | `CAP-02` | Aggregate token balance always covers sponsor obligations and earned-but-unwithdrawn fees. |
 | `CAP-03` | A failed or non-exact token transfer creates no debt, payment receipt, or consumed nonce. |
+| `CAP-04` | Every line opening and accepted spend enforces immutable and effective protocol-reserve, per-line-reserve, per-spend, daily-spend, and one-active-draw caps; a valid signature bypasses none of them. |
 | `SIG-01` | Every spend binds domain, sponsor, line, epoch, exact terms, payment, debt/fee bounds, due time, nonce, expiry, and executor. |
 | `SIG-02` | Close, reopen, or any material terms/fee change invalidates every earlier signature. |
 | `SIG-03` | One digest can cause at most one provider payment, including relayer retries and ERC-1271 calls. |
