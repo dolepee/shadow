@@ -43,6 +43,7 @@ import {
   computeEarnedReputation,
   erc20Abi,
   fetchLeptonState,
+  fetchLeptonV4Readiness,
   fetchShadowState,
   formatAsset,
   formatUSDC,
@@ -66,6 +67,11 @@ import {
   type ShadowState,
   type SourceAgent,
 } from "./chain";
+import {
+  LEPTON_M1_DEPLOYMENTS,
+  runLeptonWalletAction,
+  type LeptonV4Readiness,
+} from "../leptonM1Config.js";
 import {
   FLOAT_V2_CONTRACT,
   FLOAT_V2_ACTIVITY_CHECKPOINT,
@@ -1291,6 +1297,7 @@ type TreasuryState = {
     floatFeeUSDC?: string;
   };
   checks?: TreasuryCheck[];
+  currentV4?: LeptonV4Readiness;
   error?: string;
 };
 
@@ -3724,6 +3731,7 @@ function TreasuryHero({ treasuryState }: {
         <div className="treasuryHeroBoundary" aria-label="Verified receipt scope">
           <span>External Float usage live</span>
           <span>mandate adapter record</span>
+          <span>current V4 wallet action {treasuryState?.currentV4?.writeReady ? "write-ready" : "inactive"}</span>
           <span>{verifierLabel}</span>
         </div>
       </div>
@@ -3792,12 +3800,27 @@ function TreasuryEvidenceStrip({ treasuryState }: { treasuryState: TreasuryState
       value: TREASURY_PROOF.morphoAdapter,
       href: `https://testnet.arcscan.app/address/${TREASURY_PROOF.morphoAdapter}`,
     },
+    {
+      label: "current read V4 adapter",
+      value: LEPTON_M1_DEPLOYMENTS.currentRead.v4StyleAdapter,
+      href: `https://testnet.arcscan.app/address/${LEPTON_M1_DEPLOYMENTS.currentRead.v4StyleAdapter}`,
+    },
+    {
+      label: "historical June 19 V4 adapter",
+      value: LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey.v4StyleAdapter,
+      href: `https://testnet.arcscan.app/address/${LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey.v4StyleAdapter}`,
+    },
   ];
   const txLinks = [
     { label: "V2 provider payment", value: FLOAT_V2_PROOF.directSpendTx, href: txUrl(FLOAT_V2_PROOF.directSpendTx) },
     { label: "V2 blocked spend", value: FLOAT_V2_PROOF.blockedSpendTx, href: txUrl(FLOAT_V2_PROOF.blockedSpendTx) },
     { label: "vault allocation", value: TREASURY_PROOF.txs.allocation, href: txUrl(TREASURY_PROOF.txs.allocation) },
     { label: "blocked allocation", value: TREASURY_PROOF.txs.blocked, href: txUrl(TREASURY_PROOF.txs.blocked) },
+    {
+      label: "historical June 19 passkey proof",
+      value: LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey.txHash,
+      href: txUrl(LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey.txHash),
+    },
   ];
 
   return (
@@ -3806,6 +3829,11 @@ function TreasuryEvidenceStrip({ treasuryState }: { treasuryState: TreasuryState
         <span>onchain evidence</span>
         <strong>{treasuryState?.ok ? `${passed}/${total} live checks pass` : "contracts and txs visible"}</strong>
         <p>Contract addresses and ArcScan transactions are visible from the product surface.</p>
+        <p>
+          Current V4 reads use <code>{shortAddress(LEPTON_M1_DEPLOYMENTS.currentRead.v4StyleAdapter)}</code>. The June 19
+          passkey proof used <code>{shortAddress(LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey.v4StyleAdapter)}</code>.
+          The current wallet action is inactive; no wallet request will be made.
+        </p>
       </div>
       <div className="treasuryEvidenceGroup" aria-label="Record contracts">
         {contractLinks.map((item) => (
@@ -8467,13 +8495,14 @@ function LeptonM1Panel({
   error: string | null;
   compact?: boolean;
 }) {
-  const configured = Boolean(isLeptonConfigured && state?.configured);
+  const readConfigured = Boolean(isLeptonConfigured && state?.configured);
+  const v4WriteReady = Boolean(state?.v4Readiness.writeReady);
   const addressRows = [
     { label: "MandateRegistry", value: leptonAddresses.mandateRegistry },
     { label: "MandateAttestor", value: leptonAddresses.mandateAttestor },
     { label: "BondedEnforcer", value: leptonAddresses.bondedEnforcer },
-    { label: "V4StyleArcAdapter", value: leptonAddresses.v4StyleAdapter },
-    { label: "MandateVaultSink", value: state?.liquiditySink },
+    { label: "Current read V4StyleArcAdapter", value: leptonAddresses.v4StyleAdapter },
+    { label: "Current archival sink", value: state?.liquiditySink },
     { label: "MorphoStyleAdapter", value: leptonAddresses.morphoStyleAdapter },
     { label: "MorphoVaultSink", value: state?.morphoVaultSink },
   ];
@@ -8481,34 +8510,32 @@ function LeptonM1Panel({
     "Circle wallet is the scoped capital account",
     "MandateRegistry checks USDC, target, size, day cap, risk, expiry, and slippage",
     "MandateAttestor records ALLOW or BLOCK against the action hash",
-    "V4StyleArcAdapter is swap-only and moves USDC only after an ALLOW receipt",
+    "Historical V4StyleArcAdapter proofs moved USDC only after an ALLOW receipt; the current read deployment is inactive for writes",
     "MandateVaultSink records the receipt-linked deposit",
-    "Committed missing receipts can be challenged against the enforcer bond",
+    "The synchronous style adapters do not call commitAction; missing-receipt slashing is not active for these calls",
   ];
   const adapterSurfaces = [
     {
       name: "Uniswap v4-style swaps",
-      status: configured ? "live" : "deploy pending",
-      detail: "Pool-key execution refs bind currency pair, fee tier, tick spacing, hooks, and route salt.",
+      status: v4WriteReady ? "write-ready" : "inactive",
+      detail: state?.v4Readiness.userCopy || "Read configuration is separate from wallet write readiness.",
     },
     {
       name: "Morpho-style vault deposits",
-      status: configured && state?.morphoConfigured ? "live" : "deploy pending",
-      detail: "Deposit-only adapter gates USDC before vault movement through the same bonded enforcer.",
+      status: readConfigured && state?.morphoConfigured ? "historical proof readable" : "read pending",
+      detail: "Morpho-style testnet proof only; this is not a real Morpho integration or a wallet-ready path.",
     },
   ];
   const circlePasskeyProof = {
+    ...LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey,
     smartAccount: "0x6994ebdef63aa0e665e3c781ed54e2e181869a7a" as Address,
-    txHash: "0x98b8b175d4ec8bf6d457d653383932e69d74300bd0b8a7e324e0cae3ac35a529" as `0x${string}`,
     mandateId: "2",
     amount: "0.01 USDC",
   };
   const morphoProof = {
-    adapter: "0xba9f134f7b13dadd45dcf16b09c5121a7555e2c5" as Address,
-    vault: "0x110f79c5617797b199d3d6e2abb855c34fbc5e58" as Address,
+    ...LEPTON_M1_DEPLOYMENTS.historicalProofs.morphoStyle,
+    vault: LEPTON_M1_DEPLOYMENTS.historicalProofs.morphoStyle.sink,
     mandateId: "3",
-    allowTx: "0x9836e74ee95907847fac464f3a65554cf314adab9efe7141f4644022b3e09c17" as `0x${string}`,
-    blockTx: "0x7d3dddd89dc50ea5b410564c7f1134ce1350fd3687e8cefec74192d9e9b4bd23" as `0x${string}`,
   };
   const updated = state ? new Date(state.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
 
@@ -8523,41 +8550,41 @@ function LeptonM1Panel({
             BLOCK receipt, and keep the enforcer accountable across swap and vault-style adapters.
           </p>
         </div>
-        <div className={`leptonStatus ${configured ? "configured" : "pending"}`}>
+        <div className={`leptonStatus ${readConfigured ? "configured" : "pending"}`}>
           <span className="leptonStatusDot" />
-          {configured ? "live contract reads" : "deploy pending"}
+          {readConfigured ? (v4WriteReady ? "live reads · write-ready" : "live reads · writes inactive") : "read pending"}
           {loading && <small>syncing</small>}
         </div>
       </div>
 
       <div className="leptonMetricGrid">
-        <LeptonMetric label="mandates" value={configured ? state!.mandateCount.toString() : "pending"} />
-        <LeptonMetric label="receipts" value={configured ? state!.receiptCount.toString() : "pending"} />
-        <LeptonMetric label="adapter bond" value={configured ? `${formatUSDC(state!.adapterBondUSDC)} USDC` : "pending"} />
+        <LeptonMetric label="mandates" value={readConfigured ? state!.mandateCount.toString() : "pending"} />
+        <LeptonMetric label="receipts" value={readConfigured ? state!.receiptCount.toString() : "pending"} />
+        <LeptonMetric label="current V4 bond" value={readConfigured ? `${formatUSDC(state!.adapterBondUSDC)} USDC` : "pending"} />
         <LeptonMetric
           label="vault bond"
           value={
-            configured && state!.morphoAdapterBondUSDC !== undefined
+            readConfigured && state!.morphoAdapterBondUSDC !== undefined
               ? `${formatUSDC(state!.morphoAdapterBondUSDC)} USDC`
               : "pending"
           }
         />
-        <LeptonMetric label="minimum bond" value={configured ? `${formatUSDC(state!.minBondUSDC)} USDC` : "pending"} />
-        <LeptonMetric label="allowed USDC" value={configured ? formatUSDC(state!.executedUSDC) : "0"} tone="allow" />
+        <LeptonMetric label="minimum bond" value={readConfigured ? `${formatUSDC(state!.minBondUSDC)} USDC` : "pending"} />
+        <LeptonMetric label="current V4 recorded" value={readConfigured ? formatUSDC(state!.executedUSDC) : "0"} tone="allow" />
         <LeptonMetric
           label="vault recorded"
-          value={configured && state!.vaultDepositedUSDC !== undefined ? formatUSDC(state!.vaultDepositedUSDC) : "pending"}
+          value={readConfigured && state!.vaultDepositedUSDC !== undefined ? formatUSDC(state!.vaultDepositedUSDC) : "pending"}
           tone="allow"
         />
         <LeptonMetric
           label="morpho allowed"
-          value={configured && state!.morphoDepositedUSDC !== undefined ? formatUSDC(state!.morphoDepositedUSDC) : "pending"}
+          value={readConfigured && state!.morphoDepositedUSDC !== undefined ? formatUSDC(state!.morphoDepositedUSDC) : "pending"}
           tone="allow"
         />
-        <LeptonMetric label="blocked USDC" value={configured ? formatUSDC(state!.blockedUSDC) : "0"} tone="block" />
+        <LeptonMetric label="current V4 blocked" value={readConfigured ? formatUSDC(state!.blockedUSDC) : "0"} tone="block" />
         <LeptonMetric
           label="morpho blocked"
-          value={configured && state!.morphoBlockedUSDC !== undefined ? formatUSDC(state!.morphoBlockedUSDC) : "pending"}
+          value={readConfigured && state!.morphoBlockedUSDC !== undefined ? formatUSDC(state!.morphoBlockedUSDC) : "pending"}
           tone="block"
         />
       </div>
@@ -8581,7 +8608,7 @@ function LeptonM1Panel({
         <article className="leptonBox">
           <div className="leptonBoxHeader">
             <span>receipt chain</span>
-            <small>{configured ? `next #${state!.nextReceiptId.toString()}` : "waiting for deploy"}</small>
+            <small>{readConfigured ? `next #${state!.nextReceiptId.toString()}` : "waiting for reads"}</small>
           </div>
           <ol className="leptonProofList">
             {proofSteps.map((step) => (
@@ -8612,8 +8639,8 @@ function LeptonM1Panel({
       {!compact && (
         <article className="leptonPasskeyProof">
           <div className="leptonBoxHeader">
-            <span>Circle passkey transaction</span>
-            <small>sponsored UserOp</small>
+            <span>{circlePasskeyProof.label}</span>
+            <small>{circlePasskeyProof.generation} · sponsored UserOp</small>
           </div>
           <div className="leptonProofFacts">
             <div>
@@ -8623,6 +8650,10 @@ function LeptonM1Panel({
             <div>
               <span>Mandate</span>
               <strong>#{circlePasskeyProof.mandateId}</strong>
+            </div>
+            <div>
+              <span>Historical adapter</span>
+              <code title={circlePasskeyProof.v4StyleAdapter}>{shortAddress(circlePasskeyProof.v4StyleAdapter)}</code>
             </div>
             <div>
               <span>Allowed</span>
@@ -8636,8 +8667,9 @@ function LeptonM1Panel({
             </div>
           </div>
           <p>
-            Circle Gas Station sponsored one passkey-owned account to approve USDC, create a Lepton mandate, and execute
-            the allowed adapter action that raised the receipt count and vault-recorded USDC.
+            On June 19, Circle Gas Station sponsored one passkey-owned account to approve USDC, create a Lepton mandate,
+            and execute the historical <code>{shortAddress(circlePasskeyProof.v4StyleAdapter)}</code> adapter generation.
+            This proof is not the current read deployment and is not reused for writes.
           </p>
         </article>
       )}
@@ -8645,8 +8677,8 @@ function LeptonM1Panel({
       {!compact && (
         <article className="leptonPasskeyProof">
           <div className="leptonBoxHeader">
-            <span>Morpho-style vault transaction</span>
-            <small>live adapter</small>
+            <span>{morphoProof.label}</span>
+            <small>historical testnet record</small>
           </div>
           <div className="leptonProofFacts">
             <div>
@@ -8660,7 +8692,7 @@ function LeptonM1Panel({
             <div>
               <span>Allowed / blocked</span>
               <strong>
-                {configured && state!.morphoDepositedUSDC !== undefined && state!.morphoBlockedUSDC !== undefined
+                {readConfigured && state!.morphoDepositedUSDC !== undefined && state!.morphoBlockedUSDC !== undefined
                   ? `${formatUSDC(state!.morphoDepositedUSDC)} / ${formatUSDC(state!.morphoBlockedUSDC)} USDC`
                   : "0.1 / 0.3 USDC"}
               </strong>
@@ -8677,8 +8709,8 @@ function LeptonM1Panel({
             </div>
           </div>
           <p>
-            The second protocol surface uses the same bonded enforcer as the v4-style adapter: one deposit-shaped action
-            moved USDC after an ALLOW receipt, and one oversized deposit wrote a BLOCK receipt without moving funds.
+            This Morpho-style testnet proof used a vault-shaped sink: one deposit-shaped action moved USDC after an ALLOW
+            receipt, and one oversized deposit wrote a BLOCK receipt without moving funds. It is not real Morpho.
           </p>
         </article>
       )}
@@ -8689,7 +8721,7 @@ function LeptonM1Panel({
         <div className="leptonBoundaries">
           <span>v4-style adapter, not a claimed Uniswap hook</span>
           <span>Morpho-style adapter, not a claimed Morpho integration</span>
-          <span>objective missing-receipt slashing only</span>
+          <span>synchronous adapters do not call commitAction</span>
           <span>deterministic policy; no LLM override</span>
         </div>
       )}
@@ -9034,8 +9066,19 @@ function ModularWalletCard() {
       : { kind: "idle" };
 
   const [state, setState] = useState<ModularWalletState>(initial);
+  const [leptonWriteReadiness, setLeptonWriteReadiness] = useState<LeptonV4Readiness | null>(null);
   const [selectedSourceIndex, setSelectedSourceIndex] = useState(0);
   const selectedSource = SOURCE_AGENTS[selectedSourceIndex];
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchLeptonV4Readiness().then((readiness) => {
+      if (!cancelled) setLeptonWriteReadiness(readiness);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [followerPolicy, setFollowerPolicy] = useState<{
     active: boolean;
     maxPerIntent: bigint;
@@ -9380,8 +9423,10 @@ function ModularWalletCard() {
 
   async function onSponsoredLeptonMandate() {
     const accountAddress = (state as any).address as Address | undefined;
+    const mandateRegistry = leptonAddresses.mandateRegistry;
+    const v4StyleAdapter = leptonAddresses.v4StyleAdapter;
     if (!accountAddress || state.kind === "funding" || state.kind === "sending") return;
-    if (!addresses.usdc || !isLeptonConfigured || !leptonAddresses.mandateRegistry || !leptonAddresses.v4StyleAdapter) {
+    if (!addresses.usdc || !isLeptonConfigured || !mandateRegistry || !v4StyleAdapter) {
       setState({
         kind: "error",
         message: "Lepton registry/adapter/usdc addresses are not configured.",
@@ -9392,6 +9437,9 @@ function ModularWalletCard() {
 
     setState({ kind: "sending", stage: "loading passkey credential", address: accountAddress });
     try {
+      const readiness = await fetchLeptonV4Readiness();
+      setLeptonWriteReadiness(readiness);
+      await runLeptonWalletAction(readiness, async () => {
       const credential = await loadCredential();
       if (!credential) throw new Error("Passkey credential missing. Log in again.");
       const { smartAccount, bundler } = await withSmartAccount(credential);
@@ -9412,7 +9460,7 @@ function ModularWalletCard() {
 
       setState({ kind: "sending", stage: "reading next mandate id", address: smartAddress });
       const mandateId = (await publicClient.readContract({
-        address: leptonAddresses.mandateRegistry,
+        address: mandateRegistry,
         abi: mandateRegistryAbi,
         functionName: "nextMandateId",
       })) as bigint;
@@ -9421,7 +9469,7 @@ function ModularWalletCard() {
       const approveData = encodeFunctionData({
         abi: erc20Abi,
         functionName: "approve",
-        args: [leptonAddresses.v4StyleAdapter, amountUSDC],
+        args: [v4StyleAdapter, amountUSDC],
       });
       const createMandateData = encodeFunctionData({
         abi: mandateRegistryAbi,
@@ -9429,7 +9477,7 @@ function ModularWalletCard() {
         args: [
           smartAddress,
           addresses.usdc as Address,
-          leptonAddresses.v4StyleAdapter,
+          v4StyleAdapter,
           1,
           amountUSDC,
           dailyCap,
@@ -9447,7 +9495,7 @@ function ModularWalletCard() {
             actor: smartAddress,
             circleAccount: smartAddress,
             settlementAsset: addresses.usdc as Address,
-            target: leptonAddresses.v4StyleAdapter,
+            target: v4StyleAdapter,
             actionType: 1,
             amountUSDC,
             riskLevel: 2,
@@ -9464,8 +9512,8 @@ function ModularWalletCard() {
         account: smartAccount,
         calls: [
           { to: addresses.usdc as Address, value: 0n, data: approveData },
-          { to: leptonAddresses.mandateRegistry, value: 0n, data: createMandateData },
-          { to: leptonAddresses.v4StyleAdapter, value: 0n, data: actionData },
+          { to: mandateRegistry, value: 0n, data: createMandateData },
+          { to: v4StyleAdapter, value: 0n, data: actionData },
         ],
         paymaster: true,
       })) as `0x${string}`;
@@ -9479,6 +9527,7 @@ function ModularWalletCard() {
         mode: "lepton",
         mandateId,
         amountUSDC,
+      });
       });
     } catch (err: any) {
       const parts: string[] = [];
@@ -9691,14 +9740,21 @@ function ModularWalletCard() {
                   type="button"
                   className="modularBtnPrimary"
                   onClick={onSponsoredLeptonMandate}
-                  disabled={state.kind === "sending" || state.kind === "funding"}
-                  title="Create a Lepton mandate and execute an allowed USDC movement through the bonded adapter"
+                  disabled={state.kind === "sending" || state.kind === "funding" || !leptonWriteReadiness?.writeReady}
+                  title={leptonWriteReadiness?.userCopy || "Checking V4 write readiness. No wallet request will be made until every check passes."}
                 >
                   {state.kind === "sending"
                     ? `Lepton… ${state.stage}`
-                    : "Run Lepton mandate action (sponsored)"}
+                    : leptonWriteReadiness?.writeReady
+                      ? "Run Lepton mandate action (sponsored)"
+                      : "V4 wallet action inactive"}
                 </button>
               </div>
+              {!leptonWriteReadiness?.writeReady && (
+                <p className="modularInfo">
+                  {leptonWriteReadiness?.userCopy || "Checking V4 readiness. No wallet request will be made."}
+                </p>
+              )}
               {state.kind === "funded" && state.tx && (
                 <p className="modularInfo">
                   Faucet tx{" "}

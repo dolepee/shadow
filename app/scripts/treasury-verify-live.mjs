@@ -9,6 +9,7 @@ import {
   parseAbi,
   parseAbiItem,
 } from "viem";
+import { LEPTON_M1_DEPLOYMENTS, transactionInputContainsAddress } from "../leptonM1Config.js";
 
 const env = {
   ...readEnv(new URL("../../.env", import.meta.url)),
@@ -81,6 +82,23 @@ const transferEvent = parseAbiItem("event Transfer(address indexed from, address
 const x402PaymentBoundEvent = parseAbiItem(
   "event X402PaymentBound(uint256 indexed receiptId, bytes32 indexed requestHash, bytes32 x402Hash, address indexed provider, uint256 amountUSDC, address facilitator)",
 );
+const floatReceiptEvent = parseAbiItem(
+  "event FloatReceipt(uint256 indexed receiptId, bytes32 indexed receiptHash, uint8 indexed receiptType, address agent, address provider, bytes32 endpointHash, uint256 amountUSDC, uint256 creditBeforeUSDC, uint256 creditAfterUSDC, uint256 debtBeforeUSDC, uint256 debtAfterUSDC, uint8 reason, bytes32 mandateId, bytes32 requestHash, bytes32 prevChecksum, bytes32 checksum)",
+);
+const RECEIPT_TYPES = [
+  "UNKNOWN",
+  "FLOAT_GRANTED",
+  "SPEND_ALLOWED",
+  "SPEND_BLOCKED",
+  "PROVIDER_PAID",
+  "DEBT_OPENED",
+  "REPAID",
+  "LIMIT_REDUCED",
+  "LIMIT_REVOKED",
+  "CREDIT_DENIED",
+  "FEE_ACCRUED",
+  "DEFAULTED",
+];
 
 const attestorAbi = parseAbi([
   "function receiptByActionHash(bytes32 actionHash) view returns (bytes32)",
@@ -97,13 +115,15 @@ const floatAbi = parseAbi([
 
 const checks = [];
 
-const [floatState, createTx, allowedTx, blockedTx, x402Tx, bindTx] = await Promise.all([
+const historicalPasskeyProof = LEPTON_M1_DEPLOYMENTS.historicalProofs.circlePasskey;
+const [floatState, createTx, allowedTx, blockedTx, x402Tx, bindTx, historicalPasskeyTx] = await Promise.all([
   fetchJson(apiUrl),
   txReceipt(proof.createMandateTx),
   txReceipt(proof.allowedAllocationTx),
   txReceipt(proof.blockedAllocationTx),
   txReceipt(proof.x402SettlementTx),
   txReceipt(proof.floatBindTx),
+  publicClient.getTransaction({ hash: historicalPasskeyProof.txHash }),
 ]);
 
 check("create mandate tx succeeded", createTx.ok, createTx.detail);
@@ -111,6 +131,11 @@ check("allowed allocation tx succeeded", allowedTx.ok, allowedTx.detail);
 check("blocked allocation tx succeeded", blockedTx.ok, blockedTx.detail);
 check("x402 settlement tx succeeded", x402Tx.ok, x402Tx.detail);
 check("Float bind tx succeeded", bindTx.ok, bindTx.detail);
+check(
+  "historical passkey proof contains its declared adapter generation",
+  transactionInputContainsAddress(historicalPasskeyTx.input, historicalPasskeyProof.v4StyleAdapter),
+  `${historicalPasskeyProof.generation} -> ${historicalPasskeyProof.v4StyleAdapter}`,
+);
 
 const [adapterBond, enforcerBond, treasuryBalance, totalAvailable, allowedReceipt, blockedReceipt, floatReceiptHash] =
   await Promise.all([
@@ -174,10 +199,13 @@ const bindEvent = await verifyX402Bound();
 check("Float bind emitted matching X402PaymentBound", bindEvent.ok, bindEvent.detail);
 
 const apiReceipts = Array.isArray(floatState?.receipts) ? floatState.receipts : [];
-const requestReceipts = apiReceipts.filter((receipt) => sameHash(receipt.requestHash, proof.floatRequestHash));
+const indexedRequestReceipts = apiReceipts.filter((receipt) => sameHash(receipt.requestHash, proof.floatRequestHash));
+const historicalRequestReceipts = await historicalFloatReceipts(proof.floatBindTx, proof.floatRequestHash);
+const requestReceipts = indexedRequestReceipts.length > 0 ? indexedRequestReceipts : historicalRequestReceipts;
+const receiptSourceLabel = indexedRequestReceipts.length > 0 ? "Float API" : "transaction logs";
 const apiTypes = new Set(requestReceipts.map((receipt) => receipt.receiptType));
-check("Float API indexes this Treasury request", requestReceipts.length >= 4, `${requestReceipts.length} receipts`);
-check("Float API shows spend/provider/fee/debt lifecycle", ["SPEND_ALLOWED", "PROVIDER_PAID", "FEE_ACCRUED", "DEBT_OPENED"].every((type) => apiTypes.has(type)), [...apiTypes].join(", "));
+check(`${receiptSourceLabel} indexes this Treasury request`, requestReceipts.length >= 4, `${requestReceipts.length} receipts`);
+check(`${receiptSourceLabel} shows spend/provider/fee/debt lifecycle`, ["SPEND_ALLOWED", "PROVIDER_PAID", "FEE_ACCRUED", "DEBT_OPENED"].every((type) => apiTypes.has(type)), [...apiTypes].join(", "));
 
 const debtReceipt = requestReceipts.find((receipt) => receipt.receiptType === "DEBT_OPENED");
 if (debtReceipt) {
@@ -189,7 +217,14 @@ if (debtReceipt) {
   check("Float debt equals x402 amount plus fee", false, "missing DEBT_OPENED receipt");
 }
 
-check("Float API proof checks remain green", Boolean(floatState?.proofChecks?.hasX402BoundSpend && floatState?.proofChecks?.feeMechanicsVisible), JSON.stringify(floatState?.proofChecks || {}));
+check(
+  "Float proof checks remain green",
+  Boolean(
+    (floatState?.proofChecks?.hasX402BoundSpend && floatState?.proofChecks?.feeMechanicsVisible) ||
+      (apiTypes.has("PROVIDER_PAID") && apiTypes.has("FEE_ACCRUED") && apiTypes.has("DEBT_OPENED")),
+  ),
+  indexedRequestReceipts.length > 0 ? JSON.stringify(floatState?.proofChecks || {}) : "historical transaction logs",
+);
 
 const result = {
   ok: checks.every((entry) => entry.ok),
@@ -205,6 +240,10 @@ const result = {
     bondedEnforcer: ENFORCER,
     morphoStyleVaultAdapter: MORPHO_ADAPTER,
     morphoStyleVaultSink: MORPHO_SINK,
+  },
+  historicalProofs: {
+    circlePasskey: historicalPasskeyProof,
+    morphoStyle: LEPTON_M1_DEPLOYMENTS.historicalProofs.morphoStyle,
   },
   txs: {
     createMandate: proof.createMandateTx,
@@ -312,6 +351,33 @@ async function verifyX402Bound() {
     return matched ? { ok: true, detail: proof.floatBindTx } : { ok: false, detail: "missing matching X402PaymentBound" };
   } catch (error) {
     return { ok: false, detail: sanitize(error) };
+  }
+}
+
+async function historicalFloatReceipts(txHash, requestHash) {
+  try {
+    const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
+    if (receipt.status !== "success") return [];
+    return receipt.logs.flatMap((log) => {
+      if (!sameAddress(log.address, FLOAT)) return [];
+      const decoded = decodeLog(floatReceiptEvent, log);
+      if (!decoded || !sameHash(decoded.args.requestHash, requestHash)) return [];
+      const receiptType = RECEIPT_TYPES[Number(decoded.args.receiptType)] || `TYPE_${decoded.args.receiptType}`;
+      const amount = BigInt(decoded.args.amountUSDC);
+      const debtBefore = BigInt(decoded.args.debtBeforeUSDC);
+      const debtAfter = BigInt(decoded.args.debtAfterUSDC);
+      const debtOpened = debtAfter > debtBefore ? debtAfter - debtBefore : 0n;
+      return [{
+        requestHash: decoded.args.requestHash,
+        receiptType,
+        amountUSDC: amount.toString(),
+        providerAmountUSDC: amount.toString(),
+        feeUSDC: receiptType === "DEBT_OPENED" && debtOpened > amount ? (debtOpened - amount).toString() : "0",
+        debtOpenedUSDC: debtOpened.toString(),
+      }];
+    });
+  } catch {
+    return [];
   }
 }
 

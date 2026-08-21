@@ -202,7 +202,7 @@ Circle wallet tooling was explored for future onboarding, but it is not required
 
 The Records surface and M1 are supporting mandate paths, not the primary product surface.
 
-The Records page shows an execution wallet using approved adapters to allocate Arc testnet USDC when a bonded enforcer returns `ALLOW`, and move zero funds when the same adapter path returns `BLOCK`. This validates the policy shape, but it is not claimed as a production treasury customer or a real Morpho deployment.
+The Records page separates the current read deployment from historical adapter proofs. The historical records show an execution wallet allocating Arc testnet USDC when a bonded enforcer returned `ALLOW`, and moving zero funds when the same adapter path returned `BLOCK`. The current V4 generation is unbonded and uses an archival nonrecoverable sink, so its wallet action is disabled. This validates a historical policy shape; it is not a production treasury customer, a real Morpho deployment, or a write-ready current adapter.
 
 Records page: https://shadow-arc.vercel.app/records
 
@@ -215,7 +215,8 @@ Next M1 hardening:
 - Move from adapter-enforced checks to custodial or escrow-release enforcement.
 - Replace the test sink with a withdrawable vault integration.
 - Integrate a real Morpho or vault market before using Morpho language as a production claim.
-- Expand bonding from receipt liveness to correctness and settlement guarantees.
+- Wire and verify `commitAction` before making any missing-receipt-liveness claim; the synchronous style adapters do not call it today.
+- Expand bonding from that explicit commitment path to correctness and settlement guarantees.
 
 ## Verify It Yourself
 

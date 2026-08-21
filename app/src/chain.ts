@@ -9,6 +9,11 @@ import {
 } from "viem";
 import { defineChain } from "viem";
 import {
+  LEPTON_M1_DEPLOYMENTS,
+  classifyLeptonV4Readiness,
+  type LeptonV4Readiness,
+} from "../leptonM1Config.js";
+import {
   LIFETIME_SNAPSHOT_FLOOR,
   type LifetimeTotals,
   type RecentWindowTotals,
@@ -41,11 +46,11 @@ export const addresses = {
 };
 
 export const leptonAddresses = {
-  mandateRegistry: readAddress("VITE_SHADOW_MANDATE_REGISTRY", "0xe3cf1a4d54f627f599255142cef4bf9b8c361a4c"),
-  mandateAttestor: readAddress("VITE_SHADOW_MANDATE_ATTESTOR", "0x9b5afc6c442364d4397763917ebbc659d85ee86d"),
-  bondedEnforcer: readAddress("VITE_SHADOW_BONDED_ENFORCER", "0x1825f447c0aa8e64dd2d290cdce85d82993d0e1e"),
-  v4StyleAdapter: readAddress("VITE_SHADOW_V4_STYLE_ADAPTER", "0xd890db70ba5135141a5d4522ba36fc0ca7cad177"),
-  morphoStyleAdapter: readAddress("VITE_SHADOW_MORPHO_STYLE_ADAPTER", "0xba9f134f7b13dadd45dcf16b09c5121a7555e2c5"),
+  mandateRegistry: readAddress("VITE_SHADOW_MANDATE_REGISTRY", LEPTON_M1_DEPLOYMENTS.currentRead.mandateRegistry),
+  mandateAttestor: readAddress("VITE_SHADOW_MANDATE_ATTESTOR", LEPTON_M1_DEPLOYMENTS.currentRead.mandateAttestor),
+  bondedEnforcer: readAddress("VITE_SHADOW_BONDED_ENFORCER", LEPTON_M1_DEPLOYMENTS.currentRead.bondedEnforcer),
+  v4StyleAdapter: readAddress("VITE_SHADOW_V4_STYLE_ADAPTER", LEPTON_M1_DEPLOYMENTS.currentRead.v4StyleAdapter),
+  morphoStyleAdapter: readAddress("VITE_SHADOW_MORPHO_STYLE_ADAPTER", LEPTON_M1_DEPLOYMENTS.currentRead.morphoStyleAdapter),
 };
 
 export const startBlock = BigInt(import.meta.env.VITE_SHADOW_START_BLOCK || 0);
@@ -130,6 +135,7 @@ export const bondedMandateEnforcerAbi = parseAbi([
 ]);
 
 export const v4StyleArcAdapterAbi = parseAbi([
+  "function enforcer() view returns (address)",
   "function adapterBondUSDC() view returns (uint256)",
   "function executedUSDC() view returns (uint256)",
   "function blockedUSDC() view returns (uint256)",
@@ -273,6 +279,7 @@ export type ShadowState = {
 
 export type LeptonState = {
   configured: boolean;
+  v4Readiness: LeptonV4Readiness;
   nextMandateId: bigint;
   mandateCount: bigint;
   nextReceiptId: bigint;
@@ -303,7 +310,7 @@ export type HydratedRecentWindowTotals = Omit<RecentWindowTotals, "mirroredUsdcA
 export async function fetchLeptonState(): Promise<LeptonState | null> {
   if (!isLeptonConfigured) return null;
 
-  const [nextMandateId, nextReceiptId, receiptCount, minBondUSDC, adapterBondUSDC, executedUSDC, blockedUSDC, liquiditySink] =
+  const [nextMandateId, nextReceiptId, receiptCount, minBondUSDC, adapterBondUSDC, executedUSDC, blockedUSDC, liquiditySink, v4Readiness] =
     await Promise.all([
       publicClient.readContract({
         address: leptonAddresses.mandateRegistry!,
@@ -345,6 +352,7 @@ export async function fetchLeptonState(): Promise<LeptonState | null> {
         abi: v4StyleArcAdapterAbi,
         functionName: "liquiditySink",
       }),
+      fetchLeptonV4Readiness(),
     ]);
   const vaultDepositedUSDC = await publicClient
     .readContract({
@@ -359,6 +367,7 @@ export async function fetchLeptonState(): Promise<LeptonState | null> {
 
   return {
     configured: true,
+    v4Readiness,
     nextMandateId,
     mandateCount: nextMandateId > 0n ? nextMandateId - 1n : 0n,
     nextReceiptId,
@@ -377,6 +386,76 @@ export async function fetchLeptonState(): Promise<LeptonState | null> {
     morphoVaultSink: morphoState?.vaultSink,
     fetchedAt: Date.now(),
   };
+}
+
+export async function fetchLeptonV4Readiness(): Promise<LeptonV4Readiness> {
+  const current = LEPTON_M1_DEPLOYMENTS.currentRead;
+  const readConfigured = Boolean(leptonAddresses.bondedEnforcer && leptonAddresses.v4StyleAdapter);
+  if (!readConfigured) {
+    return classifyLeptonV4Readiness({
+      readConfigured: false,
+      rpcOk: false,
+      adapterHasCode: false,
+      sinkHasCode: false,
+      adapterBondUSDC: 0n,
+      minBondUSDC: 0n,
+      generationWriteAllowlisted: false,
+      generationSourceVerified: false,
+      sinkRecoverable: false,
+    });
+  }
+
+  try {
+    const adapter = leptonAddresses.v4StyleAdapter!;
+    const enforcer = leptonAddresses.bondedEnforcer!;
+    const [adapterCode, actualEnforcer, actualSink, adapterBondUSDC, minBondUSDC] = await Promise.all([
+      publicClient.getBytecode({ address: adapter }),
+      publicClient.readContract({ address: adapter, abi: v4StyleArcAdapterAbi, functionName: "enforcer" }),
+      publicClient.readContract({ address: adapter, abi: v4StyleArcAdapterAbi, functionName: "liquiditySink" }),
+      publicClient.readContract({ address: adapter, abi: v4StyleArcAdapterAbi, functionName: "adapterBondUSDC" }),
+      publicClient.readContract({ address: enforcer, abi: bondedMandateEnforcerAbi, functionName: "minBondUSDC" }),
+    ]);
+    const [sinkCode, sinkAdapter] = await Promise.all([
+      publicClient.getBytecode({ address: actualSink }),
+      publicClient.readContract({ address: actualSink, abi: mandateVaultSinkAbi, functionName: "adapter" }),
+    ]);
+    const declaredCurrentGeneration =
+      sameAddress(adapter, current.v4StyleAdapter) && sameAddress(enforcer, current.bondedEnforcer);
+
+    return classifyLeptonV4Readiness({
+      readConfigured: true,
+      rpcOk: true,
+      adapterHasCode: Boolean(adapterCode && adapterCode !== "0x"),
+      sinkHasCode: Boolean(sinkCode && sinkCode !== "0x"),
+      adapterBondUSDC,
+      minBondUSDC,
+      generationWriteAllowlisted: declaredCurrentGeneration && current.canonicalWriteAllowlisted,
+      generationSourceVerified: declaredCurrentGeneration && current.sourceVerified,
+      actualEnforcer,
+      expectedEnforcer: current.bondedEnforcer,
+      actualSink,
+      expectedSink: current.v4StyleSink,
+      sinkAdapter,
+      expectedAdapter: current.v4StyleAdapter,
+      sinkRecoverable: declaredCurrentGeneration && current.sinkRecoverable,
+    });
+  } catch {
+    return classifyLeptonV4Readiness({
+      readConfigured: true,
+      rpcOk: false,
+      adapterHasCode: false,
+      sinkHasCode: false,
+      adapterBondUSDC: 0n,
+      minBondUSDC: 0n,
+      generationWriteAllowlisted: false,
+      generationSourceVerified: false,
+      sinkRecoverable: false,
+    });
+  }
+}
+
+function sameAddress(left: Address, right: Address): boolean {
+  return left.toLowerCase() === right.toLowerCase();
 }
 
 async function fetchMorphoLeptonState(adapter: Address) {

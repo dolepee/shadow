@@ -38,6 +38,7 @@
     "float:loop": "node app/scripts/float-loop.mjs",
     "treasury:spike": "node app/scripts/treasury-operator-spike.mjs",
     "treasury:verify-live": "node app/scripts/treasury-verify-live.mjs",
+    "lepton:readiness:test": "node --test app/scripts/lepton-readiness.test.mjs",
     "forum:canary-verify": "node app/scripts/forum-canary-verify.mjs",
     "extract:addresses": "node scripts/extract-addresses.mjs"
   }

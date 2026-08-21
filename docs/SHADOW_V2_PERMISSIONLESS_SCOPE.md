@@ -217,8 +217,8 @@ becomes a lead proof.
 
 ### Bond Scope
 
-- Bond currently covers receipt liveness, not fund correctness.
-- Wording must say "bonded receipt liveness" unless the bond can be slashed for unauthorized transfer, missing receipt, or
+- The enforcer exposes a missing-receipt commitment/slashing mechanism, but the synchronous style adapters do not call `commitAction`; do not claim their receipt liveness is bonded.
+- Wording may say "bonded receipt liveness" only after the production path commits actions and the bond can be slashed for unauthorized transfer, missing receipt, or
   policy violation.
 - Stretch: extend challenge/slashing to cover adapter receipt mismatch where onchain transfer evidence contradicts the
   receipt.
