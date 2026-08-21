@@ -23,7 +23,6 @@ contract ShadowFloatMainnet {
         LINE_EXPIRED,
         PROVIDER_NOT_ALLOWED,
         ENDPOINT_NOT_ALLOWED,
-        ACTIVE_DEBT,
         PROTOCOL_CAP,
         LINE_RESERVE_CAP,
         LINE_SPEND_CAP,
@@ -509,6 +508,7 @@ contract ShadowFloatMainnet {
         if (nonceUsed[intent.lineId][intent.nonce] || nonceCancelled[intent.lineId][intent.nonce]) {
             revert NonceUnavailable();
         }
+        if (line.state == LineState.DRAWN) revert InvalidState();
 
         bytes32 digest = hashSpendIntent(intent);
         if (receiptStatus[digest] != 0) revert NonceUnavailable();
@@ -629,7 +629,6 @@ contract ShadowFloatMainnet {
         if (block.timestamp > line.expiry) return BlockReason.LINE_EXPIRED;
         if (!policy.active || block.timestamp > policy.expiry) return BlockReason.PROVIDER_NOT_ALLOWED;
         if (intent.endpointHash != policy.endpointHash) return BlockReason.ENDPOINT_NOT_ALLOWED;
-        if (line.state == LineState.DRAWN) return BlockReason.ACTIVE_DEBT;
         if (totalCommittedCapital > effectiveLimits.protocolReserve) return BlockReason.PROTOCOL_CAP;
         if (line.reserveCap > effectiveLimits.lineReserve || intent.principal > line.availableReserve) {
             return BlockReason.LINE_RESERVE_CAP;

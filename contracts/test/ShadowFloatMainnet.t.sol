@@ -330,6 +330,23 @@ contract ShadowFloatMainnetTest {
         _assertEq(uint256(reason), uint256(ShadowFloatMainnet.BlockReason.LINE_SPEND_CAP), "wrong cap reason");
     }
 
+    function testSecondDrawRevertsWithoutConsumingQueuedAuthorization() public {
+        bytes32 lineId = _open(sponsor, agent);
+        ShadowFloatMainnet.SpendIntent memory first = _intent(lineId, sponsor, agent, 1 * USDC, 22);
+        ShadowFloatMainnet.SpendIntent memory queued = _intent(lineId, sponsor, agent, 1 * USDC, 23);
+        bytes memory queuedSignature = _sign(AGENT_PK, queued);
+        float.executeSpend(first, _sign(AGENT_PK, first));
+
+        _assertSpendReverts(queued, queuedSignature, "second active draw succeeded");
+        _assertTrue(!float.nonceUsed(lineId, queued.nonce), "active debt consumed queued nonce");
+        _assertEq(float.receiptStatus(float.hashSpendIntent(queued)), 0, "active debt wrote a terminal receipt");
+
+        vm.prank(agent);
+        float.repay(lineId, 1 * USDC);
+        (bool paid,) = float.executeSpend(queued, queuedSignature);
+        _assertTrue(paid, "queued intent unusable after repayment");
+    }
+
     function testPolicyBlockConsumesNonceAndCannotPayAfterUnpause() public {
         bytes32 lineId = _open(sponsor, agent);
         ShadowFloatMainnet.SpendIntent memory intent = _intent(lineId, sponsor, agent, 1 * USDC, 30);
