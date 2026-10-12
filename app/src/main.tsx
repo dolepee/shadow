@@ -7919,6 +7919,13 @@ function SiteFooter() {
         { label: "Source on GitHub", href: "https://github.com/dolepee/shadow" },
       ],
     },
+    {
+      title: "Connect",
+      links: [
+        { label: "Email Shadow", href: "mailto:contact@shadowbuild.xyz" },
+        { label: "X · @ShadowOnArc", href: "https://x.com/ShadowOnArc" },
+      ],
+    },
   ];
 
   return (
@@ -7943,9 +7950,14 @@ function SiteFooter() {
             <div className="siteFooterColumn" key={s.title}>
               <span className="siteFooterColumnTitle">{s.title}</span>
               {s.links.map((l) => {
-                if (l.href.startsWith("http") || l.href.startsWith("/api")) {
+                if (l.href.startsWith("http") || l.href.startsWith("mailto:") || l.href.startsWith("/api")) {
                   return (
-                    <a key={l.label} href={l.href} target="_blank" rel="noreferrer">
+                    <a
+                      key={l.label}
+                      href={l.href}
+                      target={l.href.startsWith("mailto:") ? undefined : "_blank"}
+                      rel={l.href.startsWith("mailto:") ? undefined : "noreferrer"}
+                    >
                       {l.label}
                     </a>
                   );
